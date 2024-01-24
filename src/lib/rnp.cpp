@@ -80,11 +80,6 @@ static pgp_key_t *get_key_require_public(rnp_key_handle_t handle);
 static pgp_key_t *get_key_prefer_public(rnp_key_handle_t handle);
 static pgp_key_t *get_key_require_secret(rnp_key_handle_t handle);
 
-static bool locator_to_str(const pgp_key_search_t &locator,
-                           const char **           identifier_type,
-                           char *                  identifier,
-                           size_t                  identifier_size);
-
 static bool rnp_password_cb_bounce(const pgp_password_ctx_t *ctx,
                                    char *                    password,
                                    size_t                    password_size,
@@ -93,27 +88,22 @@ static bool rnp_password_cb_bounce(const pgp_password_ctx_t *ctx,
 static rnp_result_t rnp_dump_src_to_json(pgp_source_t *src, uint32_t flags, char **result);
 
 static bool
-call_key_callback(rnp_ffi_t ffi, const pgp_key_search_t &search, bool secret)
+call_key_callback(rnp_ffi_t ffi, const rnp::KeySearch &search, bool secret)
 {
     if (!ffi->getkeycb) {
         return false;
     }
-    char        identifier[RNP_LOCATOR_MAX_SIZE];
-    const char *identifier_type = NULL;
-    if (!locator_to_str(search, &identifier_type, identifier, sizeof(identifier))) {
-        return false;
-    }
-
-    ffi->getkeycb(ffi, ffi->getkeycb_ctx, identifier_type, identifier, secret);
+    ffi->getkeycb(
+      ffi, ffi->getkeycb_ctx, search.name().c_str(), search.value().c_str(), secret);
     return true;
 }
 
 static pgp_key_t *
-find_key(rnp_ffi_t               ffi,
-         const pgp_key_search_t &search,
-         bool                    secret,
-         bool                    try_key_provider,
-         pgp_key_t *             after = NULL)
+find_key(rnp_ffi_t             ffi,
+         const rnp::KeySearch &search,
+         bool                  secret,
+         bool                  try_key_provider,
+         pgp_key_t *           after = NULL)
 {
     auto       ks = secret ? ffi->secring : ffi->pubring;
     pgp_key_t *key = ks->search(search, after);
@@ -249,12 +239,6 @@ static const id_str_pair key_flags_map[] = {
   {PGP_KF_SHARED, "shared"},
   {0, NULL},
 };
-
-static const id_str_pair identifier_type_map[] = {{PGP_KEY_SEARCH_USERID, "userid"},
-                                                  {PGP_KEY_SEARCH_KEYID, "keyid"},
-                                                  {PGP_KEY_SEARCH_FINGERPRINT, "fingerprint"},
-                                                  {PGP_KEY_SEARCH_GRIP, "grip"},
-                                                  {0, NULL}};
 
 static const id_str_pair key_server_prefs_map[] = {{PGP_KEY_SERVER_NO_MODIFY, "no-modify"},
                                                    {0, NULL}};
@@ -3287,8 +3271,12 @@ ffi_decrypt_key_provider(const pgp_key_request_ctx_t *ctx, void *userdata)
     rnp_decryption_kp_param_t *kparam = (rnp_decryption_kp_param_t *) userdata;
 
     auto ffi = kparam->op->ffi;
-    bool hidden = ctx->secret && (ctx->search.type == PGP_KEY_SEARCH_KEYID) &&
-                  (ctx->search.by.keyid == pgp_key_id_t({}));
+    bool hidden = false;
+    if (ctx->secret && (ctx->search.type() == rnp::KeySearch::Type::KeyID)) {
+        auto ksearch = dynamic_cast<const rnp::KeyIDSearch *>(&ctx->search);
+        assert(ksearch != nullptr);
+        hidden = ksearch->hidden();
+    }
     /* default to the FFI key provider if not hidden keyid request */
     if (!hidden) {
         return ffi->key_provider.callback(ctx, ffi->key_provider.userdata);
@@ -3739,118 +3727,10 @@ try {
 FFI_GUARD
 
 static rnp_result_t
-str_to_locator(rnp_ffi_t         ffi,
-               pgp_key_search_t *locator,
-               const char *      identifier_type,
-               const char *      identifier)
-{
-    // parse the identifier type
-    locator->type = static_cast<pgp_key_search_type_t>(
-      id_str_pair::lookup(identifier_type_map, identifier_type, PGP_KEY_SEARCH_UNKNOWN));
-    if (locator->type == PGP_KEY_SEARCH_UNKNOWN) {
-        FFI_LOG(ffi, "Invalid identifier type: %s", identifier_type);
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-    // see what type we have
-    size_t idlen = strlen(identifier);
-    switch (locator->type) {
-    case PGP_KEY_SEARCH_USERID:
-        if (snprintf(locator->by.userid, sizeof(locator->by.userid), "%s", identifier) >=
-            (int) sizeof(locator->by.userid)) {
-            FFI_LOG(ffi, "UserID too long");
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
-        break;
-    case PGP_KEY_SEARCH_KEYID: {
-        if (idlen != (PGP_KEY_ID_SIZE * 2) ||
-            !rnp::hex_decode(identifier, locator->by.keyid.data(), locator->by.keyid.size())) {
-            FFI_LOG(ffi, "Invalid keyid: %s", identifier);
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
-    } break;
-    case PGP_KEY_SEARCH_FINGERPRINT: {
-#if defined(ENABLE_CRYPTO_REFRESH)
-        static_assert(PGP_FINGERPRINT_V5_SIZE == PGP_FINGERPRINT_V6_SIZE, "FP size mismatch.");
-#endif
-        // Note: v2/v3 fingerprint are 16 bytes (32 chars) long.
-        if ((idlen != PGP_FINGERPRINT_V4_SIZE * 2) && (idlen != 32) &&
-            (idlen != PGP_FINGERPRINT_V5_SIZE * 2)) {
-            FFI_LOG(ffi, "Invalid fingerprint: %s", identifier);
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
-        locator->by.fingerprint.length = rnp::hex_decode(
-          identifier, locator->by.fingerprint.fingerprint, PGP_MAX_FINGERPRINT_SIZE);
-        if (!locator->by.fingerprint.length) {
-            FFI_LOG(ffi, "Invalid fingerprint: %s", identifier);
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
-    } break;
-    case PGP_KEY_SEARCH_GRIP: {
-        if (strlen(identifier) != (PGP_KEY_GRIP_SIZE * 2) ||
-            !rnp::hex_decode(identifier, locator->by.grip.data(), locator->by.grip.size())) {
-            FFI_LOG(ffi, "Invalid grip: %s", identifier);
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
-    } break;
-    default:
-        // should never happen
-        assert(false);
-        return RNP_ERROR_BAD_STATE;
-    }
-    return RNP_SUCCESS;
-}
-
-static bool
-locator_to_str(const pgp_key_search_t &locator,
-               const char **           identifier_type,
-               char *                  identifier,
-               size_t                  identifier_size)
-{
-    // find the identifier type string with the map
-    *identifier_type = id_str_pair::lookup(identifier_type_map, locator.type, NULL);
-    if (!*identifier_type) {
-        return false;
-    }
-    // fill in the actual identifier
-    switch (locator.type) {
-    case PGP_KEY_SEARCH_USERID:
-        if (snprintf(identifier, identifier_size, "%s", locator.by.userid) >=
-            (int) identifier_size) {
-            return false;
-        }
-        break;
-    case PGP_KEY_SEARCH_KEYID:
-        if (!rnp::hex_encode(
-              locator.by.keyid.data(), locator.by.keyid.size(), identifier, identifier_size)) {
-            return false;
-        }
-        break;
-    case PGP_KEY_SEARCH_FINGERPRINT:
-        if (!rnp::hex_encode(locator.by.fingerprint.fingerprint,
-                             locator.by.fingerprint.length,
-                             identifier,
-                             identifier_size)) {
-            return false;
-        }
-        break;
-    case PGP_KEY_SEARCH_GRIP:
-        if (!rnp::hex_encode(
-              locator.by.grip.data(), locator.by.grip.size(), identifier, identifier_size)) {
-            return false;
-        }
-        break;
-    default:
-        assert(false);
-        return false;
-    }
-    return true;
-}
-
-static rnp_result_t
-rnp_locate_key_int(rnp_ffi_t               ffi,
-                   const pgp_key_search_t &locator,
-                   rnp_key_handle_t *      handle,
-                   bool                    require_secret = false)
+rnp_locate_key_int(rnp_ffi_t             ffi,
+                   const rnp::KeySearch &locator,
+                   rnp_key_handle_t *    handle,
+                   bool                  require_secret = false)
 {
     // search pubring
     pgp_key_t *pub = ffi->pubring->search(locator);
@@ -3863,10 +3743,7 @@ rnp_locate_key_int(rnp_ffi_t               ffi,
     }
 
     if (pub || sec) {
-        *handle = new (std::nothrow) rnp_key_handle_st(ffi, pub, sec);
-        if (!*handle) {
-            return RNP_ERROR_OUT_OF_MEMORY;
-        }
+        *handle = new rnp_key_handle_st(ffi, pub, sec);
     } else {
         *handle = nullptr;
     }
@@ -3885,13 +3762,11 @@ try {
     }
 
     // figure out the identifier type
-    pgp_key_search_t locator;
-    rnp_result_t     ret = str_to_locator(ffi, &locator, identifier_type, identifier);
-    if (ret) {
-        return ret;
+    auto search = rnp::KeySearch::create(identifier_type, identifier);
+    if (!search) {
+        return RNP_ERROR_BAD_PARAMETERS;
     }
-
-    return rnp_locate_key_int(ffi, locator, handle);
+    return rnp_locate_key_int(ffi, *search, handle);
 }
 FFI_GUARD
 
@@ -5002,14 +4877,13 @@ try {
             return RNP_ERROR_BAD_STATE;
         }
 
-        pgp_key_search_t locator;
-        rnp_result_t     tmpret = str_to_locator(ffi, &locator, identifier_type, identifier);
-        if (tmpret) {
-            return tmpret;
+        auto search = rnp::KeySearch::create(identifier_type, identifier);
+        if (!search) {
+            return RNP_ERROR_BAD_PARAMETERS;
         }
 
-        prim_pub = ffi->pubring->search(locator);
-        prim_sec = ffi->secring->search(locator);
+        prim_pub = ffi->pubring->search(*search);
+        prim_sec = ffi->secring->search(*search);
         if (!prim_sec || !prim_pub) {
             return RNP_ERROR_KEY_NOT_FOUND;
         }
@@ -5842,21 +5716,16 @@ static pgp_key_t *
 get_key_require_public(rnp_key_handle_t handle)
 {
     if (!handle->pub && handle->sec) {
-        pgp_key_request_ctx_t request;
-        request.secret = false;
-
         // try fingerprint
-        request.search.type = PGP_KEY_SEARCH_FINGERPRINT;
-        request.search.by.fingerprint = handle->sec->fp();
-        handle->pub = handle->ffi->key_provider.request_key(request);
+        rnp::KeyFingerprintSearch fpsrch(handle->sec->fp());
+        handle->pub = handle->ffi->key_provider.request_key(fpsrch);
         if (handle->pub) {
             return handle->pub;
         }
 
         // try keyid
-        request.search.type = PGP_KEY_SEARCH_KEYID;
-        request.search.by.keyid = handle->sec->keyid();
-        handle->pub = handle->ffi->key_provider.request_key(request);
+        rnp::KeyIDSearch idsrch(handle->sec->keyid());
+        handle->pub = handle->ffi->key_provider.request_key(idsrch);
     }
     return handle->pub;
 }
@@ -5872,21 +5741,16 @@ static pgp_key_t *
 get_key_require_secret(rnp_key_handle_t handle)
 {
     if (!handle->sec && handle->pub) {
-        pgp_key_request_ctx_t request;
-        request.secret = true;
-
         // try fingerprint
-        request.search.type = PGP_KEY_SEARCH_FINGERPRINT;
-        request.search.by.fingerprint = handle->pub->fp();
-        handle->sec = handle->ffi->key_provider.request_key(request);
+        rnp::KeyFingerprintSearch fpsrch(handle->pub->fp());
+        handle->sec = handle->ffi->key_provider.request_key(fpsrch, PGP_OP_UNKNOWN, true);
         if (handle->sec) {
             return handle->sec;
         }
 
         // try keyid
-        request.search.type = PGP_KEY_SEARCH_KEYID;
-        request.search.by.keyid = handle->pub->keyid();
-        handle->sec = handle->ffi->key_provider.request_key(request);
+        rnp::KeyIDSearch idsrch(handle->pub->keyid());
+        handle->sec = handle->ffi->key_provider.request_key(idsrch, PGP_OP_UNKNOWN, true);
     }
     return handle->sec;
 }
@@ -6834,9 +6698,8 @@ try {
     if (idx >= key->subkey_count()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    pgp_key_search_t locator(PGP_KEY_SEARCH_FINGERPRINT);
-    locator.by.fingerprint = key->get_subkey_fp(idx);
-    return rnp_locate_key_int(handle->ffi, locator, subkey);
+    rnp::KeyFingerprintSearch search(key->get_subkey_fp(idx));
+    return rnp_locate_key_int(handle->ffi, search, subkey);
 }
 FFI_GUARD
 
@@ -6886,9 +6749,7 @@ try {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
 
-    pgp_key_search_t search(PGP_KEY_SEARCH_FINGERPRINT);
-    search.by.fingerprint = defkey->fp();
-
+    rnp::KeyFingerprintSearch search(defkey->fp());
     rnp_result_t ret = rnp_locate_key_int(primary_key->ffi, search, default_key, secret);
 
     if (!*default_key && !ret) {
@@ -7231,9 +7092,8 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    pgp_key_search_t search(PGP_KEY_SEARCH_FINGERPRINT);
-    search.by.fingerprint = pkey->primary_fp();
-    pgp_key_t *prim_sec = find_key(key->ffi, search, true, true);
+    rnp::KeyFingerprintSearch search(pkey->primary_fp());
+    pgp_key_t *               prim_sec = find_key(key->ffi, search, true, true);
     if (!prim_sec) {
         FFI_LOG(key->ffi, "Primary secret key not found.");
         return RNP_ERROR_KEY_NOT_FOUND;
@@ -8444,11 +8304,11 @@ static bool
 key_iter_next_item(rnp_identifier_iterator_t it)
 {
     switch (it->type) {
-    case PGP_KEY_SEARCH_KEYID:
-    case PGP_KEY_SEARCH_FINGERPRINT:
-    case PGP_KEY_SEARCH_GRIP:
+    case rnp::KeySearch::Type::KeyID:
+    case rnp::KeySearch::Type::Fingerprint:
+    case rnp::KeySearch::Type::Grip:
         return key_iter_next_key(it);
-    case PGP_KEY_SEARCH_USERID:
+    case rnp::KeySearch::Type::UserID:
         it->uididx++;
         while (it->uididx >= (*it->keyp)->uid_count()) {
             if (!key_iter_next_key(it)) {
@@ -8484,11 +8344,11 @@ static bool
 key_iter_first_item(rnp_identifier_iterator_t it)
 {
     switch (it->type) {
-    case PGP_KEY_SEARCH_KEYID:
-    case PGP_KEY_SEARCH_FINGERPRINT:
-    case PGP_KEY_SEARCH_GRIP:
+    case rnp::KeySearch::Type::KeyID:
+    case rnp::KeySearch::Type::Fingerprint:
+    case rnp::KeySearch::Type::Grip:
         return key_iter_first_key(it);
-    case PGP_KEY_SEARCH_USERID:
+    case rnp::KeySearch::Type::UserID:
         if (!key_iter_first_key(it)) {
             return false;
         }
@@ -8506,42 +8366,26 @@ key_iter_first_item(rnp_identifier_iterator_t it)
     return true;
 }
 
-static bool
-key_iter_get_item(const rnp_identifier_iterator_t it, char *buf, size_t buf_len)
+static std::string
+key_iter_get_item(const rnp_identifier_iterator_t it)
 {
-    const pgp_key_t *key = &**it->keyp;
+    auto &key = **it->keyp;
     switch (it->type) {
-    case PGP_KEY_SEARCH_KEYID: {
-        if (!rnp::hex_encode(key->keyid().data(), key->keyid().size(), buf, buf_len)) {
-            return false;
+    case rnp::KeySearch::Type::KeyID:
+        return rnp::bin_to_hex(key.keyid().data(), key.keyid().size());
+    case rnp::KeySearch::Type::Fingerprint:
+        return rnp::bin_to_hex(key.fp().fingerprint, key.fp().length);
+    case rnp::KeySearch::Type::Grip:
+        return rnp::bin_to_hex(key.grip().data(), key.grip().size());
+    case rnp::KeySearch::Type::UserID:
+        if (it->uididx >= key.uid_count()) {
+            return "";
         }
-        break;
-    }
-    case PGP_KEY_SEARCH_FINGERPRINT:
-        if (!rnp::hex_encode(key->fp().fingerprint, key->fp().length, buf, buf_len)) {
-            return false;
-        }
-        break;
-    case PGP_KEY_SEARCH_GRIP:
-        if (!rnp::hex_encode(key->grip().data(), key->grip().size(), buf, buf_len)) {
-            return false;
-        }
-        break;
-    case PGP_KEY_SEARCH_USERID: {
-        if (it->uididx >= key->uid_count()) {
-            return false;
-        }
-        const pgp_userid_t &uid = key->get_uid(it->uididx);
-        if (uid.str.size() >= buf_len) {
-            return false;
-        }
-        memcpy(buf, uid.str.c_str(), uid.str.size() + 1);
-    } break;
+        return key.get_uid(it->uididx).str;
     default:
         assert(false);
-        break;
+        return "";
     }
-    return true;
 }
 
 rnp_result_t
@@ -8549,51 +8393,25 @@ rnp_identifier_iterator_create(rnp_ffi_t                  ffi,
                                rnp_identifier_iterator_t *it,
                                const char *               identifier_type)
 try {
-    rnp_result_t                       ret = RNP_ERROR_GENERIC;
-    struct rnp_identifier_iterator_st *obj = NULL;
-
     // checks
     if (!ffi || !it || !identifier_type) {
         return RNP_ERROR_NULL_POINTER;
     }
     // create iterator
-    obj = (struct rnp_identifier_iterator_st *) calloc(1, sizeof(*obj));
-    if (!obj) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+    auto type = rnp::KeySearch::find_type(identifier_type);
+    if (type == rnp::KeySearch::Type::Unknown) {
+        return RNP_ERROR_BAD_PARAMETERS;
     }
-    obj->ffi = ffi;
-    obj->keyp = new std::list<pgp_key_t>::iterator();
-    obj->uididx = 0;
-    // parse identifier type
-    obj->type = static_cast<pgp_key_search_type_t>(
-      id_str_pair::lookup(identifier_type_map, identifier_type, PGP_KEY_SEARCH_UNKNOWN));
-    if (obj->type == PGP_KEY_SEARCH_UNKNOWN) {
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto done;
-    }
-    obj->tbl = json_object_new_object();
-    if (!obj->tbl) {
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
-    }
+    *it = new rnp_identifier_iterator_st(ffi, type);
     // move to first item (if any)
-    key_iter_first_item(obj);
-    *it = obj;
-
-    ret = RNP_SUCCESS;
-done:
-    if (ret) {
-        rnp_identifier_iterator_destroy(obj);
-    }
-    return ret;
+    key_iter_first_item(*it);
+    return RNP_SUCCESS;
 }
 FFI_GUARD
 
 rnp_result_t
 rnp_identifier_iterator_next(rnp_identifier_iterator_t it, const char **identifier)
 try {
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
     // checks
     if (!it || !identifier) {
         return RNP_ERROR_NULL_POINTER;
@@ -8605,41 +8423,31 @@ try {
         return RNP_SUCCESS;
     }
     // get the item
-    if (!key_iter_get_item(it, it->buf, sizeof(it->buf))) {
+    it->item = key_iter_get_item(it);
+    if (it->item.empty()) {
         return RNP_ERROR_GENERIC;
     }
     bool exists;
     bool iterator_valid = true;
-    while ((exists = json_object_object_get_ex(it->tbl, it->buf, NULL))) {
+    while ((exists = (it->tbl.find(it->item) != it->tbl.end()))) {
         if (!((iterator_valid = key_iter_next_item(it)))) {
             break;
         }
-        if (!key_iter_get_item(it, it->buf, sizeof(it->buf))) {
+        it->item = key_iter_get_item(it);
+        if (it->item.empty()) {
             return RNP_ERROR_GENERIC;
         }
     }
     // see if we actually found a new entry
     if (!exists) {
-        // TODO: Newer json-c has a useful return value for json_object_object_add,
-        // which doesn't require the json_object_object_get_ex check below.
-        json_object_object_add(it->tbl, it->buf, NULL);
-        if (!json_object_object_get_ex(it->tbl, it->buf, NULL)) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
-        }
-        *identifier = it->buf;
+        it->tbl.insert(it->item);
+        *identifier = it->item.c_str();
     }
     // prepare for the next one
     if (iterator_valid) {
         key_iter_next_item(it);
     }
-    ret = RNP_SUCCESS;
-
-done:
-    if (ret) {
-        *identifier = NULL;
-    }
-    return ret;
+    return RNP_SUCCESS;
 }
 FFI_GUARD
 
@@ -8647,11 +8455,7 @@ rnp_result_t
 rnp_identifier_iterator_destroy(rnp_identifier_iterator_t it)
 try {
     if (it) {
-        json_object_put(it->tbl);
-        if (it->keyp) {
-            delete it->keyp;
-        }
-        free(it);
+        delete it;
     }
     return RNP_SUCCESS;
 }

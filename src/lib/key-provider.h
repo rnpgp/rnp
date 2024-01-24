@@ -31,42 +31,84 @@
 
 typedef struct pgp_key_t pgp_key_t;
 
-typedef enum {
-    PGP_KEY_SEARCH_UNKNOWN,
-    PGP_KEY_SEARCH_KEYID,
-    PGP_KEY_SEARCH_FINGERPRINT,
-    PGP_KEY_SEARCH_GRIP,
-    PGP_KEY_SEARCH_USERID
-} pgp_key_search_type_t;
-
-typedef struct pgp_key_search_t {
-    pgp_key_search_type_t type;
-    union {
-        pgp_key_id_t      keyid;
-        pgp_key_grip_t    grip;
-        pgp_fingerprint_t fingerprint;
-        char              userid[MAX_ID_LENGTH + 1];
-    } by;
-
-    pgp_key_search_t(pgp_key_search_type_t atype = PGP_KEY_SEARCH_UNKNOWN) : type(atype){};
-} pgp_key_search_t;
-
-typedef struct pgp_key_request_ctx_t {
-    pgp_op_t         op;
-    bool             secret;
-    pgp_key_search_t search;
-
-    pgp_key_request_ctx_t(pgp_op_t              anop = PGP_OP_UNKNOWN,
-                          bool                  sec = false,
-                          pgp_key_search_type_t tp = PGP_KEY_SEARCH_UNKNOWN)
-        : op(anop), secret(sec), search(tp)
-    {
-    }
-} pgp_key_request_ctx_t;
+typedef struct pgp_key_request_ctx_t pgp_key_request_ctx_t;
 
 typedef pgp_key_t *pgp_key_callback_t(const pgp_key_request_ctx_t *ctx, void *userdata);
 
 namespace rnp {
+
+class KeySearch {
+  public:
+    enum class Type { Unknown, KeyID, Fingerprint, Grip, UserID };
+    static Type find_type(const std::string &name);
+
+    virtual Type
+    type() const
+    {
+        return type_;
+    }
+    virtual bool              matches(const pgp_key_t &key) const = 0;
+    virtual const std::string name() const = 0;
+    virtual std::string       value() const = 0;
+    virtual ~KeySearch() = default;
+
+    static std::unique_ptr<KeySearch> create(const pgp_key_id_t &keyid);
+    static std::unique_ptr<KeySearch> create(const pgp_fingerprint_t &fp);
+    static std::unique_ptr<KeySearch> create(const pgp_key_grip_t &grip);
+    static std::unique_ptr<KeySearch> create(const std::string &uid);
+    static std::unique_ptr<KeySearch> create(const std::string &name,
+                                             const std::string &value);
+
+  protected:
+    Type type_;
+};
+
+class KeyIDSearch : public KeySearch {
+    pgp_key_id_t keyid_;
+
+  public:
+    bool              matches(const pgp_key_t &key) const;
+    const std::string name() const;
+    std::string       value() const;
+    bool              hidden() const;
+
+    KeyIDSearch(const pgp_key_id_t &keyid);
+};
+
+class KeyFingerprintSearch : public KeySearch {
+    pgp_fingerprint_t fp_;
+
+  public:
+    bool              matches(const pgp_key_t &key) const;
+    const std::string name() const;
+    std::string       value() const;
+
+    KeyFingerprintSearch(const pgp_fingerprint_t &fp);
+    const pgp_fingerprint_t &get_fp() const;
+};
+
+class KeyGripSearch : public KeySearch {
+    pgp_key_grip_t grip_;
+
+  public:
+    bool              matches(const pgp_key_t &key) const;
+    const std::string name() const;
+    std::string       value() const;
+
+    KeyGripSearch(const pgp_key_grip_t &grip);
+};
+
+class KeyUIDSearch : public KeySearch {
+    std::string uid_;
+
+  public:
+    bool              matches(const pgp_key_t &key) const;
+    const std::string name() const;
+    std::string       value() const;
+
+    KeyUIDSearch(const std::string &uid);
+};
+
 class KeyProvider {
   public:
     pgp_key_callback_t *callback;
@@ -75,14 +117,28 @@ class KeyProvider {
     KeyProvider(pgp_key_callback_t *cb = nullptr, void *ud = nullptr)
         : callback(cb), userdata(ud){};
 
-    /** @brief request public or secret pgp key, according to information stored in ctx
-     *  @param ctx information about the request - which operation requested the key, which
-     *search criteria should be used and whether secret or public key is needed
+    /** @brief request public or secret pgp key, according to parameters
+     *  @param search search object
+     *  @param op for which operation key is requested
+     *  @param secret whether secret key is requested
      *  @return a key pointer on success, or nullptr if key was not found otherwise
      **/
-    pgp_key_t *request_key(const pgp_key_request_ctx_t &ctx) const;
+    pgp_key_t *request_key(const KeySearch &search,
+                           pgp_op_t         op = PGP_OP_UNKNOWN,
+                           bool             secret = false) const;
 };
 } // namespace rnp
+
+typedef struct pgp_key_request_ctx_t {
+    pgp_op_t              op;
+    bool                  secret;
+    const rnp::KeySearch &search;
+
+    pgp_key_request_ctx_t(pgp_op_t anop, bool sec, const rnp::KeySearch &srch)
+        : op(anop), secret(sec), search(srch)
+    {
+    }
+} pgp_key_request_ctx_t;
 
 /** key provider callback that searches a list of pgp_key_t pointers
  *

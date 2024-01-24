@@ -29,6 +29,7 @@
 #include <json.h>
 #include "utils.h"
 #include <list>
+#include <unordered_set>
 #include <crypto/mem.h>
 #include "sec_profile.hpp"
 
@@ -223,12 +224,25 @@ static_assert(RNP_LOCATOR_MAX_SIZE > MAX_ID_LENGTH, "Locator size mismatch.");
 
 struct rnp_identifier_iterator_st {
     rnp_ffi_t                       ffi;
-    pgp_key_search_type_t           type;
+    rnp::KeySearch::Type            type;
     rnp::KeyStore *                 store;
     std::list<pgp_key_t>::iterator *keyp;
-    unsigned                        uididx;
-    json_object *                   tbl;
-    char                            buf[RNP_LOCATOR_MAX_SIZE];
+    size_t                          uididx;
+    std::unordered_set<std::string> tbl;
+    std::string                     item;
+
+    rnp_identifier_iterator_st(rnp_ffi_t affi, rnp::KeySearch::Type atype)
+        : ffi(affi), type(atype)
+    {
+        store = nullptr;
+        keyp = new std::list<pgp_key_t>::iterator();
+        uididx = 0;
+    }
+
+    ~rnp_identifier_iterator_st()
+    {
+        delete keyp;
+    }
 };
 
 struct rnp_decryption_kp_param_t {

@@ -456,10 +456,9 @@ find_suitable_key(pgp_op_t op, pgp_key_t *key, rnp::KeyProvider *key_provider, b
         return key;
     }
     /* Check for the case when we need to look up for a secret key */
-    pgp_key_request_ctx_t ctx(op, secret, PGP_KEY_SEARCH_FINGERPRINT);
     if (!no_primary && secret && key->is_public() && key->usable_for(op, true)) {
-        ctx.search.by.fingerprint = key->fp();
-        pgp_key_t *sec = key_provider->request_key(ctx);
+        rnp::KeyFingerprintSearch search(key->fp());
+        pgp_key_t *               sec = key_provider->request_key(search, op, secret);
         if (sec && sec->usable_for(op)) {
             return sec;
         }
@@ -467,8 +466,8 @@ find_suitable_key(pgp_op_t op, pgp_key_t *key, rnp::KeyProvider *key_provider, b
     /* Now look up for subkeys */
     pgp_key_t *subkey = NULL;
     for (auto &fp : key->subkey_fps()) {
-        ctx.search.by.fingerprint = fp;
-        pgp_key_t *cur = key_provider->request_key(ctx);
+        rnp::KeyFingerprintSearch search(fp);
+        pgp_key_t *               cur = key_provider->request_key(search, op, secret);
         if (!cur || !cur->usable_for(op)) {
             continue;
         }
@@ -1804,28 +1803,6 @@ pgp_key_t::write_vec() const
     rnp::MemoryDest dst;
     write(dst.dst());
     return dst.to_vector();
-}
-
-bool
-pgp_key_t::matches(const pgp_key_search_t &search) const
-{
-    switch (search.type) {
-    case PGP_KEY_SEARCH_KEYID:
-        return (keyid() == search.by.keyid) || (search.by.keyid == pgp_key_id_t({}));
-    case PGP_KEY_SEARCH_FINGERPRINT:
-        return fp() == search.by.fingerprint;
-    case PGP_KEY_SEARCH_GRIP:
-        return grip() == search.by.grip;
-    case PGP_KEY_SEARCH_USERID:
-        if (has_uid(search.by.userid)) {
-            return true;
-        }
-        break;
-    default:
-        assert(false);
-        break;
-    }
-    return false;
 }
 
 /* look only for primary userids */
