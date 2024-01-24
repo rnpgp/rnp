@@ -1,0 +1,86 @@
+name: centos-and-fedora
+on:
+  push:
+    branches:
+      - main
+      - maxirmx-timemachine-2183
+  workflow_dispatch:
+  schedule:
+    - cron: "03 15 * * 6"
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
+
+env:
+  RNP_LOG_CONSOLE: 1
+
+jobs:
+  tests:
+    name: ${{ matrix.image.name }} [CC ${{ matrix.env.CC }}; backend ${{ matrix.image.backend }} ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - { CC: clang, CXX: clang++   }
+
+# Pls refer to https://github.com/rnpgp/rnp-ci-containers#readme for image details
+        image:
+          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan'   }
+          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'OpenSSL' }
+        date-offset:
+          - '0 years'
+          - '1 year'
+          - '5 years'
+
+    container: ghcr.io/rnpgp/ci-rnp-${{ matrix.image.container }}
+
+    env: ${{ matrix.env }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: Setup environment
+        run: |
+          set -o errexit -o pipefail -o noclobber -o nounset
+
+          /opt/tools/tools.sh select_crypto_backend_for_gha ${{ matrix.image.backend }}
+          /opt/tools/tools.sh select_gpg_version_for_gha 'system'
+          /opt/tools/tools.sh select_botan_version_for_gha 'system'
+
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+
+          useradd rnpuser
+          printf "\nrnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
+          printf "\nrnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
+
+      - name: Configure
+        run: |
+          cmake -B build                                           \
+                -DBUILD_SHARED_LIBS=ON                             \
+                -DDOWNLOAD_GTEST=ON                                \
+                -DCMAKE_BUILD_TYPE=Release                         \
+                -DCRYPTO_BACKEND=${{ matrix.image.backend }}
+
+      - name: Build
+        run: cmake --build build --parallel ${{ env.CORES }}
+
+      - name: Install libfaketime
+        run: dnf -y install libfaketime
+
+      - name: Test
+        run: |
+          set -o errexit -o pipefail -o noclobber -o nounset
+          adjusted_date=$(date -d '${{ matrix.date-offset }}' '+%Y-%m-%d')
+          export FAKETIME="@$adjusted_date 00:00:00"
+          test_adjusted_date=$(LD_PRELOAD=/usr/lib64/faketime/libfaketime.so.1 date '+%Y-%m-%d')
+          echo Running tests for "$test_adjusted_date"
+          mkdir -p "build/Testing/Temporary"
+          cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
+          export PATH="$PWD/build/src/lib:$PATH"
+          chown -R rnpuser:rnpuser $PWD
+          exec su rnpuser -c "LD_PRELOAD=/usr/lib64/faketime/libfaketime.so.1 ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure"
