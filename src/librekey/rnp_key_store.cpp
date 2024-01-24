@@ -633,11 +633,13 @@ KeyStore::primary_key(const pgp_key_t &subkey)
 }
 
 pgp_key_t *
-KeyStore::search(const pgp_key_search_t &search, pgp_key_t *after)
+KeyStore::search(const KeySearch &search, pgp_key_t *after)
 {
     // since keys are distinguished by fingerprint then just do map lookup
-    if (search.type == PGP_KEY_SEARCH_FINGERPRINT) {
-        pgp_key_t *key = get_key(search.by.fingerprint);
+    if (search.type() == KeySearch::Type::Fingerprint) {
+        auto fpsearch = dynamic_cast<const KeyFingerprintSearch *>(&search);
+        assert(fpsearch != nullptr);
+        auto key = get_key(fpsearch->get_fp());
         if (after && (after != key)) {
             RNP_LOG("searching with invalid after param");
             return nullptr;
@@ -658,31 +660,29 @@ KeyStore::search(const pgp_key_search_t &search, pgp_key_t *after)
         it = std::next(it);
     }
     it = std::find_if(
-      it, keys.end(), [&search](const pgp_key_t &key) { return key.matches(search); });
+      it, keys.end(), [&search](const pgp_key_t &key) { return search.matches(key); });
     return (it == keys.end()) ? nullptr : &(*it);
 }
 
 pgp_key_t *
 KeyStore::get_signer(const pgp_signature_t &sig, const KeyProvider *prov)
 {
-    pgp_key_request_ctx_t ctx(PGP_OP_VERIFY, false, PGP_KEY_SEARCH_UNKNOWN);
     /* if we have fingerprint let's check it */
+    std::unique_ptr<KeySearch> ks;
     if (sig.has_keyfp()) {
-        ctx.search.by.fingerprint = sig.keyfp();
-        ctx.search.type = PGP_KEY_SEARCH_FINGERPRINT;
+        ks = KeySearch::create(sig.keyfp());
     } else if (sig.has_keyid()) {
-        ctx.search.by.keyid = sig.keyid();
-        ctx.search.type = PGP_KEY_SEARCH_KEYID;
+        ks = KeySearch::create(sig.keyid());
     } else {
         RNP_LOG("No way to search for the signer.");
         return nullptr;
     }
 
-    pgp_key_t *key = search(ctx.search);
+    auto key = search(*ks);
     if (key || !prov) {
         return key;
     }
-    return prov->request_key(ctx);
+    return prov->request_key(*ks, PGP_OP_VERIFY);
 }
 
 KeyStore::KeyStore(pgp_key_store_format_t _format,

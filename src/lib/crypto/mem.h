@@ -36,6 +36,7 @@
 #elif defined(CRYPTO_BACKEND_OPENSSL)
 #include <openssl/crypto.h>
 #endif
+#include "str-utils.h"
 
 namespace rnp {
 
@@ -158,6 +159,27 @@ bool   hex_encode(const uint8_t *buf,
                   size_t         hex_len,
                   HexFormat      format = HexFormat::Uppercase);
 size_t hex_decode(const char *hex, uint8_t *buf, size_t buf_len);
+
+inline std::string
+bin_to_hex(const uint8_t *data, size_t len, HexFormat format = rnp::HexFormat::Uppercase)
+{
+    std::string res(len * 2 + 1, '\0');
+    hex_encode(data, len, &res.front(), res.size(), format);
+    return res;
+}
+
+inline std::vector<uint8_t>
+hex_to_bin(const std::string &str)
+{
+    if (str.empty() || !rnp::is_hex(str)) {
+        return {};
+    }
+    /* 1 extra char for case of non-even input , 1 for terminating zero */
+    std::vector<uint8_t> res(str.size() / 2 + 2);
+    size_t               len = rnp::hex_decode(str.c_str(), res.data(), res.size());
+    res.resize(len);
+    return res;
+}
 
 } // namespace rnp
 

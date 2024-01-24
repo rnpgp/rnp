@@ -247,7 +247,7 @@ class KeyStore {
      */
     pgp_key_t *primary_key(const pgp_key_t &subkey);
 
-    pgp_key_t *search(const pgp_key_search_t &search, pgp_key_t *after = nullptr);
+    pgp_key_t *search(const KeySearch &search, pgp_key_t *after = nullptr);
 };
 } // namespace rnp
 
