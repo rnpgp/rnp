@@ -862,25 +862,22 @@ signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t
         return;
     }
     /* Find signing key */
-    pgp_key_request_ctx_t keyctx(PGP_OP_VERIFY, false, PGP_KEY_SEARCH_FINGERPRINT);
-
+    std::unique_ptr<rnp::KeySearch> search;
     /* Get signer's fp or keyid */
     if (sinfo.sig->has_keyfp()) {
-        keyctx.search.by.fingerprint = sinfo.sig->keyfp();
+        search = rnp::KeySearch::create(sinfo.sig->keyfp());
     } else if (sinfo.sig->has_keyid()) {
-        keyctx.search.type = PGP_KEY_SEARCH_KEYID;
-        keyctx.search.by.keyid = sinfo.sig->keyid();
+        search = rnp::KeySearch::create(sinfo.sig->keyid());
     } else {
         RNP_LOG("cannot get signer's key fp or id from signature.");
         sinfo.unknown = true;
         return;
     }
     /* Get the public key */
-    pgp_key_t *key = param.handler->key_provider->request_key(keyctx);
+    auto key = param.handler->key_provider->request_key(*search, PGP_OP_VERIFY);
     if (!key) {
         /* fallback to secret key */
-        keyctx.secret = true;
-        if (!(key = param.handler->key_provider->request_key(keyctx))) {
+        if (!(key = param.handler->key_provider->request_key(*search, PGP_OP_VERIFY, true))) {
             RNP_LOG("signer's key not found");
             sinfo.no_signer = true;
             return;
@@ -2398,26 +2395,24 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             goto finish;
         }
 
-        pgp_key_request_ctx_t keyctx(PGP_OP_DECRYPT, true, PGP_KEY_SEARCH_KEYID);
-
         size_t pubidx = 0;
         size_t hidden_tries = 0;
         errcode = RNP_ERROR_NO_SUITABLE_KEY;
         while (pubidx < param->pubencs.size()) {
-            auto &pubenc = param->pubencs[pubidx];
+            auto &                          pubenc = param->pubencs[pubidx];
+            std::unique_ptr<rnp::KeySearch> search;
 #if defined(ENABLE_CRYPTO_REFRESH)
             if (pubenc.version == PGP_PKSK_V3) {
 #endif
-                keyctx.search.by.keyid = pubenc.key_id;
+                search = rnp::KeySearch::create(pubenc.key_id);
 #if defined(ENABLE_CRYPTO_REFRESH)
             } else { // PGP_PKSK_V6
-                keyctx.search.by.fingerprint = pubenc.fp;
-                keyctx.search.type = PGP_KEY_SEARCH_FINGERPRINT;
+                search = rnp::KeySearch::create(pubenc.fp);
             }
 #endif
 
             /* Get the key if any */
-            pgp_key_t *seckey = handler->key_provider->request_key(keyctx);
+            auto seckey = handler->key_provider->request_key(*search, PGP_OP_DECRYPT, true);
             if (!seckey) {
                 pubidx++;
                 continue;

@@ -908,12 +908,12 @@ KeyStore::load_g10(pgp_source_t &src, const KeyProvider *key_provider)
         /* copy public key fields if any */
         pgp_key_t key;
         if (key_provider) {
-            pgp_key_request_ctx_t req_ctx(PGP_OP_MERGE_INFO, false, PGP_KEY_SEARCH_GRIP);
-            if (!seckey.material.get_grip(req_ctx.search.by.grip)) {
+            pgp_key_grip_t grip;
+            if (!seckey.material.get_grip(grip)) {
                 return false;
             }
-
-            const pgp_key_t *pubkey = key_provider->request_key(req_ctx);
+            auto pubkey =
+              key_provider->request_key(*rnp::KeySearch::create(grip), PGP_OP_MERGE_INFO);
             if (!pubkey) {
                 return false;
             }
