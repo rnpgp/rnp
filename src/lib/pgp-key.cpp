@@ -2038,6 +2038,7 @@ pgp_key_t::validate_sig(const pgp_key_t &           key,
                 return;
             }
             validate_direct(sinfo, ctx);
+            break;
         case PGP_SIG_REV_KEY:
             if (!is_signer(sig)) {
                 RNP_LOG("Invalid key revocation signer.");
