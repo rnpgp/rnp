@@ -53,7 +53,6 @@ bool  str_to_int(const std::string &s, int &val);
 bool  is_slash(char c);
 } // namespace rnp
 #ifdef _WIN32
-#include <string>
 std::wstring wstr_from_utf8(const char *s);
 std::wstring wstr_from_utf8(const char *first, const char *last);
 std::wstring wstr_from_utf8(const std::string &s);
