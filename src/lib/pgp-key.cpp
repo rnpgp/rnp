@@ -1752,7 +1752,7 @@ pgp_key_t::write_xfer(pgp_dest_t &dst, const rnp::KeyStore *keyring) const
         if (!subkey) {
             char fphex[PGP_FINGERPRINT_HEX_SIZE] = {0};
             rnp::hex_encode(
-              fp.fingerprint, fp.length, fphex, sizeof(fphex), rnp::HEX_LOWERCASE);
+              fp.fingerprint, fp.length, fphex, sizeof(fphex), rnp::HexFormat::Lowercase);
             RNP_LOG("Warning! Subkey %s not found.", fphex);
             continue;
         }
