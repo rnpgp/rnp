@@ -96,7 +96,7 @@ json_add_hex(json_object *obj, const char *name, const uint8_t *val, size_t val_
         return false;
     }
 
-    bool res = rnp::hex_encode(val, val_len, hexbuf, hexlen, rnp::HEX_LOWERCASE) &&
+    bool res = rnp::hex_encode(val, val_len, hexbuf, hexlen, rnp::HexFormat::Lowercase) &&
                json_add(obj, name, json_object_new_string(hexbuf));
 
     if (hexbuf != smallbuf) {

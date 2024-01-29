@@ -42,7 +42,7 @@ all_keys_valid(const rnp::KeyStore *keyring, pgp_key_t *except = NULL)
                                  key.keyid().size(),
                                  keyid,
                                  sizeof(keyid),
-                                 rnp::HEX_LOWERCASE)) {
+                                 rnp::HexFormat::Lowercase)) {
                 throw std::exception();
             }
             RNP_LOG("key %s is not valid", keyid);

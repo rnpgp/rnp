@@ -513,17 +513,14 @@ parse_ks_format(pgp_key_store_format_t *key_store_format, const char *format)
 }
 
 static rnp_result_t
-hex_encode_value(const uint8_t *   value,
-                 size_t            len,
-                 char **           res,
-                 rnp::hex_format_t format = rnp::HEX_UPPERCASE)
+hex_encode_value(const uint8_t *value, size_t len, char **res)
 {
     size_t hex_len = len * 2 + 1;
     *res = (char *) malloc(hex_len);
     if (!*res) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    if (!rnp::hex_encode(value, len, *res, hex_len, format)) {
+    if (!rnp::hex_encode(value, len, *res, hex_len, rnp::HexFormat::Uppercase)) {
         free(*res);
         *res = NULL;
         return RNP_ERROR_GENERIC;
