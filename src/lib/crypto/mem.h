@@ -150,14 +150,15 @@ template <typename T, std::size_t N> struct secure_array {
     }
 };
 
-typedef enum { HEX_LOWERCASE, HEX_UPPERCASE } hex_format_t;
+enum class HexFormat { Lowercase, Uppercase };
 
 bool   hex_encode(const uint8_t *buf,
                   size_t         buf_len,
                   char *         hex,
                   size_t         hex_len,
-                  hex_format_t   format = HEX_UPPERCASE);
+                  HexFormat      format = HexFormat::Uppercase);
 size_t hex_decode(const char *hex, uint8_t *buf, size_t buf_len);
+
 } // namespace rnp
 
 void secure_clear(void *vp, size_t size);

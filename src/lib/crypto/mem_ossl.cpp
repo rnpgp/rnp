@@ -39,14 +39,14 @@ secure_clear(void *vp, size_t size)
 namespace rnp {
 
 bool
-hex_encode(const uint8_t *buf, size_t buf_len, char *hex, size_t hex_len, hex_format_t format)
+hex_encode(const uint8_t *buf, size_t buf_len, char *hex, size_t hex_len, HexFormat format)
 {
     if (hex_len < (buf_len * 2 + 1)) {
         return false;
     }
     static const char *hex_low = "0123456789abcdef";
     static const char *hex_up = "0123456789ABCDEF";
-    const char *       hex_ch = (format == HEX_LOWERCASE) ? hex_low : hex_up;
+    const char *       hex_ch = (format == HexFormat::Lowercase) ? hex_low : hex_up;
     hex[buf_len * 2] = '\0';
     for (size_t i = 0; i < buf_len; i++) {
         hex[i << 1] = hex_ch[buf[i] >> 4];
