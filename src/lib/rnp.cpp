@@ -223,6 +223,7 @@ static const id_str_pair hash_alg_map[] = {{PGP_HASH_MD5, RNP_ALGNAME_MD5},
                                            {PGP_HASH_SM3, RNP_ALGNAME_SM3},
                                            {0, NULL}};
 
+#if defined(ENABLE_PQC)
 static const id_str_pair sphincsplus_params_map[] = {
     {sphincsplus_simple_128s, "128s"},
     {sphincsplus_simple_128f, "128f"},
@@ -231,6 +232,7 @@ static const id_str_pair sphincsplus_params_map[] = {
     {sphincsplus_simple_256s, "256s"},
     {sphincsplus_simple_256f, "256f"},
     {0, NULL}};
+#endif
 
 static const id_str_pair s2k_type_map[] = {
   {PGP_S2KS_SIMPLE, "Simple"},
@@ -6661,6 +6663,7 @@ try {
 }
 FFI_GUARD
 
+#if defined(ENABLE_PQC)
 rnp_result_t
 rnp_key_sphincsplus_get_param(rnp_key_handle_t handle, char **param)
 try {
@@ -6675,6 +6678,7 @@ try {
     return get_map_value(sphincsplus_params_map, key->material().sphincsplus.pub.param(), param);
 }
 FFI_GUARD
+#endif
 
 rnp_result_t
 rnp_key_get_bits(rnp_key_handle_t handle, uint32_t *bits)
