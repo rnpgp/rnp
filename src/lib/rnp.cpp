@@ -3677,26 +3677,26 @@ try {
 }
 FFI_GUARD
 
+static rnp_key_handle_t
+get_signer_handle(rnp_ffi_t ffi, const pgp_signature_t &sig)
+{
+    // search the stores
+    pgp_key_t *pub = ffi->pubring->get_signer(sig);
+    pgp_key_t *sec = ffi->secring->get_signer(sig);
+    if (!pub && !sec) {
+        return nullptr;
+    }
+    return new rnp_key_handle_st(ffi, pub, sec);
+}
+
 rnp_result_t
 rnp_op_verify_signature_get_key(rnp_op_verify_signature_t sig, rnp_key_handle_t *key)
 try {
-    if (!sig->sig_pkt.has_keyid()) {
-        return RNP_ERROR_BAD_PARAMETERS;
+    if (!sig || !key) {
+        return RNP_ERROR_NULL_POINTER;
     }
-    rnp_ffi_t ffi = sig->ffi;
-    // create a search (since we'll use this later anyways)
-    pgp_key_search_t search(PGP_KEY_SEARCH_KEYID);
-    search.by.keyid = sig->sig_pkt.keyid();
-
-    // search the stores
-    pgp_key_t *pub = ffi->pubring->search(search);
-    pgp_key_t *sec = ffi->secring->search(search);
-    if (!pub && !sec) {
-        return RNP_ERROR_KEY_NOT_FOUND;
-    }
-
-    *key = new rnp_key_handle_st(ffi, pub, sec);
-    return RNP_SUCCESS;
+    *key = get_signer_handle(sig->ffi, sig->sig_pkt);
+    return *key ? RNP_SUCCESS : RNP_ERROR_KEY_NOT_FOUND;
 }
 FFI_GUARD
 
@@ -6552,16 +6552,11 @@ FFI_GUARD
 rnp_result_t
 rnp_signature_get_signer(rnp_signature_handle_t sig, rnp_key_handle_t *key)
 try {
-    if (!sig || !sig->sig) {
+    if (!sig || !sig->sig || !key) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!sig->sig->sig.has_keyid()) {
-        *key = NULL;
-        return RNP_SUCCESS;
-    }
-    pgp_key_search_t locator(PGP_KEY_SEARCH_KEYID);
-    locator.by.keyid = sig->sig->sig.keyid();
-    return rnp_locate_key_int(sig->ffi, locator, key);
+    *key = get_signer_handle(sig->ffi, sig->sig->sig);
+    return RNP_SUCCESS;
 }
 FFI_GUARD
 
