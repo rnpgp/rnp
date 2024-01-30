@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2019 Ribose Inc.
+ * Copyright (c) 2019-2024 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,10 +33,14 @@
 #include "sec_profile.hpp"
 
 struct rnp_key_handle_st {
-    rnp_ffi_t        ffi;
-    pgp_key_search_t locator;
-    pgp_key_t *      pub;
-    pgp_key_t *      sec;
+    rnp_ffi_t  ffi;
+    pgp_key_t *pub;
+    pgp_key_t *sec;
+
+    rnp_key_handle_st(rnp_ffi_t affi, pgp_key_t *apub = nullptr, pgp_key_t *asec = nullptr)
+        : ffi(affi), pub(apub), sec(asec)
+    {
+    }
 };
 
 struct rnp_uid_handle_st {

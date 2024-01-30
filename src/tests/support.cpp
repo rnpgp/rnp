@@ -1275,12 +1275,7 @@ get_key_by_uid(rnp_ffi_t ffi, const char *uid)
 rnp_key_handle_t
 bogus_key_handle(rnp_ffi_t ffi)
 {
-    rnp_key_handle_t handle = (rnp_key_handle_t) calloc(1, sizeof(*handle));
-    handle->ffi = ffi;
-    handle->pub = NULL;
-    handle->sec = NULL;
-    handle->locator.type = PGP_KEY_SEARCH_KEYID;
-    return handle;
+    return new rnp_key_handle_st(ffi);
 }
 
 bool
