@@ -768,9 +768,7 @@ rnp_password_cb_bounce(const pgp_password_ctx_t *ctx,
         return false;
     }
 
-    struct rnp_key_handle_st key = {};
-    key.ffi = ffi;
-    key.sec = (pgp_key_t *) ctx->key;
+    rnp_key_handle_st key(ffi, nullptr, (pgp_key_t *) ctx->key);
     return ffi->getpasscb(ffi,
                           ffi->getpasscb_ctx,
                           ctx->key ? &key : NULL,
@@ -3697,15 +3695,7 @@ try {
         return RNP_ERROR_KEY_NOT_FOUND;
     }
 
-    struct rnp_key_handle_st *handle = (rnp_key_handle_st *) calloc(1, sizeof(*handle));
-    if (!handle) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    handle->ffi = ffi;
-    handle->pub = pub;
-    handle->sec = sec;
-    handle->locator = search;
-    *key = handle;
+    *key = new rnp_key_handle_st(ffi, pub, sec);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -3868,21 +3858,17 @@ rnp_locate_key_int(rnp_ffi_t               ffi,
     pgp_key_t *sec = ffi->secring->search(locator);
 
     if (require_secret && !sec) {
-        *handle = NULL;
+        *handle = nullptr;
         return RNP_SUCCESS;
     }
 
     if (pub || sec) {
-        *handle = (rnp_key_handle_t) malloc(sizeof(**handle));
+        *handle = new (std::nothrow) rnp_key_handle_st(ffi, pub, sec);
         if (!*handle) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
-        (*handle)->ffi = ffi;
-        (*handle)->pub = pub;
-        (*handle)->sec = sec;
-        (*handle)->locator = locator;
     } else {
-        *handle = NULL;
+        *handle = nullptr;
     }
     return RNP_SUCCESS;
 }
@@ -5817,13 +5803,7 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    *handle = (rnp_key_handle_t) malloc(sizeof(**handle));
-    if (!*handle) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    (*handle)->ffi = op->ffi;
-    (*handle)->pub = op->gen_pub;
-    (*handle)->sec = op->gen_sec;
+    *handle = new rnp_key_handle_st(op->ffi, op->gen_pub, op->gen_sec);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5839,8 +5819,7 @@ FFI_GUARD
 rnp_result_t
 rnp_key_handle_destroy(rnp_key_handle_t key)
 try {
-    // This does not free key->key which is owned by the keyring
-    free(key);
+    delete key;
     return RNP_SUCCESS;
 }
 FFI_GUARD
