@@ -140,9 +140,9 @@ jobs:
           - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'OpenSSL' }
 
         date-offset:
-          - '0 years'
-          - '1 year'
-          - '5 years'
+          - '+0y'
+          - '+1y'
+          - '+5y'
 
     container: ghcr.io/rnpgp/ci-rnp-${{ matrix.image.container }}
 
@@ -182,8 +182,7 @@ jobs:
         if:   matrix.date-offset != '0 years'
         run: |
           set -o errexit -o pipefail -o noclobber -o nounset
-          adjusted_date=$(date -d '${{ matrix.date-offset }}' '+%Y-%m-%d')
-          echo FAKETIME="@$adjusted_date 00:00:00" >> $GITHUB_ENV
+          echo FAKETIME="${{ matrix.date-offset }}" >> $GITHUB_ENV
 
       - name: Test
         run: |
