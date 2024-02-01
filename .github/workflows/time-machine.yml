@@ -1,0 +1,194 @@
+# Copyright (c) 2024 Ribose Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+name: time-machine
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/time-machine.yml'
+  pull_request:
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/time-machine.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
+
+env:
+  RNP_LOG_CONSOLE: 1
+
+jobs:
+  build:
+    name: ${{ matrix.image.name }} [CC ${{ matrix.env.CC }}; backend ${{ matrix.image.backend }}]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - { CC: clang, CXX: clang++   }
+
+# This workflow keeps all capabilities from the base one (centos-and-fedora.yml)
+# but uses just few of tehm
+# Pls refer to https://github.com/rnpgp/rnp-ci-containers#readme for image details
+        image:
+          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan'   }
+          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'OpenSSL' }
+
+    container: ghcr.io/rnpgp/ci-rnp-${{ matrix.image.container }}
+
+    env: ${{ matrix.env }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: Setup environment
+        run: |
+          set -o errexit -o pipefail -o noclobber -o nounset
+
+          /opt/tools/tools.sh select_crypto_backend_for_gha ${{ matrix.image.backend }}
+          /opt/tools/tools.sh select_gpg_version_for_gha 'system'
+          /opt/tools/tools.sh select_botan_version_for_gha 'system'
+
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+
+          useradd rnpuser
+          printf "\nrnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
+          printf "\nrnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
+
+      - name: Configure
+        run: |
+          cmake -B build                                           \
+                -DBUILD_SHARED_LIBS=ON                             \
+                -DDOWNLOAD_GTEST=ON                                \
+                -DCMAKE_BUILD_TYPE=Release                         \
+                -DCRYPTO_BACKEND=${{ matrix.image.backend }}
+
+      - name: Build
+        run: cmake --build build --parallel ${{ env.CORES }}
+
+      - name: Archive build files
+        run: tar -czvf build.tar.gz build
+
+      - name: Upload build files
+        uses: actions/upload-artifact@v3
+        with:
+          name: 'build-${{ matrix.env.CC }}-${{ matrix.image.backend }}'
+          path: 'build.tar.gz'
+          retention-days: 5
+
+  test:
+    name: ${{ matrix.image.name }} [CC ${{ matrix.env.CC }}; backend ${{ matrix.image.backend }}; date offset ${{ matrix.date-offset }}]
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - { CC: clang, CXX: clang++   }
+
+# Pls refer to https://github.com/rnpgp/rnp-ci-containers#readme for image details
+        image:
+          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan'   }
+          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'OpenSSL' }
+
+        date-offset:
+          - '+0y'
+          - '+1y'
+          - '+5y'
+
+    container: ghcr.io/rnpgp/ci-rnp-${{ matrix.image.container }}
+
+    env: ${{ matrix.env }}
+    steps:
+      - name: Install tools
+        run: dnf -y install libfaketime
+
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: Setup environment
+        run: |
+          set -o errexit -o pipefail -o noclobber -o nounset
+
+          /opt/tools/tools.sh select_crypto_backend_for_gha ${{ matrix.image.backend }}
+          /opt/tools/tools.sh select_gpg_version_for_gha 'system'
+          /opt/tools/tools.sh select_botan_version_for_gha 'system'
+
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+
+          useradd rnpuser
+          printf "\nrnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
+          printf "\nrnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
+
+      - name: Download build files
+        uses: actions/download-artifact@v3
+        with:
+          name: 'build-${{ matrix.env.CC }}-${{ matrix.image.backend }}'
+
+      - name: Extract build files
+        run: tar -xzvf build.tar.gz
+
+      - name: Configure fake time
+        run: |
+          set -o errexit -o pipefail -o noclobber -o nounset
+          echo FAKETIME="${{ matrix.date-offset }}" >> $GITHUB_ENV
+
+      - name: Test
+        run: |
+          set -o errexit -o pipefail -o noclobber -o nounset
+          mkdir -p "build/Testing/Temporary"
+          cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
+          export PATH="$PWD/build/src/lib:$PATH"
+          chown -R rnpuser:rnpuser $PWD
+          echo Running tests for "$(LD_PRELOAD=/usr/lib64/faketime/libfaketime.so.1 date)"
+          exec su rnpuser -c "LD_PRELOAD=/usr/lib64/faketime/libfaketime.so.1 ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure"
