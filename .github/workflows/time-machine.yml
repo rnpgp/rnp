@@ -179,7 +179,6 @@ jobs:
         run: tar -xzvf build.tar.gz
 
       - name: Configure fake time
-        if:   matrix.date-offset != '0 years'
         run: |
           set -o errexit -o pipefail -o noclobber -o nounset
           echo FAKETIME="${{ matrix.date-offset }}" >> $GITHUB_ENV
