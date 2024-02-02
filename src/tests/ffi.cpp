@@ -1457,6 +1457,24 @@ TEST_F(rnp_tests, test_ffi_locate_key)
     // load our keyrings
     assert_true(load_keys_gpg(ffi, "data/keyrings/1/pubring.gpg"));
 
+    // edge cases
+    {
+        rnp_key_handle_t key = NULL;
+        assert_rnp_failure(rnp_locate_key(NULL, "keyid", "7BC6709B15C23A4A", &key));
+        assert_rnp_failure(rnp_locate_key(ffi, NULL, "7BC6709B15C23A4A", &key));
+        assert_rnp_failure(rnp_locate_key(ffi, "keyid", NULL, &key));
+        assert_rnp_failure(rnp_locate_key(ffi, "keyid", "7BC6709B15C23A4A", NULL));
+        assert_rnp_failure(rnp_locate_key(ffi, "wrong", "7BC6709B15C23A4A", &key));
+        assert_rnp_failure(rnp_locate_key(ffi, "keyid", "C6709B15C23A4A", &key));
+        assert_rnp_failure(
+          rnp_locate_key(ffi, "fingerprint", "5A3CBF583AA80A2CCC53AA7BC6709B15C23A4A", &key));
+        assert_rnp_failure(
+          rnp_locate_key(ffi, "grip", "D6A0800A3FACDE0C0EB60B16B3669ED380FDFA", &key));
+        assert_rnp_failure(rnp_locate_key(ffi, "keyid", "0x7BC6 709B\r15C2 3A4A\n", &key));
+        assert_rnp_success(rnp_locate_key(ffi, "keyid", "0x7BC6 709B\t15C2 3A4A\t", &key));
+        assert_non_null(key);
+        rnp_key_handle_destroy(key);
+    }
     // keyid
     {
         static const char *ids[] = {"7BC6709B15C23A4A",
@@ -6017,4 +6035,14 @@ TEST_F(rnp_tests, test_result_to_string)
             stringset.insert(result_string);
         }
     }
+}
+
+TEST_F(rnp_tests, test_ffi_wrong_hex_length)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_failure(rnp_locate_key(ffi, "keyid", "BC6709B15C23A4A", &key));
+    assert_rnp_failure(rnp_locate_key(ffi, "keyid", "C6709B15C23A4A", &key));
+    rnp_ffi_destroy(ffi);
 }
