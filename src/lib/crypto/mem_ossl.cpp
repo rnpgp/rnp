@@ -93,7 +93,8 @@ hex_decode(const char *hex, uint8_t *buf, size_t buf_len)
             hex++;
             continue;
         }
-        if (hexlen < 2) {
+        /* We assume that spaces/tabs divide hex string between even groups of hex chars */
+        if (hex + 2 > end) {
             RNP_LOG("Invalid hex string length.");
             return 0;
         }
