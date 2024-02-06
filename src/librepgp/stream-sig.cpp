@@ -1097,6 +1097,13 @@ pgp_signature_t::set_revocation_reason(pgp_revocation_type_t code, const std::st
     }
 }
 
+pgp_key_feature_t
+pgp_signature_t::key_get_features() const
+{
+    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_FEATURES);
+    return (pgp_key_feature_t)(subpkt ? subpkt->data[0] : 0);
+}
+
 bool
 pgp_signature_t::key_has_features(pgp_key_feature_t flags) const
 {

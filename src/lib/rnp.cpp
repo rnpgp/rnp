@@ -6523,6 +6523,20 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_signature_get_features(rnp_signature_handle_t handle, uint32_t *features)
+try {
+    if (!handle || !features) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!handle->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *features = handle->sig->sig.key_get_features();
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_signature_get_keyid(rnp_signature_handle_t handle, char **result)
 try {
     if (!handle || !result) {
