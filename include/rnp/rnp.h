@@ -139,6 +139,13 @@ typedef uint32_t rnp_result_t;
 #define RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT (1U << 2)
 
 /**
+ * Key feature flags.
+ */
+#define RNP_KEY_FEATURE_MDC (1U << 0)
+#define RNP_KEY_FEATURE_AEAD (1U << 1)
+#define RNP_KEY_FEATURE_V5 (1U << 2)
+
+/**
  * Return a constant string describing the result code
  */
 RNP_API const char *rnp_result_to_string(rnp_result_t result);
@@ -1442,6 +1449,9 @@ RNP_API rnp_result_t rnp_signature_get_creation(rnp_signature_handle_t sig, uint
  */
 RNP_API rnp_result_t rnp_signature_get_expiration(rnp_signature_handle_t sig,
                                                   uint32_t *             expires);
+
+RNP_API rnp_result_t rnp_signature_get_features(rnp_signature_handle_t sig,
+                                                uint32_t *             features);
 
 /** Get signer's key id from the signature.
  *  Note: if key id is not available from the signature then NULL value will
