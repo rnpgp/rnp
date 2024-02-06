@@ -274,6 +274,8 @@ typedef struct pgp_signature_t {
      */
     void set_revocation_reason(pgp_revocation_type_t code, const std::string &reason);
 
+    pgp_key_feature_t key_get_features() const;
+
     /**
      * @brief Check whether signer's key supports certain feature(s). Makes sense only for
      *        self-signature, for more details see the RFC 4880bis, 5.2.3.25. If there is
