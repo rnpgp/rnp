@@ -3231,6 +3231,47 @@ TEST_F(rnp_tests, test_ffi_v6_cert_import)
     rnp_ffi_destroy(ffi);
 }
 
+#if defined(ENABLE_PQC)
+// NOTE: this tests a round3-submission test vector, i.e., Dilithium/Kyber and not ML-DSA/ML-KEM.
+// The final implementation of the PQC draft implementation will use the final NIST standard.
+TEST_F(rnp_tests, test_ffi_pqc_certs)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+    size_t      keycount = 255;
+
+    /* Public Key */
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_pqc/kyber_dilithium_pk.asc"));
+    assert_rnp_success(
+      rnp_import_keys(ffi,
+                      input,
+                      RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SINGLE | RNP_LOAD_SAVE_BASE64,
+                      NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 2);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 0);
+
+    /* Private Key */
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_pqc/kyber_dilithium_sk.asc"));
+    assert_rnp_success(
+      rnp_import_keys(ffi,
+                      input,
+                      RNP_LOAD_SAVE_SECRET_KEYS | RNP_LOAD_SAVE_SINGLE | RNP_LOAD_SAVE_BASE64,
+                      NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 2);
+}
+
+
+#endif
+
 TEST_F(rnp_tests, test_ffi_v6_seckey_import)
 {
     rnp_ffi_t   ffi = NULL;
