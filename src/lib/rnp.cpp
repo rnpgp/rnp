@@ -5696,7 +5696,7 @@ try {
 FFI_GUARD
 #endif
 
-#if defined(RNP_EXPERIMENTAL_CRYPTO_PQC)
+#if defined(RNP_EXPERIMENTAL_PQC)
 rnp_result_t
 rnp_op_generate_set_sphincsplus_param(rnp_op_generate_t op, const char *param_cstr)
 try {
