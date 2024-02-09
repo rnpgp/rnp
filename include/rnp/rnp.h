@@ -1199,7 +1199,7 @@ RNP_API rnp_result_t rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op,
 RNP_API rnp_result_t rnp_op_generate_set_v6_key(rnp_op_generate_t op);
 #endif
 
-#if defined(RNP_EXPERIMENTAL_CRYPTO_PQC)
+#if defined(RNP_EXPERIMENTAL_PQC)
 /** Set the SPHINCS+ parameter set
  *  NOTE: This is an experimantal feature and this function can be replaced (or removed) at any
  *        time.
