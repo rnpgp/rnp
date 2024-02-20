@@ -231,37 +231,36 @@ typedef enum : uint8_t {
     PGP_PKA_ED25519 = 27, /* v6 / Crypto Refresh */
 #endif
 
+PGP_PKA_SM2 = 99,        /* SM2 encryption/signature schemes */
+
 #if defined(ENABLE_PQC)
     /* PQC-ECC composite */
-    PGP_PKA_KYBER768_X25519 = 29, /* Kyber768 + X25519 from draft-wussler-openpgp-pqc-02 */
-    // PGP_PKA_KYBER1024_X448 = 30,                  /* Kyer1024 + X448 from
-    // draft-wussler-openpgp-pqc-02 */
-    PGP_PKA_KYBER768_P256 = 31,  /* Kyber768 + NIST P-256 from draft-wussler-openpgp-pqc-02 */
-    PGP_PKA_KYBER1024_P384 = 32, /* Kyber1024 + NIST P-384 from draft-wussler-openpgp-pqc-02 */
-    PGP_PKA_KYBER768_BP256 =
-      33, /* Kyber768 + Brainpool P256r1 from draft-wussler-openpgp-pqc-02 */
-    PGP_PKA_KYBER1024_BP384 =
-      34, /* Kyber1024 + Brainpool P384r1 from draft-wussler-openpgp-pqc-02 */
+    PGP_PKA_KYBER768_X25519 = 105,
+    // PGP_PKA_KYBER1024_X448 = 106,
+    PGP_PKA_KYBER768_P256 = 111,
+    PGP_PKA_KYBER1024_P384 = 112,
+    PGP_PKA_KYBER768_BP256 = 113,
+    PGP_PKA_KYBER1024_BP384 = 114,
 
-    PGP_PKA_DILITHIUM3_ED25519 =
-      35, /* Dilithium 3 + Ed25519 from draft-wussler-openpgp-pqc-02 */
-    // PGP_PKA_DILITHIUM5_ED448 = 36,                /* Dilithium 5 + Ed448 from
-    // draft-wussler-openpgp-pqc-02 */
-    PGP_PKA_DILITHIUM3_P256 =
-      37, /* Dilithium 3 + ECDSA-NIST-P-256 from draft-wussler-openpgp-pqc-02 */
-    PGP_PKA_DILITHIUM5_P384 =
-      38, /* Dilithium 5 + ECDSA-NIST-P-384 from draft-wussler-openpgp-pqc-02 */
-    PGP_PKA_DILITHIUM3_BP256 =
-      39, /* Dilithium 3 + ECDSA-brainpoolP256r1 from draft-wussler-openpgp-pqc-02 */
-    PGP_PKA_DILITHIUM5_BP384 =
-      40, /* Dilithium 5 + ECDSA-brainpoolP384r1 from draft-wussler-openpgp-pqc-02 */
+    PGP_PKA_DILITHIUM3_ED25519 = 107,
+    // PGP_PKA_DILITHIUM5_ED448 = 108,
+    PGP_PKA_DILITHIUM3_P256 = 115,
+    PGP_PKA_DILITHIUM5_P384 = 116,
+    PGP_PKA_DILITHIUM3_BP256 = 117,
+    PGP_PKA_DILITHIUM5_BP384 = 118,
 
-    PGP_PKA_SPHINCSPLUS_SHA2 = 41, /* SPHINCS+-simple-SHA2 from draft-wussler-openpgp-pqc-02 */
-    PGP_PKA_SPHINCSPLUS_SHAKE =
-      42, /* SPHINCS+-simple-SHAKE from draft-wussler-openpgp-pqc-02 */
-#endif
+    PGP_PKA_SPHINCSPLUS_SHA2 = 109,
+    PGP_PKA_SPHINCSPLUS_SHAKE = 119,
 
-    PGP_PKA_SM2 = 99,        /* SM2 encryption/signature schemes */
+    PGP_PKA_PRIVATE00 = 100, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE01 = 101, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE02 = 102, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE03 = 103, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE04 = 104, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE06 = 106, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE08 = 108, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE10 = 110  /* Private/Experimental Algorithm */
+#else
     PGP_PKA_PRIVATE00 = 100, /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE01 = 101, /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE02 = 102, /* Private/Experimental Algorithm */
@@ -273,6 +272,7 @@ typedef enum : uint8_t {
     PGP_PKA_PRIVATE08 = 108, /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE09 = 109, /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE10 = 110  /* Private/Experimental Algorithm */
+#endif
 } pgp_pubkey_alg_t;
 
 /**
