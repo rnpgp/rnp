@@ -597,7 +597,7 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
         /* parse mpis depending on algorithm */
         pgp_packet_body_t body(mpis, len);
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
         std::vector<uint8_t> tmpbuf;
 #endif
 
@@ -1438,7 +1438,7 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         return RNP_ERROR_BAD_FORMAT;
     }
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
     std::vector<uint8_t> tmpbuf;
 #endif
 

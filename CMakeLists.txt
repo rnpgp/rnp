@@ -83,11 +83,6 @@ option(ENABLE_CRYPTO_REFRESH "Enable crypto-refresh support (v6)")
 option(ENABLE_PQC "Enable PQC support - requires ENABLE_CRYPTO_REFRESH")
 option(ENABLE_PQC_MLKEM_IPD "Use ML-KEM-ipd instead of Kyber")
 
-if((NOT ENABLE_CRYPTO_REFRESH) AND ENABLE_PQC)
-  message(FATAL_ERROR "ENABLE_PQC requires ENABLE_CRYPTO_REFRESH")
-endif()
-
-
 set(ENABLE_DOC Auto CACHE STRING "Enable building documentation.")
 set_property(CACHE ENABLE_DOC PROPERTY STRINGS ${TRISTATE_VALUES})
 

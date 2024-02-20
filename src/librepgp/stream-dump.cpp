@@ -340,7 +340,7 @@ dst_print_mpi(pgp_dest_t *dst, const char *name, pgp_mpi_t *mpi, bool dumpbin)
     }
 }
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 static void
 dst_print_vec(pgp_dest_t *                dst,
               const char *                name,
