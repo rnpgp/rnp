@@ -81,6 +81,7 @@ tristate_feature_auto(ENABLE_RIPEMD160 "Enable RIPEMD-160 hash support.")
 
 option(ENABLE_CRYPTO_REFRESH "Enable crypto-refresh support (v6)")
 option(ENABLE_PQC "Enable PQC support - requires ENABLE_CRYPTO_REFRESH")
+option(ENABLE_PQC_MLKEM_IPD "Use ML-KEM-ipd instead of Kyber")
 
 if((NOT ENABLE_CRYPTO_REFRESH) AND ENABLE_PQC)
   message(FATAL_ERROR "ENABLE_PQC requires ENABLE_CRYPTO_REFRESH")

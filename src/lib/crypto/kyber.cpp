@@ -33,10 +33,17 @@ namespace {
 Botan::KyberMode
 rnp_kyber_param_to_botan_kyber_mode(kyber_parameter_e mode)
 {
+#if defined(BOTAN_HAS_ML_KEM_INITIAL_PUBLIC_DRAFT) && defined(ENABLE_PQC_MLKEM_IPD)
+    Botan::KyberMode result = Botan::KyberMode::ML_KEM_1024_ipd;
+    if (mode == kyber_768) {
+        result = Botan::KyberMode::ML_KEM_768_ipd;
+    }
+#else
     Botan::KyberMode result = Botan::KyberMode::Kyber1024;
     if (mode == kyber_768) {
         result = Botan::KyberMode::Kyber768;
     }
+#endif
     return result;
 }
 
