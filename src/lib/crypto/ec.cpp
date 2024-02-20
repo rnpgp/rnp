@@ -32,7 +32,7 @@
 #include "utils.h"
 #include "mem.h"
 #include "bn.h"
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 #include "x25519.h"
 #include "ed25519.h"
 #include "botan/bigint.h"
@@ -193,7 +193,7 @@ end:
     return ret;
 }
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 static bool
 is_generic_prime_curve(pgp_curve_t curve)
 {

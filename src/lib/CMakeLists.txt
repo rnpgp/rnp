@@ -55,9 +55,6 @@ if(ENABLE_PQC)
   if (NOT CRYPTO_BACKEND_BOTAN3)
     message(FATAL_ERROR "ENABLE_PQC requires Botan 3 as crypto backend")
   endif()
-  if (NOT ENABLE_CRYPTO_REFRESH)
-    message(FATAL_ERROR "ENABLE_PQC requires ENABLE_CRYPTO_REFRESH")
-  endif()
 endif()
 
 # check that AEAD is enabled and not turned off for ENABLE_CRYPTO_REFRESH
@@ -297,17 +294,16 @@ elseif(CRYPTO_BACKEND_BOTAN)
   if(ENABLE_SM2)
     list(APPEND CRYPTO_SOURCES crypto/sm2.cpp)
   endif()
-  if(ENABLE_CRYPTO_REFRESH)
-    list(APPEND CRYPTO_SOURCES 
-        crypto/hkdf.cpp
-        crypto/hkdf_botan.cpp
+  if(ENABLE_PQC OR ENABLE_CRYPTO_REFRESH)
+    list(APPEND CRYPTO_SOURCES
+        crypto/exdsa_ecdhkem.cpp
         crypto/ed25519.cpp
         crypto/x25519.cpp
-        crypto/exdsa_ecdhkem.cpp
-    )
-  endif()
+        crypto/hkdf.cpp
+        crypto/hkdf_botan.cpp
+  )
   if(ENABLE_PQC)
-    list(APPEND CRYPTO_SOURCES 
+    list(APPEND CRYPTO_SOURCES
         crypto/dilithium.cpp
         crypto/dilithium_common.cpp
         crypto/sphincsplus.cpp
@@ -318,6 +314,7 @@ elseif(CRYPTO_BACKEND_BOTAN)
         crypto/kmac.cpp
         crypto/kmac_botan.cpp
     )
+    endif()
   endif()
 else()
   message(FATAL_ERROR "Unknown crypto backend: ${CRYPTO_BACKEND}.")

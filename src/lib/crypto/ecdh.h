@@ -115,7 +115,7 @@ rnp_result_t ecdh_decrypt_pkcs5(uint8_t *                   out,
                                 const pgp_ec_key_t *        key,
                                 const pgp_fingerprint_t &   fingerprint);
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 /* Generate an ECDH key pair in "native" format, i.e.,
  * no changes to the format specified in the respective standard
  * are applied (uncompressed SEC1 and RFC 7748).

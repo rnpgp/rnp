@@ -390,7 +390,7 @@ end:
     return ret;
 }
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 rnp_result_t
 ecdh_kem_gen_keypair_native(rnp::RNG *            rng,
                             std::vector<uint8_t> &privkey,

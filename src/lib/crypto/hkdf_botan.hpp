@@ -29,7 +29,7 @@
 
 #include "config.h"
 
-#ifdef ENABLE_CRYPTO_REFRESH
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 
 #include "hkdf.hpp"
 #include "botan/kdf.h"
