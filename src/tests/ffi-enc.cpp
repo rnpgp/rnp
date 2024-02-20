@@ -762,6 +762,9 @@ TEST_F(rnp_tests, test_ffi_decrypt_v6_pkesk_test_vector)
 // The final implementation of the PQC draft implementation will use the final NIST standard.
 TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
 {
+  /* TODO: skipped since test data is outdated */
+    GTEST_SKIP();
+    
     rnp_ffi_t    ffi = NULL;
     rnp_input_t  input = NULL;
     rnp_output_t output = NULL;
