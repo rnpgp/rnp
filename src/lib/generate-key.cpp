@@ -73,7 +73,15 @@ static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_DILITHIUM5_BP384, "ML-DSA-87_BP384"},
   {PGP_PKA_SPHINCSPLUS_SHA2, "SLH-DSA-SHA2"},
   {PGP_PKA_SPHINCSPLUS_SHAKE, "SLH-DSA-SHAKE"},
-#endif
+  {PGP_PKA_PRIVATE00, "Private/Experimental"},
+  {PGP_PKA_PRIVATE01, "Private/Experimental"},
+  {PGP_PKA_PRIVATE02, "Private/Experimental"},
+  {PGP_PKA_PRIVATE03, "Private/Experimental"},
+  {PGP_PKA_PRIVATE04, "Private/Experimental"},
+  {PGP_PKA_PRIVATE06, "Private/Experimental"},
+  {PGP_PKA_PRIVATE08, "Private/Experimental"},
+  {PGP_PKA_PRIVATE10, "Private/Experimental"},
+#else
   {PGP_PKA_PRIVATE00, "Private/Experimental"},
   {PGP_PKA_PRIVATE01, "Private/Experimental"},
   {PGP_PKA_PRIVATE02, "Private/Experimental"},
@@ -85,6 +93,7 @@ static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_PRIVATE08, "Private/Experimental"},
   {PGP_PKA_PRIVATE09, "Private/Experimental"},
   {PGP_PKA_PRIVATE10, "Private/Experimental"},
+#endif
   {0, NULL}};
 
 static bool
