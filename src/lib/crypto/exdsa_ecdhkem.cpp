@@ -26,6 +26,7 @@
 
 #include "exdsa_ecdhkem.h"
 #include "ecdh.h"
+#include "ed25519.h"
 #include "ecdsa.h"
 #include "ec.h"
 #include "types.h"
