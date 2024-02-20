@@ -26,7 +26,7 @@
 
 #include "config.h"
 
-#ifdef ENABLE_CRYPTO_REFRESH
+#if defined(ENABLE_CRYPTO_REFRESH)
 
 #include "v2_seipd.h"
 #include "logging.h"
