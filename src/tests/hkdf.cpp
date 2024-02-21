@@ -1,6 +1,6 @@
 #include "rnp_tests.h"
 
-#if defined(CRYPTO_BACKEND_BOTAN) && (defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC))
+#if defined(CRYPTO_BACKEND_BOTAN) && defined(ENABLE_CRYPTO_REFRESH)
 #include "crypto/hkdf_botan.hpp"
 
 TEST_F(rnp_tests, hkdf_test_case_1)

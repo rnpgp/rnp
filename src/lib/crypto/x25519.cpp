@@ -25,6 +25,8 @@
  */
 
 #include "x25519.h"
+#include <botan/curve25519.h>
+#if defined(ENABLE_CRYPTO_REFRESH)
 #include "exdsa_ecdhkem.h"
 #include "hkdf.hpp"
 #include "utils.h"
@@ -60,18 +62,6 @@ x25519_hkdf(std::vector<uint8_t> &      derived_key,
                         info.size(),
                         derived_key.data(),
                         derived_key.size());
-}
-
-rnp_result_t
-generate_x25519_native(rnp::RNG *            rng,
-                       std::vector<uint8_t> &privkey,
-                       std::vector<uint8_t> &pubkey)
-{
-    Botan::Curve25519_PrivateKey priv_key(*(rng->obj()));
-    pubkey = priv_key.public_value();
-    privkey = Botan::unlock(priv_key.raw_private_key_bits());
-
-    return RNP_SUCCESS;
 }
 
 rnp_result_t
@@ -178,4 +168,18 @@ x25519_validate_key_native(rnp::RNG *rng, const pgp_x25519_key_t *key, bool secr
 
     // check key returns true for successful check
     return (valid_pub && valid_priv) ? RNP_SUCCESS : RNP_ERROR_BAD_PARAMETERS;
+}
+
+#endif
+
+rnp_result_t
+generate_x25519_native(rnp::RNG *            rng,
+                       std::vector<uint8_t> &privkey,
+                       std::vector<uint8_t> &pubkey)
+{
+    Botan::Curve25519_PrivateKey priv_key(*(rng->obj()));
+    pubkey = priv_key.public_value();
+    privkey = Botan::unlock(priv_key.raw_private_key_bits());
+
+    return RNP_SUCCESS;
 }
