@@ -95,4 +95,33 @@ class LogStop {
         RNP_LOG(msg, keyidhex);                                                               \
     } while (0)
 
+#if defined(ENABLE_PQC_DBG_LOG)
+
+#define RNP_LOG_FD_NO_POS_INFO(fd, ...)    \
+    do {                                   \
+        if (!rnp_log_switch())             \
+            break;                         \
+        (void) fprintf((fd), "[LOG] ");    \
+        (void) fprintf((fd), __VA_ARGS__); \
+        (void) fprintf((fd), "\n");        \
+    } while (0)
+
+#define RNP_LOG_NO_POS_INFO(...) RNP_LOG_FD_NO_POS_INFO(stderr, __VA_ARGS__)
+
+#define RNP_LOG_U8VEC(msg, vec)                             \
+    do {                                                    \
+        if (vec.size() == 0) {                              \
+            RNP_LOG(msg, "(empty)");                        \
+            break;                                          \
+        }                                                   \
+        std::vector<char> _tmp_hex_vec(vec.size() * 2 + 1); \
+        rnp::hex_encode(vec.data(),                         \
+                        vec.size(),                         \
+                        _tmp_hex_vec.data(),                \
+                        _tmp_hex_vec.size(),                \
+                        rnp::HexFormat::Lowercase);         \
+        RNP_LOG_NO_POS_INFO(msg, _tmp_hex_vec.data());      \
+    } while (0)
+#endif
+
 #endif

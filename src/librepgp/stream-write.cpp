@@ -572,16 +572,18 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
     /* Crypto Refresh: For X25519/X448 PKESKv3, AES is mandated */
-    if (userkey->alg() == PGP_PKA_X25519 && pkesk_version == PGP_PKSK_V3) {
+    /* PQC: AES is mandated for PKESKv3 */
+    if (!do_encrypt_pkesk_v3_alg_id(userkey->alg()) && pkesk_version == PGP_PKSK_V3) {
         switch (param->ctx->ealg) {
         case PGP_SA_AES_128:
         case PGP_SA_AES_192:
         case PGP_SA_AES_256:
             break;
         default:
-            RNP_LOG("attempting to use X25519 and v3 PKESK in combination with a symmetric "
+            RNP_LOG("attempting to use v3 PKESK with an unencrypted algorithm id in "
+                    "combination with a symmetric "
                     "algorithm that is not AES.");
             return RNP_ERROR_DECRYPT_FAILED;
         }
@@ -606,7 +608,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
 
     pkey.salg = param->ctx->ealg;
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
     if (pkey.version == PGP_PKSK_V3) {
         size_t key_offset;
         if (do_encrypt_pkesk_v3_alg_id(pkey.alg)) {
@@ -626,10 +628,12 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
 #if defined(ENABLE_CRYPTO_REFRESH)
     } else { // PGP_PKSK_V6
         memcpy(&enckey[0], key, keylen);
+#endif
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
     }
 #endif
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
     if (have_pkesk_checksum(pkey.alg))
 #endif
     {
@@ -645,6 +649,10 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         /* increment enckey_len by checksum */
         enckey_len += 2;
     }
+
+#if defined(ENABLE_PQC_DBG_LOG)
+    RNP_LOG_U8VEC("Session Key: %s", std::vector<uint8_t>(enckey.data(), enckey.data() + enckey_len));
+#endif
 
     pgp_encrypted_material_t material;
 
