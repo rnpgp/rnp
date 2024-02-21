@@ -419,11 +419,13 @@ ffi_pass_callback_stdin(rnp_ffi_t        ffi,
             ok = true;
         }
 
-        rnp_buffer_clear(rnp->reused_password, strnlen(rnp->reused_password, buf_len));
-        free(rnp->reused_password);
-        rnp->reused_password = NULL;
-        rnp->reuse_password_for_subkey = false;
-        rnp_buffer_destroy(primary_fprint);
+        rnp->reuse_password_for_subkey--;
+        if(rnp->reuse_password_for_subkey == 0) {
+            rnp_buffer_clear(rnp->reused_password, strnlen(rnp->reused_password, buf_len));
+            free(rnp->reused_password);
+            rnp->reused_password = NULL;
+            rnp_buffer_destroy(primary_fprint);
+        }
         if (ok)
             return true;
     }
@@ -470,7 +472,7 @@ start:
         if (cli_rnp_get_confirmation(
               rnp, "Would you like to use the same password to protect subkey(s)?")) {
             char *primary_fprint = NULL;
-            rnp->reuse_password_for_subkey = true;
+            rnp_key_get_subkey_count(key, &(rnp->reuse_password_for_subkey));
             rnp_key_get_fprint(key, &primary_fprint);
             rnp->reuse_primary_fprint = primary_fprint;
             rnp->reused_password = strdup(buf);
@@ -708,7 +710,7 @@ cli_rnp_t::end()
         free(reused_password);
         reused_password = NULL;
     }
-    reuse_password_for_subkey = false;
+    reuse_password_for_subkey = 0;
 }
 
 bool
