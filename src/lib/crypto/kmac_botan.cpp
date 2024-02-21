@@ -28,6 +28,10 @@
 #include "hash_botan.hpp"
 #include "botan/mac.h"
 
+#if defined(ENABLE_PQC_DBG_LOG)
+#include "crypto/mem.h"
+#endif
+
 namespace rnp {
 
 KMAC256_Botan::KMAC256_Botan() : KMAC256()
@@ -56,11 +60,20 @@ KMAC256_Botan::compute(const std::vector<uint8_t> &ecc_key_share,
      * message <> encData
      */
 
+#if defined(ENABLE_PQC_DBG_LOG)
+    RNP_LOG_U8VEC("KMAC256 domSeparation: %s", domSeparation());
+    RNP_LOG_U8VEC("KMAC256 customizationString: %s", customizationString());
+#endif
+
     kmac->set_key(domSeparation());
     kmac->start(customizationString()); // set nonce
     kmac->update(
       encData(ecc_key_share, ecc_ciphertext, kyber_key_share, kyber_ciphertext, alg_id));
     out = kmac->final_stdvec();
+
+#if defined(ENABLE_PQC_DBG_LOG)
+    RNP_LOG_U8VEC("KMAC256 Output: %s", out);
+#endif
 }
 
 KMAC256_Botan::~KMAC256_Botan()

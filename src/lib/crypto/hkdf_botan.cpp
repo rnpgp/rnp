@@ -26,7 +26,7 @@
 
 #include "config.h"
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
 
 #include "hkdf_botan.hpp"
 #include "hash_botan.hpp"

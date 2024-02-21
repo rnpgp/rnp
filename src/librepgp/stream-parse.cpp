@@ -1509,9 +1509,9 @@ encrypted_start_aead(pgp_source_encrypted_param_t *param, pgp_symm_alg_t alg, ui
 #endif
 }
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 /* The crypto refresh mandates that for a X25519/X448 PKESKv3, AES MUST be used.
-   The same is true for the PQC algorithms defined in draft-wussler-openpgp-pqc-02.
+   The same is true for the PQC algorithms
  */
 static bool
 do_enforce_aes_v3pkesk(pgp_pubkey_alg_t alg)
@@ -1519,17 +1519,14 @@ do_enforce_aes_v3pkesk(pgp_pubkey_alg_t alg)
     switch (alg) {
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
-        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
-        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
-        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
-        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
-        FALLTHROUGH_STATEMENT;
 #endif
+#if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_X25519:
+#endif
         return true;
     default:
         return false;
@@ -1568,7 +1565,9 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         RNP_LOG("Attempt to mix SEIPD v1 with PKESK v6 or SEIPD v2 with PKESK v3");
         return false;
     }
+#endif
 
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
     /* check that AES is used when mandated by the standard */
     if (do_enforce_aes_v3pkesk(sesskey->alg) && sesskey->version == PGP_PKSK_V3) {
         switch (sesskey->salg) {
@@ -1686,7 +1685,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
 
     uint8_t *decbuf_sesskey = decbuf.data();
     size_t   decbuf_sesskey_len = declen;
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
     if (do_encrypt_pkesk_v3_alg_id(sesskey->alg))
 #endif
     {
@@ -1700,7 +1699,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
             return false;
         }
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
         size_t alg_id_bytes = do_encrypt_pkesk_v3_alg_id(sesskey->alg) ? 1 : 0;
         size_t checksum_bytes = have_pkesk_checksum(sesskey->alg) ? 2 : 0;
 #else
@@ -1728,7 +1727,11 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     }
 #endif
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_PQC_DBG_LOG)
+    RNP_LOG_U8VEC("Session Key: %s", std::vector<uint8_t>(decbuf_sesskey, decbuf_sesskey + decbuf_sesskey_len));
+#endif
+
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
     if (have_pkesk_checksum(sesskey->alg))
 #endif
     {
@@ -1745,7 +1748,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         }
     }
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
     if (sesskey->version == PGP_PKSK_V3)
 #endif
     {
