@@ -299,9 +299,13 @@ elseif(CRYPTO_BACKEND_BOTAN)
         crypto/exdsa_ecdhkem.cpp
         crypto/ed25519.cpp
         crypto/x25519.cpp
+  )
+  if(ENABLE_CRYPTO_REFRESH)
+    list(APPEND CRYPTO_SOURCES
         crypto/hkdf.cpp
         crypto/hkdf_botan.cpp
-  )
+    )
+  endif()
   if(ENABLE_PQC)
     list(APPEND CRYPTO_SOURCES
         crypto/dilithium.cpp
