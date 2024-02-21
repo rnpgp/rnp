@@ -115,6 +115,10 @@
 #define CFG_KG_SUBKEY_BITS "kg-subkey-bits"
 #define CFG_KG_SUBKEY_CURVE "kg-subkey-curve"
 #define CFG_KG_SUBKEY_EXPIRATION "kg-subkey-expiration"
+#define CFG_KG_SUBKEY_2_ALG "kg-subkey-2-alg"
+#define CFG_KG_SUBKEY_2_BITS "kg-subkey-2-bits"
+#define CFG_KG_SUBKEY_2_CURVE "kg-subkey-2-curve"
+#define CFG_KG_SUBKEY_2_EXPIRATION "kg-subkey-2-expiration"
 #define CFG_KG_HASH "kg-hash"
 #define CFG_KG_PROT_HASH "kg-prot-hash"
 #define CFG_KG_PROT_ALG "kg-prot-alg"
@@ -125,6 +129,8 @@
     "kg-primary-sphincsplus-param" /* 128f, 128s, 192f, 192s, 256f, 256s */
 #define CFG_KG_SUBKEY_SPHINCSPLUS_PARAM \
     "kg-subkey-sphincsplus-param" /* 128f, 128s, 192f, 192s, 256f, 256s */
+#define CFG_KG_SUBKEY_2_SPHINCSPLUS_PARAM \
+    "kg-subkey-2-sphincsplus-param" /* 128f, 128s, 192f, 192s, 256f, 256s */
 
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration
  * options */
