@@ -1728,7 +1728,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
 #endif
 
 #if defined(ENABLE_PQC_DBG_LOG)
-    RNP_LOG_U8VEC("Session Key: %s", std::vector<uint8_t>(decbuf_sesskey, decbuf_sesskey + decbuf_sesskey_len));
+    RNP_LOG_U8VEC("Session Key: %s", std::vector<uint8_t>(decbuf_sesskey, decbuf_sesskey + keylen));
 #endif
 
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
