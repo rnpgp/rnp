@@ -404,7 +404,12 @@ pgp_sig_subpkt_t::parse()
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_SIG_SUBPKT_PREFERRED_AEAD_CIPHERSUITES:
-        // TODO-V6: needs implementation
+        if(len % 2 != 0) {
+            RNP_LOG("AEAD Ciphersuite Preferences must contain an even number of bytes");
+            return false;
+        }
+        fields.preferred.arr = data;
+        fields.preferred.len = len;
         break;
 #endif
     case PGP_SIG_SUBPKT_PRIVATE_100:
@@ -966,6 +971,20 @@ pgp_signature_t::set_preferred_z_algs(const std::vector<uint8_t> &algs)
 {
     set_preferred(algs, PGP_SIG_SUBPKT_PREF_COMPRESS);
 }
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+void
+pgp_signature_t::set_preferred_aead_algs(const std::vector<uint8_t> &algs)
+{
+    set_preferred(algs, PGP_SIG_SUBPKT_PREFERRED_AEAD_CIPHERSUITES);
+}
+
+std::vector<uint8_t>
+pgp_signature_t::preferred_aead_algs() const
+{
+    return preferred(PGP_SIG_SUBPKT_PREFERRED_AEAD_CIPHERSUITES);
+}
+#endif
 
 uint8_t
 pgp_signature_t::key_server_prefs() const
@@ -1849,6 +1868,9 @@ rnp_selfsig_cert_info_t::populate(pgp_signature_t &sig)
     else if ((sig.version == PGP_V6) && (sig.type() == PGP_SIG_DIRECT)) {
         /* set some additional packets for v6 direct-key self signatures */
         sig.set_key_features(PGP_KEY_FEATURE_MDC | PGP_KEY_FEATURE_SEIPDV2);
+        if(!prefs.aead_prefs.empty()) {
+            sig.set_preferred_aead_algs(prefs.aead_prefs);
+        }
     }
 #endif
     if (key_flags) {

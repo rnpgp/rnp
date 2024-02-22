@@ -41,6 +41,9 @@ static const uint8_t DEFAULT_HASH_ALGS[] = {
   PGP_HASH_SHA256, PGP_HASH_SHA384, PGP_HASH_SHA512, PGP_HASH_SHA224};
 static const uint8_t DEFAULT_COMPRESS_ALGS[] = {
   PGP_C_ZLIB, PGP_C_BZIP2, PGP_C_ZIP, PGP_C_NONE};
+#if defined(ENABLE_CRYPTO_REFRESH)
+static const uint8_t DEFAULT_AEAD_ALGS[] = {PGP_AEAD_OCB};
+#endif
 
 static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_RSA, "RSA (Encrypt or Sign)"},
@@ -337,6 +340,18 @@ set_default_user_prefs(pgp_user_prefs_t &prefs)
         prefs.set_z_algs(std::vector<uint8_t>(
           DEFAULT_COMPRESS_ALGS, DEFAULT_COMPRESS_ALGS + ARRAY_SIZE(DEFAULT_COMPRESS_ALGS)));
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if(prefs.aead_prefs.empty()) {
+        std::vector<uint8_t> algs;
+        for(auto aead_alg : DEFAULT_AEAD_ALGS) {
+            for(auto sym_alg : prefs.symm_algs) {
+                algs.push_back(sym_alg);
+                algs.push_back(aead_alg);
+            }
+        }
+        prefs.set_aead_prefs(algs);
+    }
+#endif
 }
 
 static void
