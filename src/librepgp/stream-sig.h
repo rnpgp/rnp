@@ -230,6 +230,16 @@ typedef struct pgp_signature_t {
      *         corresponding subpacket is deleted. */
     void set_preferred_z_algs(const std::vector<uint8_t> &algs);
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /** @brief Get preferred AEAD algorithms if any. If there are no ones then empty
+     *         vector is returned.*/
+    std::vector<uint8_t> preferred_aead_algs() const;
+
+    /** @brief Set the preferred AEAD algorithms. If empty vector is passed then
+     *         corresponding subpacket is deleted. */
+    void set_preferred_aead_algs(const std::vector<uint8_t> &algs);
+#endif
+
     /** @brief Get key server preferences flags. If subpacket is not available then 0 is
      *         returned. */
     uint8_t key_server_prefs() const;

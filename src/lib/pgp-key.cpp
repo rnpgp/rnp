@@ -576,6 +576,27 @@ pgp_user_prefs_t::add_ks_pref(pgp_key_server_prefs_t pref)
     bytevec_append_uniq(ks_prefs, pref);
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+void
+pgp_user_prefs_t::set_aead_prefs(const std::vector<uint8_t> &algs)
+{
+    aead_prefs = algs;
+}
+
+void
+pgp_user_prefs_t::add_aead_prefs(pgp_symm_alg_t sym_alg, pgp_aead_alg_t aead_alg)
+{
+    for(size_t i = 0; i < aead_prefs.size(); i+=2)
+    {
+        if(aead_prefs[i] == sym_alg && aead_prefs[i+1] == aead_alg) {
+            return;
+        }
+    }
+    aead_prefs.push_back(sym_alg);
+    aead_prefs.push_back(aead_alg);
+}
+#endif
+
 pgp_rawpacket_t::pgp_rawpacket_t(const pgp_signature_t &sig)
 {
     rnp::MemoryDest dst;
