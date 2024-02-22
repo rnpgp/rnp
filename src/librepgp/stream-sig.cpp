@@ -1097,22 +1097,22 @@ pgp_signature_t::set_revocation_reason(pgp_revocation_type_t code, const std::st
     }
 }
 
-pgp_key_feature_t
+uint32_t
 pgp_signature_t::key_get_features() const
 {
     const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_FEATURES);
-    return (pgp_key_feature_t)(subpkt ? subpkt->data[0] : 0);
+    return (uint32_t)(subpkt ? subpkt->data[0] : 0);
 }
 
 bool
-pgp_signature_t::key_has_features(pgp_key_feature_t flags) const
+pgp_signature_t::key_has_features(uint32_t flags) const
 {
     const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_FEATURES);
     return subpkt ? subpkt->data[0] & flags : false;
 }
 
 void
-pgp_signature_t::set_key_features(pgp_key_feature_t flags)
+pgp_signature_t::set_key_features(uint32_t flags)
 {
     pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_FEATURES, 1, true);
     subpkt.hashed = true;
@@ -1845,6 +1845,10 @@ rnp_selfsig_cert_info_t::populate(pgp_signature_t &sig)
             sig.set_key_flags(key_flags);
         }
         return;
+    }
+    else if ((sig.version == PGP_V6) && (sig.type() == PGP_SIG_DIRECT)) {
+        /* set some additional packets for v6 direct-key self signatures */
+        sig.set_key_features(PGP_KEY_FEATURE_MDC | PGP_KEY_FEATURE_SEIPDV2);
     }
 #endif
     if (key_flags) {
