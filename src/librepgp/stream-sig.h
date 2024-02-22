@@ -289,7 +289,7 @@ typedef struct pgp_signature_t {
      */
     void set_revocation_reason(pgp_revocation_type_t code, const std::string &reason);
 
-    pgp_key_feature_t key_get_features() const;
+    uint32_t key_get_features() const;
 
     /**
      * @brief Check whether signer's key supports certain feature(s). Makes sense only for
@@ -299,14 +299,14 @@ typedef struct pgp_signature_t {
      * @return true if key is claimed to support all of the features listed in flags, or false
      *         otherwise
      */
-    bool key_has_features(pgp_key_feature_t flags) const;
+    bool key_has_features(uint32_t flags) const;
 
     /**
      * @brief Set the features supported by the signer's key, makes sense only for
      *        self-signature. For more details see the RFC 4880bis, 5.2.3.25.
      * @param flags one or more flags, combined via bitwise OR operation.
      */
-    void set_key_features(pgp_key_feature_t flags);
+    void set_key_features(uint32_t flags);
 
     /** @brief Get signer's user id, if available. Otherwise empty string is returned. See the
      *         RFC 4880bis, 5.2.3.23 for details.
