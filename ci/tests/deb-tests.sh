@@ -43,8 +43,6 @@ declare expected_libraries=(
 
 declare expected_devlibraries=(
     "$DIR_LIB/librnp.so"
-    "$DIR_LIB/librnp.a"
-    "$DIR_LIB/libsexp.a"
     "$DIR_LIB/pkgconfig/librnp.pc"
 )
 

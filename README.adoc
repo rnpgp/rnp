@@ -28,6 +28,7 @@ Currently supported platforms:
 * RHEL/CentOS
 * Ubuntu
 * NixOS / Nix
+* Gentoo
 * FreeBSD
 * MacOS
 * Windows

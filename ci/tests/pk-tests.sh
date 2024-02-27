@@ -63,8 +63,8 @@ create_cmake_file() {
         set_target_properties(JSON-C::JSON-C PROPERTIES INTERFACE_LINK_LIBRARIES PkgConfig::JSONC)
 
         pkg_check_modules(Botan REQUIRED IMPORTED_TARGET botan-2)
-        add_library(Botan2::Botan2  INTERFACE IMPORTED)
-        set_target_properties(Botan2::Botan2 PROPERTIES INTERFACE_LINK_LIBRARIES PkgConfig::Botan)
+        add_library(Botan::Botan  INTERFACE IMPORTED)
+        set_target_properties(Botan::Botan PROPERTIES INTERFACE_LINK_LIBRARIES PkgConfig::Botan)
 
         find_package(rnp REQUIRED)
 
@@ -95,33 +95,6 @@ test_shared_library() {
 # shellcheck disable=SC2251
 !   ldd find_package_test | grep librnp
     assertEquals "no reference to shared rnp library at shared library test" 0 "${PIPESTATUS[1]}"
-
-    popd
-# shellcheck disable=SC2046
-    sudo yum -y erase $(rpm -qa  | grep rnp)
-}
-
-test_static_library() {
-    sudo yum -y localinstall librnp0-0*.*.rpm librnp0-devel-0*.*.rpm
-    pushd "$(mktemp -d)"
-    create_source_file
-    create_cmake_file 'rnp::librnp-static'
-
-# shellcheck disable=SC2251
-!   cmake . -DCMAKE_MODULE_PATH="$DIR_CMAKE"/*
-    assertEquals "cmake failed at static library test" 0 "${PIPESTATUS[0]}"
-
-# shellcheck disable=SC2251
-!   make
-    assertEquals "make failed at static library test" 0 "${PIPESTATUS[0]}"
-
-# shellcheck disable=SC2251
-!   ./find_package_test
-    assertEquals "test program failed at static library test" 0 "${PIPESTATUS[0]}"
-
-# shellcheck disable=SC2251
-!   ldd find_package_test | grep librnp
-    assertNotEquals "unexpected reference to shared rnp library at static library test" 0 "${PIPESTATUS[1]}"
 
     popd
 # shellcheck disable=SC2046

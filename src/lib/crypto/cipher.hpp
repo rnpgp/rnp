@@ -58,7 +58,10 @@ class Cipher {
                         const uint8_t *input,
                         size_t         input_length,
                         size_t *       input_consumed) = 0;
-    // process final block and perform any padding
+    /**
+     * @brief Finalize cipher. For AEAD mode, depending on backend, may require whole
+     * authentication tag to be present in input.
+     */
     virtual bool finish(uint8_t *      output,
                         size_t         output_length,
                         size_t *       output_written,

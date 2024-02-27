@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021, 2023 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -35,6 +35,10 @@
 #include <openssl/dh.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
+#if defined(CRYPTO_BACKEND_OPENSSL3)
+#include <openssl/core_names.h>
+#include <openssl/param_build.h>
+#endif
 
 #define DSA_MAX_Q_BITLEN 256
 
@@ -83,40 +87,78 @@ done:
     return res;
 }
 
+#if defined(CRYPTO_BACKEND_OPENSSL3)
+static OSSL_PARAM *
+dsa_build_params(bignum_t *p, bignum_t *q, bignum_t *g, bignum_t *y, bignum_t *x)
+{
+    OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
+    if (!bld) {
+        return NULL;
+    }
+    if (!OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_P, p) ||
+        !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_Q, q) ||
+        !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_G, g) ||
+        !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PUB_KEY, y) ||
+        (x && !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY, x))) {
+        OSSL_PARAM_BLD_free(bld);
+        return NULL;
+    }
+    OSSL_PARAM *param = OSSL_PARAM_BLD_to_param(bld);
+    OSSL_PARAM_BLD_free(bld);
+    return param;
+}
+#endif
+
 static EVP_PKEY *
 dsa_load_key(const pgp_dsa_key_t *key, bool secret = false)
 {
-    DSA *     dsa = NULL;
     EVP_PKEY *evpkey = NULL;
-    bignum_t *p = mpi2bn(&key->p);
-    bignum_t *q = mpi2bn(&key->q);
-    bignum_t *g = mpi2bn(&key->g);
-    bignum_t *y = mpi2bn(&key->y);
-    bignum_t *x = secret ? mpi2bn(&key->x) : NULL;
+    rnp::bn   p(mpi2bn(&key->p));
+    rnp::bn   q(mpi2bn(&key->q));
+    rnp::bn   g(mpi2bn(&key->g));
+    rnp::bn   y(mpi2bn(&key->y));
+    rnp::bn   x(secret ? mpi2bn(&key->x) : NULL);
 
-    if (!p || !q || !g || !y || (secret && !x)) {
+    if (!p.get() || !q.get() || !g.get() || !y.get() || (secret && !x.get())) {
         RNP_LOG("out of memory");
-        goto done;
+        return NULL;
     }
 
-    dsa = DSA_new();
+#if defined(CRYPTO_BACKEND_OPENSSL3)
+    OSSL_PARAM *params = dsa_build_params(p.get(), q.get(), g.get(), y.get(), x.get());
+    if (!params) {
+        RNP_LOG("failed to build dsa params");
+        return NULL;
+    }
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_DSA, NULL);
+    if (!ctx) {
+        RNP_LOG("failed to create dsa context");
+        OSSL_PARAM_free(params);
+        return NULL;
+    }
+    if ((EVP_PKEY_fromdata_init(ctx) != 1) ||
+        (EVP_PKEY_fromdata(
+           ctx, &evpkey, secret ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY, params) != 1)) {
+        RNP_LOG("failed to create key from data");
+        evpkey = NULL;
+    }
+    OSSL_PARAM_free(params);
+    EVP_PKEY_CTX_free(ctx);
+    return evpkey;
+#else
+    DSA *dsa = DSA_new();
     if (!dsa) {
         RNP_LOG("Out of memory");
         goto done;
     }
-    if (DSA_set0_pqg(dsa, p, q, g) != 1) {
+    if (DSA_set0_pqg(dsa, p.own(), q.own(), g.own()) != 1) {
         RNP_LOG("Failed to set pqg. Error: %lu", ERR_peek_last_error());
         goto done;
     }
-    p = NULL;
-    q = NULL;
-    g = NULL;
-    if (DSA_set0_key(dsa, y, x) != 1) {
+    if (DSA_set0_key(dsa, y.own(), x.own()) != 1) {
         RNP_LOG("Secret key load error: %lu", ERR_peek_last_error());
         goto done;
     }
-    y = NULL;
-    x = NULL;
 
     evpkey = EVP_PKEY_new();
     if (!evpkey) {
@@ -130,19 +172,15 @@ dsa_load_key(const pgp_dsa_key_t *key, bool secret = false)
     }
 done:
     DSA_free(dsa);
-    bn_free(p);
-    bn_free(q);
-    bn_free(g);
-    bn_free(y);
-    bn_free(x);
     return evpkey;
+#endif
 }
 
 rnp_result_t
 dsa_validate_key(rnp::RNG *rng, const pgp_dsa_key_t *key, bool secret)
 {
     /* OpenSSL doesn't implement key checks for the DSA, however we may use DL via DH */
-    EVP_PKEY *pkey = dl_load_key(key->p, &key->q, key->g, key->y, NULL);
+    EVP_PKEY *pkey = dl_load_key(key->p, &key->q, key->g, key->y, secret ? &key->x : NULL);
     if (!pkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -238,6 +276,43 @@ done:
     return ret;
 }
 
+static bool
+dsa_extract_key(EVP_PKEY *pkey, pgp_dsa_key_t &key)
+{
+#if defined(CRYPTO_BACKEND_OPENSSL3)
+    rnp::bn p;
+    rnp::bn q;
+    rnp::bn g;
+    rnp::bn y;
+    rnp::bn x;
+
+    bool res = EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_FFC_P, p.ptr()) &&
+               EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_FFC_Q, q.ptr()) &&
+               EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_FFC_G, g.ptr()) &&
+               EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_PUB_KEY, y.ptr()) &&
+               EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_PRIV_KEY, x.ptr());
+    return res && p.mpi(key.p) && q.mpi(key.q) && g.mpi(key.g) && y.mpi(key.y) && x.mpi(key.x);
+#else
+    const DSA *dsa = EVP_PKEY_get0_DSA(pkey);
+    if (!dsa) {
+        RNP_LOG("Failed to retrieve DSA key: %lu", ERR_peek_last_error());
+        return false;
+    }
+
+    const bignum_t *p = DSA_get0_p(dsa);
+    const bignum_t *q = DSA_get0_q(dsa);
+    const bignum_t *g = DSA_get0_g(dsa);
+    const bignum_t *y = DSA_get0_pub_key(dsa);
+    const bignum_t *x = DSA_get0_priv_key(dsa);
+
+    if (!p || !q || !g || !y || !x) {
+        return false;
+    }
+    return bn2mpi(p, &key.p) && bn2mpi(q, &key.q) && bn2mpi(g, &key.g) && bn2mpi(y, &key.y) &&
+           bn2mpi(x, &key.x);
+#endif
+}
+
 rnp_result_t
 dsa_generate(rnp::RNG *rng, pgp_dsa_key_t *key, size_t keylen, size_t qbits)
 {
@@ -246,7 +321,6 @@ dsa_generate(rnp::RNG *rng, pgp_dsa_key_t *key, size_t keylen, size_t qbits)
     }
 
     rnp_result_t  ret = RNP_ERROR_GENERIC;
-    const DSA *   dsa = NULL;
     EVP_PKEY *    pkey = NULL;
     EVP_PKEY *    parmkey = NULL;
     EVP_PKEY_CTX *ctx = NULL;
@@ -293,32 +367,10 @@ dsa_generate(rnp::RNG *rng, pgp_dsa_key_t *key, size_t keylen, size_t qbits)
         RNP_LOG("DSA keygen failed: %lu", ERR_peek_last_error());
         goto done;
     }
-    dsa = EVP_PKEY_get0_DSA(pkey);
-    if (!dsa) {
-        RNP_LOG("Failed to retrieve DSA key: %lu", ERR_peek_last_error());
-        goto done;
-    }
 
-    const bignum_t *p;
-    const bignum_t *q;
-    const bignum_t *g;
-    const bignum_t *y;
-    const bignum_t *x;
-    p = DSA_get0_p(dsa);
-    q = DSA_get0_q(dsa);
-    g = DSA_get0_g(dsa);
-    y = DSA_get0_pub_key(dsa);
-    x = DSA_get0_priv_key(dsa);
-    if (!p || !q || !g || !y || !x) {
-        ret = RNP_ERROR_BAD_STATE;
-        goto done;
+    if (dsa_extract_key(pkey, *key)) {
+        ret = RNP_SUCCESS;
     }
-    bn2mpi(p, &key->p);
-    bn2mpi(q, &key->q);
-    bn2mpi(g, &key->g);
-    bn2mpi(y, &key->y);
-    bn2mpi(x, &key->x);
-    ret = RNP_SUCCESS;
 done:
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(parmkey);

@@ -199,7 +199,7 @@ to maintain a consistent code base.
 
 === Code Formatting
 
-`clang-format` (v9.0.0) can be used to format the code base, utilizing
+`clang-format` (v11.0.0) can be used to format the code base, utilizing
 the `.clang-format` file included in the repository.
 
 ==== clang-format git hook
@@ -213,7 +213,7 @@ cd rnp
 git-hooks/enable.sh
 --
 
-If you do not have clang-format v9.0.0 available, you can use a docker
+If you do not have clang-format v11.0.0 available, you can use a docker
 container for this purpose by setting `USE_DOCKER="yes"` in
 `git-hooks/pre-commit.sh`.
 

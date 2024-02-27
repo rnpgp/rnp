@@ -106,7 +106,7 @@ test_supported_features() {
         ;;
       *)
         so_folder="lib64"
-        botan_only+=("${brainpool[@]}")
+#       botan_only+=("${brainpool[@]}")
     esac
 
     if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
@@ -118,9 +118,9 @@ test_supported_features() {
     fi
 
     if [[ "$OSTYPE" == darwin* ]]; then
-        export DYLD_LIBRARY_PATH="$library_path"
+        export DYLD_LIBRARY_PATH="$library_path${DYLD_LIBRARY_PATH:+:${DYLD_LIBRARY_PATH}}"
     else
-        export LD_LIBRARY_PATH="$library_path"
+        export LD_LIBRARY_PATH="$library_path${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
     fi
 
     "$RNP_INSTALL"/bin/rnp --version > rnp-version

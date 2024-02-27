@@ -27,8 +27,8 @@
 #ifndef RNP_G23_SEXP_HPP
 #define RNP_G23_SEXP_HPP
 
-#include "sexp/sexp.h"
-#include "sexp/ext-key-format.h"
+#include "sexpp/sexp.h"
+#include "sexpp/ext-key-format.h"
 
 #define SXP_MAX_DEPTH 30
 

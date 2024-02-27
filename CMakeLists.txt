@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2020 Ribose Inc.
+# Copyright (c) 2018-2023 Ribose Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,6 +58,8 @@ option(ENABLE_COVERAGE "Enable code coverage testing.")
 option(ENABLE_SANITIZERS "Enable ASan and other sanitizers.")
 option(ENABLE_FUZZERS "Enable fuzz targets.")
 option(DOWNLOAD_GTEST "Download Googletest" On)
+option(SYSTEM_LIBSEXPP "Use system sexpp library" OFF)
+
 # crypto components
 function(tristate_feature_auto NAME DESCRIPTION)
   set(${NAME} Auto CACHE STRING ${DESCRIPTION})
@@ -98,14 +100,20 @@ endif()
 # crypto backend
 if (NOT CRYPTO_BACKEND)
   set(CRYPTO_BACKEND "botan" CACHE STRING
-    "Crypto backend. Possible values are botan and openssl (under development, only for debug builds). Default is botan."
+    "Crypto backend. Possible values are botan and openssl. Default is botan."
     FORCE
   )
 endif()
 string(TOLOWER ${CRYPTO_BACKEND} CRYPTO_BACKEND_LOWERCASE)
 if(CRYPTO_BACKEND_LOWERCASE STREQUAL "botan")
-  # Default value;
+  # Default value; version 2 or 3 of Botan
   set(CRYPTO_BACKEND_BOTAN 1)
+elseif(CRYPTO_BACKEND_LOWERCASE STREQUAL "botan3")
+  set(CRYPTO_BACKEND "botan")
+  set(CRYPTO_BACKEND_LOWERCASE "botan")
+  # Require version 3 of Botan
+  set(CRYPTO_BACKEND_BOTAN 1)
+  set(CRYPTO_BACKEND_BOTAN3 1)
 elseif(CRYPTO_BACKEND_LOWERCASE STREQUAL "openssl")
   set(CRYPTO_BACKEND_OPENSSL 1)
 else()
@@ -176,10 +184,36 @@ if (ENABLE_FUZZERS)
 endif()
 add_subdirectory(src/common)
 
-set(WITH_SEXP_CLI OFF)
-set(WITH_SEXP_TESTS OFF)
-set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME development)
-add_subdirectory(src/libsexp EXCLUDE_FROM_ALL)
+if (SYSTEM_LIBSEXPP)
+  find_package(PkgConfig QUIET)
+  pkg_check_modules(SEXPP sexpp>=0.8.7 REQUIRED)
+  find_library(SEXPP_LIBRARY
+    NAMES
+      "libsexpp"
+      "sexpp"
+    HINTS
+      "${SEXPP_LIBRARY_DIRS}"
+  )
+  add_library(sexpp UNKNOWN IMPORTED)
+  set_target_properties(sexpp
+    PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${SEXPP_INCLUDE_DIR}"
+      IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+      IMPORTED_LOCATION "${SEXPP_LIBRARY}"
+  )
+else (SYSTEM_LIBSEXPP)
+# If we use system libsexpp is not used we build sexpp static library
+# If librnp is shared, libsexpp.a is a transient artifact which is hidden from
+# the end user.
+# If librnp is static we install libsexpp.a aside
+  set(SAVED_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+  set(BUILD_SHARED_LIBS OFF)
+  set(WITH_SEXP_CLI OFF)
+  set(WITH_SEXP_TESTS OFF)
+  set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME development)
+  add_subdirectory(src/libsexpp EXCLUDE_FROM_ALL)
+  set(BUILD_SHARED_LIBS ${SAVED_BUILD_SHARED_LIBS})
+endif (SYSTEM_LIBSEXPP)
 
 add_subdirectory(src/lib)
 add_subdirectory(src/rnp)

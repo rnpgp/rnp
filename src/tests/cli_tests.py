@@ -9,6 +9,7 @@ import sys
 import tempfile
 import time
 import unittest
+import random
 from platform import architecture
 
 from cli_common import (file_text, find_utility, is_windows, list_upto,
@@ -47,6 +48,8 @@ RNP_IDEA = True
 RNP_BLOWFISH = True
 RNP_CAST5 = True
 RNP_RIPEMD160 = True
+# Botan may cause AV during OCB decryption in certain cases, see https://github.com/randombit/botan/issues/3812
+RNP_BOTAN_OCB_AV = False
 
 if sys.version_info >= (3,):
     unichr = chr
@@ -861,6 +864,7 @@ def gpg_check_features():
 
 def rnp_check_features():
     global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_AEAD_EAX, RNP_AEAD_OCB, RNP_AEAD_OCB_AES, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160
+    global RNP_BOTAN_OCB_AV
     ret, out, _ = run_proc(RNP, ['--version'])
     if ret != 0:
         raise_err('Failed to get RNP version.')
@@ -869,6 +873,14 @@ def rnp_check_features():
     RNP_AEAD_OCB = re.match(r'(?s)^.*AEAD:.*OCB.*', out) is not None
     RNP_AEAD = RNP_AEAD_EAX or RNP_AEAD_OCB
     RNP_AEAD_OCB_AES = RNP_AEAD_OCB and re.match(r'(?s)^.*Backend.*OpenSSL.*', out) is not None
+    # Botan OCB crash
+    if re.match(r'(?s)^.*Backend.*Botan.*', out):
+        match = re.match(r'(?s)^.*Backend version: ([\d]+)\.([\d]+)\.([\d]+).*$', out)
+        ver = [int(match.group(1)), int(match.group(2)), int(match.group(3))]
+        if ver <= [2, 19, 3]:
+            RNP_BOTAN_OCB_AV = True
+        if (ver >= [3, 0, 0]) and (ver <= [3, 2, 0]):
+            RNP_BOTAN_OCB_AV = True
     # Twofish
     RNP_TWOFISH = re.match(r'(?s)^.*Encryption:.*TWOFISH.*', out) is not None
     # Brainpool curves
@@ -887,6 +899,7 @@ def rnp_check_features():
     print('RNP_AEAD_EAX: ' + str(RNP_AEAD_EAX))
     print('RNP_AEAD_OCB: ' + str(RNP_AEAD_OCB))
     print('RNP_AEAD_OCB_AES: ' + str(RNP_AEAD_OCB_AES))
+    print('RNP_BOTAN_OCB_AV: ' + str(RNP_BOTAN_OCB_AV))
 
 def setup(loglvl):
     # Setting up directories.
@@ -3037,10 +3050,10 @@ class Misc(unittest.TestCase):
     def test_backend_version(self):
         BOTAN_BACKEND_VERSION = r'(?s)^.*.' \
         'Backend: Botan.*' \
-        'Backend version: ([a-zA-z\.0-9]+).*$'
+        'Backend version: ([a-zA-Z\\.0-9]+).*$'
         OPENSSL_BACKEND_VERSION = r'(?s)^.*' \
         'Backend: OpenSSL.*' \
-        'Backend version: ([a-zA-z\.0-9]+).*$'
+        'Backend version: ([a-zA-Z\\.0-9]+).*$'
         # Run without parameters and make sure it matches
         ret, out, _ = run_proc(RNP, [])
         self.assertNotEqual(ret, 0)
@@ -3054,28 +3067,33 @@ class Misc(unittest.TestCase):
         if not match:
             match = re.match(OPENSSL_BACKEND_VERSION, out)
             backend_prog = 'openssl'
-            openssl_root = os.getenv('OPENSSL_ROOT_DIR')
+            openssl_root = os.getenv('RNP_TESTS_OPENSSL_ROOT')
         else:
             openssl_root = None
         self.assertTrue(match)
         # check there is no unexpected output
         self.assertNotRegex(err, r'(?is)^.*Unsupported.*$')
         self.assertNotRegex(err, r'(?is)^.*pgp_sa_to_openssl_string.*$')
+        self.assertNotRegex(err, r'(?is)^.*unknown.*$')
 
         # In case when there are several openssl installations
         # testing environment is supposed to point to the right one
         # through OPENSSL_ROOT_DIR environment variable
+        if is_windows():
+            backend_prog += '.exe'
+        backend_prog_ext = None
         if openssl_root is not None:
-            backen_prog_ext = shutil.which(backend_prog, path = openssl_root + '/bin')
+            backend_prog_ext = shutil.which(backend_prog, path = openssl_root + '/bin')
         else:
         # In all other cases
         # check that botan or openssl executable binary exists in PATH
-            backen_prog_ext = shutil.which(backend_prog)
+            backend_prog_ext = shutil.which(backend_prog)
 
-        if backen_prog_ext is not None:
-            ret, out, _ = run_proc(backen_prog_ext, ['version'])
-            self.assertEqual(ret, 0)
-            self.assertIn(match.group(1), out)
+        if backend_prog_ext is None:
+            return
+        ret, out, _ = run_proc(backend_prog_ext, ['version'])
+        self.assertEqual(ret, 0)
+        self.assertIn(match.group(1), out)
 
     def test_help_message(self):
         # rnp help message
@@ -4120,11 +4138,24 @@ class Encryption(unittest.TestCase):
         AEAD_C = list_upto(CIPHERS, Encryption.RUNS)
         AEAD_M = list_upto(AEADS, Encryption.RUNS)
         AEAD_B = list_upto([None, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16], Encryption.RUNS)
+        SIZES = Encryption.SIZES_R
+        random.shuffle(SIZES)
 
         # Encrypt and decrypt cleartext using the AEAD
-        for size, cipher, aead, bits, z in zip(Encryption.SIZES_R, AEAD_C,
+        for size, cipher, aead, bits, z in zip(SIZES, AEAD_C,
                                                AEAD_M, AEAD_B, Encryption.Z_R):
+            if RNP_BOTAN_OCB_AV and (aead == 'ocb') and (size > 30000):
+                continue
             rnp_sym_encryption_rnp_aead(size, cipher, z, [aead, bits], GPG_AEAD)
+
+    def test_sym_encrypted__rnp_aead_botan_crash(self):
+        if RNP_BOTAN_OCB_AV:
+            return
+        dst, = reg_workfiles('cleartext', '.txt')
+        rnp_decrypt_file(data_path('test_messages/message.aead-windows-issue'), dst)
+        remove_files(dst)
+        rnp_decrypt_file(data_path('test_messages/message.aead-windows-issue2'), dst)
+        remove_files(dst)                                                 
 
     def test_aead_chunk_edge_cases(self):
         if not RNP_AEAD:
@@ -4710,12 +4741,16 @@ class EncryptElgamal(Encrypt):
         self.operation_key_location = tuple((key_path(pfx, False), key_path(pfx, True)))
         self.rnp.userid = self.gpg.userid = pfx + AT_EXAMPLE
         # DSA 1024 key uses SHA-1 as hash but verification would succeed till 2024
+        if sign_key_size == 1024:
+            return
         self._encrypt_decrypt(self.gpg, self.rnp)
 
     def do_test_decrypt(self, sign_key_size, enc_key_size):
         pfx = EncryptElgamal.key_pfx(sign_key_size, enc_key_size)
         self.operation_key_location = tuple((key_path(pfx, False), key_path(pfx, True)))
         self.rnp.userid = self.gpg.userid = pfx + AT_EXAMPLE
+        if sign_key_size == 1024:
+            return
         self._encrypt_decrypt(self.rnp, self.gpg)
 
     def test_encrypt_P1024_1024(self): self.do_test_encrypt(1024, 1024)
@@ -4726,11 +4761,7 @@ class EncryptElgamal(Encrypt):
     def test_decrypt_P2048_2048(self): self.do_test_decrypt(2048, 2048)
     def test_decrypt_P1234_1234(self): self.do_test_decrypt(1234, 1234)
 
-    def test_generate_elgamal_key1024_in_gpg_and_encrypt(self):
-        cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATTERN.format(1024, 1024, self.gpg.userid)
-        self.operation_key_gencmd = cmd
-        # Will not fail till 2024 since 1024-bit DSA key uses SHA-1 as hash.
-        self._encrypt_decrypt(self.gpg, self.rnp)
+    # 1024-bit key generation test was removed since it uses SHA1, which is not allowed for key signatures since Jan 19, 2024.
 
     def test_generate_elgamal_key1536_in_gpg_and_encrypt(self):
         cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATTERN.format(1536, 1536, self.gpg.userid)

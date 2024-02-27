@@ -74,7 +74,6 @@ file(WRITE "${_fossl_work_dir}/CMakeLists.txt"
 "cmake_minimum_required(VERSION 3.18)\n\
 project(findopensslfeatures LANGUAGES C)\n\
 set(CMAKE_C_STANDARD 99)\n\
-include(FindOpenSSL)\n\
 find_package(OpenSSL REQUIRED)\n\
 add_executable(findopensslfeatures findopensslfeatures.c)\n\
 target_include_directories(findopensslfeatures PRIVATE ${OPENSSL_INCLUDE_DIR})\n\
@@ -139,7 +138,7 @@ else(WIN32 AND NOT MINGW)
   set(FOF "build/findopensslfeatures")
 endif(WIN32 AND NOT MINGW)
 
-foreach(feature "hashes" "ciphers" "curves" "publickey")
+foreach(feature "hashes" "ciphers" "curves" "publickey" "providers")
   execute_process(
     COMMAND "${FOF}" "${feature}"
     WORKING_DIRECTORY "${_fossl_work_dir}"
@@ -160,7 +159,7 @@ foreach(feature "hashes" "ciphers" "curves" "publickey")
   list(APPEND OPENSSL_SUPPORTED_FEATURES ${OPENSSL_SUPPORTED_${feature_up}})
 endforeach()
 
-message(STATUS "Fetched OpenSSL features: ${hashes_len} hashes, ${ciphers_len} ciphers, ${curves_len} curves, ${publickey_len} publickey.")
+message(STATUS "Fetched OpenSSL features: ${hashes_len} hashes, ${ciphers_len} ciphers, ${curves_len} curves, ${publickey_len} publickey, ${providers_len} providers.")
 
 function(OpenSSLHasFeature FEATURE VARIABLE)
   string(TOUPPER ${FEATURE} _feature_up)

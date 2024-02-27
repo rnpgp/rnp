@@ -14,20 +14,26 @@
 install_botan() {
   # botan
   local botan_build=${LOCAL_BUILDS}/botan
-  if [[ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.so" ]] && \
-     [[ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.dylib" ]] && \
-     [[ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.a" ]]; then
+  local botan_v=${BOTAN_VERSION::1}
+  if [[ ! -e "${BOTAN_INSTALL}/lib/libbotan-${botan_v}.so" ]] && \
+     [[ ! -e "${BOTAN_INSTALL}/lib/libbotan-${botan_v}.dylib" ]] && \
+     [[ ! -e "${BOTAN_INSTALL}/lib/libbotan-${botan_v}.a" ]]; then
 
     if [[ -d "${botan_build}" ]]; then
       rm -rf "${botan_build}"
     fi
 
     git clone --depth 1 --branch "${BOTAN_VERSION}" https://github.com/randombit/botan "${botan_build}"
-    pushd "${botan_build}"
 
     local osparam=()
     local cpuparam=()
     local run=run
+    local osslparam=()
+    local modules=""
+    [[ "${botan_v}" == "2" ]] && osslparam+=("--without-openssl") && modules=$(<ci/botan-modules tr '\n' ',')
+    [[ "${botan_v}" == "3" ]] && modules=$(<ci/botan3-modules tr '\n' ',')
+
+    pushd "${botan_build}"
     # Position independent code is a default for shared libraries at any xNIX platform
     # but it makes no sense and is not supported for Windows
     local extra_cflags="-fPIC"
@@ -47,8 +53,8 @@ install_botan() {
     is_use_static_dependencies && build_target="static,cli"
 
     "${run}" ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --extra-cxxflags="-fno-omit-frame-pointer ${extra_cflags}" \
-      ${osparam+"${osparam[@]}"} ${cpuparam+"${cpuparam[@]}"} --without-documentation --without-openssl --build-targets="${build_target}" \
-      --minimized-build --enable-modules="$BOTAN_MODULES"
+      ${osparam+"${osparam[@]}"} ${cpuparam+"${cpuparam[@]}"} --without-documentation ${osslparam+"${osslparam[@]}"} --build-targets="${build_target}" \
+      --minimized-build --enable-modules="$modules"
     ${MAKE} -j"${MAKE_PARALLEL}" install
     popd
   fi
@@ -224,11 +230,11 @@ install_gpg() {
         #                              npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
         _install_gpg component-version 1.6  1.46         1.8.10    2.5.5     1.6.3   1.2.1    2.2.41
         ;;
-      beta)
+      # beta)
         #                              npth    libgpg-error libgcrypt libassuan libksba pinentry gnupg
-        _install_gpg component-git-ref 2501a48 f73605e      d9c4183   909133b   3df0cd3 0e2e53c  c6702d7
+        # _install_gpg component-git-ref 2501a48 f73605e      d9c4183   909133b   3df0cd3 0e2e53c  c6702d7
         # _install_gpg component-git-ref 7e45b50 c66594d      cf88dca   57cf9d6   4243085 6e8ad31  d4e5979
-        ;;
+        # ;;
       "2.3.1")
         #                              npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
         _install_gpg component-version 1.6  1.42         1.9.3     2.5.5     1.6.0   1.1.1    2.3.1

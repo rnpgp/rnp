@@ -35,9 +35,9 @@
 #include <direct.h> /* for _getcwd() and _chdir() */
 
 #ifdef _WIN64
-#define ssize_t __int64
+typedef __int64 ssize_t;
 #else
-#define ssize_t long
+typedef long ssize_t;
 #endif
 
 #define STDIN_FILENO 0

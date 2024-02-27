@@ -333,12 +333,16 @@ rsa_decrypt_pkcs1(rnp::RNG *                 rng,
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
+    size_t skip = 0;
     if (botan_pk_op_decrypt_create(&decrypt_op, rsa_key, "PKCS1v15", 0)) {
         goto done;
     }
-
+    /* Skip trailing zeroes if any as Botan3 doesn't like m.len > e.len */
+    while ((in->m.len - skip > key->e.len) && !in->m.mpi[skip]) {
+        skip++;
+    }
     *out_len = PGP_MPINT_SIZE;
-    if (botan_pk_op_decrypt(decrypt_op, out, out_len, in->m.mpi, in->m.len)) {
+    if (botan_pk_op_decrypt(decrypt_op, out, out_len, in->m.mpi + skip, in->m.len - skip)) {
         goto done;
     }
     ret = RNP_SUCCESS;

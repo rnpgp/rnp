@@ -116,28 +116,11 @@ sudo make install
 
 == On Gentoo Linux
 
-RNP ebuilds are available from an overlay repository named `rnp`.
-
-=== Using eselect-repository (the current way)
-
-Prerequisite: ensure `eselect-repository` is installed on your system.
+RNP is present in the official Gentoo repository under the name `dev-util/librnp`.
 
 [source,console]
 ----
-eselect repository enable rnp
-emaint sync -r rnp
-emerge -av app-crypt/rnp
-----
-
-=== Using layman (the old way)
-
-Prerequisite: ensure `layman` is installed on your system.
-
-[source,console]
-----
-layman -a rnp
-layman -s rnp
-emerge -av app-crypt/rnp
+emerge -av dev-util/librnp
 ----
 
 == Compile from source

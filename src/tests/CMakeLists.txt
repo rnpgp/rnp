@@ -66,11 +66,20 @@ else()
 endif()
 
 find_package(JSON-C 0.11 REQUIRED)
-if (CRYPTO_BACKEND_LOWERCASE STREQUAL "botan")
-  find_package(Botan2 2.14.0 REQUIRED)
+if (CRYPTO_BACKEND_BOTAN3)
+  find_package(Botan 3.0.0 REQUIRED)
+elseif (CRYPTO_BACKEND_BOTAN)
+  find_package(Botan 2.14.0 REQUIRED)
+  if(BOTAN_VERSION VERSION_GREATER_EQUAL 3.0.0)
+    set(CRYPTO_BACKEND_BOTAN3 1)
+  endif()
 endif()
 if (CRYPTO_BACKEND_LOWERCASE STREQUAL "openssl")
   find_package(OpenSSL 1.1.1 REQUIRED)
+endif()
+
+if(CRYPTO_BACKEND_BOTAN3)
+  set(CMAKE_CXX_STANDARD 20)
 endif()
 
 add_executable(rnp_tests
@@ -170,13 +179,14 @@ target_include_directories(rnp_tests
   PRIVATE
     "${PROJECT_SOURCE_DIR}/src"
     "${PROJECT_SOURCE_DIR}/src/lib"
-    "${BOTAN2_INCLUDE_DIRS}"
+    "${BOTAN_INCLUDE_DIRS}"
+    "${SEXPP_INCLUDE_DIRS}"
 )
 target_link_libraries(rnp_tests
   PRIVATE
     librnp-static
     JSON-C::JSON-C
-    sexp
+    sexpp
     ${GTestMain}
 )
 if (CRYPTO_BACKEND_LOWERCASE STREQUAL "openssl")
@@ -220,6 +230,13 @@ function(add_cli_test suite)
     "RNP_TESTS_GPG_PATH=${GPG_EXECUTABLE}"
     "RNP_TESTS_GPGCONF_PATH=${GPGCONF_EXECUTABLE}"
   )
+  if (CRYPTO_BACKEND_OPENSSL)
+    get_filename_component(ossl_root "${OPENSSL_INCLUDE_DIR}" DIRECTORY)
+    list(APPEND _env
+      "RNP_TESTS_OPENSSL_ROOT=${ossl_root}"
+    )
+  endif()
+
   set_tests_properties(${_test_name} PROPERTIES
     TIMEOUT 3000
     FIXTURES_REQUIRED testdata

@@ -902,6 +902,11 @@ TEST_F(rnp_tests, test_ffi_sig_validity)
     uint32_t expires = 0;
     assert_rnp_success(rnp_signature_get_expiration(sig, &expires));
     assert_int_equal(expires, 86400);
+    uint32_t features = 0;
+    assert_rnp_failure(rnp_signature_get_features(NULL, &features));
+    assert_rnp_failure(rnp_signature_get_features(sig, NULL));
+    assert_rnp_success(rnp_signature_get_features(sig, &features));
+    assert_int_equal(features, 0);
     rnp_signature_handle_destroy(sig);
     rnp_uid_handle_destroy(uid);
     rnp_key_handle_destroy(key);

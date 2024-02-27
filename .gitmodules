@@ -1,3 +1,3 @@
-[submodule "src/libsexp"]
-	path = src/libsexp
-	url = https://github.com/rnpgp/sexp.git
+[submodule "src/libsexpp"]
+	path = src/libsexpp
+	url = https://github.com/rnpgp/sexpp.git
