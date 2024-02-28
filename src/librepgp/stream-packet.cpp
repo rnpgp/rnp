@@ -1278,6 +1278,10 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material)
             RNP_LOG("failed to get kyber-ecdh ciphertext");
             return false;
         }
+        if (!pkt.get(wrapped_key_len)) {
+            RNP_LOG("failed to get kyber-ecdh wrapped session key length");
+            return false;
+        }
         /* get plaintext salg if PKESKv3 */
         if ((version == PGP_PKSK_V3) && !do_encrypt_pkesk_v3_alg_id(alg)) {
             if (!pkt.get(bt)) {
@@ -1285,10 +1289,7 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material)
                 return RNP_ERROR_BAD_FORMAT;
             }
             salg = (pgp_symm_alg_t) bt;
-        }
-        if (!pkt.get(wrapped_key_len)) {
-            RNP_LOG("failed to get kyber-ecdh wrapped session key length");
-            return false;
+            wrapped_key_len--;
         }
         material.kyber_ecdh.wrapped_sesskey.resize(wrapped_key_len);
         if (!pkt.get(material.kyber_ecdh.wrapped_sesskey.data(),
@@ -1358,10 +1359,10 @@ pgp_pk_sesskey_t::write_material(const pgp_encrypted_material_t &material)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
         pktbody.add(material.kyber_ecdh.composite_ciphertext);
+        pktbody.add_byte(static_cast<uint8_t>(material.kyber_ecdh.wrapped_sesskey.size()) + 1);
         if (version == PGP_PKSK_V3) {
             pktbody.add_byte(salg); /* added as plaintext */
         }
-        pktbody.add_byte(static_cast<uint8_t>(material.kyber_ecdh.wrapped_sesskey.size()));
         pktbody.add(material.kyber_ecdh.wrapped_sesskey);
         break;
 #endif
