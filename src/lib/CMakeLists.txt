@@ -122,7 +122,7 @@ function(resolve_feature_state RNP_FEATURE BACKEND_FEATURES)
 
   foreach(feature ${BACKEND_FEATURES})
     backend_has_feature("${feature}" _has_${feature})
-    if (NOT ${_has_${feature}})
+    if (NOT _has_${feature})
       set(${RNP_FEATURE} Off CACHE STRING "Autodetected" FORCE)
       message(${MESSAGE_TYPE} "${RNP_FEATURE} requires ${CRYPTO_BACKEND} feature which is missing: ${feature}. ${OUTCOME}.")
       return()
