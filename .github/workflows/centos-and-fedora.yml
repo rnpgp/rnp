@@ -66,8 +66,9 @@ jobs:
           - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
           - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan', botan_ver: '3.1.1',              gpg_ver: 'system' }
 # Tests against gpg head fails
-#          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'head'   }
-          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan', botan_ver: 'head',             gpg_ver: 'system'   }
+#         - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'head'   }
+          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan', botan_ver: 'head',               gpg_ver: 'system'   }
+          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan', botan_ver: '3.3.0',    pqc: On,  gpg_ver: 'system'   }
           - { name: 'CentOS 8',  container: 'centos-8-amd64',  backend: 'OpenSSL',           gpg_ver: 'lts'    }
           - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'OpenSSL', idea: On, gpg_ver: 'stable' }
           - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'OpenSSL', idea: Off,gpg_ver: 'stable' }
@@ -100,6 +101,9 @@ jobs:
           # Coverage report for Botan backend with disabled algos
           - image: { name: 'Fedora 36', container: 'fedora-36-amd64', gpg_ver: stable, backend: Botan, idea: Off, sm2: Off, two: Off, blow: Off, rmd: Off, bp: Off }
             env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage,   SHARED_LIBS: on  }
+          # Coverage report for PQC
+          - image: { name: 'Fedora 36', container: 'fedora-36-amd64', gpg_ver: stable, backend: Botan, botan_ver: '3.3.0', pqc: On }
+            env:   { CC: clang, CXX: clang++, BUILD_MODE: sanitize,   SHARED_LIBS: off  }
           # Fedora 38
           - image: { name: 'Fedora 38', container: 'fedora-38-amd64', gpg_ver: system, backend: Botan, botan_ver: 'system' }
             env:   { CC: gcc, CXX: g++, BUILD_MODE: normal,   SHARED_LIBS: on  }
@@ -130,6 +134,7 @@ jobs:
           echo "ENABLE_BLOWFISH=${{ matrix.image.blow }}" >> $GITHUB_ENV
           echo "ENABLE_RIPEMD160=${{ matrix.image.rmd }}" >> $GITHUB_ENV
           echo "ENABLE_BRAINPOOL=${{ matrix.image.bp }}" >> $GITHUB_ENV
+          echo "ENABLE_PQC=${{ matrix.image.pqc }}" >> $GITHUB_ENV
 
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
 
@@ -162,13 +167,14 @@ jobs:
           [ -n "$ENABLE_BLOWFISH" ] && blow_opt=(-DENABLE_BLOWFISH="$ENABLE_BLOWFISH")
           [ -n "$ENABLE_RIPEMD160" ] && rmd_opt=(-DENABLE_RIPEMD160="$ENABLE_RIPEMD160")
           [ -n "$ENABLE_BRAINPOOL" ] && bp_opt=(-DENABLE_BRAINPOOL="$ENABLE_BRAINPOOL")
+          [ -n "$ENABLE_PQC" ] && pqc_opt=(-DENABLE_PQC="$ENABLE_PQC" -DENABLE_CRYPTO_REFRESH="$ENABLE_PQC")
 
           cmake -B build                                           \
                 -DBUILD_SHARED_LIBS=${{ env.SHARED_LIBS }}         \
                 -DDOWNLOAD_GTEST=ON                                \
                 -DCMAKE_BUILD_TYPE=Release                         \
                 -DCRYPTO_BACKEND=${{ matrix.image.backend }}       \
-                ${sm2_opt:-} ${idea_opt:-} ${two_opt:-} ${blow_opt:-} ${rmd_opt:-} ${bp_opt:-} ${cov_opt:-} ${san_opt:-} .
+                ${sm2_opt:-} ${idea_opt:-} ${two_opt:-} ${blow_opt:-} ${rmd_opt:-} ${bp_opt:-} ${pqc_opt[@]:-} ${cov_opt:-} ${san_opt:-} .
 
       - name: Build
         run: cmake --build build --parallel ${{ env.CORES }}
