@@ -3081,7 +3081,7 @@ grip_hash_mpi(rnp::Hash &hash, const pgp_mpi_t &val, const char name, bool lzero
             hlen++;
         }
 
-        char buf[20] = {0};
+        char buf[26] = {0};
         snprintf(buf, sizeof(buf), "(1:%c%zu:", name, hlen);
         hash.add(buf, strlen(buf));
     }
