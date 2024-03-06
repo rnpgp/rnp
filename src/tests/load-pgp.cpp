@@ -123,9 +123,10 @@ TEST_F(rnp_tests, test_load_v4_keyring_pgp)
 
 /* Just a helper for the below test */
 static void
-check_pgp_keyring_counts(const char *   path,
-                         unsigned       primary_count,
-                         const unsigned subkey_counts[])
+check_pgp_keyring_counts(const char *          path,
+                         unsigned              primary_count,
+                         const unsigned        subkey_counts[],
+                         rnp::SecurityContext &global_ctx)
 {
     pgp_source_t src = {};
     auto         key_store = new rnp::KeyStore(global_ctx);
@@ -173,10 +174,12 @@ TEST_F(rnp_tests, test_load_keyring_and_count_pgp)
     unsigned int subkey_counts[2] = {3, 2};
 
     // check pubring
-    check_pgp_keyring_counts("data/keyrings/1/pubring.gpg", primary_count, subkey_counts);
+    check_pgp_keyring_counts(
+      "data/keyrings/1/pubring.gpg", primary_count, subkey_counts, global_ctx);
 
     // check secring
-    check_pgp_keyring_counts("data/keyrings/1/secring.gpg", primary_count, subkey_counts);
+    check_pgp_keyring_counts(
+      "data/keyrings/1/secring.gpg", primary_count, subkey_counts, global_ctx);
 }
 
 /* This test loads a V4 keyring and confirms that certain

@@ -69,8 +69,6 @@ char *mkdtemp(char *templ);
 #define realpath(N, R) _fullpath((R), (N), _MAX_PATH)
 #endif
 
-extern rnp::SecurityContext global_ctx;
-
 off_t file_size(const char *path);
 
 /* Read file contents into the std::string */
