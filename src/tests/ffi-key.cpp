@@ -3232,12 +3232,14 @@ TEST_F(rnp_tests, test_ffi_v6_cert_import)
 }
 
 #if defined(ENABLE_PQC)
-// NOTE: this tests a round3-submission test vector, i.e., Dilithium/Kyber and not ML-DSA/ML-KEM.
+// NOTE: this tests ML-KEM-ipd test vectors
 // The final implementation of the PQC draft implementation will use the final NIST standard.
 TEST_F(rnp_tests, test_ffi_pqc_certs)
 {
-    /* TODO: skipped since test data is outdated */
+#if !(defined(BOTAN_HAS_ML_KEM_INITIAL_PUBLIC_DRAFT) && defined(ENABLE_PQC_MLKEM_IPD))
+    // we can only verify the test vectors with ML-KEM-ipd
     GTEST_SKIP();
+#endif
 
     rnp_ffi_t   ffi = NULL;
     rnp_input_t input = NULL;
@@ -3246,7 +3248,7 @@ TEST_F(rnp_tests, test_ffi_pqc_certs)
     /* Public Key */
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_pqc/kyber_dilithium_pk.asc"));
+      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-eddsa-mlkem.pub.asc"));
     assert_rnp_success(
       rnp_import_keys(ffi,
                       input,
@@ -3261,7 +3263,7 @@ TEST_F(rnp_tests, test_ffi_pqc_certs)
     /* Private Key */
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_pqc/kyber_dilithium_sk.asc"));
+      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-eddsa-mlkem.sec.asc"));
     assert_rnp_success(
       rnp_import_keys(ffi,
                       input,
