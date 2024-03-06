@@ -35,11 +35,6 @@
 
 static char original_dir[PATH_MAX];
 
-/*
- * Handler used to access DRBG.
- */
-rnp::SecurityContext global_ctx;
-
 #ifdef _WIN32
 void
 rnpInvalidParameterHandler(const wchar_t *expression,

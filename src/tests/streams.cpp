@@ -1086,7 +1086,7 @@ TEST_F(rnp_tests, test_stream_key_signatures)
 }
 
 static bool
-validate_key_sigs(const char *path)
+validate_key_sigs(const char *path, rnp::SecurityContext &global_ctx)
 {
     rnp_key_store_t *pubring = new rnp_key_store_t(PGP_KEY_STORE_GPG, path, global_ctx);
     bool             valid = rnp_key_store_load_from_path(pubring, NULL);
@@ -1144,32 +1144,30 @@ TEST_F(rnp_tests, test_stream_key_signature_validate)
     delete pubring;
 
     /* misc key files */
-    assert_true(validate_key_sigs("data/test_stream_key_load/dsa-eg-pub.asc"));
-    assert_true(validate_key_sigs("data/test_stream_key_load/dsa-eg-sec.asc"));
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-25519-pub.asc"));
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-25519-sec.asc"));
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-x25519-pub.asc"));
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-x25519-sec.asc"));
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-p256-pub.asc"));
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-p256-sec.asc"));
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-p384-pub.asc"));
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-p384-sec.asc"));
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-p521-pub.asc"));
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-p521-sec.asc"));
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-bp256-pub.asc") ==
-                brainpool_enabled());
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-bp256-sec.asc") ==
-                brainpool_enabled());
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-bp384-pub.asc") ==
-                brainpool_enabled());
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-bp384-sec.asc") ==
-                brainpool_enabled());
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-bp512-pub.asc") ==
-                brainpool_enabled());
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-bp512-sec.asc") ==
-                brainpool_enabled());
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-p256k1-pub.asc"));
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-p256k1-sec.asc"));
+    auto validate = [this](const std::string &file) {
+        auto path = "data/test_stream_key_load/" + file;
+        return validate_key_sigs(path.c_str(), this->global_ctx);
+    };
+    assert_true(validate("dsa-eg-pub.asc"));
+    assert_true(validate("dsa-eg-sec.asc"));
+    assert_true(validate("ecc-25519-pub.asc"));
+    assert_true(validate("ecc-25519-sec.asc"));
+    assert_true(validate("ecc-x25519-pub.asc"));
+    assert_true(validate("ecc-x25519-sec.asc"));
+    assert_true(validate("ecc-p256-pub.asc"));
+    assert_true(validate("ecc-p256-sec.asc"));
+    assert_true(validate("ecc-p384-pub.asc"));
+    assert_true(validate("ecc-p384-sec.asc"));
+    assert_true(validate("ecc-p521-pub.asc"));
+    assert_true(validate("ecc-p521-sec.asc"));
+    assert_true(validate("ecc-bp256-pub.asc") == brainpool_enabled());
+    assert_true(validate("ecc-bp256-sec.asc") == brainpool_enabled());
+    assert_true(validate("ecc-bp384-pub.asc") == brainpool_enabled());
+    assert_true(validate("ecc-bp384-sec.asc") == brainpool_enabled());
+    assert_true(validate("ecc-bp512-pub.asc") == brainpool_enabled());
+    assert_true(validate("ecc-bp512-sec.asc") == brainpool_enabled());
+    assert_true(validate("ecc-p256k1-pub.asc"));
+    assert_true(validate("ecc-p256k1-sec.asc"));
 }
 
 TEST_F(rnp_tests, test_stream_verify_no_key)
@@ -1606,7 +1604,8 @@ TEST_F(rnp_tests, test_stream_dearmor_edge_cases)
 }
 
 static void
-add_openpgp_layers(const char *msg, pgp_dest_t &pgpdst, int compr, int encr)
+add_openpgp_layers(
+  const char *msg, pgp_dest_t &pgpdst, int compr, int encr, rnp::SecurityContext &global_ctx)
 {
     pgp_source_t src = {};
     pgp_dest_t   dst = {};
@@ -1648,7 +1647,7 @@ TEST_F(rnp_tests, test_stream_deep_packet_nesting)
     pgp_dest_t  dst = {};
 
     /* add 30 compression layers and 2 encryption - must fail */
-    add_openpgp_layers(message, dst, 30, 2);
+    add_openpgp_layers(message, dst, 30, 2, global_ctx);
 #ifdef DUMP_TEST_CASE
     /* remove ifdef if you want to write it to stdout */
     pgp_source_t src = {};
@@ -1676,7 +1675,7 @@ TEST_F(rnp_tests, test_stream_deep_packet_nesting)
     dst_close(&dst, false);
 
     /* add  27 compression & 4 encryption layers - must succeed */
-    add_openpgp_layers("message", dst, 27, 4);
+    add_openpgp_layers("message", dst, 27, 4, global_ctx);
 #ifdef DUMP_TEST_CASE
     /* remove ifdef if you want to write it to stdout */
     assert_rnp_success(init_mem_src(&src, mem_dest_get_memory(&dst), dst.writeb, false));
