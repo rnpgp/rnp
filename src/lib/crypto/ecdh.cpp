@@ -263,7 +263,7 @@ ecdh_encrypt_pkcs5(rnp::RNG *               rng,
 
     out->mlen = sizeof(out->m);
 #if defined(CRYPTO_BACKEND_BOTAN3)
-    char name[8];
+    char name[16];
     snprintf(name, sizeof(name), "AES-%zu", 8 * kek_len);
     if (botan_nist_kw_enc(name, 0, m, m_padded_len, kek, kek_len, out->m, &out->mlen)) {
 #else
@@ -362,7 +362,7 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
     }
 
 #if defined(CRYPTO_BACKEND_BOTAN3)
-    char name[8];
+    char name[16];
     snprintf(name, sizeof(name), "AES-%zu", 8 * kek_len);
     if (botan_nist_kw_dec(
           name, 0, in->m, in->mlen, kek.data(), kek_len, deckey.data(), &deckey_len)) {
