@@ -2869,7 +2869,6 @@ cli_rnp_print_signatures(cli_rnp_t *rnp, const std::vector<rnp_op_verify_signatu
 {
     unsigned    invalidc = 0;
     unsigned    unknownc = 0;
-    unsigned    validc = 0;
     std::string title = "UNKNOWN signature";
     FILE *      resfp = rnp->resfp;
 
@@ -2878,7 +2877,6 @@ cli_rnp_print_signatures(cli_rnp_t *rnp, const std::vector<rnp_op_verify_signatu
         switch (status) {
         case RNP_SUCCESS:
             title = "Good signature";
-            validc++;
             break;
         case RNP_ERROR_SIGNATURE_EXPIRED:
             title = "EXPIRED signature";
