@@ -38,7 +38,8 @@ class rnp_tests : public ::testing::Test {
     const char *original_dir() const;
 
   protected:
-    char *m_dir;
+    char *               m_dir;
+    rnp::SecurityContext global_ctx;
 };
 
 typedef struct {
