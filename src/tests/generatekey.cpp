@@ -1139,14 +1139,13 @@ TEST_F(rnp_tests, test_generated_key_sigs)
     {
         pgp_key_t                pub;
         pgp_key_t                sec;
-        rnp_keygen_subkey_desc_t desc;
+        rnp_keygen_subkey_desc_t desc = {};
         pgp_sig_subpkt_t *       subpkt = NULL;
         pgp_signature_t *        psig = NULL;
         pgp_signature_t *        ssig = NULL;
         pgp_signature_info_t     psiginfo = {};
         pgp_signature_info_t     ssiginfo = {};
 
-        memset(&desc, 0, sizeof(desc));
 #if defined(ENABLE_CRYPTO_REFRESH)
         desc.pgp_version = PGP_V4;
 #endif
