@@ -171,7 +171,7 @@ copy_tmp_path(char *buf, size_t buflen, pgp_dest_t *dst)
     } pgp_dest_file_param_t;
 
     pgp_dest_file_param_t *param = (pgp_dest_file_param_t *) dst->param;
-    strncpy(buf, param->path.c_str(), buflen);
+    strncpy(buf, param->path.c_str(), buflen - 1);
 }
 
 TEST_F(rnp_tests, test_stream_file)
