@@ -1727,11 +1727,11 @@ init_literal_src(pgp_source_t *src, pgp_source_t *readsrc)
     case 'u':
     case 'l':
     case '1':
+    case 'm':
         break;
     default:
-        RNP_LOG("unknown data format %" PRIu8, format);
-        ret = RNP_ERROR_BAD_FORMAT;
-        goto finish;
+        RNP_LOG("Warning: unknown data format %" PRIu8 ", ignoring.", format);
+        break;
     }
     param->hdr.format = format;
     /* file name */
