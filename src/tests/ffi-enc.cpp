@@ -754,6 +754,7 @@ TEST_F(rnp_tests, test_ffi_decrypt_v6_pkesk_test_vector)
     // cleanup
     rnp_input_destroy(input);
     rnp_output_destroy(output);
+    rnp_ffi_destroy(ffi);
 }
 
 TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
