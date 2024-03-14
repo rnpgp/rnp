@@ -81,7 +81,7 @@ jobs:
     timeout-minutes: 250
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 1
           submodules: true
@@ -105,7 +105,7 @@ jobs:
 
       - name: Botan2 cache
         id: cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         if: matrix.backend == 'botan'
         with:
           path: Botan-${{ env.BOTAN_VERSION }}
@@ -158,7 +158,7 @@ jobs:
 
       - name: Checkout shell test framework
         if: matrix.shared_libs == 'on'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: kward/shunit2
           path: ci/tests/shunit2

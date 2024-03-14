@@ -84,7 +84,7 @@ jobs:
     env: ${{ matrix.env }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: true
 
@@ -117,7 +117,7 @@ jobs:
         run: tar -czvf build.tar.gz build
 
       - name: Upload build files
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: 'build-${{ matrix.env.CC }}-${{ matrix.image.backend }}'
           path: 'build.tar.gz'
@@ -152,7 +152,7 @@ jobs:
         run: dnf -y install libfaketime
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: true
 
@@ -171,7 +171,7 @@ jobs:
           printf "\nrnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
 
       - name: Download build files
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: 'build-${{ matrix.env.CC }}-${{ matrix.image.backend }}'
 

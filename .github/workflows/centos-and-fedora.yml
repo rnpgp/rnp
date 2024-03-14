@@ -115,10 +115,18 @@ jobs:
 
     env: ${{ matrix.env }}
     steps:
-      - name: Checkout
+      # CentOS 7 doesn't support node.js:20. To be removed once it is EOLed at June, 2024.
+      - name: Checkout v3
+        if: matrix.image.container == 'centos-7-amd64'
         uses: actions/checkout@v3
         with:
           submodules: true
+
+      - name: Checkout v4
+        if: matrix.image.container != 'centos-7-amd64'
+        uses: actions/checkout@v4
+        with:
+          submodules: true  
 
       - name: Setup environment
         run: |
@@ -206,7 +214,7 @@ jobs:
 
       - name: Checkout shell test framework
         if: env.BUILD_MODE != 'coverage' && env.SHARED_LIBS == 'on'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: kward/shunit2
           path: ci/tests/shunit2
@@ -236,10 +244,17 @@ jobs:
       - name: Install rpm tools
         run:  yum -y install rpm-build
 
-      - name: Checkout
+        - name: Checkout v3
+        if: matrix.image.container == 'centos-7-amd64'
         uses: actions/checkout@v3
         with:
           submodules: true
+
+      - name: Checkout v4
+        if: matrix.image.container != 'centos-7-amd64'
+        uses: actions/checkout@v4
+        with:
+          submodules: true  
 
       - name: Configure
         run: cmake -B build -DBUILD_SHARED_LIBS=ON -DBUILD_TESTING=OFF
@@ -248,16 +263,16 @@ jobs:
         run:  cpack -B build/SRPM -G RPM --config build/CPackSourceConfig.cmake
 
       - name: Upload SRPM
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: 'SRPM ${{ matrix.image.name }}'
           path: 'build/SRPM/*.src.rpm'
           retention-days: 5
 
       - name: Stash packaging tests
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: tests
+          name: 'tests-${{ matrix.image.container }}'
           path: 'ci/tests/**'
           retention-days: 1
 
@@ -282,7 +297,7 @@ jobs:
         run:  yum -y install rpm-build
 
       - name: Download SRPM
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: 'SRPM ${{ matrix.image.name }}'
           path: ~/rpmbuild/SRPMS
@@ -302,7 +317,7 @@ jobs:
         run: cpack -G RPM -B ~/rpmbuild/SOURCES/RPMS --config ~/rpmbuild/SOURCES/BUILD/CPackConfig.cmake
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: 'RPM ${{ matrix.image.name}}'
           path: '~/rpmbuild/SOURCES/RPMS/*.rpm'
@@ -355,18 +370,18 @@ jobs:
         run:  sudo yum -y install findutils
 
       - name: Download rnp rpms
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: 'RPM ${{ matrix.image.name}}'
 
       - name: Checkout shell test framework
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: kward/shunit2
           path: ci/tests/shunit2
 
       - name: Unstash tests
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: tests
           path: ci/tests
