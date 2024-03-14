@@ -3180,7 +3180,9 @@ TEST_F(rnp_tests, test_ffi_v6_sig_subpackets)
     assert_false(primary->pub->get_sig(0).sig.has_subpkt(
       PGP_SIG_SUBPKT_ISSUER_KEY_ID, false)); // SHOULD have issuer fingerprint
 
+    rnp_key_handle_destroy(primary);
     rnp_op_generate_destroy(op);
+    rnp_ffi_destroy(ffi);
 }
 
 TEST_F(rnp_tests, test_ffi_v6_cert_import)
@@ -3226,6 +3228,7 @@ TEST_F(rnp_tests, test_ffi_v6_cert_import)
                             primary_fp.fingerprint,
                             primary_fp.length); // first byte in data is the version - skip
     }
+    rnp_ffi_destroy(ffi);
 }
 
 TEST_F(rnp_tests, test_ffi_v6_seckey_import)
@@ -3245,6 +3248,7 @@ TEST_F(rnp_tests, test_ffi_v6_seckey_import)
     rnp_input_destroy(input);
     assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
     assert_int_equal(keycount, 2);
+    rnp_ffi_destroy(ffi);
 }
 #endif
 
