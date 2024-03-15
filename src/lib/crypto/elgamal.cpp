@@ -276,8 +276,11 @@ start:
         goto end;
     }
     if (bn_num_bytes(*y) < BITS_TO_BYTES(keybits)) {
+        /* This code chunk is rarely hit, so ignoring it for the coverage report:
+         * LCOV_EXCL_START */
         botan_privkey_destroy(key_priv);
         goto start;
+        /* LCOV_EXCL_END */
     }
 
     if (botan_privkey_get_field(BN_HANDLE_PTR(p), key_priv, "p") ||

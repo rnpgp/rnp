@@ -450,11 +450,14 @@ start:
             /* LCOV_EXCL_END */
         }
         if (y.bytes() != BITS_TO_BYTES(keybits)) {
+            /* This code chunk is rarely hit, so ignoring it for the coverage report:
+             * LCOV_EXCL_START */
             EVP_PKEY_CTX_free(ctx);
             ctx = NULL;
             EVP_PKEY_free(pkey);
             pkey = NULL;
             goto start;
+            /* LCOV_EXCL_END */
         }
 
         rnp::bn p;
@@ -476,11 +479,14 @@ start:
         /* LCOV_EXCL_END */
     }
     if (BITS_TO_BYTES(BN_num_bits(DH_get0_pub_key(dh))) != BITS_TO_BYTES(keybits)) {
+        /* This code chunk is rarely hit, so ignoring it for the coverage report:
+         * LCOV_EXCL_START */
         EVP_PKEY_CTX_free(ctx);
         ctx = NULL;
         EVP_PKEY_free(pkey);
         pkey = NULL;
         goto start;
+        /* LCOV_EXCL_END */
     }
 
     const bignum_t *p;
