@@ -145,9 +145,8 @@ KeyStore::write()
         }
 
         for (auto &key : keys) {
-            char grip[PGP_FINGERPRINT_HEX_SIZE] = {0};
-            rnp::hex_encode(key.grip().data(), key.grip().size(), grip, sizeof(grip));
-            snprintf(chpath, sizeof(chpath), "%s/%s.key", path.c_str(), grip);
+            auto grip = rnp::bin_to_hex(key.grip().data(), key.grip().size());
+            snprintf(chpath, sizeof(chpath), "%s/%s.key", path.c_str(), grip.c_str());
 
             if (init_tmpfile_dest(&keydst, chpath, true)) {
                 RNP_LOG("failed to create file");
