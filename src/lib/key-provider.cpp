@@ -97,22 +97,24 @@ KeySearch::create(const std::string &name, const std::string &value)
             return nullptr;
         }
         return create(pgp_fingerprint_t(binval));
-    case Type::KeyID:
+    case Type::KeyID: {
         if (binval.size() != PGP_KEY_ID_SIZE) {
             RNP_LOG("Invalid keyid: %s", value.c_str());
             return nullptr;
         }
-        pgp_key_id_t keyid;
+        pgp_key_id_t keyid{};
         memcpy(keyid.data(), binval.data(), keyid.size());
         return create(keyid);
-    case Type::Grip:
+    }
+    case Type::Grip: {
         if (binval.size() != PGP_KEY_GRIP_SIZE) {
             RNP_LOG("Invalid grip: %s", value.c_str());
             return nullptr;
         }
-        pgp_key_grip_t grip;
+        pgp_key_grip_t grip{};
         memcpy(grip.data(), binval.data(), grip.size());
         return create(grip);
+    }
     default:
         return nullptr;
     }
