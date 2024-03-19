@@ -651,7 +651,8 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     }
 
 #if defined(ENABLE_PQC_DBG_LOG)
-    RNP_LOG_U8VEC("Session Key: %s", std::vector<uint8_t>(enckey.data(), enckey.data() + keylen));
+    RNP_LOG_U8VEC("Session Key: %s",
+                  std::vector<uint8_t>(enckey.data(), enckey.data() + keylen));
 #endif
 
     pgp_encrypted_material_t material;
