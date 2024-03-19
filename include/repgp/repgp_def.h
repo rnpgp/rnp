@@ -231,7 +231,7 @@ typedef enum : uint8_t {
     PGP_PKA_ED25519 = 27, /* v6 / Crypto Refresh */
 #endif
 
-PGP_PKA_SM2 = 99,        /* SM2 encryption/signature schemes */
+    PGP_PKA_SM2 = 99, /* SM2 encryption/signature schemes */
 
 #if defined(ENABLE_PQC)
     /* PQC-ECC composite */

@@ -404,7 +404,7 @@ pgp_sig_subpkt_t::parse()
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_SIG_SUBPKT_PREFERRED_AEAD_CIPHERSUITES:
-        if(len % 2 != 0) {
+        if (len % 2 != 0) {
             RNP_LOG("AEAD Ciphersuite Preferences must contain an even number of bytes");
             return false;
         }
@@ -1864,11 +1864,10 @@ rnp_selfsig_cert_info_t::populate(pgp_signature_t &sig)
             sig.set_key_flags(key_flags);
         }
         return;
-    }
-    else if ((sig.version == PGP_V6) && (sig.type() == PGP_SIG_DIRECT)) {
+    } else if ((sig.version == PGP_V6) && (sig.type() == PGP_SIG_DIRECT)) {
         /* set some additional packets for v6 direct-key self signatures */
         sig.set_key_features(PGP_KEY_FEATURE_MDC | PGP_KEY_FEATURE_SEIPDV2);
-        if(!prefs.aead_prefs.empty()) {
+        if (!prefs.aead_prefs.empty()) {
             sig.set_preferred_aead_algs(prefs.aead_prefs);
         }
     }

@@ -1959,7 +1959,6 @@ RNP_API rnp_result_t rnp_key_get_alg(rnp_key_handle_t key, char **alg);
  */
 RNP_API rnp_result_t rnp_key_sphincsplus_get_param(rnp_key_handle_t handle, char **param);
 
-
 /** Get number of bits in the key. For EC-based keys it will return size of the curve.
  *
  * @param key key handle

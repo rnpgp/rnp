@@ -154,18 +154,13 @@ ask_curve_name(FILE *input_fp)
 static std::string
 ask_sphincsplus_param_name(FILE *input_fp)
 {
-    std::vector<std::string> params = {"128f",
-        "128s",
-        "192f",
-        "192s",
-        "256f",
-        "256s"};
+    std::vector<std::string> params = {"128f", "128s", "192f", "192s", "256f", "256s"};
     std::vector<std::string> add_info = {"ML-KEM-768 + X25519",
-        "ML-KEM-768 + X25519",
-        "ML-KEM-1024 + ECDH-NIST-P-384",
-        "ML-KEM-1024 + ECDH-NIST-P-384",
-        "ML-KEM-1024 + ECDH-NIST-P-384",
-        "ML-KEM-1024 + ECDH-NIST-P-384"};
+                                         "ML-KEM-768 + X25519",
+                                         "ML-KEM-1024 + ECDH-NIST-P-384",
+                                         "ML-KEM-1024 + ECDH-NIST-P-384",
+                                         "ML-KEM-1024 + ECDH-NIST-P-384",
+                                         "ML-KEM-1024 + ECDH-NIST-P-384"};
 
     const size_t pcount = params.size();
     if (!pcount) {
@@ -178,7 +173,8 @@ ask_sphincsplus_param_name(FILE *input_fp)
         if (!check_attempts(attempts)) {
             return NULL;
         }
-        printf("Please select which SLH-DSA parameter set you want. In parenthesis, the correspondingly chosen encryption subkey is shown:\n");
+        printf("Please select which SLH-DSA parameter set you want. In parenthesis, the "
+               "correspondingly chosen encryption subkey is shown:\n");
         for (size_t i = 0; i < pcount; i++) {
             printf("\t(%zu) %s (%s)\n", i + 1, params[i].c_str(), add_info[i].c_str());
         }
@@ -411,19 +407,15 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_BP384);
             cfg.set_str(CFG_KG_V6_KEY, "true");
             break;
-        case 31:
-        {
+        case 31: {
             std::string param = ask_sphincsplus_param_name(input_fp);
             if (param == "") {
                 return false;
             }
-            if(param == "128f" || param == "128s")
-            {
+            if (param == "128f" || param == "128s") {
                 cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_X25519);
                 cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA256);
-            }
-            else
-            {
+            } else {
                 cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_P384);
                 cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA512);
             }
@@ -432,19 +424,15 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
             cfg.set_str(CFG_KG_V6_KEY, "true");
             break;
         }
-        case 32:
-        {
+        case 32: {
             std::string param = ask_sphincsplus_param_name(input_fp);
             if (param == "") {
                 return false;
             }
-            if(param == "128f" || param == "128s")
-            {
+            if (param == "128f" || param == "128s") {
                 cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_X25519);
                 cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
-            }
-            else
-            {
+            } else {
                 cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_P384);
                 cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_512);
             }

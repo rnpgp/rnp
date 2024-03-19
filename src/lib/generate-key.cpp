@@ -341,10 +341,10 @@ set_default_user_prefs(pgp_user_prefs_t &prefs)
           DEFAULT_COMPRESS_ALGS, DEFAULT_COMPRESS_ALGS + ARRAY_SIZE(DEFAULT_COMPRESS_ALGS)));
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if(prefs.aead_prefs.empty()) {
+    if (prefs.aead_prefs.empty()) {
         std::vector<uint8_t> algs;
-        for(auto aead_alg : DEFAULT_AEAD_ALGS) {
-            for(auto sym_alg : prefs.symm_algs) {
+        for (auto aead_alg : DEFAULT_AEAD_ALGS) {
+            for (auto sym_alg : prefs.symm_algs) {
                 algs.push_back(sym_alg);
                 algs.push_back(aead_alg);
             }

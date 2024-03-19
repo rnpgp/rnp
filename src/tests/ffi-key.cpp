@@ -3274,7 +3274,6 @@ TEST_F(rnp_tests, test_ffi_pqc_certs)
     assert_int_equal(keycount, 2);
 }
 
-
 #endif
 
 TEST_F(rnp_tests, test_ffi_v6_seckey_import)

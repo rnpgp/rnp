@@ -776,21 +776,24 @@ TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
     assert_true(import_all_keys(ffi, "data/draft-ietf-openpgp-pqc/v4-eddsa-mlkem.sec.asc"));
 
     assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
-    assert_rnp_success(rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-seipdv2.asc"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-seipdv2.asc"));
     assert_non_null(input);
     assert_rnp_success(rnp_decrypt(ffi, input, output));
     assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
     assert_int_equal(unlink("decrypted"), 0);
 
     assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
-    assert_rnp_success(rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v4-seipdv1.asc"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v4-seipdv1.asc"));
     assert_non_null(input);
     assert_rnp_success(rnp_decrypt(ffi, input, output));
     assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
     assert_int_equal(unlink("decrypted"), 0);
 
     assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
-    assert_rnp_success(rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v4-seipdv1.asc"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v4-seipdv1.asc"));
     assert_non_null(input);
     assert_rnp_success(rnp_decrypt(ffi, input, output));
     assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
