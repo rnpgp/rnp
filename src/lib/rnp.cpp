@@ -3275,7 +3275,7 @@ ffi_decrypt_key_provider(const pgp_key_request_ctx_t *ctx, void *userdata)
     if (ctx->secret && (ctx->search.type() == rnp::KeySearch::Type::KeyID)) {
         auto ksearch = dynamic_cast<const rnp::KeyIDSearch *>(&ctx->search);
         assert(ksearch != nullptr);
-        hidden = ksearch->hidden();
+        hidden = ksearch && ksearch->hidden();
     }
     /* default to the FFI key provider if not hidden keyid request */
     if (!hidden) {

@@ -908,7 +908,7 @@ KeyStore::load_g10(pgp_source_t &src, const KeyProvider *key_provider)
         /* copy public key fields if any */
         pgp_key_t key;
         if (key_provider) {
-            pgp_key_grip_t grip;
+            pgp_key_grip_t grip{};
             if (!seckey.material.get_grip(grip)) {
                 return false;
             }
