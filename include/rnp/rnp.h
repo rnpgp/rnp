@@ -2708,6 +2708,17 @@ RNP_API rnp_result_t rnp_op_verify_get_file_info(rnp_op_verify_t op,
                                                  uint32_t *      mtime);
 
 /**
+ * @brief Get format of the data stored in the message, if available.
+ *
+ * @param op opaque verification context. Must be initialized and have execute() called on it.
+ * @param format character describing format would be stored here, see RFC 4880 section 5.9 and
+ *               further standard extensions for possible values. If information is not
+ *               available then '\0' value will be stored here. Cannot be NULL.
+ * @return RNP_SUCCESS if call succeeded.
+ */
+RNP_API rnp_result_t rnp_op_verify_get_format(rnp_op_verify_t op, char *format);
+
+/**
  * @brief Get data protection (encryption) mode, used in processed message.
  *
  * @param op opaque verification context. Must be initialized and have execute() called on it.

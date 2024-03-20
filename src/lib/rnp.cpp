@@ -3110,11 +3110,10 @@ rnp_verify_src_provider(pgp_parse_handler_t *handler, pgp_source_t *src)
 };
 
 static bool
-rnp_verify_dest_provider(pgp_parse_handler_t *handler,
-                         pgp_dest_t **        dst,
-                         bool *               closedst,
-                         const char *         filename,
-                         uint32_t             mtime)
+rnp_verify_dest_provider(pgp_parse_handler_t *    handler,
+                         pgp_dest_t **            dst,
+                         bool *                   closedst,
+                         const pgp_literal_hdr_t *lithdr)
 {
     rnp_op_verify_t op = (rnp_op_verify_t) handler->param;
     if (!op->output) {
@@ -3122,8 +3121,7 @@ rnp_verify_dest_provider(pgp_parse_handler_t *handler,
     }
     *dst = &(op->output->dst);
     *closedst = false;
-    op->filename = filename ? std::string(filename) : "";
-    op->file_mtime = mtime;
+    op->lithdr = lithdr ? *lithdr : pgp_literal_hdr_t();
     return true;
 }
 
@@ -3396,9 +3394,24 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
     if (mtime) {
-        *mtime = op->file_mtime;
+        *mtime = op->lithdr.timestamp;
     }
-    return filename ? ret_str_value(op->filename.c_str(), filename) : RNP_SUCCESS;
+    if (!filename) {
+        return RNP_SUCCESS;
+    }
+    const std::string fname(op->lithdr.fname, op->lithdr.fname_len);
+    return ret_str_value(fname.c_str(), filename);
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_op_verify_get_format(rnp_op_verify_t op, char *format)
+try {
+    if (!op || !format) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    *format = (char) op->lithdr.format;
+    return RNP_SUCCESS;
 }
 FFI_GUARD
 

@@ -3833,6 +3833,11 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
     assert_int_equal(sigcount, 1);
     assert_true(check_signature(verify, 0, RNP_SUCCESS));
+    char format = 'b';
+    assert_rnp_failure(rnp_op_verify_get_format(NULL, &format));
+    assert_rnp_failure(rnp_op_verify_get_format(verify, NULL));
+    assert_rnp_success(rnp_op_verify_get_format(verify, &format));
+    assert_int_equal(format, '\0');
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(source);
     rnp_input_destroy(input);
@@ -3879,6 +3884,11 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
     assert_int_equal(sigcount, 1);
     assert_true(check_signature(verify, 0, RNP_SUCCESS));
+    format = '\0';
+    assert_rnp_failure(rnp_op_verify_get_format(NULL, &format));
+    assert_rnp_failure(rnp_op_verify_get_format(verify, NULL));
+    assert_rnp_success(rnp_op_verify_get_format(verify, &format));
+    assert_int_equal(format, 't');
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(input);
     rnp_output_destroy(output);
