@@ -1540,6 +1540,9 @@ TEST_F(rnp_tests, test_ffi_mimemode_signature)
     rnp_op_verify_signature_t sig = NULL;
     assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
     assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    char format = 0;
+    assert_rnp_success(rnp_op_verify_get_format(verify, &format));
+    assert_int_equal(format, 'm');
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(input);
     rnp_output_destroy(output);

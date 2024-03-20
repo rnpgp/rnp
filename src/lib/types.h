@@ -365,10 +365,10 @@ typedef enum {
 } pgp_key_server_prefs_t;
 
 typedef struct pgp_literal_hdr_t {
-    uint8_t  format;
-    char     fname[256];
-    uint8_t  fname_len;
-    uint32_t timestamp;
+    uint8_t  format{};
+    char     fname[256]{};
+    uint8_t  fname_len{};
+    uint32_t timestamp{};
 } pgp_literal_hdr_t;
 
 typedef struct pgp_aead_hdr_t {
