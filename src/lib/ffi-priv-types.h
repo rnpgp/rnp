@@ -187,8 +187,7 @@ struct rnp_op_verify_st {
     rnp_ctx_t    rnpctx{};
     /* these fields are filled after operation execution */
     std::vector<rnp_op_verify_signature_st> signatures_;
-    std::string                             filename;
-    uint32_t                                file_mtime{};
+    pgp_literal_hdr_t                       lithdr{};
     /* encryption information */
     bool           encrypted{};
     bool           mdc{};

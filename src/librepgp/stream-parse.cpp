@@ -1968,11 +1968,11 @@ init_literal_src(pgp_source_t *src, pgp_source_t *readsrc)
     case 'u':
     case 'l':
     case '1':
+    case 'm':
         break;
     default:
-        RNP_LOG("unknown data format %" PRIu8, format);
-        ret = RNP_ERROR_BAD_FORMAT;
-        goto finish;
+        RNP_LOG("Warning: unknown data format %" PRIu8 ", ignoring.", format);
+        break;
     }
     param->hdr.format = format;
     /* file name */
@@ -2913,20 +2913,17 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
         }
         /* file processing case */
         decsrc = &ctx.sources.back();
-        const char *filename = NULL;
-        uint32_t    mtime = 0;
+        const pgp_literal_hdr_t *lithdr = nullptr;
 
         if (ctx.literal_src) {
-            auto &hdr = get_literal_src_hdr(*ctx.literal_src);
-            filename = hdr.fname;
-            mtime = hdr.timestamp;
+            lithdr = &get_literal_src_hdr(*ctx.literal_src);
             if (ctx.signed_src) {
-                signed_src_set_literal_hdr(*ctx.signed_src, hdr);
+                signed_src_set_literal_hdr(*ctx.signed_src, *lithdr);
             }
         }
 
         if (!handler->dest_provider ||
-            !handler->dest_provider(handler, &outdest, &closeout, filename, mtime)) {
+            !handler->dest_provider(handler, &outdest, &closeout, lithdr)) {
             res = RNP_ERROR_WRITE;
             goto finish;
         }
