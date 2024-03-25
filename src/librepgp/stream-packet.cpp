@@ -1134,7 +1134,7 @@ pgp_pk_sesskey_t::parse(pgp_source_t &src)
             return RNP_ERROR_BAD_FORMAT;
         }
         fp.length = fp_len;
-        if (fp.length && (fp.length != fp_and_key_ver_len - 1)) {
+        if (fp.length && (fp.length != (unsigned)(fp_and_key_ver_len - 1))) {
             RNP_LOG("size mismatch (fingerprint size and fp+key version length field)");
             return RNP_ERROR_BAD_FORMAT;
         }
@@ -1245,7 +1245,7 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material)
         if ((version == PGP_PKSK_V3) && !do_encrypt_pkesk_v3_alg_id(alg)) {
             if (!pkt.get(bt)) {
                 RNP_LOG("failed to get salg");
-                return RNP_ERROR_BAD_FORMAT;
+                return false;
             }
             enc_sesskey_len -= 1;
             salg = (pgp_symm_alg_t) bt;
@@ -1286,7 +1286,7 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material)
         if ((version == PGP_PKSK_V3) && !do_encrypt_pkesk_v3_alg_id(alg)) {
             if (!pkt.get(bt)) {
                 RNP_LOG("failed to get salg");
-                return RNP_ERROR_BAD_FORMAT;
+                return false;
             }
             salg = (pgp_symm_alg_t) bt;
             wrapped_key_len--;
