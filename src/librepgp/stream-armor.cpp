@@ -233,7 +233,8 @@ armor_read_trailer(pgp_source_armored_param_t *param)
     char   str[64];
     size_t stlen;
 
-    if (!armor_skip_chars(*param->readsrc, "\r\n")) {
+    /* Space or tab could get between armor and trailer, see issue #2199 */
+    if (!armor_skip_chars(*param->readsrc, "\r\n \t")) {
         return false;
     }
 
