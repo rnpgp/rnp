@@ -4440,3 +4440,28 @@ TEST_F(rnp_tests, test_reprotect_keys)
     assert_rnp_success(rnp_identifier_iterator_destroy(it));
     rnp_ffi_destroy(ffi);
 }
+
+TEST_F(rnp_tests, test_armored_keys_extra_line)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    /* Key with extra line after the checksum */
+    assert_true(
+      import_pub_keys(ffi, "data/test_stream_key_load/ecc-25519-pub-extra-line.asc"));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "cc786278981b0728", &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(check_uid_valid(key, 0, true));
+    rnp_key_handle_destroy(key);
+
+    /* Key with extra lines with spaces after the checksum */
+    assert_true(
+      import_pub_keys(ffi, "data/test_stream_key_load/ecc-25519-pub-extra-line-2.asc"));
+    key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "cc786278981b0728", &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(check_uid_valid(key, 0, true));
+    rnp_key_handle_destroy(key);
+
+    rnp_ffi_destroy(ffi);
+}
