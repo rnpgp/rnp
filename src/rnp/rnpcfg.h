@@ -51,7 +51,8 @@
 #define CFG_USERID "userid"              /* userid for the ongoing operation */
 #define CFG_RECIPIENTS "recipients"      /* list of encrypted data recipients */
 #if defined(ENABLE_CRYPTO_REFRESH)
-#define CFG_V3_PKESK_ONLY "v3-pkesk-only" /* disable v6 PKESK */
+#define CFG_V3_PKESK_ONLY "v3-pkesk-only"     /* disable v6 PKESK */
+#define CFG_ENABLE_V6_SKESK "enable-v6-skesk" /* disable v6 SKESK */
 #endif
 #define CFG_SIGNERS "signers"     /* list of signers */
 #define CFG_HOMEDIR "homedir"     /* home directory - folder with keyrings and so on */
