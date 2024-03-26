@@ -1561,11 +1561,15 @@ TEST_F(rnp_tests, test_stream_dearmor_edge_cases)
     len = snprintf(msg, sizeof(msg), "%s\n\n%s\n%s\n%s\n", HDR, b64, CRC, FTR2);
     assert_false(try_dearmor(msg, len));
 
-    /* extra spaces or chars before the footer - FAIL */
+    /* extra spaces or tabs before the footer - allow it, see issue #2199 */
     len = snprintf(msg, sizeof(msg), "%s\n\n%s\n%s\n  %s\n", HDR, b64, CRC, FTR);
-    assert_false(try_dearmor(msg, len));
+    assert_true(try_dearmor(msg, len));
     len = snprintf(msg, sizeof(msg), "%s\n\n%s\n%s\n\t\t %s\n", HDR, b64, CRC, FTR);
+    assert_true(try_dearmor(msg, len));
+    /* no empty line between crc and footer - FAIL */
+    len = snprintf(msg, sizeof(msg), "%s\n\n%s\n%s%s\n", HDR, b64, CRC, FTR);
     assert_false(try_dearmor(msg, len));
+    /* extra chars before the footer - FAIL */
     len = snprintf(msg, sizeof(msg), "%s\n\n%s\n%s\n11111%s\n", HDR, b64, CRC, FTR);
     assert_false(try_dearmor(msg, len));
 
