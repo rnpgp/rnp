@@ -2822,9 +2822,13 @@ cli_rnp_encrypt_and_sign(const rnp_cfg &cfg,
     }
 
 #if defined(ENABLE_CRYPTO_REFRESH)
-    /* enable or disable v6 PKESK creation*/
+    /* enable or disable v6 PKESK creation */
     if (!cfg.get_bool(CFG_V3_PKESK_ONLY)) {
         rnp_op_encrypt_enable_pkesk_v6(op);
+    }
+    /* enable or disable v6 SKESK creation */
+    if (cfg.get_bool(CFG_ENABLE_V6_SKESK)) {
+        rnp_op_encrypt_enable_skesk_v6(op);
     }
 #endif
 
