@@ -1519,10 +1519,15 @@ do_enforce_aes_v3pkesk(pgp_pubkey_alg_t alg)
     switch (alg) {
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
+        FALLTHROUGH_STATEMENT;
 #endif
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_X25519:

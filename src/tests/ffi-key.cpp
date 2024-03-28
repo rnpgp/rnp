@@ -3236,11 +3236,6 @@ TEST_F(rnp_tests, test_ffi_v6_cert_import)
 // The final implementation of the PQC draft implementation will use the final NIST standard.
 TEST_F(rnp_tests, test_ffi_pqc_certs)
 {
-#if !(defined(BOTAN_HAS_ML_KEM_INITIAL_PUBLIC_DRAFT) && defined(ENABLE_PQC_MLKEM_IPD))
-    // we can only verify the test vectors with ML-KEM-ipd
-    GTEST_SKIP();
-#endif
-
     rnp_ffi_t   ffi = NULL;
     rnp_input_t input = NULL;
     size_t      keycount = 255;

@@ -63,8 +63,6 @@
 #cmakedefine ENABLE_IDEA
 #cmakedefine ENABLE_CRYPTO_REFRESH
 #cmakedefine ENABLE_PQC
-#cmakedefine ENABLE_PQC_MLKEM_IPD
-#cmakedefine ENABLE_PQC_DBG_LOG
 #cmakedefine ENABLE_BLOWFISH
 #cmakedefine ENABLE_CAST5
 #cmakedefine ENABLE_RIPEMD160

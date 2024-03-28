@@ -1948,6 +1948,7 @@ RNP_API rnp_result_t rnp_key_get_default_key(rnp_key_handle_t  primary_key,
  */
 RNP_API rnp_result_t rnp_key_get_alg(rnp_key_handle_t key, char **alg);
 
+#if defined(RNP_EXPERIMENTAL_PQC)
 /** Get a SPHINCS+ key's parameter string
  *
  * @param key key handle
@@ -1958,6 +1959,7 @@ RNP_API rnp_result_t rnp_key_get_alg(rnp_key_handle_t key, char **alg);
  * time.
  */
 RNP_API rnp_result_t rnp_key_sphincsplus_get_param(rnp_key_handle_t handle, char **param);
+#endif
 
 /** Get number of bits in the key. For EC-based keys it will return size of the curve.
  *
