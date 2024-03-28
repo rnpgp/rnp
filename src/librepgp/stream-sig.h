@@ -230,6 +230,16 @@ typedef struct pgp_signature_t {
      *         corresponding subpacket is deleted. */
     void set_preferred_z_algs(const std::vector<uint8_t> &algs);
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /** @brief Get preferred AEAD algorithms if any. If there are no ones then empty
+     *         vector is returned.*/
+    std::vector<uint8_t> preferred_aead_algs() const;
+
+    /** @brief Set the preferred AEAD algorithms. If empty vector is passed then
+     *         corresponding subpacket is deleted. */
+    void set_preferred_aead_algs(const std::vector<uint8_t> &algs);
+#endif
+
     /** @brief Get key server preferences flags. If subpacket is not available then 0 is
      *         returned. */
     uint8_t key_server_prefs() const;
@@ -289,7 +299,7 @@ typedef struct pgp_signature_t {
      */
     void set_revocation_reason(pgp_revocation_type_t code, const std::string &reason);
 
-    pgp_key_feature_t key_get_features() const;
+    uint32_t key_get_features() const;
 
     /**
      * @brief Check whether signer's key supports certain feature(s). Makes sense only for
@@ -299,14 +309,14 @@ typedef struct pgp_signature_t {
      * @return true if key is claimed to support all of the features listed in flags, or false
      *         otherwise
      */
-    bool key_has_features(pgp_key_feature_t flags) const;
+    bool key_has_features(uint32_t flags) const;
 
     /**
      * @brief Set the features supported by the signer's key, makes sense only for
      *        self-signature. For more details see the RFC 4880bis, 5.2.3.25.
      * @param flags one or more flags, combined via bitwise OR operation.
      */
-    void set_key_features(pgp_key_feature_t flags);
+    void set_key_features(uint32_t flags);
 
     /** @brief Get signer's user id, if available. Otherwise empty string is returned. See the
      *         RFC 4880bis, 5.2.3.23 for details.

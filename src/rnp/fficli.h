@@ -61,7 +61,7 @@ class cli_rnp_t {
     FILE *      userio_in{};  /* file pointer for user's inputs */
     FILE *      userio_out{}; /* file pointer for user's outputs */
     int         pswdtries{};  /* number of password tries, -1 for unlimited */
-    bool        reuse_password_for_subkey{};
+    size_t      reuse_password_for_subkey{}; // count of subkeys
     std::string reuse_primary_fprint;
     char *      reused_password{};
     bool        hidden_msg{}; /* true if hidden recipient message was displayed */

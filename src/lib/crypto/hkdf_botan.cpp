@@ -26,7 +26,7 @@
 
 #include "config.h"
 
-#ifdef ENABLE_CRYPTO_REFRESH
+#if defined(ENABLE_CRYPTO_REFRESH)
 
 #include "hkdf_botan.hpp"
 #include "hash_botan.hpp"

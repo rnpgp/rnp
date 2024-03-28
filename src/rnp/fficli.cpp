@@ -419,11 +419,13 @@ ffi_pass_callback_stdin(rnp_ffi_t        ffi,
             ok = true;
         }
 
-        rnp_buffer_clear(rnp->reused_password, strnlen(rnp->reused_password, buf_len));
-        free(rnp->reused_password);
-        rnp->reused_password = NULL;
-        rnp->reuse_password_for_subkey = false;
-        rnp_buffer_destroy(primary_fprint);
+        rnp->reuse_password_for_subkey--;
+        if (!rnp->reuse_password_for_subkey) {
+            rnp_buffer_clear(rnp->reused_password, strnlen(rnp->reused_password, buf_len));
+            free(rnp->reused_password);
+            rnp->reused_password = NULL;
+            rnp_buffer_destroy(primary_fprint);
+        }
         if (ok)
             return true;
     }
@@ -470,7 +472,7 @@ start:
         if (cli_rnp_get_confirmation(
               rnp, "Would you like to use the same password to protect subkey(s)?")) {
             char *primary_fprint = NULL;
-            rnp->reuse_password_for_subkey = true;
+            rnp_key_get_subkey_count(key, &(rnp->reuse_password_for_subkey));
             rnp_key_get_fprint(key, &primary_fprint);
             rnp->reuse_primary_fprint = primary_fprint;
             rnp->reused_password = strdup(buf);
@@ -708,7 +710,7 @@ cli_rnp_t::end()
         free(reused_password);
         reused_password = NULL;
     }
-    reuse_password_for_subkey = false;
+    reuse_password_for_subkey = 0;
 }
 
 bool
@@ -1371,7 +1373,17 @@ cli_rnp_print_key_info(FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecr
     /* key algorithm */
     char *alg = NULL;
     (void) rnp_key_get_alg(key, &alg);
-    fprintf(fp, "%s ", cli_rnp_normalize_key_alg(alg));
+    fprintf(fp, "%s", cli_rnp_normalize_key_alg(alg));
+#if defined(ENABLE_PQC)
+    // in case of a SPHINCS+ key, also print the parameter set
+    char *       param;
+    rnp_result_t res = rnp_key_sphincsplus_get_param(key, &param);
+    if (res == RNP_SUCCESS) {
+        fprintf(fp, "-%s", param);
+        rnp_buffer_destroy(param);
+    }
+#endif
+    fprintf(fp, " ");
     /* key id */
     char *keyid = NULL;
     (void) rnp_key_get_keyid(key, &keyid);
@@ -1532,7 +1544,10 @@ cli_rnp_generate_key(cli_rnp_t *rnp, const char *username)
     rnp_op_generate_t genkey = NULL;
     rnp_key_handle_t  primary = NULL;
     rnp_key_handle_t  subkey = NULL;
-    bool              res = false;
+#if defined(ENABLE_PQC)
+    rnp_key_handle_t subkey2 = NULL;
+#endif
+    bool res = false;
 
     if (rnp_op_generate_create(&genkey, rnp->ffi, cfg.get_cstr(CFG_KG_PRIMARY_ALG))) {
         ERR_MSG("Failed to initialize key generation.");
@@ -1628,8 +1643,8 @@ cli_rnp_generate_key(cli_rnp_t *rnp, const char *username)
 #endif
 #if defined(ENABLE_PQC)
     if (cfg.has(CFG_KG_SUBKEY_SPHINCSPLUS_PARAM) &&
-        rnp_op_generate_set_sphincsplus_param(
-          genkey, cfg.get_cstr(CFG_KG_PRIMARY_SPHINCSPLUS_PARAM))) {
+        rnp_op_generate_set_sphincsplus_param(genkey,
+                                              cfg.get_cstr(CFG_KG_SUBKEY_SPHINCSPLUS_PARAM))) {
         ERR_MSG("Failed to set sphincsplus parameter.");
         goto done;
     }
@@ -1639,8 +1654,65 @@ cli_rnp_generate_key(cli_rnp_t *rnp, const char *username)
         goto done;
     }
 
+#if defined(ENABLE_PQC)
+    if (cfg.has(CFG_KG_SUBKEY_2_ALG)) {
+        rnp_op_generate_destroy(genkey);
+        genkey = NULL;
+        if (rnp_op_generate_subkey_create(
+              &genkey, rnp->ffi, primary, cfg.get_cstr(CFG_KG_SUBKEY_2_ALG))) {
+            ERR_MSG("Failed to initialize subkey 2 generation.");
+            goto done;
+        }
+        if (cfg.has(CFG_KG_SUBKEY_2_BITS) &&
+            rnp_op_generate_set_bits(genkey, cfg.get_int(CFG_KG_SUBKEY_2_BITS))) {
+            ERR_MSG("Failed to set subkey 2 bits.");
+            goto done;
+        }
+        if (cfg.has(CFG_KG_SUBKEY_2_CURVE) &&
+            rnp_op_generate_set_curve(genkey, cfg.get_cstr(CFG_KG_SUBKEY_2_CURVE))) {
+            ERR_MSG("Failed to set subkey 2 curve.");
+            goto done;
+        }
+        if (cfg.has(CFG_KG_SUBKEY_2_EXPIRATION)) {
+            uint32_t expiration = 0;
+            if (!cfg.get_expiration(CFG_KG_SUBKEY_2_EXPIRATION, expiration) ||
+                rnp_op_generate_set_expiration(genkey, expiration)) {
+                ERR_MSG("Failed to set subkey 2 expiration.");
+                goto done;
+            }
+        }
+        // TODO : set DSA qbits
+        if (rnp_op_generate_set_hash(genkey, cfg.get_cstr(CFG_KG_HASH))) {
+            ERR_MSG("Failed to set hash algorithm.");
+            goto done;
+        }
+#if defined(ENABLE_CRYPTO_REFRESH)
+        if (cfg.get_bool(CFG_KG_V6_KEY)) {
+            rnp_op_generate_set_v6_key(genkey);
+        }
+#endif
+        if (cfg.has(CFG_KG_SUBKEY_2_SPHINCSPLUS_PARAM) &&
+            rnp_op_generate_set_sphincsplus_param(
+              genkey, cfg.get_cstr(CFG_KG_SUBKEY_2_SPHINCSPLUS_PARAM))) {
+            ERR_MSG("Failed to set sphincsplus parameter.");
+            goto done;
+        }
+        if (rnp_op_generate_execute(genkey) || rnp_op_generate_get_key(genkey, &subkey2)) {
+            ERR_MSG("Subkey generation failed.");
+            goto done;
+        }
+    }
+#endif
+
     // protect
+#if defined(ENABLE_PQC)
+    for (auto key : {primary, subkey, subkey2}) {
+        if (!key) {
+            continue;
+        }
+#else
     for (auto key : {primary, subkey}) {
+#endif
         char *password = NULL;
         if (rnp_request_password(rnp->ffi, key, "protect", &password)) {
             ERR_MSG("Failed to obtain protection password.");
@@ -1670,10 +1742,18 @@ done:
         if (subkey) {
             cli_rnp_print_key_info(stdout, rnp->ffi, subkey, true, false);
         }
+#if defined(ENABLE_PQC)
+        if (subkey2) {
+            cli_rnp_print_key_info(stdout, rnp->ffi, subkey2, true, false);
+        }
+#endif
     }
     rnp_op_generate_destroy(genkey);
     rnp_key_handle_destroy(primary);
     rnp_key_handle_destroy(subkey);
+#if defined(ENABLE_PQC)
+    rnp_key_handle_destroy(subkey2);
+#endif
     return res;
 }
 

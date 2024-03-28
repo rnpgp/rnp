@@ -41,6 +41,9 @@ static const uint8_t DEFAULT_HASH_ALGS[] = {
   PGP_HASH_SHA256, PGP_HASH_SHA384, PGP_HASH_SHA512, PGP_HASH_SHA224};
 static const uint8_t DEFAULT_COMPRESS_ALGS[] = {
   PGP_C_ZLIB, PGP_C_BZIP2, PGP_C_ZIP, PGP_C_NONE};
+#if defined(ENABLE_CRYPTO_REFRESH)
+static const uint8_t DEFAULT_AEAD_ALGS[] = {PGP_AEAD_OCB};
+#endif
 
 static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_RSA, "RSA (Encrypt or Sign)"},
@@ -59,21 +62,29 @@ static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_X25519, "X25519"},
 #endif
 #if defined(ENABLE_PQC)
-  {PGP_PKA_KYBER768_X25519, "Kyber-X25519"},
+  {PGP_PKA_KYBER768_X25519, "ML-KEM-768_X25519"},
   //{PGP_PKA_KYBER1024_X448, "Kyber-X448"},
-  {PGP_PKA_KYBER768_P256, "Kyber-P256"},
-  {PGP_PKA_KYBER1024_P384, "Kyber-P384"},
-  {PGP_PKA_KYBER768_BP256, "Kyber-BP256"},
-  {PGP_PKA_KYBER1024_BP384, "Kyber-BP384"},
-  {PGP_PKA_DILITHIUM3_ED25519, "Dilithium-ED25519"},
+  {PGP_PKA_KYBER768_P256, "ML-KEM-768_P256"},
+  {PGP_PKA_KYBER1024_P384, "ML-KEM-1024_P384"},
+  {PGP_PKA_KYBER768_BP256, "ML-KEM-768_BP256"},
+  {PGP_PKA_KYBER1024_BP384, "ML-KEM-1024_BP384"},
+  {PGP_PKA_DILITHIUM3_ED25519, "ML-DSA-65_ED25519"},
   //{PGP_PKA_DILITHIUM5_ED448, "Dilithium-ED448"},
-  {PGP_PKA_DILITHIUM3_P256, "Dilithium-P256"},
-  {PGP_PKA_DILITHIUM5_P384, "Dilithium-P384"},
-  {PGP_PKA_DILITHIUM3_BP256, "Dilithium-BP256"},
-  {PGP_PKA_DILITHIUM5_BP384, "Dilithium-BP384"},
-  {PGP_PKA_SPHINCSPLUS_SHA2, "SPHINCS+-SHA2"},
-  {PGP_PKA_SPHINCSPLUS_SHAKE, "SPHINCS+-SHAKE"},
-#endif
+  {PGP_PKA_DILITHIUM3_P256, "ML-DSA-65_P256"},
+  {PGP_PKA_DILITHIUM5_P384, "ML-DSA-87_P384"},
+  {PGP_PKA_DILITHIUM3_BP256, "ML-DSA-65_BP256"},
+  {PGP_PKA_DILITHIUM5_BP384, "ML-DSA-87_BP384"},
+  {PGP_PKA_SPHINCSPLUS_SHA2, "SLH-DSA-SHA2"},
+  {PGP_PKA_SPHINCSPLUS_SHAKE, "SLH-DSA-SHAKE"},
+  {PGP_PKA_PRIVATE00, "Private/Experimental"},
+  {PGP_PKA_PRIVATE01, "Private/Experimental"},
+  {PGP_PKA_PRIVATE02, "Private/Experimental"},
+  {PGP_PKA_PRIVATE03, "Private/Experimental"},
+  {PGP_PKA_PRIVATE04, "Private/Experimental"},
+  {PGP_PKA_PRIVATE06, "Private/Experimental"},
+  {PGP_PKA_PRIVATE08, "Private/Experimental"},
+  {PGP_PKA_PRIVATE10, "Private/Experimental"},
+#else
   {PGP_PKA_PRIVATE00, "Private/Experimental"},
   {PGP_PKA_PRIVATE01, "Private/Experimental"},
   {PGP_PKA_PRIVATE02, "Private/Experimental"},
@@ -85,6 +96,7 @@ static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_PRIVATE08, "Private/Experimental"},
   {PGP_PKA_PRIVATE09, "Private/Experimental"},
   {PGP_PKA_PRIVATE10, "Private/Experimental"},
+#endif
   {0, NULL}};
 
 static bool
@@ -328,6 +340,18 @@ set_default_user_prefs(pgp_user_prefs_t &prefs)
         prefs.set_z_algs(std::vector<uint8_t>(
           DEFAULT_COMPRESS_ALGS, DEFAULT_COMPRESS_ALGS + ARRAY_SIZE(DEFAULT_COMPRESS_ALGS)));
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (prefs.aead_prefs.empty()) {
+        std::vector<uint8_t> algs;
+        for (auto aead_alg : DEFAULT_AEAD_ALGS) {
+            for (auto sym_alg : prefs.symm_algs) {
+                algs.push_back(sym_alg);
+                algs.push_back(aead_alg);
+            }
+        }
+        prefs.set_aead_prefs(algs);
+    }
+#endif
 }
 
 static void

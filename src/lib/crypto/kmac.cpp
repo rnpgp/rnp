@@ -27,6 +27,10 @@
 #include "config.h"
 #include "kmac.hpp"
 
+#if defined(ENABLE_PQC_DBG_LOG)
+#include "crypto/mem.h"
+#endif
+
 #if defined(CRYPTO_BACKEND_BOTAN)
 #include "kmac_botan.hpp"
 #endif
@@ -97,6 +101,16 @@ KMAC256::encData(const std::vector<uint8_t> &ecc_key_share,
         kyberKemData = kyberKeyShare || kyberCipherText
         encData = counter || eccKemData || kyberKemData || fixedInfo
     */
+#if defined(ENABLE_PQC_DBG_LOG)
+    RNP_LOG_NO_POS_INFO("KMAC256 encData: ");
+    RNP_LOG_U8VEC(" - counter: %s", counter_vec);
+    RNP_LOG_U8VEC(" - eccKeyShare: %s", ecc_key_share);
+    RNP_LOG_U8VEC(" - eccCipherText: %s", ecc_ciphertext);
+    RNP_LOG_U8VEC(" - kyberKeyShare: %s", kyber_key_share);
+    RNP_LOG_U8VEC(" - kyberCipherText: %s", kyber_ciphertext);
+    RNP_LOG_U8VEC(" - fixedInfo: %s", fixedInfo_vec);
+#endif
+
     enc_data.insert(enc_data.end(), counter_vec.begin(), counter_vec.end());
     enc_data.insert(enc_data.end(), ecc_key_share.begin(), ecc_key_share.end());
     enc_data.insert(enc_data.end(), ecc_ciphertext.begin(), ecc_ciphertext.end());

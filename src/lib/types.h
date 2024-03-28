@@ -427,6 +427,9 @@ typedef struct pgp_user_prefs_t {
     std::vector<uint8_t> ks_prefs{};
     // preferred key server
     std::string key_server{};
+#if defined(ENABLE_CRYPTO_REFRESH)
+    std::vector<uint8_t> aead_prefs{};
+#endif
 
     void set_symm_algs(const std::vector<uint8_t> &algs);
     void add_symm_alg(pgp_symm_alg_t alg);
@@ -436,6 +439,11 @@ typedef struct pgp_user_prefs_t {
     void add_z_alg(pgp_compression_type_t alg);
     void set_ks_prefs(const std::vector<uint8_t> &prefs);
     void add_ks_pref(pgp_key_server_prefs_t pref);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    void set_aead_prefs(const std::vector<uint8_t> &algs);
+    void add_aead_prefs(pgp_symm_alg_t sym_alg, pgp_aead_alg_t aead_alg);
+#endif
+
 } pgp_user_prefs_t;
 
 struct rnp_keygen_ecc_params_t {

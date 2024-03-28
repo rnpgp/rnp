@@ -29,7 +29,7 @@
 
 #include "config.h"
 
-#ifdef ENABLE_CRYPTO_REFRESH
+#if defined(ENABLE_CRYPTO_REFRESH)
 
 #include <repgp/repgp_def.h>
 #include "types.h"

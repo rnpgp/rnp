@@ -184,7 +184,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t &crypto,
     case PGP_PKA_KYBER1024_BP384:
         if (pgp_kyber_ecdh_composite_key_t::gen_keypair(
               &crypto.ctx->rng, &seckey.material.kyber_ecdh, seckey.alg)) {
-            RNP_LOG("failed to generate Kyber-ECDH-composite key for PK alg %d", seckey.alg);
+            RNP_LOG("failed to generate MLKEM-ECDH-composite key for PK alg %d", seckey.alg);
             return false;
         }
         break;
@@ -200,7 +200,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t &crypto,
     case PGP_PKA_DILITHIUM5_BP384:
         if (pgp_dilithium_exdsa_composite_key_t::gen_keypair(
               &crypto.ctx->rng, &seckey.material.dilithium_exdsa, seckey.alg)) {
-            RNP_LOG("failed to generate Dilithium-ecdsa/eddsa-composite key for PK alg %d",
+            RNP_LOG("failed to generate mldsa-ecdsa/eddsa-composite key for PK alg %d",
                     seckey.alg);
             return false;
         }
@@ -212,7 +212,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t &crypto,
                                      &seckey.material.sphincsplus,
                                      crypto.sphincsplus.param,
                                      seckey.alg)) {
-            RNP_LOG("failed to generate SPHINCS+ key for PK alg %d", seckey.alg);
+            RNP_LOG("failed to generate SLH-DSA key for PK alg %d", seckey.alg);
             return false;
         }
         break;

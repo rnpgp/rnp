@@ -80,12 +80,15 @@ tristate_feature_auto(ENABLE_CAST5 "Enable CAST5 cipher support.")
 tristate_feature_auto(ENABLE_RIPEMD160 "Enable RIPEMD-160 hash support.")
 
 option(ENABLE_CRYPTO_REFRESH "Enable crypto-refresh support (v6)")
-option(ENABLE_PQC "Enable PQC support - requires ENABLE_CRYPTO_REFRESH")
+option(ENABLE_PQC "Enable PQC support")
 
-if((NOT ENABLE_CRYPTO_REFRESH) AND ENABLE_PQC)
-  message(FATAL_ERROR "ENABLE_PQC requires ENABLE_CRYPTO_REFRESH")
+# Note: The following two flags are only temporary and will be removed once POC is in a stable state
+if (DEFINED ENABLE_PQC_MLKEM_IPD)
+  add_definitions(-DENABLE_PQC_MLKEM_IPD)
 endif()
-
+if (DEFINED ENABLE_PQC_DBG_LOG)
+  add_definitions(-DENABLE_PQC_DBG_LOG)
+endif()
 
 set(ENABLE_DOC Auto CACHE STRING "Enable building documentation.")
 set_property(CACHE ENABLE_DOC PROPERTY STRINGS ${TRISTATE_VALUES})

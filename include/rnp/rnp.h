@@ -1948,6 +1948,19 @@ RNP_API rnp_result_t rnp_key_get_default_key(rnp_key_handle_t  primary_key,
  */
 RNP_API rnp_result_t rnp_key_get_alg(rnp_key_handle_t key, char **alg);
 
+#if defined(RNP_EXPERIMENTAL_PQC)
+/** Get a SPHINCS+ key's parameter string
+ *
+ * @param key key handle
+ * @param alg string with parameter name will be stored here. You must free it using the
+ *            rnp_buffer_destroy() function.
+ * @return RNP_SUCCESS or error code if failed.
+ * NOTE: This is an experimental feature and this function can be replaced (or removed) at any
+ * time.
+ */
+RNP_API rnp_result_t rnp_key_sphincsplus_get_param(rnp_key_handle_t handle, char **param);
+#endif
+
 /** Get number of bits in the key. For EC-based keys it will return size of the curve.
  *
  * @param key key handle
@@ -3566,25 +3579,25 @@ RNP_API const char *rnp_backend_version();
 #define RNP_ALGNAME_ECDH "ECDH"
 #define RNP_ALGNAME_ECDSA "ECDSA"
 #define RNP_ALGNAME_EDDSA "EDDSA"
-#if defined(RNP_EXPERIMENTAL_CRYPTO_REFRESH)
+#if defined(RNP_EXPERIMENTAL_CRYPTO_REFRESH) || defined(RNP_EXPERIMENTAL_PQC)
 #define RNP_ALGNAME_ED25519 "ED25519"
 #define RNP_ALGNAME_X25519 "X25519"
 #endif
 #if defined(RNP_EXPERIMENTAL_PQC)
-#define RNP_ALGNAME_KYBER768_X25519 "KYBER768_X25519"
-#define RNP_ALGNAME_KYBER1024_X448 "KYBER1024_X448"
-#define RNP_ALGNAME_KYBER768_P256 "KYBER768_P256"
-#define RNP_ALGNAME_KYBER1024_P384 "KYBER1024_P384"
-#define RNP_ALGNAME_KYBER768_BP256 "KYBER768_BP256"
-#define RNP_ALGNAME_KYBER1024_BP384 "KYBER1024_BP384"
-#define RNP_ALGNAME_DILITHIUM3_ED25519 "DILITHIUM3_ED25519"
-#define RNP_ALGNAME_DILITHIUM5_ED448 "DILITHIUM5_ED448"
-#define RNP_ALGNAME_DILITHIUM3_P256 "DILITHIUM3_P256"
-#define RNP_ALGNAME_DILITHIUM5_P384 "DILITHIUM5_P384"
-#define RNP_ALGNAME_DILITHIUM3_BP256 "DILITHIUM3_BP256"
-#define RNP_ALGNAME_DILITHIUM5_BP384 "DILITHIUM5_BP384"
-#define RNP_ALGNAME_SPHINCSPLUS_SHA2 "SPHINCSPLUS_SHA2"
-#define RNP_ALGNAME_SPHINCSPLUS_SHAKE "SPHINCSPLUS_SHAKE"
+#define RNP_ALGNAME_KYBER768_X25519 "ML-KEM-768+X25519"
+#define RNP_ALGNAME_KYBER1024_X448 "ML-KEM-1024+X448"
+#define RNP_ALGNAME_KYBER768_P256 "ML-KEM-768+ECDH-P256"
+#define RNP_ALGNAME_KYBER1024_P384 "ML-KEM-1024+ECDH-P384"
+#define RNP_ALGNAME_KYBER768_BP256 "ML-KEM-768+ECDH-BP256"
+#define RNP_ALGNAME_KYBER1024_BP384 "ML-KEM-1024+ECDH-BP384"
+#define RNP_ALGNAME_DILITHIUM3_ED25519 "ML-DSA-65+ED25519"
+#define RNP_ALGNAME_DILITHIUM5_ED448 "ML-DSA-87+ED448"
+#define RNP_ALGNAME_DILITHIUM3_P256 "ML-DSA-65+ECDSA-P256"
+#define RNP_ALGNAME_DILITHIUM5_P384 "ML-DSA-87+ECDSA-P384"
+#define RNP_ALGNAME_DILITHIUM3_BP256 "ML-DSA-65+ECDSA-BP256"
+#define RNP_ALGNAME_DILITHIUM5_BP384 "ML-DSA-87+ECDSA-BP384"
+#define RNP_ALGNAME_SPHINCSPLUS_SHA2 "SLH-DSA-SHA2"
+#define RNP_ALGNAME_SPHINCSPLUS_SHAKE "SLH-DSA-SHAKE"
 #endif
 #define RNP_ALGNAME_IDEA "IDEA"
 #define RNP_ALGNAME_TRIPLEDES "TRIPLEDES"

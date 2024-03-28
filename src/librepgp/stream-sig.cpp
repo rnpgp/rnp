@@ -404,7 +404,12 @@ pgp_sig_subpkt_t::parse()
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_SIG_SUBPKT_PREFERRED_AEAD_CIPHERSUITES:
-        // TODO-V6: needs implementation
+        if (len % 2 != 0) {
+            RNP_LOG("AEAD Ciphersuite Preferences must contain an even number of bytes");
+            return false;
+        }
+        fields.preferred.arr = data;
+        fields.preferred.len = len;
         break;
 #endif
     case PGP_SIG_SUBPKT_PRIVATE_100:
@@ -967,6 +972,20 @@ pgp_signature_t::set_preferred_z_algs(const std::vector<uint8_t> &algs)
     set_preferred(algs, PGP_SIG_SUBPKT_PREF_COMPRESS);
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+void
+pgp_signature_t::set_preferred_aead_algs(const std::vector<uint8_t> &algs)
+{
+    set_preferred(algs, PGP_SIG_SUBPKT_PREFERRED_AEAD_CIPHERSUITES);
+}
+
+std::vector<uint8_t>
+pgp_signature_t::preferred_aead_algs() const
+{
+    return preferred(PGP_SIG_SUBPKT_PREFERRED_AEAD_CIPHERSUITES);
+}
+#endif
+
 uint8_t
 pgp_signature_t::key_server_prefs() const
 {
@@ -1097,22 +1116,22 @@ pgp_signature_t::set_revocation_reason(pgp_revocation_type_t code, const std::st
     }
 }
 
-pgp_key_feature_t
+uint32_t
 pgp_signature_t::key_get_features() const
 {
     const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_FEATURES);
-    return (pgp_key_feature_t)(subpkt ? subpkt->data[0] : 0);
+    return (uint32_t)(subpkt ? subpkt->data[0] : 0);
 }
 
 bool
-pgp_signature_t::key_has_features(pgp_key_feature_t flags) const
+pgp_signature_t::key_has_features(uint32_t flags) const
 {
     const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_FEATURES);
     return subpkt ? subpkt->data[0] & flags : false;
 }
 
 void
-pgp_signature_t::set_key_features(pgp_key_feature_t flags)
+pgp_signature_t::set_key_features(uint32_t flags)
 {
     pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_FEATURES, 1, true);
     subpkt.hashed = true;
@@ -1650,7 +1669,7 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
           pgp_dilithium_exdsa_signature_t::composite_signature_size(palg));
         if (!pkt.get(material.dilithium_exdsa.sig.data(),
                      material.dilithium_exdsa.sig.size())) {
-            RNP_LOG("failed to get dilithium-ecdsa/eddsa signature");
+            RNP_LOG("failed to get mldsa-ecdsa/eddsa signature");
             return false;
         }
         break;
@@ -1659,14 +1678,14 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
     case PGP_PKA_SPHINCSPLUS_SHAKE: {
         uint8_t param;
         if (!pkt.get(param)) {
-            RNP_LOG("failed to parse sphincs+ signature data");
+            RNP_LOG("failed to parse SLH-DSA signature data");
             return false;
         }
         material.sphincsplus.param = (sphincsplus_parameter_t) param;
         material.sphincsplus.sig.resize(
           sphincsplus_signature_size(material.sphincsplus.param));
         if (!pkt.get(material.sphincsplus.sig.data(), material.sphincsplus.sig.size())) {
-            RNP_LOG("failed to parse sphincs+ signature data");
+            RNP_LOG("failed to parse SLH-DSA signature data");
             return false;
         }
         break;
@@ -1845,6 +1864,12 @@ rnp_selfsig_cert_info_t::populate(pgp_signature_t &sig)
             sig.set_key_flags(key_flags);
         }
         return;
+    } else if ((sig.version == PGP_V6) && (sig.type() == PGP_SIG_DIRECT)) {
+        /* set some additional packets for v6 direct-key self signatures */
+        sig.set_key_features(PGP_KEY_FEATURE_MDC | PGP_KEY_FEATURE_SEIPDV2);
+        if (!prefs.aead_prefs.empty()) {
+            sig.set_preferred_aead_algs(prefs.aead_prefs);
+        }
     }
 #endif
     if (key_flags) {
