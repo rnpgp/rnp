@@ -57,6 +57,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <botan/ffi.h>
+#include <botan/build.h>
 #include "utils.h"
 
 static const char *
