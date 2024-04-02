@@ -6793,10 +6793,10 @@ try {
 }
 FFI_GUARD
 
+#if defined(RNP_EXPERIMENTAL_PQC)
 rnp_result_t
 rnp_key_sphincsplus_get_param(rnp_key_handle_t handle, char **param)
 try {
-#if defined(ENABLE_PQC)
     if (!handle || !param) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -6807,11 +6807,9 @@ try {
 
     return get_map_value(
       sphincsplus_params_map, key->material().sphincsplus.pub.param(), param);
-#else
-    return RNP_ERROR_NOT_IMPLEMENTED;
-#endif
 }
 FFI_GUARD
+#endif
 
 rnp_result_t
 rnp_key_get_bits(rnp_key_handle_t handle, uint32_t *bits)

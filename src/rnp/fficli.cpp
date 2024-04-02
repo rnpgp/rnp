@@ -420,7 +420,7 @@ ffi_pass_callback_stdin(rnp_ffi_t        ffi,
         }
 
         rnp->reuse_password_for_subkey--;
-        if (rnp->reuse_password_for_subkey == 0) {
+        if (!rnp->reuse_password_for_subkey) {
             rnp_buffer_clear(rnp->reused_password, strnlen(rnp->reused_password, buf_len));
             free(rnp->reused_password);
             rnp->reused_password = NULL;
