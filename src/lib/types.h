@@ -294,7 +294,6 @@ typedef struct pgp_sig_subpkt_t {
         } preferred; /* 5.2.3.7.  Preferred Symmetric Algorithms */
                      /* 5.2.3.8.  Preferred Hash Algorithms */
                      /* 5.2.3.9.  Preferred Compression Algorithms */
-                     /* Crypto Refresh 5.2.3.15. Preferred AEAD Ciphersuites  */
         struct {
             uint8_t          revclass;
             pgp_pubkey_alg_t pkalg;

@@ -762,9 +762,10 @@ TEST_F(rnp_tests, test_ffi_decrypt_v6_pkesk_test_vector)
 // The final implementation of the PQC draft implementation will use the final NIST standard.
 TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
 {
+    bool expect_success = true;
 #if !(defined(BOTAN_HAS_ML_KEM_INITIAL_PUBLIC_DRAFT) && defined(ENABLE_PQC_MLKEM_IPD))
     // we can only verify the test vectors with ML-KEM-ipd
-    GTEST_SKIP();
+    expect_success = false;
 #endif
 
     rnp_ffi_t    ffi = NULL;
@@ -779,29 +780,45 @@ TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
     assert_rnp_success(
       rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-seipdv2.asc"));
     assert_non_null(input);
-    assert_rnp_success(rnp_decrypt(ffi, input, output));
-    assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
+    if (expect_success) {
+        assert_rnp_success(rnp_decrypt(ffi, input, output));
+        assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
+    } else {
+        assert_rnp_failure(rnp_decrypt(ffi, input, output));
+    }
     assert_int_equal(unlink("decrypted"), 0);
-
-    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v4-seipdv1.asc"));
-    assert_non_null(input);
-    assert_rnp_success(rnp_decrypt(ffi, input, output));
-    assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
-    assert_int_equal(unlink("decrypted"), 0);
-
-    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v4-seipdv1.asc"));
-    assert_non_null(input);
-    assert_rnp_success(rnp_decrypt(ffi, input, output));
-    assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
-    assert_int_equal(unlink("decrypted"), 0);
-
-    // cleanup
     rnp_input_destroy(input);
     rnp_output_destroy(output);
+
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v4-seipdv1.asc"));
+    assert_non_null(input);
+    if (expect_success) {
+        assert_rnp_success(rnp_decrypt(ffi, input, output));
+        assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
+    } else {
+        assert_rnp_failure(rnp_decrypt(ffi, input, output));
+    }
+    assert_int_equal(unlink("decrypted"), 0);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v4-seipdv1.asc"));
+    assert_non_null(input);
+    if (expect_success) {
+        assert_rnp_success(rnp_decrypt(ffi, input, output));
+        assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
+    } else {
+        assert_rnp_failure(rnp_decrypt(ffi, input, output));
+    }
+    assert_int_equal(unlink("decrypted"), 0);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    rnp_ffi_destroy(ffi);
 }
 #endif
 
