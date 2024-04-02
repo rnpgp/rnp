@@ -32,6 +32,7 @@
 #endif
 #include <errno.h>
 #include <iterator>
+#include "config.h"
 #include "rnp/rnpcfg.h"
 #include "rnpkeys.h"
 #include "defaults.h"

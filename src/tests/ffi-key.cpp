@@ -3236,11 +3236,6 @@ TEST_F(rnp_tests, test_ffi_v6_cert_import)
 // The final implementation of the PQC draft implementation will use the final NIST standard.
 TEST_F(rnp_tests, test_ffi_pqc_certs)
 {
-#if !(defined(BOTAN_HAS_ML_KEM_INITIAL_PUBLIC_DRAFT) && defined(ENABLE_PQC_MLKEM_IPD))
-    // we can only verify the test vectors with ML-KEM-ipd
-    GTEST_SKIP();
-#endif
-
     rnp_ffi_t   ffi = NULL;
     rnp_input_t input = NULL;
     size_t      keycount = 255;
@@ -3259,6 +3254,7 @@ TEST_F(rnp_tests, test_ffi_pqc_certs)
     assert_int_equal(keycount, 2);
     assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
     assert_int_equal(keycount, 0);
+    rnp_ffi_destroy(ffi);
 
     /* Private Key */
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -3272,6 +3268,7 @@ TEST_F(rnp_tests, test_ffi_pqc_certs)
     rnp_input_destroy(input);
     assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
     assert_int_equal(keycount, 2);
+    rnp_ffi_destroy(ffi);
 }
 
 #endif
