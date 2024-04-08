@@ -842,7 +842,6 @@ TEST_F(rnp_tests, test_ffi_decrypt_v6_skesk_test_vectors)
 
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_crypto_refresh/v6_skesk_eax.asc"));
-    assert_rnp_success(rnp_output_to_null(&output));
     assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
     assert_rnp_success(rnp_op_verify_execute(verify));
@@ -850,6 +849,7 @@ TEST_F(rnp_tests, test_ffi_decrypt_v6_skesk_test_vectors)
     assert_int_equal(unlink("decrypted"), 0);
     rnp_input_destroy(input);
     rnp_output_destroy(output);
+    rnp_op_verify_destroy(verify);
 
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_crypto_refresh/v6_skesk_ocb.asc"));
@@ -860,6 +860,7 @@ TEST_F(rnp_tests, test_ffi_decrypt_v6_skesk_test_vectors)
     assert_int_equal(unlink("decrypted"), 0);
     rnp_input_destroy(input);
     rnp_output_destroy(output);
+    rnp_op_verify_destroy(verify);
 
     rnp_ffi_destroy(ffi);
 }
@@ -892,6 +893,7 @@ TEST_F(rnp_tests, test_ffi_v6_skesk_enc_dec)
             assert_rnp_success(rnp_op_encrypt_execute(enc));
             rnp_input_destroy(input);
             rnp_output_destroy(output);
+            rnp_op_encrypt_destroy(enc);
 
             assert_rnp_success(rnp_ffi_set_pass_provider(
               ffi, ffi_string_password_provider, (void *) "password"));
@@ -903,6 +905,7 @@ TEST_F(rnp_tests, test_ffi_v6_skesk_enc_dec)
             assert_string_equal(file_to_str("decrypted").c_str(), plaintext);
             rnp_input_destroy(input);
             rnp_output_destroy(output);
+            rnp_op_verify_destroy(verify);
 
             assert_int_equal(unlink("decrypted"), 0);
             assert_int_equal(unlink("encrypted"), 0);
