@@ -1,4 +1,4 @@
-# Copyright (c) 2023 [Ribose Inc](https://www.ribose.com).
+# Copyright (c) 2023-2024 [Ribose Inc](https://www.ribose.com).
 # All rights reserved.
 # This file is a part of rnp
 #
@@ -57,7 +57,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  BOTAN_VERSION: 2.19.3
+  BOTAN_VERSION: 2.19.4
+  CORES: 3
 
 jobs:
   tests:
@@ -67,14 +68,14 @@ jobs:
       fail-fast: false
       matrix:
 # On MacOS gcc is alias of clang these days
-        os: [ macos-11, macos-12 ]
+        os: [ macos-12, macos-13, macos-14 ]
         backend: [ 'botan' ]
         shared_libs: [ 'on' ]
         include:
           - { os: 'macos-11', backend: 'openssl@1.1', shared_libs: 'on' }
-          - { os: 'macos-12', backend: 'openssl@3', shared_libs: 'on' }
-          - { os: 'macos-12', backend: 'botan', shared_libs: 'off' }
-          - { os: 'macos-12', backend: 'botan3', shared_libs: 'on' }
+          - { os: 'macos-14', backend: 'openssl@3', shared_libs: 'on' }
+          - { os: 'macos-14', backend: 'botan', shared_libs: 'off' }
+          - { os: 'macos-14', backend: 'botan3', shared_libs: 'on' }
 
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 250
@@ -98,14 +99,6 @@ jobs:
           echo "brew \"openssl@3\"" >> Brewfile
           echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@3)" >> $GITHUB_ENV
           echo "CRYPTO_BACKEND=openssl" >> $GITHUB_ENV
-
-#      Brew installs Botan3 now and it is not supported yet
-#
-#      - name: Configure botan backend
-#        if: ${{ matrix.backend == 'botan' }}
-#        run: |
-#          echo "brew \"botan\"" >> Brewfile
-#          echo "CRYPTO_BACKEND=botan" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: brew bundle
@@ -147,6 +140,7 @@ jobs:
                          -DCMAKE_BUILD_TYPE=Release                      \
                          -DCMAKE_INSTALL_PREFIX="$PWD/rnp-install"       \
                          -DDOWNLOAD_GTEST=OFF                            \
+                         -DCMAKE_CXX_FLAGS="-DS2K_MINIMUM_TUNING_RATIO=4"\
                          -DCRYPTO_BACKEND=${{ env.CRYPTO_BACKEND }}      .
 
       - name: Build
