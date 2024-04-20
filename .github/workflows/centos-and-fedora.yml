@@ -100,6 +100,12 @@ jobs:
           # Coverage report for Botan backend with disabled algos
           - image: { name: 'Fedora 36', container: 'fedora-36-amd64', gpg_ver: stable, backend: Botan, idea: Off, sm2: Off, two: Off, blow: Off, rmd: Off, bp: Off }
             env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage,   SHARED_LIBS: on  }
+          # Fedora 38
+          - image: { name: 'Fedora 38', container: 'fedora-38-amd64', gpg_ver: system, backend: Botan, botan_ver: 'system' }
+            env:   { CC: gcc, CXX: g++, BUILD_MODE: normal,   SHARED_LIBS: on  }
+          # Fedora 39
+          - image: { name: 'Fedora 38', container: 'fedora-39-amd64', gpg_ver: system, backend: Botan, botan_ver: 'system' }
+            env:   { CC: gcc, CXX: g++, BUILD_MODE: normal,   SHARED_LIBS: on  }
 
     container: ghcr.io/rnpgp/ci-rnp-${{ matrix.image.container }}
 
