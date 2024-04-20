@@ -1,0 +1,96 @@
+name: opensuse
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/opensuse.yml'
+  pull_request:
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
+
+env:
+  CORES: 2
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+  LC_LANG: C.UTF-8
+  RNP_LOG_CONSOLE: 1
+
+jobs:
+  tests:
+    name: ${{ matrix.image.container }} [CC ${{ matrix.env.CC }}; backend ${{ matrix.image.backend }}; GnuPG system-shipped]
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - { container: 'opensuse-leap',  backend: 'botan' }
+          - { container: 'opensuse-tumbleweed',  backend: 'openssl' }
+        env:
+          - { CC: 'gcc',   CXX: 'g++'     }
+          - { CC: 'clang', CXX: 'clang++' }
+
+    container: ghcr.io/rnpgp/ci-rnp-${{ matrix.image.container }}
+
+    env: ${{ matrix.env }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup environment
+        shell: bash
+        # rnpuser is only needed for rnpkeys_generatekey_verifykeyHomeDirNoPermission test
+        run: |
+          groupadd rnpuser
+          useradd -g rnpuser -m rnpuser
+          printf "\nrnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
+          if [ -d /etc/security/limits.d ]; then
+            printf "\nrnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
+          fi
+
+      - name: Configure
+        run: |
+          cmake -B build                                           \
+                -DBUILD_SHARED_LIBS=ON                             \
+                -DCRYPTO_BACKEND=${{ matrix.image.backend }}       \
+                -DDOWNLOAD_GTEST=Off                               \
+                -DCMAKE_BUILD_TYPE=Release                         .
+
+      - name: Build
+        run: cmake --build build --parallel ${{ env.CORES }}
+
+      - name: Test
+        run: |
+          mkdir -p "build/Testing/Temporary"
+          cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
+          export PATH="$PWD/build/src/lib:$PATH"
+          chown -R rnpuser:rnpuser $PWD
+          exec su rnpuser -c "ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure"
