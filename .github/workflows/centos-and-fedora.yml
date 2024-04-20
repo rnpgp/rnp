@@ -138,7 +138,10 @@ jobs:
 
       - name: Build botan head
         if:   matrix.image.botan_ver == 'head'
-        run:  /opt/tools/tools.sh build_and_install_botan head
+        # Botan's head renamed curve25519 module to x25519, however this didn't get to 3.5.0 release yet
+        run: |
+          sed -i 's/curve25519/x25519/g' /opt/tools/botan3-modules /opt/tools/botan3-pqc-modules 
+          /opt/tools/tools.sh build_and_install_botan head
 
       - name: Configure
         run: |
