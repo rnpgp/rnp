@@ -54,6 +54,8 @@ jobs:
           - { container: 'debian-11-i386',  cpu: 'i386',   backend: 'openssl' }
           - { container: 'debian-11-amd64', cpu: 'x86_64', backend: 'botan'   }
           - { container: 'debian-11-amd64', cpu: 'x86_64', backend: 'openssl' }
+          - { container: 'debian-12-amd64', cpu: 'x86_64', backend: 'botan'   }
+          - { container: 'debian-12-amd64', cpu: 'x86_64', backend: 'openssl' }
           - { container: 'debian-10-i386',  cpu: 'i386',   backend: 'botan'   }
         env:
           - { CC: 'gcc',   CXX: 'g++'     }
