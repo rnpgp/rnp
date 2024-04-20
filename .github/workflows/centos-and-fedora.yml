@@ -104,6 +104,12 @@ jobs:
           # Coverage report for PQC
           - image: { name: 'Fedora 36', container: 'fedora-36-amd64', gpg_ver: stable, backend: Botan, botan_ver: '3.3.0', pqc: On }
             env:   { CC: clang, CXX: clang++, BUILD_MODE: sanitize,   SHARED_LIBS: off  }
+          # Fedora 38
+          - image: { name: 'Fedora 38', container: 'fedora-38-amd64', gpg_ver: system, backend: Botan, botan_ver: 'system' }
+            env:   { CC: gcc, CXX: g++, BUILD_MODE: normal,   SHARED_LIBS: on  }
+          # Fedora 39
+          - image: { name: 'Fedora 38', container: 'fedora-39-amd64', gpg_ver: system, backend: Botan, botan_ver: 'system' }
+            env:   { CC: gcc, CXX: g++, BUILD_MODE: normal,   SHARED_LIBS: on  }
 
     container: ghcr.io/rnpgp/ci-rnp-${{ matrix.image.container }}
 
