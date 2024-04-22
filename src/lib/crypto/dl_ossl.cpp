@@ -44,15 +44,17 @@ dl_build_params(bignum_t *p, bignum_t *q, bignum_t *g, bignum_t *y, bignum_t *x)
 {
     OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
     if (!bld) {
-        return NULL;
+        return NULL; // LCOV_EXCL_LINE
     }
     if (!OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_P, p) ||
         (q && !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_Q, q)) ||
         !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_G, g) ||
         !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PUB_KEY, y) ||
         (x && !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY, x))) {
+        /* LCOV_EXCL_START */
         OSSL_PARAM_BLD_free(bld);
         return NULL;
+        /* LCOV_EXCL_END */
     }
     OSSL_PARAM *param = OSSL_PARAM_BLD_to_param(bld);
     OSSL_PARAM_BLD_free(bld);
@@ -75,27 +77,35 @@ dl_load_key(const pgp_mpi_t &mp,
     rnp::bn   x(mx ? mpi2bn(mx) : NULL);
 
     if (!p.get() || (mq && !q.get()) || !g.get() || !y.get() || (mx && !x.get())) {
+        /* LCOV_EXCL_START */
         RNP_LOG("out of memory");
         return NULL;
+        /* LCOV_EXCL_END */
     }
 
 #if defined(CRYPTO_BACKEND_OPENSSL3)
     OSSL_PARAM *params = dl_build_params(p.get(), q.get(), g.get(), y.get(), x.get());
     if (!params) {
+        /* LCOV_EXCL_START */
         RNP_LOG("failed to build dsa params");
         return NULL;
+        /* LCOV_EXCL_END */
     }
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_DH, NULL);
     if (!ctx) {
+        /* LCOV_EXCL_START */
         RNP_LOG("failed to create dl context");
         OSSL_PARAM_free(params);
         return NULL;
+        /* LCOV_EXCL_END */
     }
     if ((EVP_PKEY_fromdata_init(ctx) != 1) ||
         (EVP_PKEY_fromdata(
            ctx, &evpkey, mx ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY, params) != 1)) {
+        /* LCOV_EXCL_START */
         RNP_LOG("failed to create key from data");
         evpkey = NULL;
+        /* LCOV_EXCL_END */
     }
     OSSL_PARAM_free(params);
     EVP_PKEY_CTX_free(ctx);
@@ -103,8 +113,10 @@ dl_load_key(const pgp_mpi_t &mp,
 #else
     DH *dh = DH_new();
     if (!dh) {
+        /* LCOV_EXCL_START */
         RNP_LOG("out of memory");
         return NULL;
+        /* LCOV_EXCL_END */
     }
     /* line below must not fail */
     int res = DH_set0_pqg(dh, p.own(), q.own(), g.own());
@@ -121,13 +133,17 @@ dl_load_key(const pgp_mpi_t &mp,
 
     evpkey = EVP_PKEY_new();
     if (!evpkey) {
+        /* LCOV_EXCL_START */
         RNP_LOG("allocation failed");
         goto done;
+        /* LCOV_EXCL_END */
     }
     if (EVP_PKEY_set1_DH(evpkey, dh) <= 0) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to set key: %lu", ERR_peek_last_error());
         EVP_PKEY_free(evpkey);
         evpkey = NULL;
+        /* LCOV_EXCL_END */
     }
 done:
     DH_free(dh);
@@ -155,22 +171,28 @@ dl_validate_secret_key(EVP_PKEY *dlkey, const pgp_mpi_t &mx)
     bignum_t *cy = bn_new();
 
     if (!x || !cy || !ctx) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Allocation failed");
         goto done;
+        /* LCOV_EXCL_END */
     }
     if (!q) {
         /* if q is NULL then group order is (p - 1) / 2 */
         p1 = BN_dup(p);
         if (!p1) {
+            /* LCOV_EXCL_START */
             RNP_LOG("Allocation failed");
             goto done;
+            /* LCOV_EXCL_END */
         }
         int res;
         res = BN_rshift(p1, p1, 1);
         assert(res == 1);
         if (res < 1) {
+            /* LCOV_EXCL_START */
             RNP_LOG("BN_rshift failed.");
             goto done;
+            /* LCOV_EXCL_END */
         }
         q = p1;
     }
@@ -200,8 +222,10 @@ dl_validate_key(EVP_PKEY *pkey, const pgp_mpi_t *x)
     rnp_result_t  ret = RNP_ERROR_GENERIC;
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, NULL);
     if (!ctx) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
         goto done;
+        /* LCOV_EXCL_END */
     }
     int res;
     res = EVP_PKEY_param_check(ctx);
