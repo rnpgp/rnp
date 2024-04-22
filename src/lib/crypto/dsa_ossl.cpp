@@ -93,15 +93,17 @@ dsa_build_params(bignum_t *p, bignum_t *q, bignum_t *g, bignum_t *y, bignum_t *x
 {
     OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
     if (!bld) {
-        return NULL;
+        return NULL; // LCOV_EXCL_LINE
     }
     if (!OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_P, p) ||
         !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_Q, q) ||
         !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_G, g) ||
         !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PUB_KEY, y) ||
         (x && !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY, x))) {
+        /* LCOV_EXCL_START */
         OSSL_PARAM_BLD_free(bld);
         return NULL;
+        /* LCOV_EXCL_END */
     }
     OSSL_PARAM *param = OSSL_PARAM_BLD_to_param(bld);
     OSSL_PARAM_BLD_free(bld);
@@ -120,21 +122,27 @@ dsa_load_key(const pgp_dsa_key_t *key, bool secret = false)
     rnp::bn   x(secret ? mpi2bn(&key->x) : NULL);
 
     if (!p.get() || !q.get() || !g.get() || !y.get() || (secret && !x.get())) {
+        /* LCOV_EXCL_START */
         RNP_LOG("out of memory");
         return NULL;
+        /* LCOV_EXCL_END */
     }
 
 #if defined(CRYPTO_BACKEND_OPENSSL3)
     OSSL_PARAM *params = dsa_build_params(p.get(), q.get(), g.get(), y.get(), x.get());
     if (!params) {
+        /* LCOV_EXCL_START */
         RNP_LOG("failed to build dsa params");
         return NULL;
+        /* LCOV_EXCL_END */
     }
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_DSA, NULL);
     if (!ctx) {
+        /* LCOV_EXCL_START */
         RNP_LOG("failed to create dsa context");
         OSSL_PARAM_free(params);
         return NULL;
+        /* LCOV_EXCL_END */
     }
     if ((EVP_PKEY_fromdata_init(ctx) != 1) ||
         (EVP_PKEY_fromdata(
@@ -148,27 +156,37 @@ dsa_load_key(const pgp_dsa_key_t *key, bool secret = false)
 #else
     DSA *dsa = DSA_new();
     if (!dsa) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Out of memory");
         goto done;
+        /* LCOV_EXCL_END */
     }
     if (DSA_set0_pqg(dsa, p.own(), q.own(), g.own()) != 1) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to set pqg. Error: %lu", ERR_peek_last_error());
         goto done;
+        /* LCOV_EXCL_END */
     }
     if (DSA_set0_key(dsa, y.own(), x.own()) != 1) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Secret key load error: %lu", ERR_peek_last_error());
         goto done;
+        /* LCOV_EXCL_END */
     }
 
     evpkey = EVP_PKEY_new();
     if (!evpkey) {
+        /* LCOV_EXCL_START */
         RNP_LOG("allocation failed");
         goto done;
+        /* LCOV_EXCL_END */
     }
     if (EVP_PKEY_set1_DSA(evpkey, dsa) <= 0) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to set key: %lu", ERR_peek_last_error());
         EVP_PKEY_free(evpkey);
         evpkey = NULL;
+        /* LCOV_EXCL_END */
     }
 done:
     DSA_free(dsa);
@@ -213,8 +231,10 @@ dsa_sign(rnp::RNG *           rng,
     /* init context and sign */
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evpkey, NULL);
     if (!ctx) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
         goto done;
+        /* LCOV_EXCL_END */
     }
     if (EVP_PKEY_sign_init(ctx) <= 0) {
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
@@ -254,8 +274,10 @@ dsa_verify(const pgp_dsa_signature_t *sig,
     /* init context and sign */
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evpkey, NULL);
     if (!ctx) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
         goto done;
+        /* LCOV_EXCL_END */
     }
     if (EVP_PKEY_verify_init(ctx) <= 0) {
         RNP_LOG("Failed to initialize verify: %lu", ERR_peek_last_error());
@@ -328,12 +350,16 @@ dsa_generate(rnp::RNG *rng, pgp_dsa_key_t *key, size_t keylen, size_t qbits)
     /* Generate DSA params */
     ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_DSA, NULL);
     if (!ctx) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to create ctx: %lu", ERR_peek_last_error());
         return ret;
+        /* LCOV_EXCL_END */
     }
     if (EVP_PKEY_paramgen_init(ctx) <= 0) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to init keygen: %lu", ERR_peek_last_error());
         goto done;
+        /* LCOV_EXCL_END */
     }
     if (EVP_PKEY_CTX_set_dsa_paramgen_bits(ctx, keylen) <= 0) {
         RNP_LOG("Failed to set key bits: %lu", ERR_peek_last_error());
