@@ -49,19 +49,25 @@ rsa_load_public_key(const pgp_rsa_key_t *key)
     rnp::bn e(key->e);
 
     if (!n.get() || !e.get()) {
+        /* LCOV_EXCL_START */
         RNP_LOG("out of memory");
         return NULL;
+        /* LCOV_EXCL_END */
     }
     RSA *rsa = RSA_new();
     if (!rsa) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Out of memory");
         return NULL;
+        /* LCOV_EXCL_END */
     }
     /* OpenSSL set0 function transfers ownership of bignums */
     if (RSA_set0_key(rsa, n.own(), e.own(), NULL) != 1) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Public key load error: %lu", ERR_peek_last_error());
         RSA_free(rsa);
         return NULL;
+        /* LCOV_EXCL_END */
     }
     return rsa;
 }
@@ -76,26 +82,34 @@ rsa_load_secret_key(const pgp_rsa_key_t *key)
     rnp::bn d(key->d);
 
     if (!n.get() || !p.get() || !q.get() || !e.get() || !d.get()) {
+        /* LCOV_EXCL_START */
         RNP_LOG("out of memory");
         return NULL;
+        /* LCOV_EXCL_END */
     }
 
     RSA *rsa = RSA_new();
     if (!rsa) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Out of memory");
         return NULL;
+        /* LCOV_EXCL_END */
     }
     /* OpenSSL set0 function transfers ownership of bignums */
     if (RSA_set0_key(rsa, n.own(), e.own(), d.own()) != 1) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Secret key load error: %lu", ERR_peek_last_error());
         RSA_free(rsa);
         return NULL;
+        /* LCOV_EXCL_END */
     }
     /* OpenSSL has p < q, as we do */
     if (RSA_set0_factors(rsa, p.own(), q.own()) != 1) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Factors load error: %lu", ERR_peek_last_error());
         RSA_free(rsa);
         return NULL;
+        /* LCOV_EXCL_END */
     }
     return rsa;
 }
@@ -105,8 +119,10 @@ rsa_init_context(const pgp_rsa_key_t *key, bool secret)
 {
     EVP_PKEY *evpkey = EVP_PKEY_new();
     if (!evpkey) {
+        /* LCOV_EXCL_START */
         RNP_LOG("allocation failed");
         return NULL;
+        /* LCOV_EXCL_END */
     }
     EVP_PKEY_CTX *ctx = NULL;
     RSA *         rsakey = secret ? rsa_load_secret_key(key) : rsa_load_public_key(key);
@@ -114,12 +130,14 @@ rsa_init_context(const pgp_rsa_key_t *key, bool secret)
         goto done;
     }
     if (EVP_PKEY_set1_RSA(evpkey, rsakey) <= 0) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to set key: %lu", ERR_peek_last_error());
         goto done;
+        /* LCOV_EXCL_END */
     }
     ctx = EVP_PKEY_CTX_new(evpkey, NULL);
     if (!ctx) {
-        RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
+        RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error()); // LCOV_EXCL_LINE
     }
 done:
     RSA_free(rsakey);
@@ -141,15 +159,19 @@ rsa_bld_params(const pgp_rsa_key_t *key, bool secret)
     BN_CTX *        bnctx = NULL;
 
     if (!n.get() || !e.get() || !bld) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Out of memory");
         goto done;
+        /* LCOV_EXCL_END */
     }
 
     if (!OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_N, n.get()) ||
         !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_E, e.get())) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to push RSA params.");
         OSSL_PARAM_BLD_free(bld);
         return NULL;
+        /* LCOV_EXCL_END */
     }
     if (secret) {
         d.set(key->d);
@@ -164,8 +186,10 @@ rsa_bld_params(const pgp_rsa_key_t *key, bool secret)
         /* We need to calculate exponents manually */
         bnctx = BN_CTX_new();
         if (!bnctx) {
+            /* LCOV_EXCL_START */
             RNP_LOG("Failed to allocate BN_CTX.");
             goto done;
+            /* LCOV_EXCL_END */
         }
         bignum_t *p1 = BN_CTX_get(bnctx);
         bignum_t *q1 = BN_CTX_get(bnctx);
@@ -174,7 +198,7 @@ rsa_bld_params(const pgp_rsa_key_t *key, bool secret)
         if (!BN_copy(p1, p.get()) || !BN_sub_word(p1, 1) || !BN_copy(q1, q.get()) ||
             !BN_sub_word(q1, 1) || !BN_mod(dp, d.get(), p1, bnctx) ||
             !BN_mod(dq, d.get(), q1, bnctx)) {
-            RNP_LOG("Failed to calculate dP or dQ.");
+            RNP_LOG("Failed to calculate dP or dQ."); // LCOV_EXCL_LINE
         }
         /* Push params */
         if (!OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_D, d.get()) ||
@@ -183,13 +207,13 @@ rsa_bld_params(const pgp_rsa_key_t *key, bool secret)
             !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_EXPONENT1, dp) ||
             !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_EXPONENT2, dq) ||
             !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, u.get())) {
-            RNP_LOG("Failed to push RSA secret params.");
+            RNP_LOG("Failed to push RSA secret params."); // LCOV_EXCL_LINE
             goto done;
         }
     }
     params = OSSL_PARAM_BLD_to_param(bld);
     if (!params) {
-        RNP_LOG("Failed to build RSA params: %s.", ossl_latest_err());
+        RNP_LOG("Failed to build RSA params: %s.", ossl_latest_err()); // LCOV_EXCL_LINE
     }
 done:
     BN_CTX_free(bnctx);
@@ -209,17 +233,21 @@ rsa_load_key(const pgp_rsa_key_t *key, bool secret)
     EVP_PKEY *    res = NULL;
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
     if (!ctx) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Context allocation failed: %s", ossl_latest_err());
         goto done;
+        /* LCOV_EXCL_END */
     }
     /* Create key */
     if (EVP_PKEY_fromdata_init(ctx) <= 0) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to initialize key creation: %s", ossl_latest_err());
         goto done;
+        /* LCOV_EXCL_END */
     }
     if (EVP_PKEY_fromdata(
           ctx, &res, secret ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY, params) <= 0) {
-        RNP_LOG("Failed to create RSA key: %s", ossl_latest_err());
+        RNP_LOG("Failed to create RSA key: %s", ossl_latest_err()); // LCOV_EXCL_LINE
     }
 done:
     EVP_PKEY_CTX_free(ctx);
@@ -236,7 +264,7 @@ rsa_init_context(const pgp_rsa_key_t *key, bool secret)
     }
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, NULL);
     if (!ctx) {
-        RNP_LOG("Context allocation failed: %s", ossl_latest_err());
+        RNP_LOG("Context allocation failed: %s", ossl_latest_err()); // LCOV_EXCL_LINE
     }
     EVP_PKEY_free(pkey);
     return ctx;
@@ -249,12 +277,14 @@ rsa_validate_key(rnp::RNG *rng, const pgp_rsa_key_t *key, bool secret)
 #ifdef CRYPTO_BACKEND_OPENSSL3
     EVP_PKEY_CTX *ctx = rsa_init_context(key, secret);
     if (!ctx) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to init context: %s", ossl_latest_err());
         return RNP_ERROR_GENERIC;
+        /* LCOV_EXCL_END */
     }
     int res = secret ? EVP_PKEY_pairwise_check(ctx) : EVP_PKEY_public_check(ctx);
     if (res <= 0) {
-        RNP_LOG("Key validation error: %s", ossl_latest_err());
+        RNP_LOG("Key validation error: %s", ossl_latest_err()); // LCOV_EXCL_LINE
     }
     EVP_PKEY_CTX_free(ctx);
     return res > 0 ? RNP_SUCCESS : RNP_ERROR_GENERIC;
@@ -262,12 +292,14 @@ rsa_validate_key(rnp::RNG *rng, const pgp_rsa_key_t *key, bool secret)
     if (secret) {
         EVP_PKEY_CTX *ctx = rsa_init_context(key, secret);
         if (!ctx) {
+            /* LCOV_EXCL_START */
             RNP_LOG("Failed to init context: %s", ossl_latest_err());
             return RNP_ERROR_GENERIC;
+            /* LCOV_EXCL_END */
         }
         int res = EVP_PKEY_check(ctx);
         if (res <= 0) {
-            RNP_LOG("Key validation error: %s", ossl_latest_err());
+            RNP_LOG("Key validation error: %s", ossl_latest_err()); // LCOV_EXCL_LINE
         }
         EVP_PKEY_CTX_free(ctx);
         return res > 0 ? RNP_SUCCESS : RNP_ERROR_GENERIC;
@@ -277,8 +309,10 @@ rsa_validate_key(rnp::RNG *rng, const pgp_rsa_key_t *key, bool secret)
     rnp::bn n(key->n);
     rnp::bn e(key->e);
     if (!n.get() || !e.get()) {
+        /* LCOV_EXCL_START */
         RNP_LOG("out of memory");
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
     if ((BN_num_bits(n.get()) < 512) || !BN_is_odd(n.get()) || (BN_num_bits(e.get()) < 2) ||
         !BN_is_odd(e.get())) {
@@ -530,9 +564,11 @@ rsa_calculate_pqu(const bignum_t *p, const bignum_t *q, const bignum_t *u, pgp_r
     BN_with_flags(nq, q, BN_FLG_CONSTTIME);
     /* calculate inverse of p mod q */
     if (!BN_mod_inverse(nu, p, nq, bnctx)) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to calculate u");
         BN_CTX_free(bnctx);
         return false;
+        /* LCOV_EXCL_END */
     }
     bn2mpi(p, &key.p);
     bn2mpi(q, &key.q);
