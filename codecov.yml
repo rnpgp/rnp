@@ -22,3 +22,5 @@
 ignore:
 # Google test sources stored under the build directory
   - "build"
+  - "src/libsexpp"
+  - "src/tests"
