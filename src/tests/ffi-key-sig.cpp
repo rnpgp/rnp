@@ -303,8 +303,6 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
     assert_false(revoked);
     /* some import edge cases */
     assert_rnp_failure(rnp_import_signatures(ffi, NULL, 0, &results));
-    assert_rnp_failure(rnp_import_signatures(NULL, input, 0, &results));
-    assert_rnp_failure(rnp_import_signatures(ffi, input, 0x18, &results));
     /* import revocation signature */
     json_object *jso = NULL;
     json_object *jsosigs = NULL;
@@ -342,6 +340,8 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
     assert_int_equal(till, 1578663151);
     /* check import with NULL results param */
     assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-rev.pgp"));
+    assert_rnp_failure(rnp_import_signatures(NULL, input, 0, &results));
+    assert_rnp_failure(rnp_import_signatures(ffi, input, 0x18, &results));
     assert_rnp_success(rnp_import_signatures(ffi, input, 0, NULL));
     assert_rnp_success(rnp_input_destroy(input));
     /* import signature again, making sure it is not duplicated */
@@ -1355,6 +1355,7 @@ TEST_F(rnp_tests, test_ffi_remove_signatures)
     assert_rnp_failure(rnp_key_remove_signatures(NULL, RNP_KEY_SIGNATURE_INVALID, NULL, NULL));
     assert_rnp_failure(rnp_key_remove_signatures(NULL, 0, NULL, NULL));
     assert_rnp_failure(rnp_key_remove_signatures(key, 0, NULL, ffi));
+    assert_rnp_failure(rnp_key_remove_signatures(key, 0x77, NULL, ffi));
     /* remove unknown signatures */
     assert_rnp_success(
       rnp_key_remove_signatures(key, RNP_KEY_SIGNATURE_UNKNOWN_KEY, NULL, NULL));
