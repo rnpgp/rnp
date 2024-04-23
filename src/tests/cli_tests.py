@@ -328,8 +328,10 @@ def rnp_genkey_rsa(userid, bits=2048, pswd=PASSWORD):
     if ret != 0:
         raise_err('rsa key generation failed', err)
 
-def rnp_genkey_pqc(userid, algo_cli_nr, pswd=PASSWORD):
+def rnp_genkey_pqc(userid, algo_cli_nr, algo_param = None, pswd=PASSWORD):
     algo_pipe = str(algo_cli_nr)
+    if algo_param:
+        algo_pipe += "\n" + str(algo_param)
     ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', pswd,
                                   '--notty', '--userid', userid, '--generate-key', '--expert'], algo_pipe)
     #os.close(algo_pipe)
@@ -4619,12 +4621,13 @@ class Encryption(unittest.TestCase):
     """
     def test_zzz_encryption_and_signing_pqc(self):
         USERIDS = ['enc-sign25@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign31@rnp','enc-sign32@rnp','enc-sign33@rnp','enc-sign34@rnp']
-        ALGO = [25, 27, 28, 29, 30, 31, 32, 33, 34,]
+        ALGO = [      25,   27,   28,   29,   30,   31,   32,  ]
+        ALGO_PARAM = [None, None, None, None, None, 1,    6, ]
         passwds = [ ]
         for x in range(len(ALGO)): passwds.append('testpw' if x % 1 == 0 else '')
         # Generate multiple keys and import to GnuPG
-        for uid, algo, passwd in zip(USERIDS, ALGO, passwds):
-            rnp_genkey_pqc(uid, algo, passwd)
+        for uid, algo, param, passwd in zip(USERIDS, ALGO, ALGO_PARAM, passwds):
+            rnp_genkey_pqc(uid, algo, param, passwd)
 
         #gpg_import_pubring()
         #gpg_import_secring()
