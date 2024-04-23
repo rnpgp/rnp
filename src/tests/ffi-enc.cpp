@@ -151,10 +151,15 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
     str_to_file("plaintext", plaintext);
     // create input+output w/ bad paths (should fail)
     input = NULL;
+    assert_rnp_failure(rnp_input_from_stdin(NULL));
+    assert_rnp_failure(rnp_input_from_path(NULL, "noexist"));
+    assert_rnp_failure(rnp_input_from_path(&input, NULL));
     assert_rnp_failure(rnp_input_from_path(&input, "noexist"));
     assert_null(input);
     assert_rnp_failure(rnp_output_to_path(&output, ""));
     assert_null(output);
+    assert_rnp_failure(rnp_output_to_path(NULL, "path"));
+    assert_rnp_failure(rnp_output_to_path(&output, NULL));
 
     // create input+output
     assert_rnp_success(rnp_input_from_path(&input, "plaintext"));
@@ -202,6 +207,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
         assert_rnp_success(rnp_op_encrypt_set_cipher(op, "AES256"));
     }
     // execute the operation
+    assert_rnp_failure(rnp_op_encrypt_execute(NULL));
     assert_rnp_success(rnp_op_encrypt_execute(op));
 
     // make sure the output file was created
@@ -222,6 +228,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
     assert_non_null(input);
     assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
     assert_non_null(output);
+    assert_rnp_failure(rnp_ffi_set_pass_provider(NULL, NULL, NULL));
     assert_rnp_success(rnp_ffi_set_pass_provider(ffi, NULL, NULL));
     assert_rnp_failure(rnp_decrypt(ffi, input, output));
     // cleanup
@@ -251,6 +258,9 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
     assert_non_null(output);
     assert_rnp_success(
       rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "pass1"));
+    assert_rnp_failure(rnp_decrypt(NULL, input, output));
+    assert_rnp_failure(rnp_decrypt(ffi, NULL, output));
+    assert_rnp_failure(rnp_decrypt(ffi, input, NULL));
     assert_rnp_success(rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
@@ -368,6 +378,10 @@ TEST_F(rnp_tests, test_ffi_encrypt_set_cipher)
     /* create input + output */
     rnp_input_t input = NULL;
     const char *plaintext = "Data encrypted with password using different CEK/KEK.";
+    assert_rnp_failure(
+      rnp_input_from_memory(NULL, (const uint8_t *) plaintext, strlen(plaintext), false));
+    assert_rnp_failure(rnp_input_from_memory(&input, NULL, strlen(plaintext), false));
+    assert_rnp_failure(rnp_input_from_memory(&input, (const uint8_t *) plaintext, 0, false));
     assert_rnp_success(
       rnp_input_from_memory(&input, (const uint8_t *) plaintext, strlen(plaintext), false));
     rnp_output_t output = NULL;
@@ -393,6 +407,10 @@ TEST_F(rnp_tests, test_ffi_encrypt_set_cipher)
       rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password1"));
     rnp_op_verify_t verify;
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_set_flags(NULL, RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT));
+    assert_rnp_failure(rnp_op_verify_set_flags(verify, 0x77));
+    assert_rnp_success(rnp_op_verify_set_flags(verify, RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT));
+    assert_rnp_success(rnp_op_verify_set_flags(verify, 0));
     assert_rnp_success(rnp_op_verify_execute(verify));
     rnp_input_destroy(input);
     rnp_output_destroy(output);
@@ -1115,7 +1133,9 @@ TEST_F(rnp_tests, test_ffi_encrypt_and_sign)
     // add second signature with different hash/issued/expiration
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key1-uid2", &key));
     assert_rnp_success(rnp_op_encrypt_add_signature(op, key, &signsig));
+    assert_rnp_failure(rnp_op_sign_signature_set_creation_time(NULL, issued2));
     assert_rnp_success(rnp_op_sign_signature_set_creation_time(signsig, issued2));
+    assert_rnp_failure(rnp_op_sign_signature_set_expiration_time(NULL, expires2));
     assert_rnp_success(rnp_op_sign_signature_set_expiration_time(signsig, expires2));
     assert_rnp_failure(rnp_op_sign_signature_set_hash(signsig, NULL));
     assert_rnp_failure(rnp_op_sign_signature_set_hash(NULL, "SHA512"));
@@ -1229,16 +1249,28 @@ TEST_F(rnp_tests, test_ffi_encrypt_and_sign)
 
     assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sig_count));
     assert_int_equal(sig_count, 2);
+    assert_rnp_failure(rnp_op_verify_get_signature_at(NULL, 0, &sig));
+    assert_rnp_failure(rnp_op_verify_get_signature_at(verify, 0, NULL));
+    assert_rnp_failure(rnp_op_verify_get_signature_at(verify, 10, &sig));
     // signature 1
     assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
+    assert_rnp_failure(rnp_op_verify_signature_get_status(NULL));
     assert_rnp_success(rnp_op_verify_signature_get_status(sig));
     assert_rnp_success(rnp_op_verify_signature_get_times(sig, &sig_create, &sig_expires));
     assert_int_equal(sig_create, issued);
     assert_int_equal(sig_expires, expires);
+    assert_rnp_failure(rnp_op_verify_signature_get_hash(NULL, &hname));
+    assert_rnp_failure(rnp_op_verify_signature_get_hash(sig, NULL));
     assert_rnp_success(rnp_op_verify_signature_get_hash(sig, &hname));
     assert_string_equal(hname, "SHA256");
     rnp_buffer_destroy(hname);
     hname = NULL;
+    key = NULL;
+    assert_rnp_failure(rnp_op_verify_signature_get_key(NULL, &key));
+    assert_rnp_failure(rnp_op_verify_signature_get_key(sig, NULL));
+    assert_rnp_success(rnp_op_verify_signature_get_key(sig, &key));
+    assert_non_null(key);
+    rnp_key_handle_destroy(key);
     // signature 2
     assert_rnp_success(rnp_op_verify_get_signature_at(verify, 1, &sig));
     assert_rnp_success(rnp_op_verify_signature_get_status(sig));
@@ -1298,6 +1330,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_subkey_selection)
 
     assert_rnp_success(
       rnp_input_from_memory(&input, (uint8_t *) plaintext, strlen(plaintext), false));
+    assert_rnp_failure(rnp_output_to_memory(NULL, 0));
     assert_rnp_success(rnp_output_to_memory(&output, 0));
     /* create encrypt operation, add recipient and execute */
     assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
