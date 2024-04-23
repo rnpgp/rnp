@@ -420,6 +420,7 @@ TEST_F(rnp_tests, test_ffi_save_keys)
     assert_rnp_failure(rnp_save_keys(ffi, "GPG", NULL, RNP_LOAD_SAVE_PUBLIC_KEYS));
     assert_rnp_failure(rnp_save_keys(ffi, "WRONG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
     assert_rnp_failure(rnp_save_keys(ffi, "GPG", output, 0));
+    assert_rnp_failure(rnp_save_keys(ffi, "GPG", output, 0x77));
     assert_rnp_success(rnp_save_keys(ffi, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
     assert_rnp_success(rnp_output_destroy(output));
     output = NULL;
@@ -820,9 +821,12 @@ test_ffi_setup_signatures(rnp_ffi_t *ffi, rnp_op_sign_t *op)
     const uint32_t issued2 = 1516211900;  // Unix epoch, nowish
     const uint32_t expires2 = 2000000000; // expires later
 
+    assert_rnp_failure(rnp_op_sign_set_armor(NULL, true));
     assert_rnp_success(rnp_op_sign_set_armor(*op, true));
     assert_rnp_success(rnp_op_sign_set_hash(*op, "SHA256"));
+    assert_rnp_failure(rnp_op_sign_set_creation_time(NULL, issued));
     assert_rnp_success(rnp_op_sign_set_creation_time(*op, issued));
+    assert_rnp_failure(rnp_op_sign_set_expiration_time(NULL, expires));
     assert_rnp_success(rnp_op_sign_set_expiration_time(*op, expires));
 
     // set pass provider
@@ -895,10 +899,15 @@ TEST_F(rnp_tests, test_ffi_signatures_memory)
     // init input
     test_ffi_init_sign_memory_input(&input, &output);
     // create signature operation
+    assert_rnp_failure(rnp_op_sign_create(NULL, ffi, input, output));
+    assert_rnp_failure(rnp_op_sign_create(&op, NULL, input, output));
+    assert_rnp_failure(rnp_op_sign_create(&op, ffi, NULL, output));
+    assert_rnp_failure(rnp_op_sign_create(&op, ffi, input, NULL));
     assert_rnp_success(rnp_op_sign_create(&op, ffi, input, output));
     // setup signature(s)
     test_ffi_setup_signatures(&ffi, &op);
     // execute the operation
+    assert_rnp_failure(rnp_op_sign_execute(NULL));
     assert_rnp_success(rnp_op_sign_execute(op));
     // make sure the output file was created
     assert_rnp_failure(rnp_output_memory_get_buf(NULL, &signed_buf, &signed_len, true));
@@ -1118,6 +1127,8 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
     assert_rnp_success(rnp_op_verify_signature_get_status(sig));
     rnp_signature_handle_t sighandle = NULL;
+    assert_rnp_failure(rnp_op_verify_signature_get_handle(NULL, &sighandle));
+    assert_rnp_failure(rnp_op_verify_signature_get_handle(sig, NULL));
     assert_rnp_success(rnp_op_verify_signature_get_handle(sig, &sighandle));
     assert_non_null(sighandle);
     /* check signature type */
@@ -1627,6 +1638,7 @@ TEST_F(rnp_tests, test_ffi_signatures_detached_memory_g10)
     assert_non_null(opsign);
 
     // add the signer
+    assert_rnp_failure(rnp_op_sign_add_signature(NULL, key, NULL));
     assert_rnp_success(rnp_op_sign_add_signature(opsign, key, NULL));
     // execute the signing operation
     assert_rnp_success(rnp_op_sign_execute(opsign));
@@ -2773,6 +2785,8 @@ TEST_F(rnp_tests, test_ffi_file_output)
     assert_true(sz != file_size(KEY_OUT_PATH));
     sz = file_size(KEY_OUT_PATH);
     // test output to file - will fail without overwrite
+    assert_rnp_failure(rnp_output_to_file(NULL, KEY_OUT_PATH, RNP_OUTPUT_FILE_OVERWRITE));
+    assert_rnp_failure(rnp_output_to_file(&output, NULL, RNP_OUTPUT_FILE_OVERWRITE));
     assert_rnp_failure(rnp_output_to_file(&output, KEY_OUT_PATH, 0));
     // fail with wrong flags
     assert_rnp_failure(rnp_output_to_file(&output, KEY_OUT_PATH, 0x100));
@@ -3407,9 +3421,11 @@ TEST_F(rnp_tests, test_ffi_literal_filename)
     // setup signature(s)
     test_ffi_setup_signatures(&ffi, &op);
     // setup filename and modification time
+    assert_rnp_failure(rnp_op_sign_set_file_name(NULL, "checkleak.dat"));
     assert_rnp_success(rnp_op_sign_set_file_name(op, "checkleak.dat"));
     assert_rnp_success(rnp_op_sign_set_file_name(op, NULL));
     assert_rnp_success(rnp_op_sign_set_file_name(op, "testfile.dat"));
+    assert_rnp_failure(rnp_op_sign_set_file_mtime(NULL, 12345678));
     assert_rnp_success(rnp_op_sign_set_file_mtime(op, 12345678));
     // execute the operation
     assert_rnp_success(rnp_op_sign_execute(op));
@@ -3461,6 +3477,7 @@ TEST_F(rnp_tests, test_ffi_op_set_hash)
     test_ffi_setup_signatures(&ffi, &op);
     // make sure it doesn't fail on NULL hash value
     assert_rnp_failure(rnp_op_sign_set_hash(op, NULL));
+    assert_rnp_failure(rnp_op_sign_set_hash(NULL, "SHA256"));
     assert_rnp_failure(rnp_op_sign_set_hash(op, "Unknown"));
     assert_rnp_success(rnp_op_sign_set_hash(op, "SHA256"));
     // execute the operation with wrong password
@@ -5557,6 +5574,8 @@ TEST_F(rnp_tests, test_ffi_exception)
             throw std::bad_alloc();
             return true;
         };
+        assert_rnp_failure(rnp_input_from_callback(NULL, reader, NULL, NULL));
+        assert_rnp_failure(rnp_input_from_callback(&input, NULL, NULL, NULL));
         assert_rnp_success(rnp_input_from_callback(&input, reader, NULL, NULL));
         assert_rnp_success(rnp_output_to_memory(&output, 0));
         assert_int_equal(RNP_ERROR_OUT_OF_MEMORY, rnp_output_pipe(input, output));
@@ -6020,6 +6039,9 @@ TEST_F(rnp_tests, test_result_to_string)
 
     result_string = rnp_result_to_string(RNP_SUCCESS);
     assert_string_equal(result_string, "Success");
+
+    result_string = rnp_result_to_string(1);
+    assert_string_equal(result_string, "Unsupported error code");
 
     /* Cover all defined error code ranges,
      * check that each defined

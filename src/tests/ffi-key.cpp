@@ -113,8 +113,12 @@ TEST_F(rnp_tests, test_ffi_keygen_json_pair)
     json_object_put(parsed_results);
 
     // check the key counts
+    assert_rnp_failure(rnp_get_public_key_count(NULL, &count));
+    assert_rnp_failure(rnp_get_public_key_count(ffi, NULL));
     assert_rnp_success(rnp_get_public_key_count(ffi, &count));
     assert_int_equal(2, count);
+    assert_rnp_failure(rnp_get_secret_key_count(NULL, &count));
+    assert_rnp_failure(rnp_get_secret_key_count(ffi, NULL));
     assert_rnp_success(rnp_get_secret_key_count(ffi, &count));
     assert_int_equal(2, count);
 
@@ -435,6 +439,7 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
 {
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_failure(rnp_ffi_set_key_provider(NULL, unused_getkeycb, NULL));
     assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
 
     /* make sure we do not leak key handle and do not access NULL */
@@ -567,6 +572,10 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
     assert_rnp_success(rnp_key_get_keyid(primary, &keyid));
 
     rnp_op_generate_t subop = NULL;
+    assert_rnp_failure(rnp_op_generate_subkey_create(NULL, ffi, primary, "ECDSA"));
+    assert_rnp_failure(rnp_op_generate_subkey_create(&subop, NULL, primary, "ECDSA"));
+    assert_rnp_failure(rnp_op_generate_subkey_create(&subop, ffi, NULL, "ECDSA"));
+    assert_rnp_failure(rnp_op_generate_subkey_create(&subop, ffi, primary, NULL));
     assert_rnp_success(rnp_op_generate_subkey_create(&subop, ffi, primary, "ECDSA"));
     assert_rnp_success(rnp_op_generate_set_curve(subop, "NIST P-256"));
     assert_rnp_success(rnp_op_generate_add_usage(subop, "sign"));
@@ -580,6 +589,13 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
 
     rnp_output_t output = NULL;
     rnp_output_to_memory(&output, 0);
+    assert_rnp_failure(rnp_key_export(NULL, output, RNP_KEY_EXPORT_PUBLIC));
+    assert_rnp_failure(rnp_key_export(primary, NULL, RNP_KEY_EXPORT_PUBLIC));
+    assert_rnp_failure(rnp_key_export(primary, output, 0));
+    assert_rnp_failure(
+      rnp_key_export(primary, output, RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_SECRET));
+    assert_rnp_failure(rnp_key_export(primary, output, 0x77));
+
     assert_rnp_success(
       rnp_key_export(primary,
                      output,
@@ -1187,6 +1203,7 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     /* Generate RSA key with misc options set */
     rnp_op_generate_t keygen = NULL;
     assert_rnp_success(rnp_op_generate_create(&keygen, ffi, "RSA"));
+    assert_rnp_failure(rnp_op_generate_set_bits(NULL, 1024));
     assert_rnp_success(rnp_op_generate_set_bits(keygen, 1024));
     assert_rnp_failure(rnp_op_generate_set_dsa_qbits(keygen, 256));
     /* key usage */
@@ -4116,6 +4133,7 @@ TEST_F(rnp_tests, test_ffi_key_export_autocrypt)
 
     /* remove first subkey and export again */
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "1ed63ee56fadc34d", &sub));
+    assert_rnp_failure(rnp_key_remove(sub, 0x333));
     assert_rnp_success(rnp_key_remove(sub, RNP_KEY_REMOVE_PUBLIC));
     rnp_key_handle_destroy(sub);
     assert_rnp_success(rnp_output_to_memory(&output, 0));
@@ -4468,6 +4486,7 @@ TEST_F(rnp_tests, test_ffi_sha1_self_signatures)
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
 
     /* Check the key which has SHA1 self signature, made after the cut-off date */
+    assert_rnp_failure(rnp_set_timestamp(NULL, SHA1_KEY_FROM + 10));
     assert_rnp_success(rnp_set_timestamp(ffi, SHA1_KEY_FROM + 10));
     assert_true(import_pub_keys(ffi, "data/test_forged_keys/eddsa-2024-pub.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "980e3741f632212c", &key));
