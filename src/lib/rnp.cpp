@@ -512,12 +512,14 @@ hex_encode_value(const uint8_t *value, size_t len, char **res)
     size_t hex_len = len * 2 + 1;
     *res = (char *) malloc(hex_len);
     if (!*res) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (!rnp::hex_encode(value, len, *res, hex_len, rnp::HexFormat::Uppercase)) {
+        /* LCOV_EXCL_START */
         free(*res);
         *res = NULL;
         return RNP_ERROR_GENERIC;
+        /* LCOV_EXCL_END */
     }
     return RNP_SUCCESS;
 }
@@ -531,7 +533,7 @@ get_map_value(const id_str_pair *map, int val, char **res)
     }
     char *strcp = strdup(str);
     if (!strcp) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     *res = strcp;
     return RNP_SUCCESS;
@@ -545,7 +547,7 @@ ret_str_value(const char *str, char **res)
     }
     char *strcp = strdup(str);
     if (!strcp) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     *res = strcp;
     return RNP_SUCCESS;
@@ -903,21 +905,25 @@ rnp_version_commit_timestamp()
 }
 
 #ifndef RNP_NO_DEPRECATED
+/* LCOV_EXCL_START */
 rnp_result_t
 rnp_enable_debug(const char *file)
 try {
     return RNP_SUCCESS;
 }
 FFI_GUARD
+/* LCOV_EXCL_END */
 #endif
 
 #ifndef RNP_NO_DEPRECATED
+/* LCOV_EXCL_START */
 rnp_result_t
 rnp_disable_debug()
 try {
     return RNP_SUCCESS;
 }
 FFI_GUARD
+/* LCOV_EXCL_END */
 #endif
 
 rnp_result_t
@@ -935,7 +941,7 @@ try {
     }
     *homedir = strdup(home.c_str());
     if (!*homedir) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     return RNP_SUCCESS;
 }
@@ -987,6 +993,7 @@ try {
         return RNP_SUCCESS;
     }
 
+    /* LCOV_EXCL_START */
     free(*pub_format);
     *pub_format = NULL;
     free(*pub_path);
@@ -996,6 +1003,7 @@ try {
     free(*sec_path);
     *sec_path = NULL;
     return RNP_ERROR_OUT_OF_MEMORY;
+    /* LCOV_EXCL_END */
 }
 FFI_GUARD
 
@@ -1029,7 +1037,7 @@ try {
     if (guess) {
         *format = strdup(guess);
         if (!*format) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
     }
 
@@ -1093,7 +1101,7 @@ json_array_add_id_str(json_object *arr, const id_str_pair *map, bool (*check)(in
 {
     while (map->str) {
         if (check(map->id) && !json_array_add(arr, map->str)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         map++;
     }
@@ -1109,7 +1117,7 @@ try {
 
     json_object *features = json_object_new_array();
     if (!features) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     rnp::JSONObject featwrap(features);
     rnp_result_t    ret = RNP_ERROR_BAD_PARAMETERS;
@@ -1132,13 +1140,13 @@ try {
              curve = (pgp_curve_t)(curve + 1)) {
             const ec_curve_desc_t *desc = get_curve_desc(curve);
             if (!desc) {
-                return RNP_ERROR_BAD_STATE;
+                return RNP_ERROR_BAD_STATE; // LCOV_EXCL_LINE
             }
             if (!desc->supported) {
                 continue;
             }
             if (!json_array_add(features, desc->pgp_name)) {
-                return RNP_ERROR_OUT_OF_MEMORY;
+                return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
             }
         }
         ret = RNP_SUCCESS;
@@ -1150,11 +1158,11 @@ try {
 
     *result = (char *) json_object_to_json_string_ext(features, JSON_C_TO_STRING_PRETTY);
     if (!*result) {
-        return RNP_ERROR_BAD_STATE;
+        return RNP_ERROR_BAD_STATE; // LCOV_EXCL_LINE
     }
     *result = strdup(*result);
     if (!*result) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     return RNP_SUCCESS;
 }
@@ -1322,8 +1330,10 @@ try {
         *level = RNP_SECURITY_DEFAULT;
         break;
     default:
+        /* LCOV_EXCL_START */
         FFI_LOG(ffi, "Invalid security level.");
         return RNP_ERROR_BAD_STATE;
+        /* LCOV_EXCL_END */
     }
     return RNP_SUCCESS;
 }
@@ -1401,7 +1411,7 @@ try {
     size_t pass_len = strlen(pass.data()) + 1;
     *password = (char *) malloc(pass_len);
     if (!*password) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     memcpy(*password, pass.data(), pass_len);
     return RNP_SUCCESS;
@@ -1665,14 +1675,16 @@ add_key_status(json_object *           keys,
 {
     json_object *jsokey = json_object_new_object();
     if (!jsokey) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     if (!json_add(jsokey, "public", key_status_to_str(pub)) ||
         !json_add(jsokey, "secret", key_status_to_str(sec)) ||
         !json_add(jsokey, "fingerprint", key->fp()) || !json_array_add(keys, jsokey)) {
+        /* LCOV_EXCL_START */
         json_object_put(jsokey);
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
 
     return RNP_SUCCESS;
@@ -1734,12 +1746,12 @@ try {
 
     json_object *jsores = json_object_new_object();
     if (!jsores) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     rnp::JSONObject jsowrap(jsores);
     json_object *   jsokeys = json_object_new_array();
     if (!json_add(jsores, "keys", jsokeys)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     // import keys to the main keystore.
@@ -1774,11 +1786,11 @@ try {
     if (results) {
         *results = (char *) json_object_to_json_string_ext(jsores, JSON_C_TO_STRING_PRETTY);
         if (!*results) {
-            return RNP_ERROR_GENERIC;
+            return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
         }
         *results = strdup(*results);
         if (!*results) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
     }
     return RNP_SUCCESS;
@@ -1802,26 +1814,32 @@ add_sig_status(json_object *           sigs,
 {
     json_object *jsosig = json_object_new_object();
     if (!jsosig) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     if (!json_add(jsosig, "public", sig_status_to_str(pub)) ||
         !json_add(jsosig, "secret", sig_status_to_str(sec))) {
+        /* LCOV_EXCL_START */
         json_object_put(jsosig);
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
 
     if (signer) {
         const pgp_fingerprint_t &fp = signer->fp();
         if (!json_add(jsosig, "signer fingerprint", fp)) {
+            /* LCOV_EXCL_START */
             json_object_put(jsosig);
             return RNP_ERROR_OUT_OF_MEMORY;
+            /* LCOV_EXCL_END */
         }
     }
 
     if (!json_array_add(sigs, jsosig)) {
+        /* LCOV_EXCL_START */
         json_object_put(jsosig);
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
 
     return RNP_SUCCESS;
@@ -1847,12 +1865,12 @@ try {
 
     json_object *jsores = json_object_new_object();
     if (!jsores) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     rnp::JSONObject jsowrap(jsores);
     json_object *   jsosigs = json_object_new_array();
     if (!json_add(jsores, "sigs", jsosigs)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     for (auto &sig : sigs) {
@@ -1862,18 +1880,18 @@ try {
         pgp_key_t *             skey = ffi->secring->import_signature(sig, &sec_status);
         sigret = add_sig_status(jsosigs, pkey ? pkey : skey, pub_status, sec_status);
         if (sigret) {
-            return sigret;
+            return sigret; // LCOV_EXCL_LINE
         }
     }
 
     if (results) {
         *results = (char *) json_object_to_json_string_ext(jsores, JSON_C_TO_STRING_PRETTY);
         if (!*results) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         *results = strdup(*results);
         if (!*results) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
     }
     return RNP_SUCCESS;
@@ -1903,23 +1921,27 @@ do_save_keys(rnp_ffi_t              ffi,
     try {
         tmp_store = new rnp::KeyStore(format, "", ffi->context);
     } catch (const std::invalid_argument &e) {
+        /* LCOV_EXCL_START */
         FFI_LOG(ffi, "Failed to create key store of format: %d", (int) format);
         return RNP_ERROR_BAD_PARAMETERS;
+        /* LCOV_EXCL_END */
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         FFI_LOG(ffi, "%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
     std::unique_ptr<rnp::KeyStore> tmp_store_ptr(tmp_store);
     // include the public keys, if desired
     if (key_type == KEY_TYPE_PUBLIC || key_type == KEY_TYPE_ANY) {
         if (!copy_store_keys(ffi, tmp_store, ffi->pubring)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
     }
     // include the secret keys, if desired
     if (key_type == KEY_TYPE_SECRET || key_type == KEY_TYPE_ANY) {
         if (!copy_store_keys(ffi, tmp_store, ffi->secring)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
     }
     // preliminary check on the format
@@ -2061,9 +2083,11 @@ try {
     *input = new rnp_input_st();
     rnp_result_t ret = init_stdin_src(&(*input)->src);
     if (ret) {
+        /* LCOV_EXCL_START */
         delete *input;
         *input = NULL;
         return ret;
+        /* LCOV_EXCL_END */
     }
     return RNP_SUCCESS;
 }
@@ -2083,22 +2107,25 @@ try {
     if (do_copy) {
         data = (uint8_t *) malloc(buf_len);
         if (!data) {
+            /* LCOV_EXCL_START */
             delete *input;
             *input = NULL;
             return RNP_ERROR_OUT_OF_MEMORY;
+            /* LCOV_EXCL_END */
         }
         memcpy(data, buf, buf_len);
     }
     rnp_result_t ret = init_mem_src(&(*input)->src, data, buf_len, do_copy);
     if (ret) {
+        /* LCOV_EXCL_START */
         if (do_copy) {
             free(data);
         }
         delete *input;
         *input = NULL;
-        return ret;
+        /* LCOV_EXCL_END */
     }
-    return RNP_SUCCESS;
+    return ret;
 }
 FFI_GUARD
 
@@ -2137,8 +2164,10 @@ try {
     obj->closer = closer;
     obj->app_ctx = app_ctx;
     if (!init_src_common(src, 0)) {
+        /* LCOV_EXCL_START */
         delete obj;
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
     src->param = obj;
     src->raw_read = input_reader_bounce;
@@ -2168,14 +2197,16 @@ try {
     }
     ob = (rnp_output_st *) calloc(1, sizeof(*ob));
     if (!ob) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (rnp_stat(path, &st) == 0 && S_ISDIR(st.st_mode)) {
         // a bit hacky, just save the directory path
         ob->dst_directory = strdup(path);
         if (!ob->dst_directory) {
+            /* LCOV_EXCL_START */
             free(ob);
             return RNP_ERROR_OUT_OF_MEMORY;
+            /* LCOV_EXCL_END */
         }
     } else {
         // simple output to a file
@@ -2203,7 +2234,7 @@ try {
     }
     rnp_output_t res = (rnp_output_t) calloc(1, sizeof(*res));
     if (!res) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     rnp_result_t ret = RNP_ERROR_GENERIC;
     if (random) {
@@ -2228,7 +2259,7 @@ try {
     }
     rnp_output_t res = (rnp_output_t) calloc(1, sizeof(*res));
     if (!res) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     rnp_result_t ret = init_stdout_dest(&res->dst);
     if (ret) {
@@ -2250,15 +2281,16 @@ try {
 
     *output = (rnp_output_t) calloc(1, sizeof(**output));
     if (!*output) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     rnp_result_t ret = init_mem_dest(&(*output)->dst, NULL, max_alloc);
     if (ret) {
+        /* LCOV_EXCL_START */
         free(*output);
         *output = NULL;
-        return ret;
+        /* LCOV_EXCL_END */
     }
-    return RNP_SUCCESS;
+    return ret;
 }
 FFI_GUARD
 
@@ -2279,13 +2311,15 @@ try {
     }
     *output = (rnp_output_t) calloc(1, sizeof(**output));
     if (!*output) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     rnp_result_t ret = init_armored_dst(&(*output)->dst, &base->dst, msgtype);
     if (ret) {
+        /* LCOV_EXCL_START */
         free(*output);
         *output = NULL;
         return ret;
+        /* LCOV_EXCL_END */
     }
     (*output)->app_ctx = base;
     return RNP_SUCCESS;
@@ -2308,7 +2342,7 @@ try {
         uint8_t *tmp_buf = *buf;
         *buf = (uint8_t *) malloc(*len);
         if (!*buf) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         memcpy(*buf, tmp_buf, *len);
     }
@@ -2348,15 +2382,16 @@ try {
 
     *output = (rnp_output_t) calloc(1, sizeof(**output));
     if (!*output) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     rnp_result_t ret = init_null_dest(&(*output)->dst);
     if (ret) {
+        /* LCOV_EXCL_START */
         free(*output);
         *output = NULL;
-        return ret;
+        /* LCOV_EXCL_END */
     }
-    return RNP_SUCCESS;
+    return ret;
 }
 FFI_GUARD
 
@@ -2395,7 +2430,7 @@ try {
 
     *output = (rnp_output_t) calloc(1, sizeof(**output));
     if (!*output) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     (*output)->writer = writer;
     (*output)->closer = closer;
@@ -2457,8 +2492,10 @@ rnp_op_add_signature(rnp_ffi_t                 ffi,
     try {
         signatures.emplace_back();
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         FFI_LOG(ffi, "%s", e.what());
         return RNP_ERROR_BAD_PARAMETERS;
+        /* LCOV_EXCL_END */
     }
     rnp_op_sign_signature_t newsig = &signatures.back();
     newsig->signer.key = signkey;
@@ -3101,7 +3138,7 @@ rnp_op_verify_on_signatures(const std::vector<pgp_signature_info_t> &sigs, void 
             res.ffi = op->ffi;
         }
     } catch (const std::exception &e) {
-        FFI_LOG(op->ffi, "%s", e.what());
+        FFI_LOG(op->ffi, "%s", e.what()); // LCOV_EXCL_LINE
     }
 }
 
@@ -3466,13 +3503,13 @@ try {
     if (mode) {
         *mode = strdup(get_protection_mode(op));
         if (!*mode) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
     }
     if (cipher) {
         *cipher = strdup(get_protection_cipher(op));
         if (!*cipher) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
     }
     if (valid) {
@@ -3661,15 +3698,17 @@ try {
 
     *handle = (rnp_signature_handle_t) calloc(1, sizeof(**handle));
     if (!*handle) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     try {
         (*handle)->sig = new pgp_subsig_t(sig->sig_pkt);
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         FFI_LOG(sig->ffi, "%s", e.what());
         free(*handle);
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
     (*handle)->ffi = sig->ffi;
     (*handle)->key = NULL;
@@ -3738,7 +3777,7 @@ try {
     rnp_op_verify_t op = NULL;
     rnp_result_t    ret = rnp_op_verify_create(&op, ffi, input, output);
     if (ret) {
-        return ret;
+        return ret; // LCOV_EXCL_LINE
     }
     ret = rnp_op_verify_set_flags(op, RNP_VERIFY_IGNORE_SIGS_ON_DECRYPT);
     if (!ret) {
@@ -4204,8 +4243,10 @@ report_signature_removal(rnp_ffi_t             ffi,
     }
     rnp_signature_handle_t sig = (rnp_signature_handle_t) calloc(1, sizeof(*sig));
     if (!sig) {
+        /* LCOV_EXCL_START */
         FFI_LOG(ffi, "Signature handle allocation failed.");
         return;
+        /* LCOV_EXCL_END */
     }
     sig->ffi = ffi;
     sig->key = &key;
