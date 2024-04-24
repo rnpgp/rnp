@@ -277,7 +277,7 @@ init_indent_dest(pgp_dest_t *dst, pgp_dest_t *origdst)
     pgp_dest_indent_param_t *param;
 
     if (!init_dst_common(dst, sizeof(*param))) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     dst->write = indent_dst_write;
@@ -796,8 +796,10 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
     try {
         sig->parse_material(material);
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return;
+        /* LCOV_EXCL_END */
     }
     switch (sig->palg) {
     case PGP_PKA_RSA:
@@ -863,8 +865,10 @@ stream_dump_signature(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     try {
         ret = sig.parse(*src);
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         ret = RNP_ERROR_GENERIC;
+        /* LCOV_EXCL_END */
     }
     if (ret) {
         indent_dest_increase(dst);
@@ -886,8 +890,10 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     try {
         ret = key.parse(*src);
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         ret = RNP_ERROR_GENERIC;
+        /* LCOV_EXCL_END */
     }
     if (ret) {
         return ret;
@@ -1067,7 +1073,7 @@ stream_dump_userid(pgp_source_t *src, pgp_dest_t *dst)
     try {
         ret = uid.parse(*src);
     } catch (const std::exception &e) {
-        ret = RNP_ERROR_GENERIC;
+        ret = RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
     if (ret) {
         return ret;
@@ -1208,7 +1214,7 @@ stream_dump_sk_session_key(pgp_source_t *src, pgp_dest_t *dst)
     try {
         ret = skey.parse(*src);
     } catch (const std::exception &e) {
-        ret = RNP_ERROR_GENERIC;
+        ret = RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
     if (ret) {
         return ret;
@@ -1238,7 +1244,7 @@ stream_dump_get_aead_hdr(pgp_source_t *src, pgp_aead_hdr_t *hdr)
     uint8_t    encpkt[64] = {};
 
     if (init_mem_dest(&encdst, &encpkt, sizeof(encpkt))) {
-        return false;
+        return false; // LCOV_EXCL_LINE
     }
     mem_dest_discard_overflow(&encdst, true);
 
@@ -1251,7 +1257,7 @@ stream_dump_get_aead_hdr(pgp_source_t *src, pgp_aead_hdr_t *hdr)
 
     pgp_source_t memsrc = {};
     if (init_mem_src(&memsrc, encpkt, len, false)) {
-        return false;
+        return false; // LCOV_EXCL_LINE
     }
     bool res = get_aead_src_hdr(&memsrc, hdr);
     memsrc.close();
@@ -1310,7 +1316,7 @@ stream_dump_one_pass(pgp_source_t *src, pgp_dest_t *dst)
     try {
         ret = onepass.parse(*src);
     } catch (const std::exception &e) {
-        ret = RNP_ERROR_GENERIC;
+        ret = RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
     if (ret) {
         return ret;
@@ -1619,7 +1625,7 @@ static bool
 obj_add_intstr_json(json_object *obj, const char *name, int val, const id_str_pair map[])
 {
     if (!json_add(obj, name, val)) {
-        return false;
+        return false; // LCOV_EXCL_LINE
     }
     if (!map) {
         return true;
@@ -1636,7 +1642,7 @@ obj_add_mpi_json(json_object *obj, const char *name, const pgp_mpi_t *mpi, bool 
     char strname[64] = {0};
     snprintf(strname, sizeof(strname), "%s.bits", name);
     if (!json_add(obj, strname, (int) mpi_bits(mpi))) {
-        return false;
+        return false; // LCOV_EXCL_LINE
     }
     if (!contents) {
         return true;
@@ -1651,11 +1657,11 @@ subpacket_obj_add_algs(
 {
     json_object *jso_algs = json_object_new_array();
     if (!jso_algs || !json_add(obj, name, jso_algs)) {
-        return false;
+        return false; // LCOV_EXCL_LINE
     }
     for (size_t i = 0; i < len; i++) {
         if (!json_array_add(jso_algs, json_object_new_int(algs[i]))) {
-            return false;
+            return false; // LCOV_EXCL_LINE
         }
     }
     if (!map) {
@@ -1667,11 +1673,11 @@ subpacket_obj_add_algs(
 
     jso_algs = json_object_new_array();
     if (!jso_algs || !json_add(obj, strname, jso_algs)) {
-        return false;
+        return false; // LCOV_EXCL_LINE
     }
     for (size_t i = 0; i < len; i++) {
         if (!json_array_add(jso_algs, id_str_pair::lookup(map, algs[i], "Unknown"))) {
-            return false;
+            return false; // LCOV_EXCL_LINE
         }
     }
     return true;
@@ -1682,19 +1688,19 @@ obj_add_s2k_json(json_object *obj, pgp_s2k_t *s2k)
 {
     json_object *s2k_obj = json_object_new_object();
     if (!json_add(obj, "s2k", s2k_obj)) {
-        return false;
+        return false; // LCOV_EXCL_LINE
     }
     if (!json_add(s2k_obj, "specifier", (int) s2k->specifier)) {
-        return false;
+        return false; // LCOV_EXCL_LINE
     }
     if ((s2k->specifier == PGP_S2KS_EXPERIMENTAL) && s2k->gpg_ext_num) {
         if (!json_add(s2k_obj, "gpg extension", (int) s2k->gpg_ext_num)) {
-            return false;
+            return false; // LCOV_EXCL_LINE
         }
         if (s2k->gpg_ext_num == PGP_S2K_GPG_SMARTCARD) {
             size_t slen = s2k->gpg_serial_len > 16 ? 16 : s2k->gpg_serial_len;
             if (!json_add_hex(s2k_obj, "card serial number", s2k->gpg_serial, slen)) {
-                return false;
+                return false; // LCOV_EXCL_LINE
             }
         }
     }
@@ -1703,17 +1709,17 @@ obj_add_s2k_json(json_object *obj, pgp_s2k_t *s2k)
           s2k_obj, "unknown experimental", s2k->experimental.data(), s2k->experimental.size());
     }
     if (!obj_add_intstr_json(s2k_obj, "hash algorithm", s2k->hash_alg, hash_alg_map)) {
-        return false;
+        return false; // LCOV_EXCL_LINE
     }
     if (((s2k->specifier == PGP_S2KS_SALTED) ||
          (s2k->specifier == PGP_S2KS_ITERATED_AND_SALTED)) &&
         !json_add_hex(s2k_obj, "salt", s2k->salt, PGP_SALT_SIZE)) {
-        return false;
+        return false; // LCOV_EXCL_LINE
     }
     if (s2k->specifier == PGP_S2KS_ITERATED_AND_SALTED) {
         size_t real_iter = pgp_s2k_decode_iterations(s2k->iterations);
         if (!json_add(s2k_obj, "iterations", (uint64_t) real_iter)) {
-            return false;
+            return false; // LCOV_EXCL_LINE
         }
     }
     return true;
@@ -1787,32 +1793,32 @@ signature_dump_subpacket_json(rnp_dump_ctx_t *        ctx,
     case PGP_SIG_SUBPKT_KEY_FLAGS: {
         uint8_t flg = subpkt.fields.key_flags;
         if (!json_add(obj, "flags", (int) flg)) {
-            return false;
+            return false; // LCOV_EXCL_LINE
         }
         json_object *jso_flg = json_object_new_array();
         if (!jso_flg || !json_add(obj, "flags.str", jso_flg)) {
-            return false;
+            return false; // LCOV_EXCL_LINE
         }
         if ((flg & PGP_KF_CERTIFY) && !json_array_add(jso_flg, "certify")) {
-            return false;
+            return false; // LCOV_EXCL_LINE
         }
         if ((flg & PGP_KF_SIGN) && !json_array_add(jso_flg, "sign")) {
-            return false;
+            return false; // LCOV_EXCL_LINE
         }
         if ((flg & PGP_KF_ENCRYPT_COMMS) && !json_array_add(jso_flg, "encrypt_comm")) {
-            return false;
+            return false; // LCOV_EXCL_LINE
         }
         if ((flg & PGP_KF_ENCRYPT_STORAGE) && !json_array_add(jso_flg, "encrypt_storage")) {
-            return false;
+            return false; // LCOV_EXCL_LINE
         }
         if ((flg & PGP_KF_SPLIT) && !json_array_add(jso_flg, "split")) {
-            return false;
+            return false; // LCOV_EXCL_LINE
         }
         if ((flg & PGP_KF_AUTH) && !json_array_add(jso_flg, "auth")) {
-            return false;
+            return false; // LCOV_EXCL_LINE
         }
         if ((flg & PGP_KF_SHARED) && !json_array_add(jso_flg, "shared")) {
-            return false;
+            return false; // LCOV_EXCL_LINE
         }
         return true;
     }
@@ -1835,7 +1841,7 @@ signature_dump_subpacket_json(rnp_dump_ctx_t *        ctx,
     case PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE: {
         json_object *sig = json_object_new_object();
         if (!sig || !json_add(obj, "signature", sig)) {
-            return false;
+            return false; // LCOV_EXCL_LINE
         }
         return !stream_dump_signature_pkt_json(ctx, subpkt.fields.sig, sig);
     }
@@ -1848,7 +1854,7 @@ signature_dump_subpacket_json(rnp_dump_ctx_t *        ctx,
                                                         "name",
                                                         (char *) subpkt.fields.notation.name,
                                                         subpkt.fields.notation.nlen)) {
-            return false;
+            return false; // LCOV_EXCL_LINE
         }
         if (human) {
             return json_add(obj,
@@ -1873,7 +1879,7 @@ signature_dump_subpackets_json(rnp_dump_ctx_t *ctx, const pgp_signature_t *sig)
 {
     json_object *res = json_object_new_array();
     if (!res) {
-        return NULL;
+        return NULL; // LCOV_EXCL_LINE
     }
     rnp::JSONObject reswrap(res);
 
@@ -1881,24 +1887,24 @@ signature_dump_subpackets_json(rnp_dump_ctx_t *ctx, const pgp_signature_t *sig)
         json_object *jso_subpkt = json_object_new_object();
         if (json_object_array_add(res, jso_subpkt)) {
             json_object_put(jso_subpkt);
-            return NULL;
+            return NULL; // LCOV_EXCL_LINE
         }
 
         if (!obj_add_intstr_json(jso_subpkt, "type", subpkt.type, sig_subpkt_type_map)) {
-            return NULL;
+            return NULL; // LCOV_EXCL_LINE
         }
         if (!json_add(jso_subpkt, "length", (int) subpkt.len)) {
-            return NULL;
+            return NULL; // LCOV_EXCL_LINE
         }
         if (!json_add(jso_subpkt, "hashed", subpkt.hashed)) {
-            return NULL;
+            return NULL; // LCOV_EXCL_LINE
         }
         if (!json_add(jso_subpkt, "critical", subpkt.critical)) {
-            return NULL;
+            return NULL; // LCOV_EXCL_LINE
         }
 
         if (ctx->dump_packets && !json_add_hex(jso_subpkt, "raw", subpkt.data, subpkt.len)) {
-            return NULL;
+            return NULL; // LCOV_EXCL_LINE
         }
 
         if (!signature_dump_subpacket_json(ctx, subpkt, jso_subpkt)) {
@@ -1917,61 +1923,63 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
     pgp_signature_material_t sigmaterial = {};
 
     if (!json_add(pkt, "version", (int) sig->version)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (!obj_add_intstr_json(pkt, "type", sig->type(), sig_type_map)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     if (sig->version < PGP_V4) {
         if (!json_add(pkt, "creation time", (uint64_t) sig->creation_time)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         if (!json_add(pkt, "signer", sig->signer)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
     }
     if (!obj_add_intstr_json(pkt, "algorithm", sig->palg, pubkey_alg_map)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (!obj_add_intstr_json(pkt, "hash algorithm", sig->halg, hash_alg_map)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     if (sig->version >= PGP_V4) {
         json_object *subpkts = signature_dump_subpackets_json(ctx, sig);
         if (!subpkts || !json_add(pkt, "subpackets", subpkts)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
     }
 
     if (!json_add_hex(pkt, "lbits", sig->lbits, sizeof(sig->lbits))) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     material = json_object_new_object();
     if (!material || !json_add(pkt, "material", material)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     try {
         sig->parse_material(sigmaterial);
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
     switch (sig->palg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
         if (!obj_add_mpi_json(material, "s", &sigmaterial.rsa.s, ctx->dump_mpi)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     case PGP_PKA_DSA:
         if (!obj_add_mpi_json(material, "r", &sigmaterial.dsa.r, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "s", &sigmaterial.dsa.s, ctx->dump_mpi)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     case PGP_PKA_EDDSA:
@@ -1980,14 +1988,14 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
     case PGP_PKA_ECDH:
         if (!obj_add_mpi_json(material, "r", &sigmaterial.ecc.r, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "s", &sigmaterial.ecc.s, ctx->dump_mpi)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         if (!obj_add_mpi_json(material, "r", &sigmaterial.eg.r, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "s", &sigmaterial.eg.s, ctx->dump_mpi)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
@@ -2028,8 +2036,10 @@ stream_dump_signature_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *
     try {
         ret = sig.parse(*src);
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         ret = RNP_ERROR_GENERIC;
+        /* LCOV_EXCL_END */
     }
     if (ret) {
         return ret;
@@ -2047,33 +2057,35 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     try {
         ret = key.parse(*src);
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         ret = RNP_ERROR_GENERIC;
+        /* LCOV_EXCL_END */
     }
     if (ret) {
         return ret;
     }
 
     if (!json_add(pkt, "version", (int) key.version)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (!json_add(pkt, "creation time", (uint64_t) key.creation_time)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if ((key.version < PGP_V4) && !json_add(pkt, "v3 days", (int) key.v3_days)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (!obj_add_intstr_json(pkt, "algorithm", key.alg, pubkey_alg_map)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if ((key.version == PGP_V5) &&
         !json_add(pkt, "v5 public key material length", (int) key.v5_pub_len)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     material = json_object_new_object();
     if (!material || !json_add(pkt, "material", material)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     switch (key.alg) {
@@ -2082,7 +2094,7 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     case PGP_PKA_RSA_SIGN_ONLY:
         if (!obj_add_mpi_json(material, "n", &key.material.rsa.n, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "e", &key.material.rsa.e, ctx->dump_mpi)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     case PGP_PKA_DSA:
@@ -2090,7 +2102,7 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
             !obj_add_mpi_json(material, "q", &key.material.dsa.q, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "g", &key.material.dsa.g, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "y", &key.material.dsa.y, ctx->dump_mpi)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     case PGP_PKA_ELGAMAL:
@@ -2098,7 +2110,7 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
         if (!obj_add_mpi_json(material, "p", &key.material.eg.p, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "g", &key.material.eg.g, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "y", &key.material.eg.y, ctx->dump_mpi)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     case PGP_PKA_ECDSA:
@@ -2106,28 +2118,28 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     case PGP_PKA_SM2: {
         const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ec.curve);
         if (!obj_add_mpi_json(material, "p", &key.material.ec.p, ctx->dump_mpi)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         if (!json_add(material, "curve", cdesc ? cdesc->pgp_name : "unknown")) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     }
     case PGP_PKA_ECDH: {
         const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ec.curve);
         if (!obj_add_mpi_json(material, "p", &key.material.ec.p, ctx->dump_mpi)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         if (!json_add(material, "curve", cdesc ? cdesc->pgp_name : "unknown")) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         if (!obj_add_intstr_json(
               material, "hash algorithm", key.material.ec.kdf_hash_alg, hash_alg_map)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         if (!obj_add_intstr_json(
               material, "key wrap algorithm", key.material.ec.key_wrap_alg, symm_alg_map)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     }
@@ -2174,41 +2186,41 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
 
     if (is_secret_key_pkt(key.tag)) {
         if (!json_add(material, "s2k usage", (int) key.sec_protection.s2k.usage)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         if ((key.version == PGP_V5) &&
             !json_add(material, "v5 s2k length", (int) key.v5_s2k_len)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         if (!obj_add_s2k_json(material, &key.sec_protection.s2k)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         if (key.sec_protection.s2k.usage &&
             !obj_add_intstr_json(
               material, "symmetric algorithm", key.sec_protection.symm_alg, symm_alg_map)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         if ((key.version == PGP_V5) &&
             !json_add(material, "v5 secret key data length", (int) key.v5_sec_len)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
     }
 
     pgp_key_id_t keyid = {};
     if (pgp_keyid(keyid, key) || !json_add(pkt, "keyid", keyid)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     if (ctx->dump_grips) {
         pgp_fingerprint_t keyfp = {};
         if (pgp_fingerprint(keyfp, key) || !json_add(pkt, "fingerprint", keyfp)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
 
         pgp_key_grip_t grip;
         if (!key.material.get_grip(grip) ||
             !json_add_hex(pkt, "grip", grip.data(), grip.size())) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
     }
     return RNP_SUCCESS;
@@ -2223,7 +2235,7 @@ stream_dump_userid_json(pgp_source_t *src, json_object *pkt)
     try {
         ret = uid.parse(*src);
     } catch (const std::exception &e) {
-        ret = RNP_ERROR_GENERIC;
+        ret = RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
     if (ret) {
         return ret;
@@ -2232,12 +2244,12 @@ stream_dump_userid_json(pgp_source_t *src, json_object *pkt)
     switch (uid.tag) {
     case PGP_PKT_USER_ID:
         if (!json_add(pkt, "userid", (char *) uid.uid, uid.uid_len)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     case PGP_PKT_USER_ATTR:
         if (!json_add_hex(pkt, "userattr", uid.uid, uid.uid_len)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     default:;
@@ -2258,7 +2270,7 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
             ret = RNP_ERROR_BAD_FORMAT;
         }
     } catch (const std::exception &e) {
-        ret = RNP_ERROR_GENERIC;
+        ret = RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
     if (ret) {
         return ret;
@@ -2267,12 +2279,12 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
     if (!json_add(pkt, "version", (int) pkey.version) ||
         !json_add(pkt, "keyid", pkey.key_id) ||
         !obj_add_intstr_json(pkt, "algorithm", pkey.alg, pubkey_alg_map)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     json_object *material = json_object_new_object();
     if (!json_add(pkt, "material", material)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     switch (pkey.alg) {
@@ -2280,29 +2292,29 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
         if (!obj_add_mpi_json(material, "m", &pkmaterial.rsa.m, ctx->dump_mpi)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         if (!obj_add_mpi_json(material, "g", &pkmaterial.eg.g, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "m", &pkmaterial.eg.m, ctx->dump_mpi)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     case PGP_PKA_SM2:
         if (!obj_add_mpi_json(material, "m", &pkmaterial.sm2.m, ctx->dump_mpi)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     case PGP_PKA_ECDH:
         if (!obj_add_mpi_json(material, "p", &pkmaterial.ecdh.p, ctx->dump_mpi) ||
             !json_add(material, "m.bytes", (int) pkmaterial.ecdh.mlen)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         if (ctx->dump_mpi &&
             !json_add_hex(material, "m", pkmaterial.ecdh.m, pkmaterial.ecdh.mlen)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
@@ -2340,7 +2352,7 @@ stream_dump_sk_session_key_json(pgp_source_t *src, json_object *pkt)
     try {
         ret = skey.parse(*src);
     } catch (const std::exception &e) {
-        ret = RNP_ERROR_GENERIC;
+        ret = RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
     if (ret) {
         return ret;
@@ -2348,20 +2360,20 @@ stream_dump_sk_session_key_json(pgp_source_t *src, json_object *pkt)
 
     if (!json_add(pkt, "version", (int) skey.version) ||
         !obj_add_intstr_json(pkt, "algorithm", skey.alg, symm_alg_map)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if ((skey.version == PGP_SKSK_V5) &&
         !obj_add_intstr_json(pkt, "aead algorithm", skey.aalg, aead_alg_map)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (!obj_add_s2k_json(pkt, &skey.s2k)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if ((skey.version == PGP_SKSK_V5) && !json_add_hex(pkt, "aead iv", skey.iv, skey.ivlen)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (!json_add_hex(pkt, "encrypted key", skey.enckey, skey.enckeylen)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     return RNP_SUCCESS;
 }
@@ -2385,7 +2397,7 @@ stream_dump_encrypted_json(pgp_source_t *src, json_object *pkt, pgp_pkt_type_t t
         !obj_add_intstr_json(pkt, "aead algorithm", aead.aalg, aead_alg_map) ||
         !json_add(pkt, "chunk size", (int) aead.csize) ||
         !json_add_hex(pkt, "aead iv", aead.iv, aead.ivlen)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     return RNP_SUCCESS;
@@ -2400,29 +2412,29 @@ stream_dump_one_pass_json(pgp_source_t *src, json_object *pkt)
     try {
         ret = onepass.parse(*src);
     } catch (const std::exception &e) {
-        ret = RNP_ERROR_GENERIC;
+        ret = RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
     if (ret) {
         return ret;
     }
 
     if (!json_add(pkt, "version", (int) onepass.version)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (!obj_add_intstr_json(pkt, "type", onepass.type, sig_type_map)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (!obj_add_intstr_json(pkt, "hash algorithm", onepass.halg, hash_alg_map)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (!obj_add_intstr_json(pkt, "public key algorithm", onepass.palg, pubkey_alg_map)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (!json_add(pkt, "signer", onepass.keyid)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (!json_add(pkt, "nested", (bool) onepass.nested)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     return RNP_SUCCESS;
 }
@@ -2433,7 +2445,7 @@ stream_dump_marker_json(pgp_source_t &src, json_object *pkt)
     rnp_result_t ret = stream_parse_marker(src);
 
     if (!json_add(pkt, "contents", ret ? "invalid" : PGP_MARKER_CONTENTS)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     return ret;
 }
@@ -2456,14 +2468,16 @@ stream_dump_compressed_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object 
 
     get_compressed_src_alg(&zsrc, &zalg);
     if (!obj_add_intstr_json(pkt, "algorithm", zalg, z_alg_map)) {
+        /* LCOV_EXCL_START */
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
+        /* LCOV_EXCL_END */
     }
 
     ret = stream_dump_raw_packets_json(ctx, &zsrc, &contents);
     if (!ret && !json_add(pkt, "contents", contents)) {
         json_object_put(contents);
-        ret = RNP_ERROR_OUT_OF_MEMORY;
+        ret = RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 done:
     zsrc.close();
@@ -2484,7 +2498,7 @@ stream_dump_literal_json(pgp_source_t *src, json_object *pkt)
     if (!json_add(pkt, "format", (char *) &lhdr.format, 1) ||
         !json_add(pkt, "filename", (char *) lhdr.fname, lhdr.fname_len) ||
         !json_add(pkt, "timestamp", (uint64_t) lhdr.timestamp)) {
-        goto done;
+        goto done; // LCOV_EXCL_LINE
     }
 
     while (!lsrc.eof()) {
@@ -2497,7 +2511,7 @@ stream_dump_literal_json(pgp_source_t *src, json_object *pkt)
     }
 
     if (!json_add(pkt, "datalen", (uint64_t) lsrc.readb)) {
-        goto done;
+        goto done; // LCOV_EXCL_LINE
     }
     ret = RNP_SUCCESS;
 done:
@@ -2522,16 +2536,16 @@ stream_dump_hdr_json(pgp_source_t *src, pgp_packet_hdr_t *hdr, json_object *pkt)
     if (!json_add(jso_hdr, "offset", (uint64_t) src->readb) ||
         !obj_add_intstr_json(jso_hdr, "tag", hdr->tag, packet_tag_map) ||
         !json_add_hex(jso_hdr, "raw", hdr->hdr, hdr->hdr_len)) {
-        return false;
+        return false; // LCOV_EXCL_LINE
     }
     if (!hdr->partial && !hdr->indeterminate &&
         !json_add(jso_hdr, "length", (uint64_t) hdr->pkt_len)) {
-        return false;
+        return false; // LCOV_EXCL_LINE
     }
     if (!json_add(jso_hdr, "partial", hdr->partial) ||
         !json_add(jso_hdr, "indeterminate", hdr->indeterminate) ||
         !json_add(pkt, "header", jso_hdr)) {
-        return false;
+        return false; // LCOV_EXCL_LINE
     }
     jso_hdrwrap.release();
     return true;
@@ -2544,7 +2558,7 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
 
     json_object *pkts = json_object_new_array();
     if (!pkts) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     rnp::JSONObject pktswrap(pkts);
 
@@ -2582,7 +2596,7 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
                 return RNP_ERROR_READ;
             }
             if (!json_add_hex(pkt, "raw", buf + hdr.hdr_len, rlen - hdr.hdr_len)) {
-                return RNP_ERROR_OUT_OF_MEMORY;
+                return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
             }
         }
 
@@ -2650,7 +2664,7 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
         }
 
         if (json_object_array_add(pkts, pkt)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         pktwrap.release();
         if (ctx->stream_pkts > MAXIMUM_STREAM_PKTS) {
