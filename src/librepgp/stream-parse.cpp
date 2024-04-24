@@ -297,7 +297,7 @@ init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc, pgp_packet_hdr_t 
 {
     pgp_source_partial_param_t *param;
     if (!init_src_common(src, sizeof(*param))) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     assert(hdr.partial);
@@ -353,7 +353,7 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 {
     pgp_source_compressed_param_t *param = (pgp_source_compressed_param_t *) src->param;
     if (!param) {
-        return false;
+        return false; // LCOV_EXCL_LINE
     }
 
     if (src->eof_ || param->zend) {
@@ -457,7 +457,7 @@ compressed_src_close(pgp_source_t *src)
 {
     pgp_source_compressed_param_t *param = (pgp_source_compressed_param_t *) src->param;
     if (!param) {
-        return;
+        return; // LCOV_EXCL_LINE
     }
 
     if (param->pkt.hdr.partial) {
@@ -707,8 +707,8 @@ static bool
 encrypted_src_read_cfb(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 {
     pgp_source_encrypted_param_t *param = (pgp_source_encrypted_param_t *) src->param;
-    if (param == NULL) {
-        return false;
+    if (!param) {
+        return false; // LCOV_EXCL_LINE
     }
 
     if (src->eof_) {
@@ -771,8 +771,10 @@ encrypted_src_read_cfb(pgp_source_t *src, void *buf, size_t len, size_t *readres
                 param->auth_validated = true;
             }
         } catch (const std::exception &e) {
+            /* LCOV_EXCL_START */
             RNP_LOG("mdc update failed: %s", e.what());
             return false;
+            /* LCOV_EXCL_END */
         }
     }
     *readres = read;
@@ -894,8 +896,10 @@ signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t
         key->validate_sig(
           sinfo, *shash, *param.handler->ctx->ctx, param.has_lhdr ? &param.lhdr : NULL);
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Signature validation failed: %s", e.what());
         sinfo.valid = false;
+        /* LCOV_EXCL_END */
     }
 }
 
@@ -935,7 +939,7 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
     try {
         param->hashes.add(buf, len);
     } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
+        RNP_LOG("%s", e.what()); // LCOV_EXCL_LINE
     }
     /* update text-mode sig hashes */
     if (param->txt_hashes.hashes.empty()) {
@@ -954,7 +958,7 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
                     try {
                         param->txt_hashes.add(ST_CR, 1);
                     } catch (const std::exception &e) {
-                        RNP_LOG("%s", e.what());
+                        RNP_LOG("%s", e.what()); // LCOV_EXCL_LINE
                     }
                 }
                 param->stripped_crs = 0;
@@ -980,7 +984,7 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
                 try {
                     param->txt_hashes.add(linebeg, stripped_len);
                 } catch (const std::exception &e) {
-                    RNP_LOG("%s", e.what());
+                    RNP_LOG("%s", e.what()); // LCOV_EXCL_LINE
                 }
             }
         }
@@ -988,7 +992,7 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
         try {
             param->txt_hashes.add(ST_CRLF, 2);
         } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
+            RNP_LOG("%s", e.what()); // LCOV_EXCL_LINE
         }
         ch++;
         linebeg = ch;
@@ -1003,7 +1007,7 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
             try {
                 param->txt_hashes.add(linebeg, stripped_len);
             } catch (const std::exception &e) {
-                RNP_LOG("%s", e.what());
+                RNP_LOG("%s", e.what()); // LCOV_EXCL_LINE
             }
         }
     }
@@ -1023,9 +1027,6 @@ static void
 signed_src_close(pgp_source_t *src)
 {
     pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
-    if (!param) {
-        return;
-    }
     delete param;
     src->param = NULL;
 }
@@ -1073,8 +1074,10 @@ signed_read_single_signature(pgp_source_signed_param_t *param,
         }
         return RNP_SUCCESS;
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
 }
 
@@ -1091,11 +1094,15 @@ signed_read_cleartext_signatures(pgp_source_t &src, pgp_source_signed_param_t *p
         }
         return RNP_SUCCESS;
     } catch (const rnp::rnp_exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return e.code();
+        /* LCOV_EXCL_END */
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return RNP_ERROR_BAD_FORMAT;
+        /* LCOV_EXCL_END */
     }
 }
 
@@ -1248,8 +1255,10 @@ cleartext_parse_headers(pgp_source_signed_param_t *param)
                 RNP_LOG("unknown header '%s'", hdr);
             }
         } catch (const std::exception &e) {
+            /* LCOV_EXCL_START */
             RNP_LOG("%s", e.what());
             return false;
+            /* LCOV_EXCL_END */
         }
 
         param->readsrc->skip(hdrlen);
@@ -1293,8 +1302,10 @@ cleartext_process_line(pgp_source_t *src, const uint8_t *buf, size_t len, bool e
     }
 
     if (len + param->outlen > sizeof(param->out)) {
+        /* LCOV_EXCL_START */
         RNP_LOG("wrong state");
         return;
+        /* LCOV_EXCL_END */
     }
 
     /* if we have eol after this line then strip trailing spaces and tabs */
@@ -1317,7 +1328,7 @@ cleartext_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 {
     pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
     if (!param) {
-        return false;
+        return false; // LCOV_EXCL_LINE
     }
 
     uint8_t  srcb[CT_BUF_LEN];
@@ -1456,8 +1467,10 @@ encrypted_decrypt_cfb_header(pgp_source_encrypted_param_t *param,
         param->mdc = rnp::Hash::create(PGP_HASH_SHA1);
         param->mdc->add(dechdr, blsize + 2);
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("cannot create sha1 hash: %s", e.what());
         goto error;
+        /* LCOV_EXCL_END */
     }
     return true;
 error:
@@ -1556,8 +1569,10 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
             return false;
         }
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return false;
+        /* LCOV_EXCL_END */
     }
 
 #if defined(ENABLE_CRYPTO_REFRESH)
@@ -1634,8 +1649,10 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         }
         pgp_fingerprint_t fingerprint;
         if (pgp_fingerprint(fingerprint, *seckey)) {
+            /* LCOV_EXCL_START */
             RNP_LOG("ECDH fingerprint calculation failed");
             return false;
+            /* LCOV_EXCL_END */
         }
         if ((keymaterial->ec.curve == PGP_CURVE_25519) &&
             !x25519_bits_tweaked(keymaterial->ec)) {
@@ -1644,7 +1661,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         declen = decbuf.size();
         err = ecdh_decrypt_pkcs5(
           decbuf.data(), &declen, &encmaterial.ecdh, &keymaterial->ec, fingerprint);
-        if (err != RNP_SUCCESS) {
+        if (err) {
             RNP_LOG("ECDH decryption error %u", err);
             return false;
         }
@@ -1950,7 +1967,7 @@ init_literal_src(pgp_source_t *src, pgp_source_t *readsrc)
     uint8_t                     timestamp[4];
 
     if (!init_src_common(src, sizeof(*param))) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     param = (pgp_source_literal_param_t *) src->param;
@@ -2017,7 +2034,7 @@ init_literal_src(pgp_source_t *src, pgp_source_t *readsrc)
     }
     ret = RNP_SUCCESS;
 finish:
-    if (ret != RNP_SUCCESS) {
+    if (ret) {
         src->close();
     }
     return ret;
@@ -2038,7 +2055,7 @@ init_compressed_src(pgp_source_t *src, pgp_source_t *readsrc)
     int                            zret;
 
     if (!init_src_common(src, sizeof(*param))) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     param = (pgp_source_compressed_param_t *) src->param;
@@ -2236,11 +2253,15 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
             }
         }
     } catch (const rnp::rnp_exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s: %d", e.what(), e.code());
         return e.code();
+        /* LCOV_EXCL_END */
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return RNP_ERROR_GENERIC;
+        /* LCOV_EXCL_END */
     }
 
     /* Reading packet length/checking whether it is partial */
@@ -2354,11 +2375,11 @@ static rnp_result_t
 init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *readsrc)
 {
     if (!init_src_common(src, 0)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     pgp_source_encrypted_param_t *param = new (std::nothrow) pgp_source_encrypted_param_t();
     if (!param) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     src->param = param;
     param->pkt.readsrc = readsrc;
@@ -2384,9 +2405,11 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
 
     /* Obtaining the symmetric key */
     if (!handler->password_provider) {
+        /* LCOV_EXCL_START */
         RNP_LOG("no password provider");
         errcode = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
+        /* LCOV_EXCL_END */
     }
 
     /* informing handler about the available pubencs/symencs */
@@ -2399,9 +2422,11 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
     /* Trying public-key decryption */
     if (!param->pubencs.empty()) {
         if (!handler->key_provider) {
+            /* LCOV_EXCL_START */
             RNP_LOG("no key provider");
             errcode = RNP_ERROR_BAD_PARAMETERS;
             goto finish;
+            /* LCOV_EXCL_END */
         }
 
         size_t pubidx = 0;
@@ -2558,13 +2583,15 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
     size_t                     sigerrors = 0;
 
     if (!init_src_common(src, 0)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     try {
         param = new pgp_source_signed_param_t();
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
     src->param = param;
 
@@ -2580,9 +2607,11 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
 
     /* we need key provider to validate signatures */
     if (!handler->key_provider) {
+        /* LCOV_EXCL_START */
         RNP_LOG("no key provider");
         errcode = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
+        /* LCOV_EXCL_END */
     }
 
     if (cleartext) {
@@ -2618,7 +2647,7 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
             try {
                 errcode = onepass.parse(*readsrc);
             } catch (const std::exception &e) {
-                errcode = RNP_ERROR_GENERIC;
+                errcode = RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
             }
             if (errcode) {
                 if (errcode == RNP_ERROR_READ) {
@@ -2635,9 +2664,11 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
             try {
                 param->onepasses.push_back(onepass);
             } catch (const std::exception &e) {
+                /* LCOV_EXCL_START */
                 RNP_LOG("%s", e.what());
                 errcode = RNP_ERROR_OUT_OF_MEMORY;
                 goto finish;
+                /* LCOV_EXCL_END */
             }
 
             /* adding hash context */
@@ -2789,9 +2820,11 @@ init_packet_sequence(pgp_processing_ctx_t &ctx, pgp_source_t &src)
             ctx.sources.push_back(psrc);
             lsrc = &ctx.sources.back();
         } catch (const std::exception &e) {
+            /* LCOV_EXCL_START */
             psrc.close();
             RNP_LOG("%s", e.what());
             return RNP_ERROR_OUT_OF_MEMORY;
+            /* LCOV_EXCL_END */
         }
 
         if (lsrc->type == PGP_STREAM_LITERAL) {
@@ -2822,9 +2855,11 @@ init_cleartext_sequence(pgp_processing_ctx_t &ctx, pgp_source_t &src)
     try {
         ctx.sources.push_back(clrsrc);
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         clrsrc.close();
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
     return RNP_SUCCESS;
 }
@@ -2842,9 +2877,11 @@ init_armored_sequence(pgp_processing_ctx_t &ctx, pgp_source_t &src)
     try {
         ctx.sources.push_back(armorsrc);
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         armorsrc.close();
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
     return init_packet_sequence(ctx, ctx.sources.back());
 }
@@ -2884,10 +2921,12 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
         goto finish;
     }
 
-    if ((readbuf = (uint8_t *) calloc(1, PGP_INPUT_CACHE_SIZE)) == NULL) {
+    if (!(readbuf = (uint8_t *) calloc(1, PGP_INPUT_CACHE_SIZE))) {
+        /* LCOV_EXCL_START */
         RNP_LOG("allocation failure");
         res = RNP_ERROR_OUT_OF_MEMORY;
         goto finish;
+        /* LCOV_EXCL_END */
     }
 
     if (ctx.msg_type == PGP_MESSAGE_DETACHED) {
@@ -2960,7 +2999,7 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
     }
 
     /* finalizing the input. Signatures are checked on this step */
-    if (res == RNP_SUCCESS) {
+    if (!res) {
         for (auto &ctxsrc : ctx.sources) {
             fres = ctxsrc.finish();
             if (fres) {
