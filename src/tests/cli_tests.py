@@ -4483,7 +4483,8 @@ class Encryption(unittest.TestCase):
             return
         USERIDS = ['enc-sign25@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign32a@rnp','enc-sign32b@rnp','enc-sign32c@rnp','enc-sign24-v4-key@rnp']
 
-        # '24' in the below array creates a v4 primary signature key with a v4 pqc subkey without a Features Subpacket. This way we test PQC encryption to a v4 subkey.
+        # '24' in the below array creates a v4 primary signature key with a v4 pqc subkey without a Features Subpacket. This way we test PQC encryption to a v4 subkey. RNP prefers the PQC subkey in case of a certificate having a PQC and a
+        # non-PQC subkey.
         ALGO       = [25,   27,   28,   29,   30,   32, 32, 32, 24, ]
         ALGO_PARAM = [None, None, None, None, None, 1,  2,  6,  None,  ]
         passwds = [ ]
