@@ -4626,13 +4626,15 @@ class Encryption(unittest.TestCase):
     def test_zzz_encryption_and_signing_pqc(self):
         if not RNP_PQC:
             return
-        USERIDS = ['enc-sign25@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign31@rnp','enc-sign32@rnp','enc-sign33@rnp','enc-sign34@rnp', 'enc-sign24-v4-key@rnp']
+        USERIDS = ['enc-sign25@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign32a@rnp','enc-sign32b@rnp','enc-sign32c@rnp','enc-sign24-v4-key@rnp']
 
         # '24' in the below array creates a v4 primary signature key with a v4 pqc subkey without a Features Subpacket. This way we test PQC encryption to a v4 subkey.
         ALGO       = [25,   27,   28,   29,   30,   32, 32, 32, 24, ]
         ALGO_PARAM = [None, None, None, None, None, 1,  2,  6,  None,  ]
         passwds = [ ]
         for x in range(len(ALGO)): passwds.append('testpw' if x % 1 == 0 else '')
+        if any(len(USERIDS) != len(x) for x in [ALGO, ALGO_PARAM]):
+            raise  RuntimeError("test_zzz_encryption_and_signing_pqc: internal error: lengths of test data arrays matching")
         # Generate multiple keys and import to GnuPG
         for uid, algo, param, passwd in zip(USERIDS, ALGO, ALGO_PARAM, passwds):
             rnp_genkey_pqc(uid, algo, param, passwd)
