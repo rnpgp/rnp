@@ -876,7 +876,7 @@ def gpg_check_features():
     print('GPG_BRAINPOOL: ' + str(GPG_BRAINPOOL))
 
 def rnp_check_features():
-    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_AEAD_EAX, RNP_AEAD_OCB, RNP_AEAD_OCB_AES, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160
+    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_AEAD_EAX, RNP_AEAD_OCB, RNP_AEAD_OCB_AES, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160, RNP_PQC
     global RNP_BOTAN_OCB_AV
     ret, out, _ = run_proc(RNP, ['--version'])
     if ret != 0:
@@ -903,6 +903,9 @@ def rnp_check_features():
     RNP_BLOWFISH = re.match(r'(?s)^.*Encryption:.*BLOWFISH.*', out) is not None
     RNP_CAST5 = re.match(r'(?s)^.*Encryption:.*CAST5.*', out) is not None
     RNP_RIPEMD160 = re.match(r'(?s)^.*Hash:.*RIPEMD160.*', out) is not None
+    # Determine PQC support in general. If present, assume that all PQC schemes are supported.
+    pqc_strs = ['ML-KEM', 'ML-DSA']
+    RNP_PQC = any([re.match('(?s)^.*Public key:.*' + scheme + '.*', out) is not None for scheme in pqc_strs])
     print('RNP_TWOFISH: ' + str(RNP_TWOFISH))
     print('RNP_BLOWFISH: ' + str(RNP_BLOWFISH))
     print('RNP_IDEA: ' + str(RNP_IDEA))
@@ -913,6 +916,7 @@ def rnp_check_features():
     print('RNP_AEAD_OCB: ' + str(RNP_AEAD_OCB))
     print('RNP_AEAD_OCB_AES: ' + str(RNP_AEAD_OCB_AES))
     print('RNP_BOTAN_OCB_AV: ' + str(RNP_BOTAN_OCB_AV))
+    print('RNP_PQC: ' + str(RNP_PQC))
 
 def setup(loglvl):
     # Setting up directories.
@@ -4617,12 +4621,14 @@ class Encryption(unittest.TestCase):
             remove_files(dst, dec)
 
     """ zzz_ prefix makes it the last test. This is a workaround against a gnupg import error with the
-    pqc keys in other member function tests that follow this one.
+    pqc keys in other member function tests that would otherwise follow this one.
     """
     def test_zzz_encryption_and_signing_pqc(self):
-        USERIDS = ['enc-sign25@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign31@rnp','enc-sign32@rnp','enc-sign33@rnp','enc-sign34@rnp']
-        ALGO = [      25,   27,   28,   29,   30,   31,   32,  ]
-        ALGO_PARAM = [None, None, None, None, None, 1,    6, ]
+        if not RNP_PQC:
+            return
+        USERIDS = ['enc-sign24-v4-key@rnp', 'enc-sign25@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign31@rnp','enc-sign32@rnp','enc-sign33@rnp','enc-sign34@rnp']
+        ALGO       = [25,   27,   28,   29,   30,   32, 32, 32, 24, ]
+        ALGO_PARAM = [None, None, None, None, None, 1,  2,  6,  None,  ]
         passwds = [ ]
         for x in range(len(ALGO)): passwds.append('testpw' if x % 1 == 0 else '')
         # Generate multiple keys and import to GnuPG
