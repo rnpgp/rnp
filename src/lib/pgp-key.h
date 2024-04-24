@@ -229,6 +229,9 @@ struct pgp_key_t {
     bool             can_certify() const noexcept;
     bool             can_encrypt() const noexcept;
     bool             has_secret() const noexcept;
+#if defined(ENABLE_PQC)
+    bool is_pqc_alg() const;
+#endif
     /**
      * @brief Check whether key is usable for the specified operation.
      *
