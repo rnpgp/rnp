@@ -170,8 +170,10 @@ partial_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_partial_param_t *param = (pgp_dest_partial_param_t *) dst->param;
     if (!param) {
+        /* LCOV_EXCL_START */
         RNP_LOG("wrong param");
         return RNP_ERROR_BAD_PARAMETERS;
+        /* LCOV_EXCL_END */
     }
 
     if (len > param->partlen - param->len) {
@@ -221,11 +223,6 @@ static void
 partial_dst_close(pgp_dest_t *dst, bool discard)
 {
     pgp_dest_partial_param_t *param = (pgp_dest_partial_param_t *) dst->param;
-
-    if (!param) {
-        return;
-    }
-
     free(param);
     dst->param = NULL;
 }
@@ -236,7 +233,7 @@ init_partial_pkt_dst(pgp_dest_t *dst, pgp_dest_t *writedst)
     pgp_dest_partial_param_t *param;
 
     if (!init_dst_common(dst, sizeof(*param))) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     param = (pgp_dest_partial_param_t *) dst->param;
@@ -269,10 +266,12 @@ init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
             return false;
         }
         ret = init_partial_pkt_dst(param->writedst, dst);
-        if (ret != RNP_SUCCESS) {
+        if (ret) {
+            /* LCOV_EXCL_START */
             free(param->writedst);
             param->writedst = NULL;
             return false;
+            /* LCOV_EXCL_END */
         }
         param->origdst = dst;
 
@@ -281,6 +280,7 @@ init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
         return true;
     }
 
+    /* LCOV_EXCL_START this branch is not used at all */
     if (param->indeterminate) {
         if (param->tag > 0xf) {
             RNP_LOG("indeterminate tag > 0xf");
@@ -298,6 +298,7 @@ init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
 
     RNP_LOG("wrong call");
     return false;
+    /* LCOV_EXCL_END */
 }
 
 static rnp_result_t
@@ -323,24 +324,27 @@ static rnp_result_t
 encrypted_dst_write_cfb(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_encrypted_param_t *param = (pgp_dest_encrypted_param_t *) dst->param;
-    size_t                      sz;
 
     if (!param) {
+        /* LCOV_EXCL_START */
         RNP_LOG("wrong param");
         return RNP_ERROR_BAD_PARAMETERS;
+        /* LCOV_EXCL_END */
     }
 
     if (param->auth_type == rnp::AuthType::MDC) {
         try {
             param->mdc->add(buf, len);
         } catch (const std::exception &e) {
+            /* LCOV_EXCL_START */
             RNP_LOG("%s", e.what());
             return RNP_ERROR_BAD_STATE;
+            /* LCOV_EXCL_END */
         }
     }
 
     while (len > 0) {
-        sz = len > sizeof(param->cache) ? sizeof(param->cache) : len;
+        size_t sz = len > sizeof(param->cache) ? sizeof(param->cache) : len;
         pgp_cipher_cfb_encrypt(&param->encrypt, param->cache, (const uint8_t *) buf, sz);
         dst_write(param->pkt.writedst, param->cache, sz);
         len -= sz;
@@ -408,7 +412,8 @@ encrypted_start_aead_chunk(pgp_dest_encrypted_param_t *param, size_t idx, bool l
     /* set chunk index for nonce */
     nlen = pgp_cipher_aead_nonce(param->aalg, param->iv, nonce, idx);
     if (!nlen) {
-        RNP_LOG("ERROR: when starting encrypted AEAD chunk: could not determine nonce length");
+        RNP_LOG(
+          "ERROR: when starting encrypted AEAD chunk: could not determine nonce length"); // LCOV_EXCL_LINE
     }
 
     /* start cipher */
@@ -443,8 +448,10 @@ encrypted_dst_write_aead(pgp_dest_t *dst, const void *buf, size_t len)
     rnp_result_t res;
 
     if (!param) {
+        /* LCOV_EXCL_START */
         RNP_LOG("wrong param");
         return RNP_ERROR_BAD_PARAMETERS;
+        /* LCOV_EXCL_END */
     }
 
     if (!len) {
@@ -523,8 +530,10 @@ encrypted_dst_finish(pgp_dest_t *dst)
             param->mdc->finish(&mdcbuf[2]);
             param->mdc = nullptr;
         } catch (const std::exception &e) {
+            /* LCOV_EXCL_START */
             RNP_LOG("%s", e.what());
             return RNP_ERROR_BAD_STATE;
+            /* LCOV_EXCL_END */
         }
         pgp_cipher_cfb_encrypt(&param->encrypt, mdcbuf, mdcbuf, MDC_V1_SIZE);
         dst_write(param->pkt.writedst, mdcbuf, MDC_V1_SIZE);
@@ -539,7 +548,7 @@ encrypted_dst_close(pgp_dest_t *dst, bool discard)
     pgp_dest_encrypted_param_t *param = (pgp_dest_encrypted_param_t *) dst->param;
 
     if (!param) {
-        return;
+        return; // LCOV_EXCL_LINE
     }
 
     if (param->is_aead_auth()) {
@@ -762,7 +771,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         pkey.write(*param->pkt.origdst);
         return param->pkt.origdst->werr;
     } catch (const std::exception &e) {
-        return RNP_ERROR_WRITE;
+        return RNP_ERROR_WRITE; // LCOV_EXCL_LINE
     }
 }
 
@@ -833,7 +842,7 @@ encrypted_add_password(rnp_symmetric_pass_info_t * pass,
         try {
             param->ctx->ctx->rng.get(skey.iv, skey.ivlen);
         } catch (const std::exception &e) {
-            return RNP_ERROR_RNG;
+            return RNP_ERROR_RNG; // LCOV_EXCL_LINE
         }
 
         /* initialize cipher */
@@ -843,7 +852,7 @@ encrypted_add_password(rnp_symmetric_pass_info_t * pass,
 
         /* set additional data */
         if (!encrypted_sesk_set_ad(&kcrypt, &skey)) {
-            return RNP_ERROR_BAD_STATE;
+            return RNP_ERROR_BAD_STATE; // LCOV_EXCL_LINE
         }
 
         /* calculate nonce */
@@ -866,7 +875,7 @@ encrypted_add_password(rnp_symmetric_pass_info_t * pass,
     try {
         skey.write(*param->pkt.origdst);
     } catch (const std::exception &e) {
-        return RNP_ERROR_WRITE;
+        return RNP_ERROR_WRITE; // LCOV_EXCL_LINE
     }
     return param->pkt.origdst->werr;
 }
@@ -885,8 +894,10 @@ encrypted_start_cfb(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
         try {
             param->mdc = rnp::Hash::create(PGP_HASH_SHA1);
         } catch (const std::exception &e) {
+            /* LCOV_EXCL_START */
             RNP_LOG("cannot create sha1 hash: %s", e.what());
             return RNP_ERROR_GENERIC;
+            /* LCOV_EXCL_END */
         }
     }
 
@@ -906,8 +917,10 @@ encrypted_start_cfb(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
             param->mdc->add(enchdr, blsize + 2);
         }
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return RNP_ERROR_BAD_STATE;
+        /* LCOV_EXCL_END */
     }
 
     pgp_cipher_cfb_encrypt(&param->encrypt, enchdr, enchdr, blsize + 2);
@@ -960,7 +973,7 @@ encrypted_start_aead(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
     try {
         param->ctx->ctx->rng.get(iv_or_salt, iv_or_salt_len);
     } catch (const std::exception &e) {
-        return RNP_ERROR_RNG;
+        return RNP_ERROR_RNG; // LCOV_EXCL_LINE
     }
     memcpy(hdr + 4, iv_or_salt, iv_or_salt_len);
     /* output header */
@@ -1035,30 +1048,38 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
 
     if (handler->ctx->aalg) {
         if ((handler->ctx->aalg != PGP_AEAD_EAX) && (handler->ctx->aalg != PGP_AEAD_OCB)) {
+            /* LCOV_EXCL_START */
             RNP_LOG("unknown AEAD algorithm: %d", (int) handler->ctx->aalg);
             return RNP_ERROR_BAD_PARAMETERS;
+            /* LCOV_EXCL_END */
         }
 
         if ((pgp_block_size(handler->ctx->ealg) != 16)) {
+            /* LCOV_EXCL_START */
             RNP_LOG("wrong AEAD symmetric algorithm");
             return RNP_ERROR_BAD_PARAMETERS;
+            /* LCOV_EXCL_END */
         }
 
         if ((handler->ctx->abits < 0) || (handler->ctx->abits > 16)) {
+            /* LCOV_EXCL_START */
             RNP_LOG("wrong AEAD chunk bits: %d", handler->ctx->abits);
             return RNP_ERROR_BAD_PARAMETERS;
+            /* LCOV_EXCL_END */
         }
     }
 
     if (!init_dst_common(dst, 0)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     try {
         param = new pgp_dest_encrypted_param_t();
         dst->param = param;
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
     param->auth_type =
       handler->ctx->aalg == PGP_AEAD_NONE ? rnp::AuthType::MDC : rnp::AuthType::AEADv1;
@@ -1093,8 +1114,10 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
         try {
             handler->ctx->ctx->rng.get(enckey.data(), keylen);
         } catch (const std::exception &e) {
+            /* LCOV_EXCL_START */
             ret = RNP_ERROR_RNG;
             goto finish;
+            /* LCOV_EXCL_END */
         }
         singlepass = false;
     }
@@ -1146,9 +1169,11 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     /* initializing partial data length writer */
     /* we may use intederminate len packet here as well, for compatibility or so on */
     if (!init_streamed_packet(&param->pkt, writedst)) {
+        /* LCOV_EXCL_START */
         RNP_LOG("failed to init streamed packet");
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
+        /* LCOV_EXCL_END */
     }
 
     if (param->is_aead_auth()) {
@@ -1217,7 +1242,7 @@ cleartext_dst_writeline(pgp_dest_signed_param_t *param,
             param->clr_start = false;
         }
     } catch (const std::exception &e) {
-        RNP_LOG("failed to hash data: %s", e.what());
+        RNP_LOG("failed to hash data: %s", e.what()); // LCOV_EXCL_LINE
     }
 }
 
@@ -1315,8 +1340,10 @@ signed_fill_signature(pgp_dest_signed_param_t &param,
 
     auto listh = param.hashes.get(sig.halg);
     if (!listh) {
+        /* LCOV_EXCL_START */
         RNP_LOG("failed to obtain hash");
         throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+        /* LCOV_EXCL_END */
     }
 
     /* decrypt the secret key if needed */
@@ -1361,8 +1388,10 @@ signed_write_signature(pgp_dest_signed_param_t *param,
     } catch (const rnp::rnp_exception &e) {
         return e.code();
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to write signature: %s", e.what());
         return RNP_ERROR_WRITE;
+        /* LCOV_EXCL_END */
     }
 }
 
@@ -1425,8 +1454,10 @@ cleartext_dst_finish(pgp_dest_t *dst)
         armor.set_discard(false);
         return RNP_SUCCESS;
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to write armored signature: %s", e.what());
         return RNP_ERROR_WRITE;
+        /* LCOV_EXCL_END */
     }
 }
 
@@ -1434,9 +1465,6 @@ static void
 signed_dst_close(pgp_dest_t *dst, bool discard)
 {
     pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t *) dst->param;
-    if (!param) {
-        return;
-    }
     delete param;
     dst->param = NULL;
 }
@@ -1482,8 +1510,10 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
     try {
         param->hashes.add_alg(sinfo.halg);
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return RNP_ERROR_BAD_PARAMETERS;
+        /* LCOV_EXCL_END */
     }
 
     // Do not add onepass for detached/clearsign
@@ -1493,8 +1523,10 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
             param->siginfos.push_back(sinfo);
             return RNP_SUCCESS;
         } catch (const std::exception &e) {
+            /* LCOV_EXCL_START */
             RNP_LOG("%s", e.what());
             return RNP_ERROR_OUT_OF_MEMORY;
+            /* LCOV_EXCL_END */
         }
     }
 
@@ -1508,8 +1540,10 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
     try {
         param->siginfos.push_back(sinfo);
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
 
     // write onepasses in reverse order so signature order will match signers list
@@ -1524,7 +1558,7 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
         }
         return param->writedst->werr;
     } catch (const std::exception &e) {
-        return RNP_ERROR_WRITE;
+        return RNP_ERROR_WRITE; // LCOV_EXCL_LINE
     }
 }
 
@@ -1535,18 +1569,22 @@ init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *write
     rnp_result_t             ret = RNP_ERROR_GENERIC;
 
     if (!handler->key_provider) {
+        /* LCOV_EXCL_START */
         RNP_LOG("no key provider");
         return RNP_ERROR_BAD_PARAMETERS;
+        /* LCOV_EXCL_END */
     }
 
     if (!init_dst_common(dst, 0)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     try {
         param = new pgp_dest_signed_param_t();
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
 
     dst->param = param;
@@ -1610,7 +1648,6 @@ static rnp_result_t
 compressed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_compressed_param_t *param = (pgp_dest_compressed_param_t *) dst->param;
-    int                          zret;
 
     if (!param) {
         RNP_LOG("wrong param");
@@ -1624,7 +1661,7 @@ compressed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         param->z.avail_out = sizeof(param->cache) - param->len;
 
         while (param->z.avail_in > 0) {
-            zret = deflate(&param->z, Z_NO_FLUSH);
+            int zret = deflate(&param->z, Z_NO_FLUSH);
             /* Z_OK, Z_BUF_ERROR are ok for us, Z_STREAM_END will not happen here */
             if (zret == Z_STREAM_ERROR) {
                 RNP_LOG("wrong deflate state");
@@ -1650,7 +1687,7 @@ compressed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         param->bz.avail_out = sizeof(param->cache) - param->len;
 
         while (param->bz.avail_in > 0) {
-            zret = BZ2_bzCompress(&param->bz, BZ_RUN);
+            int zret = BZ2_bzCompress(&param->bz, BZ_RUN);
             if (zret < 0) {
                 RNP_LOG("error %d", zret);
                 return RNP_ERROR_BAD_STATE;
@@ -1775,7 +1812,7 @@ init_compressed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *w
     int                          zret;
 
     if (!init_dst_common(dst, sizeof(*param))) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     param = (pgp_dest_compressed_param_t *) dst->param;
@@ -1790,9 +1827,11 @@ init_compressed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *w
 
     /* initializing partial length or indeterminate packet, writing header */
     if (!init_streamed_packet(&param->pkt, writedst)) {
+        /* LCOV_EXCL_START */
         RNP_LOG("failed to init streamed packet");
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
+        /* LCOV_EXCL_END */
     }
 
     /* compression algorithm */
@@ -1849,8 +1888,10 @@ literal_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     pgp_dest_packet_param_t *param = (pgp_dest_packet_param_t *) dst->param;
 
     if (!param) {
+        /* LCOV_EXCL_START */
         RNP_LOG("wrong param");
         return RNP_ERROR_BAD_PARAMETERS;
+        /* LCOV_EXCL_END */
     }
 
     dst_write(param->writedst, buf, len);
@@ -1869,7 +1910,7 @@ literal_dst_close(pgp_dest_t *dst, bool discard)
     pgp_dest_packet_param_t *param = (pgp_dest_packet_param_t *) dst->param;
 
     if (!param) {
-        return;
+        return; // LCOV_EXCL_LINE
     }
 
     close_streamed_packet(param, discard);
@@ -1900,7 +1941,7 @@ init_literal_dst(pgp_literal_hdr_t &hdr, pgp_dest_t *dst, pgp_dest_t *writedst)
     pgp_dest_packet_param_t *param;
 
     if (!init_dst_common(dst, sizeof(*param))) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     param = (pgp_dest_packet_param_t *) dst->param;
@@ -1914,9 +1955,11 @@ init_literal_dst(pgp_literal_hdr_t &hdr, pgp_dest_t *dst, pgp_dest_t *writedst)
 
     /* initializing partial length or indeterminate packet, writing header */
     if (!init_streamed_packet(param, writedst)) {
+        /* LCOV_EXCL_START */
         RNP_LOG("failed to init streamed packet");
         literal_dst_close(dst, true);
         return RNP_ERROR_BAD_PARAMETERS;
+        /* LCOV_EXCL_END */
     }
     /* content type - forcing binary now */
     uint8_t buf[4] = {0};
@@ -1943,8 +1986,10 @@ process_stream_sequence(pgp_source_t *src,
 {
     std::unique_ptr<uint8_t[]> readbuf(new (std::nothrow) uint8_t[PGP_INPUT_CACHE_SIZE]);
     if (!readbuf) {
+        /* LCOV_EXCL_START */
         RNP_LOG("allocation failure");
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
 
     /* processing source stream */
@@ -2204,8 +2249,10 @@ rnp_raw_encrypt_src(pgp_source_t &        src,
         ret =
           ctx.add_encryption_password(password, DEFAULT_PGP_HASH_ALG, DEFAULT_PGP_SYMM_ALG);
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         goto done;
+        /* LCOV_EXCL_END */
     }
     if (ret) {
         goto done;
