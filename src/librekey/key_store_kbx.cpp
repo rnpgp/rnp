@@ -372,8 +372,10 @@ kbx_parse_blob(const uint8_t *image, size_t image_len)
             return NULL;
         }
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return NULL;
+        /* LCOV_EXCL_END */
     }
     return blob;
 }
@@ -441,8 +443,10 @@ KeyStore::load_kbx(pgp_source_t &src, const KeyProvider *key_provider)
         }
         return true;
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return false;
+        /* LCOV_EXCL_END */
     }
 }
 
@@ -712,8 +716,10 @@ KeyStore::write_kbx(pgp_dest_t &dst)
         }
         return true;
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to write KBX store: %s", e.what());
         return false;
+        /* LCOV_EXCL_END */
     }
 }
 } // namespace rnp
