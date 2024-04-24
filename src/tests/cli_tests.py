@@ -4487,8 +4487,10 @@ class Encryption(unittest.TestCase):
         # non-PQC subkey.
         ALGO       = [25,   27,   28,   29,   30,   32, 32, 32, 24, ]
         ALGO_PARAM = [None, None, None, None, None, 1,  2,  6,  None,  ]
+        aead_list = []
         passwds = [ ]
         for x in range(len(ALGO)): passwds.append('testpw' if x % 1 == 0 else '')
+        for x in range(len(ALGO)): aead_list.append(None if x % 3 == 0 else ('ocb' if x % 3 == 1 else 'eax' ))
         if any(len(USERIDS) != len(x) for x in [ALGO, ALGO_PARAM]):
             raise  RuntimeError("test_zzz_encryption_and_signing_pqc: internal error: lengths of test data arrays matching")
         # Generate multiple keys and import to GnuPG
@@ -4512,7 +4514,7 @@ class Encryption(unittest.TestCase):
             signerpws = [passwds[i]]
 
             rnp_encrypt_and_sign_file(src, dst, recipients, passwords, signers,
-                                      signerpws)
+                                      signerpws, aead=[aead_list[i]])
             # Decrypt file with each of the keys, we have different password for each key
             rnp_decrypt_file(dst, dec, passwds[i])
             remove_files(dec)
