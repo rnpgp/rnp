@@ -472,6 +472,19 @@ find_suitable_key(pgp_op_t op, pgp_key_t *key, rnp::KeyProvider *key_provider, b
         if (!cur || !cur->usable_for(op)) {
             continue;
         }
+#if defined(ENABLE_PQC)
+        /* prefer PQC over non-PQC. Assume non-PQC key is only there for backwards
+         * compatibility. */
+        if (subkey && subkey->is_pqc_alg() && !cur->is_pqc_alg()) {
+            /* do not override already found PQC key with non-PQC key */
+            continue;
+        }
+        if (subkey && cur->is_pqc_alg() && !subkey->is_pqc_alg()) {
+            /* override non-PQC key with PQC key */
+            subkey = cur;
+            continue;
+        }
+#endif
         if (!subkey || (cur->creation() > subkey->creation())) {
             subkey = cur;
         }
@@ -1300,6 +1313,41 @@ pgp_key_t::has_secret() const noexcept
         return false;
     }
 }
+
+#if defined(ENABLE_PQC)
+bool
+pgp_key_t::is_pqc_alg() const
+{
+    switch (alg()) {
+    case PGP_PKA_KYBER768_X25519:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER768_P256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_P384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER768_BP256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_BP384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_ED25519:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_P256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_P384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_BP256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_BP384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
+        return true;
+    default:
+        return false;
+    }
+}
+#endif
 
 bool
 pgp_key_t::usable_for(pgp_op_t op, bool if_secret) const
