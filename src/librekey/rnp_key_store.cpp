@@ -252,8 +252,10 @@ KeyStore::refresh_subkey_grips(pgp_key_t &key)
             try {
                 key.link_subkey_fp(skey);
             } catch (const std::exception &e) {
+                /* LCOV_EXCL_START */
                 RNP_LOG("%s", e.what());
                 return false;
+                /* LCOV_EXCL_END */
             }
         }
     }
@@ -298,6 +300,7 @@ KeyStore::add_subkey(pgp_key_t &srckey, pgp_key_t *oldkey)
                 primary->link_subkey_fp(*oldkey);
             }
         } catch (const std::exception &e) {
+            /* LCOV_EXCL_START */
             RNP_LOG_KEY("key %s copying failed", &srckey);
             RNP_LOG_KEY("primary key is %s", primary);
             RNP_LOG("%s", e.what());
@@ -306,6 +309,7 @@ KeyStore::add_subkey(pgp_key_t &srckey, pgp_key_t *oldkey)
                 keybyfp.erase(srckey.fp());
             }
             return nullptr;
+            /* LCOV_EXCL_END */
         }
     }
 
@@ -351,6 +355,7 @@ KeyStore::add_key(pgp_key_t &srckey)
                 RNP_LOG_KEY("failed to refresh subkey grips for %s", added_key);
             }
         } catch (const std::exception &e) {
+            /* LCOV_EXCL_START */
             RNP_LOG_KEY("key %s copying failed", &srckey);
             RNP_LOG("%s", e.what());
             if (added_key) {
@@ -358,6 +363,7 @@ KeyStore::add_key(pgp_key_t &srckey)
                 keybyfp.erase(srckey.fp());
             }
             return NULL;
+            /* LCOV_EXCL_END */
         }
     }
 
@@ -440,9 +446,11 @@ KeyStore::import_key(pgp_key_t &srckey, bool pubkey, pgp_key_import_status_t *st
         }
         return exkey;
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         disable_validation = false;
         return nullptr;
+        /* LCOV_EXCL_END */
     }
 }
 
@@ -479,8 +487,10 @@ KeyStore::import_subkey_signature(pgp_key_t &key, const pgp_signature_t &sig)
         return (nkey->rawpkt_count() > expackets) ? PGP_SIG_IMPORT_STATUS_NEW :
                                                     PGP_SIG_IMPORT_STATUS_UNCHANGED;
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
+        /* LCOV_EXCL_END */
     }
 }
 
@@ -512,8 +522,10 @@ KeyStore::import_signature(pgp_key_t &key, const pgp_signature_t &sig)
         return (nkey->rawpkt_count() > expackets) ? PGP_SIG_IMPORT_STATUS_NEW :
                                                     PGP_SIG_IMPORT_STATUS_UNCHANGED;
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
+        /* LCOV_EXCL_END */
     }
 }
 

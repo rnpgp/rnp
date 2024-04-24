@@ -514,9 +514,11 @@ decrypt_protected_section(const sexp_simple_string_t &encrypted_data,
 
     // decrypt
     decrypted_data = (uint8_t *) malloc(encrypted_data.size());
-    if (decrypted_data == NULL) {
+    if (!decrypted_data) {
+        /* LCOV_EXCL_START */
         RNP_LOG("can't allocate memory");
         goto done;
+        /* LCOV_EXCL_END */
     }
     dec = Cipher::decryption(
       info->cipher, info->cipher_mode, info->tag_length, info->disable_padding);
@@ -935,8 +937,10 @@ KeyStore::load_g10(pgp_source_t &src, const KeyProvider *key_provider)
         }
         return true;
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return false;
+        /* LCOV_EXCL_END */
     }
 }
 } // namespace rnp

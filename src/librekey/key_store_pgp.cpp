@@ -46,10 +46,12 @@ KeyStore::add_ts_subkey(const pgp_transferable_subkey_t &tskey, pgp_key_t *pkey)
         /* add it to the storage */
         return add_key(skey);
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         RNP_LOG_KEY_PKT("failed to create subkey %s", tskey.subkey);
         RNP_LOG_KEY("primary key is %s", pkey);
         return false;
+        /* LCOV_EXCL_END */
     }
 }
 
@@ -144,8 +146,10 @@ KeyStore::load_pgp(pgp_source_t &src, bool skiperrors)
         }
         return RNP_SUCCESS;
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return RNP_ERROR_BAD_PARAMETERS;
+        /* LCOV_EXCL_END */
     }
 }
 } // namespace rnp
