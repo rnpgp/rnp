@@ -332,11 +332,12 @@ def rnp_genkey_pqc(userid, algo_cli_nr, algo_param = None, pswd=PASSWORD):
     algo_pipe = str(algo_cli_nr)
     if algo_param:
         algo_pipe += "\n" + str(algo_param)
-    ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', pswd,
+    ret, output, errout = run_proc(RNPK, ['--homedir', RNPDIR, '--password', pswd,
                                   '--notty', '--userid', userid, '--generate-key', '--expert'], algo_pipe)
     #os.close(algo_pipe)
     if ret != 0:
-        raise_err('pqc key generation failed', err)
+        raise_err('pqc key generation failed', errout)
+    return output
 
 def rnp_params_insert_z(params, pos, z):
     if z:
@@ -4626,15 +4627,24 @@ class Encryption(unittest.TestCase):
     def test_zzz_encryption_and_signing_pqc(self):
         if not RNP_PQC:
             return
-        USERIDS = ['enc-sign24-v4-key@rnp', 'enc-sign25@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign31@rnp','enc-sign32@rnp','enc-sign33@rnp','enc-sign34@rnp']
+        USERIDS = ['enc-sign25@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign31@rnp','enc-sign32@rnp','enc-sign33@rnp','enc-sign34@rnp', 'enc-sign24-v4-key@rnp']
         ALGO       = [25,   27,   28,   29,   30,   32, 32, 32, 24, ]
+        # '24' in the above array creates a v4 primary signature key with a v4 pqc subkey without a Features Subpacket. This way we test PQC encryption to a v4 subkey.
         ALGO_PARAM = [None, None, None, None, None, 1,  2,  6,  None,  ]
         passwds = [ ]
+        pqc_subkey_ids = [ ]
         for x in range(len(ALGO)): passwds.append('testpw' if x % 1 == 0 else '')
         # Generate multiple keys and import to GnuPG
         for uid, algo, param, passwd in zip(USERIDS, ALGO, ALGO_PARAM, passwds):
-            rnp_genkey_pqc(uid, algo, param, passwd)
-
+            output = rnp_genkey_pqc(uid, algo, param, passwd)
+            # parse output for PQC encryption subkey
+            pqc_enc_subkey_match = re.search(r'ssb * [0-9]+/ML-KEM-[0-9]+\+[^ ]* *([0-9a-fA-F]+)', output)
+            if pqc_enc_subkey_match:
+                pqc_subkey_ids.append(pqc_enc_subkey_match.group(1))
+                print("appended  found PQC subkey id = " + str(pqc_subkey_ids[-1]))
+            else:
+                pqc_subkey_ids.append(None)
+            # TODO: use pqc_enc_subkey_match during encryption call
         #gpg_import_pubring()
         #gpg_import_secring()
 
