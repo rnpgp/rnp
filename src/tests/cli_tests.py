@@ -332,11 +332,12 @@ def rnp_genkey_pqc(userid, algo_cli_nr, algo_param = None, pswd=PASSWORD):
     algo_pipe = str(algo_cli_nr)
     if algo_param:
         algo_pipe += "\n" + str(algo_param)
-    ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', pswd,
+    ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', pswd,
                                   '--notty', '--userid', userid, '--generate-key', '--expert'], algo_pipe)
     #os.close(algo_pipe)
     if ret != 0:
         raise_err('pqc key generation failed', err)
+    return out
 
 def rnp_params_insert_z(params, pos, z):
     if z:
@@ -4620,12 +4621,38 @@ class Encryption(unittest.TestCase):
 
             remove_files(dst, dec)
 
+
+    def verify_pqc_algo_ui_nb_to_algo_ui_str(self, stdout: str, algo_ui_exp_strs: list[str]) -> None:
+        stdout_lines = stdout.split('\n')
+        for expected_line in algo_ui_exp_strs:
+            found_this_entry : bool = False
+            for line in stdout_lines:
+                # compare ignore whitespaces and tabs:
+                re_patt_for_algo = r'[^\t ]'
+                char_list_expected = [c for c in expected_line if re.match(re_patt_for_algo, c)]
+                char_list_actual = [c for c in line if re.match(re_patt_for_algo, c)]
+                if char_list_expected == char_list_actual:
+                    found_this_entry = True
+                    break
+
+            if not found_this_entry:
+                raise RuntimeError("did not match the expected UI choice for algorithm: " + expected_line)
+
     """ zzz_ prefix makes it the last test. This is a workaround against a gnupg import error with the
     pqc keys in other member function tests that would otherwise follow this one.
     """
     def test_zzz_encryption_and_signing_pqc(self):
         if not RNP_PQC:
             return
+        algo_ui_exp_strs = [ "(24) Ed25519Legacy + Curve25519Legacy + (ML-KEM-768 + X25519)",
+                             "(25) (ML-DSA-65 + Ed25519) + (ML-KEM-768 + X25519)",
+                             "(27) (ML-DSA-65 + ECDSA-NIST-P-256) + (ML-KEM-768 + ECDH-NIST-P-256)",
+                             "(28) (ML-DSA-87 + ECDSA-NIST-P-384) + (ML-KEM-1024 + ECDH-NIST-P-384)",
+                             "(29) (ML-DSA-65 + ECDSA-brainpoolP256r1) + (ML-KEM-768 + ECDH-brainpoolP256r1)",
+                             "(30) (ML-DSA-87 + ECDSA-brainpoolP384r1) + (ML-KEM-1024 + ECDH-brainpoolP384r1)",
+                             "(31) SLH-DSA-SHA2 + MLKEM-ECDH Composite",
+                             "(32) SLH-DSA-SHAKE + MLKEM-ECDH Composite",
+                               ]
         USERIDS = ['enc-sign25@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign32a@rnp','enc-sign32b@rnp','enc-sign32c@rnp','enc-sign24-v4-key@rnp']
 
         # '24' in the below array creates a v4 primary signature key with a v4 pqc subkey without a Features Subpacket. This way we test PQC encryption to a v4 subkey. RNP prefers the PQC subkey in case of a certificate having a PQC and a
@@ -4639,8 +4666,12 @@ class Encryption(unittest.TestCase):
         if any(len(USERIDS) != len(x) for x in [ALGO, ALGO_PARAM]):
             raise  RuntimeError("test_zzz_encryption_and_signing_pqc: internal error: lengths of test data arrays matching")
         # Generate multiple keys and import to GnuPG
+        verified_algo_nums = False
         for uid, algo, param, passwd in zip(USERIDS, ALGO, ALGO_PARAM, passwds):
-            rnp_genkey_pqc(uid, algo, param, passwd)
+            stdout = rnp_genkey_pqc(uid, algo, param, passwd)
+            if not verified_algo_nums:
+                self.verify_pqc_algo_ui_nb_to_algo_ui_str(stdout, algo_ui_exp_strs)
+                verified_algo_nums = True
 
         #gpg_import_pubring()
         #gpg_import_secring()
