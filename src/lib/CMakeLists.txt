@@ -259,6 +259,7 @@ if(CRYPTO_BACKEND_OPENSSL)
     crypto/rsa_ossl.cpp
     crypto/s2k.cpp
     crypto/s2k_ossl.cpp
+    crypto/symmetric_common.cpp
     crypto/symmetric_ossl.cpp
     crypto/signatures.cpp
     crypto/mem_ossl.cpp
@@ -285,6 +286,7 @@ elseif(CRYPTO_BACKEND_BOTAN)
     crypto/rng.cpp
     crypto/rsa.cpp
     crypto/s2k.cpp
+    crypto/symmetric_common.cpp
     crypto/symmetric.cpp
     crypto/signatures.cpp
     crypto/mem.cpp
