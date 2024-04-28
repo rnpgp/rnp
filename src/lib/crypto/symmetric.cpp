@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2023, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2024, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -517,6 +517,5 @@ pgp_cipher_aead_destroy(pgp_crypt_t *crypt)
     }
     memset(crypt, 0x0, sizeof(*crypt));
 }
-
 
 #endif // ENABLE_AEAD

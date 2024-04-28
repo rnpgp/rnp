@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2021-2023 Ribose Inc.
+ * Copyright (c) 2021-2024 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -122,8 +122,6 @@ pgp_cipher_cfb_start(pgp_crypt_t *  crypt,
     crypt->cfb.remaining = 0;
     return true;
 }
-
-
 
 int
 pgp_cipher_cfb_finish(pgp_crypt_t *crypt)
