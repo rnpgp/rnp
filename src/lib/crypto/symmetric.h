@@ -152,6 +152,8 @@ int pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, 
 
 void pgp_cipher_cfb_resync(pgp_crypt_t *crypt, const uint8_t *buf);
 
+int pgp_cipher_encrypt_block(pgp_crypt_t *crypt, uint8_t *iv, size_t blsize);
+
 #if defined(ENABLE_AEAD)
 /** @brief Initialize AEAD cipher instance
  *  @param crypt pgp crypto object
