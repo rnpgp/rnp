@@ -1619,95 +1619,14 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
 
     rnp::secure_array<uint8_t, PGP_MPINT_SIZE> decbuf;
     /* Decrypting session key value */
-    rnp_result_t err;
-    bool         res = false;
-    auto &       keymaterial = seckey.material();
-    size_t       declen = 0;
-    switch (sesskey.alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-        err = rsa_decrypt_pkcs1(
-          &ctx.rng, decbuf.data(), &declen, &encmaterial.rsa, &keymaterial.rsa);
-        if (err) {
-            RNP_LOG("RSA decryption failure");
-            return false;
-        }
-        break;
-    case PGP_PKA_SM2:
-#if defined(ENABLE_SM2)
-        declen = decbuf.size();
-        err = sm2_decrypt(decbuf.data(), &declen, &encmaterial.sm2, &keymaterial.ec);
-        if (err != RNP_SUCCESS) {
-            RNP_LOG("SM2 decryption failure, error %x", (int) err);
-            return false;
-        }
-        break;
-#else
-        RNP_LOG("SM2 decryption is not available.");
-        return false;
-#endif
-    case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
-        const rnp_result_t ret = elgamal_decrypt_pkcs1(
-          &ctx.rng, decbuf.data(), &declen, &encmaterial.eg, &keymaterial.eg);
-        if (ret) {
-            RNP_LOG("ElGamal decryption failure [%X]", ret);
-            return false;
-        }
-        break;
+    bool   res = false;
+    size_t declen = decbuf.size();
+
+    if (sesskey.alg == PGP_PKA_ECDH) {
+        encmaterial.ecdh.fp = &seckey.fp();
     }
-    case PGP_PKA_ECDH: {
-        if (!curve_supported(keymaterial.ec.curve)) {
-            RNP_LOG("ECDH decrypt: curve %d is not supported.", (int) keymaterial.ec.curve);
-            return false;
-        }
-        if ((keymaterial.ec.curve == PGP_CURVE_25519) &&
-            !x25519_bits_tweaked(keymaterial.ec)) {
-            RNP_LOG("Warning: bits of 25519 secret key are not tweaked.");
-        }
-        declen = decbuf.size();
-        err = ecdh_decrypt_pkcs5(
-          decbuf.data(), &declen, &encmaterial.ecdh, &keymaterial.ec, seckey.fp());
-        if (err) {
-            RNP_LOG("ECDH decryption error %u", err);
-            return false;
-        }
-        break;
-    }
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_X25519:
-        declen = decbuf.size();
-        err = x25519_native_decrypt(
-          &ctx.rng, keymaterial.x25519, &encmaterial.x25519, decbuf.data(), &declen);
-        if (err) {
-            RNP_LOG("X25519 decryption error %u", err);
-            return false;
-        }
-        break;
-#endif
-#if defined(ENABLE_PQC)
-    case PGP_PKA_KYBER768_X25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384: {
-        declen = decbuf.size();
-        err = keymaterial.kyber_ecdh.priv.decrypt(
-          &ctx.rng, decbuf.data(), &declen, &encmaterial.kyber_ecdh);
-        if (err) {
-            RNP_LOG("ML-KEM + ECC decryption failure");
-            return false;
-        }
-        break;
-    }
-#endif
-    default:
-        RNP_LOG("unsupported public key algorithm %d\n", seckey.alg());
+    auto err = seckey.pkt().material->decrypt(ctx, decbuf.data(), declen, encmaterial);
+    if (err) {
         return false;
     }
 

@@ -165,40 +165,6 @@ typedef struct pgp_validity_t {
 } pgp_validity_t;
 
 /**
- * Type to keep public/secret key mpis without any openpgp-dependent data.
- */
-typedef struct pgp_key_material_t {
-    pgp_pubkey_alg_t alg;      /* algorithm of the key */
-    bool             secret;   /* secret part of the key material is populated */
-    pgp_validity_t   validity; /* key material validation status */
-
-    union {
-        pgp_rsa_key_t rsa;
-        pgp_dsa_key_t dsa;
-        pgp_eg_key_t  eg;
-        pgp_ec_key_t  ec;
-    };
-#if defined(ENABLE_CRYPTO_REFRESH)
-    pgp_ed25519_key_t ed25519; /* non-trivial type, cannot be in a union */
-    pgp_x25519_key_t  x25519;  /* non-trivial type, cannot be in a union */
-#endif
-#if defined(ENABLE_PQC)
-    pgp_kyber_ecdh_key_t      kyber_ecdh;      /* non-trivial type, cannot be in a union */
-    pgp_dilithium_exdsa_key_t dilithium_exdsa; /* non-trivial type, cannot be in a union */
-    pgp_sphincsplus_key_t     sphincsplus;     /* non-trivial type, cannot be in a union */
-#endif
-
-    pgp_curve_t curve()
-      const; /* return curve for EC algorithms, PGP_CURVE_UNKNOWN otherwise */
-    size_t bits() const;
-    size_t qbits() const;
-    void   validate(rnp::SecurityContext &ctx, bool reset = true);
-    bool   valid() const;
-
-    bool get_grip(pgp_key_grip_t &grip) const;
-} pgp_key_material_t;
-
-/**
  * Type to keep signature without any openpgp-dependent data.
  */
 typedef struct pgp_signature_material_t {
@@ -216,6 +182,7 @@ typedef struct pgp_signature_material_t {
                                 dilithium_exdsa; // non-trivial type cannot be member in union
     pgp_sphincsplus_signature_t sphincsplus;     // non-trivial type cannot be member in union
 #endif
+    pgp_hash_alg_t halg;
 } pgp_signature_material_t;
 
 /**

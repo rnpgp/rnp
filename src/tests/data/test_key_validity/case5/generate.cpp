@@ -94,7 +94,7 @@ main(int argc, char **argv)
     pgp_keyid(keyid, sizeof(keyid), tskey.key);
     pgp_fingerprint(&keyfp, tskey.key);
 
-    binding->halg = pgp_hash_adjust_alg_to_key(binding->halg, &tskey.key);
+    binding->halg = tskey.key.material->adjust_hash(binding->halg);
     binding->palg = tskey.key.alg;
     binding->set_keyfp(keyfp);
 

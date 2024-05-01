@@ -104,16 +104,4 @@ bool pgp_generate_subkey(rnp_keygen_subkey_desc_t &     desc,
                          const pgp_password_provider_t &password_provider,
                          pgp_key_store_format_t         secformat);
 
-/**
- * @brief Check two key material for equality. Only public part is checked, so this can be
- *        called on public/secret key material
- *
- * @param key1 first key material
- * @param key2 second key material
- * @return true if both key materials are equal or false otherwise
- */
-bool key_material_equal(const pgp_key_material_t *key1, const pgp_key_material_t *key2);
-
-rnp_result_t validate_pgp_key_material(const pgp_key_material_t *material, rnp::RNG *rng);
-
 #endif /* CRYPTO_H_ */

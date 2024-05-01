@@ -53,7 +53,7 @@ class gnupg_sexp_t : public sexp::sexp_list_t {
     void         add(unsigned u);
     p_gnupg_sexp add_sub();
     void         add_mpi(const std::string &name, const pgp::mpi &val);
-    void         add_curve(const std::string &name, const pgp_ec_key_t &key);
+    void         add_curve(const std::string &name, pgp_curve_t curve);
     void         add_pubkey(const pgp_key_pkt_t &key);
     void         add_seckey(const pgp_key_pkt_t &key);
     void         add_protected_seckey(pgp_key_pkt_t &       seckey,

@@ -48,9 +48,10 @@ try {
             RNP_LOG("bad algorithm");
             return RNP_ERROR_NOT_SUPPORTED;
         }
-        auto hash = rnp::Hash::create(PGP_HASH_MD5);
-        hash->add(key.material.rsa.n);
-        hash->add(key.material.rsa.e);
+        auto &rsa = dynamic_cast<const pgp::RSAKeyMaterial &>(*key.material);
+        auto  hash = rnp::Hash::create(PGP_HASH_MD5);
+        hash->add(rsa.n());
+        hash->add(rsa.e());
         fp.length = hash->finish(fp.fingerprint);
         return RNP_SUCCESS;
     }
@@ -92,8 +93,9 @@ pgp_keyid(pgp_key_id_t &keyid, const pgp_key_pkt_t &key)
             RNP_LOG("bad algorithm");
             return RNP_ERROR_NOT_SUPPORTED;
         }
-        size_t n = key.material.rsa.n.bytes();
-        (void) memcpy(keyid.data(), key.material.rsa.n.mpi + n - keyid.size(), keyid.size());
+        auto & rsa = dynamic_cast<const pgp::RSAKeyMaterial &>(*key.material);
+        size_t n = rsa.n().bytes();
+        (void) memcpy(keyid.data(), rsa.n().mpi + n - keyid.size(), keyid.size());
         return RNP_SUCCESS;
     }
     case PGP_V4:

@@ -675,102 +675,12 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
 
     pgp_encrypted_material_t material;
 
-    switch (userkey->alg()) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY: {
-        ret = rsa_encrypt_pkcs1(&handler->ctx->ctx->rng,
-                                &material.rsa,
-                                enckey.data(),
-                                enckey_len,
-                                &userkey->material().rsa);
-        if (ret) {
-            RNP_LOG("rsa_encrypt_pkcs1 failed");
-            return ret;
-        }
-        break;
+    if (userkey->alg() == PGP_PKA_ECDH) {
+        material.ecdh.fp = &userkey->fp();
     }
-    case PGP_PKA_SM2: {
-#if defined(ENABLE_SM2)
-        ret = sm2_encrypt(&handler->ctx->ctx->rng,
-                          &material.sm2,
-                          enckey.data(),
-                          enckey_len,
-                          PGP_HASH_SM3,
-                          &userkey->material().ec);
-        if (ret) {
-            RNP_LOG("sm2_encrypt failed");
-            return ret;
-        }
-        break;
-#else
-        RNP_LOG("sm2_encrypt is not available");
-        return RNP_ERROR_NOT_IMPLEMENTED;
-#endif
-    }
-    case PGP_PKA_ECDH: {
-        if (!curve_supported(userkey->material().ec.curve)) {
-            RNP_LOG("ECDH encrypt: curve %d is not supported.",
-                    (int) userkey->material().ec.curve);
-            return RNP_ERROR_NOT_SUPPORTED;
-        }
-        ret = ecdh_encrypt_pkcs5(&handler->ctx->ctx->rng,
-                                 &material.ecdh,
-                                 enckey.data(),
-                                 enckey_len,
-                                 &userkey->material().ec,
-                                 userkey->fp());
-        if (ret) {
-            RNP_LOG("ECDH encryption failed %d", ret);
-            return ret;
-        }
-        break;
-    }
-    case PGP_PKA_ELGAMAL: {
-        ret = elgamal_encrypt_pkcs1(&handler->ctx->ctx->rng,
-                                    &material.eg,
-                                    enckey.data(),
-                                    enckey_len,
-                                    &userkey->material().eg);
-        if (ret) {
-            RNP_LOG("pgp_elgamal_public_encrypt failed");
-            return ret;
-        }
-        break;
-    }
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_X25519:
-        ret = x25519_native_encrypt(&handler->ctx->ctx->rng,
-                                    userkey->material().x25519.pub,
-                                    enckey.data(),
-                                    enckey_len,
-                                    &material.x25519);
-        if (ret) {
-            RNP_LOG("x25519 encryption failed");
-            return ret;
-        }
-        break;
-#endif
-#if defined(ENABLE_PQC)
-    case PGP_PKA_KYBER768_X25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384:
-        ret = userkey->material().kyber_ecdh.pub.encrypt(
-          &handler->ctx->ctx->rng, &material.kyber_ecdh, enckey.data(), enckey_len);
-        if (ret) {
-            RNP_LOG("ML-KEM + ECC Encrypt failed");
-            return ret;
-        }
-        break;
-#endif
-    default:
-        RNP_LOG("unsupported alg: %d", (int) userkey->alg());
+    ret = userkey->pkt().material->encrypt(
+      *handler->ctx->ctx, material, enckey.data(), enckey_len);
+    if (ret) {
         return ret;
     }
 
@@ -1364,7 +1274,8 @@ signed_fill_signature(pgp_dest_signed_param_t &param,
     }
     /* calculate the signature */
     auto hdr = param.has_lhdr ? &param.lhdr : NULL;
-    signature_calculate(sig, signer.key->material(), *listh->clone(), *param.ctx->ctx, hdr);
+    signature_calculate(
+      sig, *signer.key->pkt().material, *listh->clone(), *param.ctx->ctx, hdr);
 }
 
 static rnp_result_t
@@ -1498,13 +1409,13 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
 {
     pgp_dest_signer_info_t sinfo = {};
 
-    if (!signer->key->is_secret()) {
+    if (!signer->key->pkt().material || !signer->key->is_secret()) {
         RNP_LOG("secret key required for signing");
         return RNP_ERROR_BAD_PARAMETERS;
     }
     /* validate signing key material if didn't before */
-    signer->key->pkt().material.validate(*param->ctx->ctx, false);
-    if (!signer->key->pkt().material.valid()) {
+    signer->key->pkt().material->validate(*param->ctx->ctx, false);
+    if (!signer->key->pkt().material->valid()) {
         RNP_LOG("attempt to sign to the key with invalid material");
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
@@ -1515,7 +1426,7 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
     sinfo.sigexpire = signer->sigexpire;
 
     /* Add hash to the list */
-    sinfo.halg = pgp_hash_adjust_alg_to_key(signer->halg, &signer->key->pkt());
+    sinfo.halg = signer->key->material().adjust_hash(signer->halg);
     try {
         param->hashes.add_alg(sinfo.halg);
     } catch (const std::exception &e) {
