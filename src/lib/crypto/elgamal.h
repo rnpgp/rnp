@@ -37,6 +37,17 @@ typedef struct pgp_eg_key_t {
     pgp::mpi y;
     /* secret mpi */
     pgp::mpi x;
+
+    void
+    clear_secret()
+    {
+        x.forget();
+    }
+
+    ~pgp_eg_key_t()
+    {
+        clear_secret();
+    }
 } pgp_eg_key_t;
 
 typedef struct pgp_eg_signature_t {
