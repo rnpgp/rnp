@@ -167,6 +167,322 @@ typedef struct pgp_validity_t {
 /**
  * Type to keep public/secret key mpis without any openpgp-dependent data.
  */
+typedef struct pgp_packet_body_t pgp_packet_body_t;
+
+namespace pgp {
+class KeyMaterial {
+    pgp_validity_t validity_; /* key material validation status */
+  protected:
+    pgp_pubkey_alg_t alg_;    /* algorithm of the key */
+    bool             secret_; /* secret part of the key material is populated */
+
+    virtual void grip_update(rnp::Hash &hash) const = 0;
+    virtual bool validate_material(rnp::SecurityContext &ctx, bool reset = true) = 0;
+    virtual void forget_secret_mpi() = 0;
+
+  public:
+    KeyMaterial(pgp_pubkey_alg_t kalg = PGP_PKA_NOTHING, bool secret = false)
+        : validity_({}), alg_(kalg), secret_(secret){};
+    virtual ~KeyMaterial();
+    virtual std::unique_ptr<KeyMaterial> clone() = 0;
+
+    pgp_pubkey_alg_t alg() const noexcept;
+    bool             secret() const noexcept;
+    void             validate(rnp::SecurityContext &ctx, bool reset = true);
+    void             reset_validity();
+    bool             valid() const;
+    virtual bool     equals(const KeyMaterial &value) noexcept;
+    virtual bool     parse(pgp_packet_body_t &pkt) noexcept = 0;
+    virtual bool     parse_secret(pgp_packet_body_t &pkt) noexcept = 0;
+    virtual void     write(pgp_packet_body_t &pkt) = 0;
+    virtual void     write_secret(pgp_packet_body_t &pkt) = 0;
+    void             forget_secret();
+    virtual size_t   bits() const noexcept = 0;
+    pgp_key_grip_t   grip() const;
+
+    static std::unique_ptr<KeyMaterial> create(pgp_pubkey_alg_t alg);
+    static std::unique_ptr<KeyMaterial> create(pgp_pubkey_alg_t alg, const pgp_rsa_key_t &key);
+    static std::unique_ptr<KeyMaterial> create(const pgp_dsa_key_t &key);
+    static std::unique_ptr<KeyMaterial> create(pgp_pubkey_alg_t alg, const pgp_eg_key_t &key);
+    static std::unique_ptr<KeyMaterial> create(pgp_pubkey_alg_t alg, const pgp_ec_key_t &key);
+};
+
+class RSAKeyMaterial : public KeyMaterial {
+    pgp_rsa_key_t key_;
+
+  protected:
+    void grip_update(rnp::Hash &hash) const override;
+    bool validate_material(rnp::SecurityContext &ctx, bool reset) override;
+    void forget_secret_mpi() override;
+
+  public:
+    RSAKeyMaterial(pgp_pubkey_alg_t kalg, const pgp_rsa_key_t &key, bool secret = false)
+        : KeyMaterial(kalg, secret), key_(key){};
+    std::unique_ptr<KeyMaterial> clone() override;
+
+    bool   equals(const KeyMaterial &value) noexcept override;
+    bool   parse(pgp_packet_body_t &pkt) noexcept override;
+    bool   parse_secret(pgp_packet_body_t &pkt) noexcept override;
+    void   write(pgp_packet_body_t &pkt) override;
+    void   write_secret(pgp_packet_body_t &pkt) override;
+    void   set_secret(const mpi &d, const mpi &p, const mpi &q, const mpi &u);
+    size_t bits() const noexcept override;
+
+    const mpi &n() const noexcept;
+    const mpi &e() const noexcept;
+    const mpi &d() const noexcept;
+    const mpi &p() const noexcept;
+    const mpi &q() const noexcept;
+    const mpi &u() const noexcept;
+};
+
+class DSAKeyMaterial : public KeyMaterial {
+    pgp_dsa_key_t key_;
+
+  protected:
+    void grip_update(rnp::Hash &hash) const override;
+    bool validate_material(rnp::SecurityContext &ctx, bool reset) override;
+    void forget_secret_mpi() override;
+
+  public:
+    DSAKeyMaterial(const pgp_dsa_key_t &key, bool secret = false)
+        : KeyMaterial(PGP_PKA_DSA, secret), key_(key){};
+    std::unique_ptr<KeyMaterial> clone() override;
+
+    bool   equals(const KeyMaterial &value) noexcept override;
+    bool   parse(pgp_packet_body_t &pkt) noexcept override;
+    bool   parse_secret(pgp_packet_body_t &pkt) noexcept override;
+    void   write(pgp_packet_body_t &pkt) override;
+    void   write_secret(pgp_packet_body_t &pkt) override;
+    void   set_secret(const mpi &x);
+    size_t bits() const noexcept override;
+    size_t qbits() const noexcept;
+
+    const mpi &p() const noexcept;
+    const mpi &q() const noexcept;
+    const mpi &g() const noexcept;
+    const mpi &y() const noexcept;
+    const mpi &x() const noexcept;
+};
+
+class EGKeyMaterial : public KeyMaterial {
+    pgp_eg_key_t key_;
+
+  protected:
+    void grip_update(rnp::Hash &hash) const override;
+    bool validate_material(rnp::SecurityContext &ctx, bool reset) override;
+    void forget_secret_mpi() override;
+
+  public:
+    EGKeyMaterial(pgp_pubkey_alg_t kalg, const pgp_eg_key_t &key, bool secret = false)
+        : KeyMaterial(kalg, secret), key_(key){};
+    std::unique_ptr<KeyMaterial> clone() override;
+
+    bool   equals(const KeyMaterial &value) noexcept override;
+    bool   parse(pgp_packet_body_t &pkt) noexcept override;
+    bool   parse_secret(pgp_packet_body_t &pkt) noexcept override;
+    void   write(pgp_packet_body_t &pkt) override;
+    void   write_secret(pgp_packet_body_t &pkt) override;
+    void   set_secret(const mpi &x);
+    size_t bits() const noexcept override;
+
+    const mpi &p() const noexcept;
+    const mpi &g() const noexcept;
+    const mpi &y() const noexcept;
+    const mpi &x() const noexcept;
+};
+
+class ECKeyMaterial : public KeyMaterial {
+  protected:
+    pgp_ec_key_t key_;
+
+    void grip_update(rnp::Hash &hash) const override;
+    void forget_secret_mpi() override;
+
+  public:
+    ECKeyMaterial(pgp_pubkey_alg_t kalg, const pgp_ec_key_t &key, bool secret = false)
+        : KeyMaterial(kalg, secret), key_(key){};
+
+    bool        equals(const KeyMaterial &value) noexcept override;
+    bool        parse(pgp_packet_body_t &pkt) noexcept override;
+    bool        parse_secret(pgp_packet_body_t &pkt) noexcept override;
+    void        write(pgp_packet_body_t &pkt) override;
+    void        write_secret(pgp_packet_body_t &pkt) override;
+    void        set_secret(const mpi &x);
+    size_t      bits() const noexcept override;
+    pgp_curve_t curve() const noexcept;
+
+    const mpi &p() const noexcept;
+    const mpi &x() const noexcept;
+};
+
+class ECDSAKeyMaterial : public ECKeyMaterial {
+  protected:
+    bool validate_material(rnp::SecurityContext &ctx, bool reset) override;
+
+  public:
+    std::unique_ptr<KeyMaterial> clone() override;
+    ECDSAKeyMaterial(const pgp_ec_key_t &key, bool secret = false)
+        : ECKeyMaterial(PGP_PKA_ECDSA, key, secret){};
+};
+
+class ECDHKeyMaterial : public ECKeyMaterial {
+  protected:
+    bool validate_material(rnp::SecurityContext &ctx, bool reset) override;
+
+  public:
+    std::unique_ptr<KeyMaterial> clone() override;
+    ECDHKeyMaterial(const pgp_ec_key_t &key, bool secret = false)
+        : ECKeyMaterial(PGP_PKA_ECDH, key, secret){};
+
+    bool parse(pgp_packet_body_t &pkt) noexcept override;
+    void write(pgp_packet_body_t &pkt) override;
+
+    pgp_hash_alg_t kdf_hash_alg() const noexcept;
+    pgp_symm_alg_t key_wrap_alg() const noexcept;
+};
+
+class EDDSAKeyMaterial : public ECKeyMaterial {
+  protected:
+    bool validate_material(rnp::SecurityContext &ctx, bool reset) override;
+
+  public:
+    std::unique_ptr<KeyMaterial> clone() override;
+    EDDSAKeyMaterial(const pgp_ec_key_t &key, bool secret = false)
+        : ECKeyMaterial(PGP_PKA_EDDSA, key, secret){};
+};
+
+class SM2KeyMaterial : public ECKeyMaterial {
+  protected:
+    bool validate_material(rnp::SecurityContext &ctx, bool reset) override;
+
+  public:
+    std::unique_ptr<KeyMaterial> clone() override;
+    SM2KeyMaterial(const pgp_ec_key_t &key, bool secret = false)
+        : ECKeyMaterial(PGP_PKA_SM2, key, secret){};
+
+    void compute_za(rnp::Hash &hash) const;
+};
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+class Ed25519KeyMaterial : public KeyMaterial {
+    pgp_ed25519_key_t key_;
+
+  protected:
+    void grip_update(rnp::Hash &hash) const override;
+    bool validate_material(rnp::SecurityContext &ctx, bool reset) override;
+    void forget_secret_mpi() override;
+
+  public:
+    std::unique_ptr<KeyMaterial> clone() override;
+
+    bool        equals(const KeyMaterial &value) noexcept override;
+    bool        parse(pgp_packet_body_t &pkt) noexcept override;
+    bool        parse_secret(pgp_packet_body_t &pkt) noexcept override;
+    void        write(pgp_packet_body_t &pkt) override;
+    void        write_secret(pgp_packet_body_t &pkt) override;
+    size_t      bits() const noexcept override;
+    pgp_curve_t curve() const noexcept;
+
+    const std::vector<uint8_t> &pub() const noexcept;
+    const std::vector<uint8_t> &priv() const noexcept;
+};
+
+class X25519KeyMaterial : public KeyMaterial {
+    pgp_x25519_key_t key_;
+
+  protected:
+    void grip_update(rnp::Hash &hash) const override;
+    bool validate_material(rnp::SecurityContext &ctx, bool reset) override;
+    void forget_secret_mpi() override;
+
+  public:
+    std::unique_ptr<KeyMaterial> clone() override;
+
+    bool        equals(const KeyMaterial &value) noexcept override;
+    bool        parse(pgp_packet_body_t &pkt) noexcept override;
+    bool        parse_secret(pgp_packet_body_t &pkt) noexcept override;
+    void        write(pgp_packet_body_t &pkt) override;
+    void        write_secret(pgp_packet_body_t &pkt) override;
+    size_t      bits() const noexcept override;
+    pgp_curve_t curve() const noexcept;
+
+    const std::vector<uint8_t> &pub() const noexcept;
+    const std::vector<uint8_t> &priv() const noexcept;
+};
+#endif
+
+#if defined(ENABLE_PQC)
+class KyberKeyMaterial : public KeyMaterial {
+    pgp_kyber_ecdh_key_t key_;
+
+  protected:
+    void grip_update(rnp::Hash &hash) const override;
+    bool validate_material(rnp::SecurityContext &ctx, bool reset) override;
+    void forget_secret_mpi() override;
+
+  public:
+    std::unique_ptr<KeyMaterial> clone() override;
+
+    bool   equals(const KeyMaterial &value) noexcept override;
+    bool   parse(pgp_packet_body_t &pkt) noexcept override;
+    bool   parse_secret(pgp_packet_body_t &pkt) noexcept override;
+    void   write(pgp_packet_body_t &pkt) override;
+    void   write_secret(pgp_packet_body_t &pkt) override;
+    size_t bits() const noexcept override;
+
+    const pgp_kyber_ecdh_composite_public_key_t & pub() const noexcept;
+    const pgp_kyber_ecdh_composite_private_key_t &priv() const noexcept;
+};
+
+class DilithiumKeyMaterial : public KeyMaterial {
+    pgp_dilithium_exdsa_key_t key_;
+
+  protected:
+    void grip_update(rnp::Hash &hash) const override;
+    bool validate_material(rnp::SecurityContext &ctx, bool reset) override;
+    void forget_secret_mpi() override;
+
+  public:
+    std::unique_ptr<KeyMaterial> clone() override;
+
+    /** @brief Check two key material for equality. Only public part is checked, so this may be
+     * called on public/secret key material */
+    bool   equals(const KeyMaterial &value) noexcept override;
+    bool   parse(pgp_packet_body_t &pkt) noexcept override;
+    bool   parse_secret(pgp_packet_body_t &pkt) noexcept override;
+    void   write(pgp_packet_body_t &pkt) override;
+    void   write_secret(pgp_packet_body_t &pkt) override;
+    size_t bits() const noexcept override;
+
+    const pgp_dilithium_exdsa_composite_public_key_t & pub() const noexcept;
+    const pgp_dilithium_exdsa_composite_private_key_t &priv() const noexcept;
+};
+
+class SphincsPlusKeyMaterial : public KeyMaterial {
+    pgp_sphincsplus_key_t key_;
+
+  protected:
+    void grip_update(rnp::Hash &hash) const override;
+    bool validate_material(rnp::SecurityContext &ctx, bool reset) override;
+    void forget_secret_mpi() override;
+
+  public:
+    std::unique_ptr<KeyMaterial> clone() override;
+
+    bool   equals(const KeyMaterial &value) noexcept override;
+    bool   parse(pgp_packet_body_t &pkt) noexcept override;
+    bool   parse_secret(pgp_packet_body_t &pkt) noexcept override;
+    void   write(pgp_packet_body_t &pkt) override;
+    void   write_secret(pgp_packet_body_t &pkt) override;
+    size_t bits() const noexcept override;
+
+    const pgp_sphincsplus_public_key_t & pub() const noexcept;
+    const pgp_sphincsplus_private_key_t &priv() const noexcept;
+};
+#endif
+} // namespace pgp
+
 typedef struct pgp_key_material_t {
     pgp_pubkey_alg_t alg;      /* algorithm of the key */
     bool             secret;   /* secret part of the key material is populated */

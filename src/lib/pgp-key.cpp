@@ -3237,3 +3237,1160 @@ pgp_key_material_t::get_grip(pgp_key_grip_t &grip) const
         return false;
     }
 }
+
+namespace pgp {
+
+KeyMaterial::~KeyMaterial()
+{
+    forget_secret();
+}
+
+pgp_pubkey_alg_t
+KeyMaterial::alg() const noexcept
+{
+    return alg_;
+}
+
+bool
+KeyMaterial::secret() const noexcept
+{
+    return secret_;
+}
+
+bool
+KeyMaterial::valid() const
+{
+    return validity_.validated && validity_.valid;
+}
+
+bool
+KeyMaterial::equals(const KeyMaterial &value) noexcept
+{
+    return alg_ == value.alg_;
+}
+
+void
+KeyMaterial::validate(rnp::SecurityContext &ctx, bool reset)
+{
+    if (!reset && validity_.validated) {
+        return;
+    }
+    validity_.reset();
+    validity_.valid = validate_material(ctx, reset);
+    validity_.validated = true;
+}
+
+void
+KeyMaterial::reset_validity()
+{
+    validity_.reset();
+}
+
+void
+KeyMaterial::forget_secret()
+{
+    if (!secret_) {
+        return;
+    }
+    forget_secret_mpi();
+    secret_ = false;
+}
+
+pgp_key_grip_t
+KeyMaterial::grip() const
+{
+    auto hash = rnp::Hash::create(PGP_HASH_SHA1);
+    grip_update(*hash);
+    pgp_key_grip_t res;
+    hash->finish(res.data());
+    return res;
+}
+
+std::unique_ptr<KeyMaterial>
+KeyMaterial::create(pgp_pubkey_alg_t alg)
+{
+    return nullptr;
+}
+
+std::unique_ptr<KeyMaterial>
+KeyMaterial::create(pgp_pubkey_alg_t alg, const pgp_rsa_key_t &key)
+{
+    return std::unique_ptr<pgp::KeyMaterial>(new pgp::RSAKeyMaterial(alg, key));
+}
+
+std::unique_ptr<KeyMaterial>
+KeyMaterial::create(const pgp_dsa_key_t &key)
+{
+    return std::unique_ptr<pgp::KeyMaterial>(new pgp::DSAKeyMaterial(key));
+}
+
+std::unique_ptr<KeyMaterial>
+KeyMaterial::create(pgp_pubkey_alg_t alg, const pgp_eg_key_t &key)
+{
+    return std::unique_ptr<pgp::KeyMaterial>(new pgp::EGKeyMaterial(alg, key));
+}
+
+std::unique_ptr<KeyMaterial>
+KeyMaterial::create(pgp_pubkey_alg_t alg, const pgp_ec_key_t &key)
+{
+    switch (alg) {
+    case PGP_PKA_ECDSA:
+        return std::unique_ptr<pgp::KeyMaterial>(new pgp::ECDSAKeyMaterial(key));
+    case PGP_PKA_ECDH:
+        return std::unique_ptr<pgp::KeyMaterial>(new pgp::ECDHKeyMaterial(key));
+    case PGP_PKA_EDDSA:
+        return std::unique_ptr<pgp::KeyMaterial>(new pgp::EDDSAKeyMaterial(key));
+    case PGP_PKA_SM2:
+        return std::unique_ptr<pgp::KeyMaterial>(new pgp::SM2KeyMaterial(key));
+    default:
+        throw std::invalid_argument("Invalid EC algorithm.");
+    }
+}
+
+std::unique_ptr<KeyMaterial>
+RSAKeyMaterial::clone()
+{
+    return std::unique_ptr<KeyMaterial>(new RSAKeyMaterial(*this));
+}
+
+void
+RSAKeyMaterial::grip_update(rnp::Hash &hash) const
+{
+    grip_hash_mpi(hash, key_.n, '\0');
+}
+
+bool
+RSAKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
+{
+    return !rsa_validate_key(&ctx.rng, &key_, secret_);
+}
+
+bool
+RSAKeyMaterial::equals(const KeyMaterial &value) noexcept
+{
+    auto key = dynamic_cast<const RSAKeyMaterial *>(&value);
+    if (!key || !KeyMaterial::equals(value)) {
+        return false;
+    }
+    return (key->key_.n == key_.n) && (key->key_.e == key_.e);
+}
+
+bool
+RSAKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
+{
+    secret_ = false;
+    return pkt.get(key_.n) && pkt.get(key_.e);
+}
+
+bool
+RSAKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
+{
+    if (!pkt.get(key_.d) || !pkt.get(key_.p) || !pkt.get(key_.q) || !pkt.get(key_.u)) {
+        RNP_LOG("failed to parse rsa secret key data");
+        return false;
+    }
+    secret_ = true;
+    return true;
+}
+
+void
+RSAKeyMaterial::write(pgp_packet_body_t &pkt)
+{
+    pkt.add(key_.n);
+    pkt.add(key_.e);
+}
+
+void
+RSAKeyMaterial::write_secret(pgp_packet_body_t &pkt)
+{
+    pkt.add(key_.d);
+    pkt.add(key_.p);
+    pkt.add(key_.q);
+    pkt.add(key_.u);
+}
+
+void
+RSAKeyMaterial::set_secret(const mpi &d, const mpi &p, const mpi &q, const mpi &u)
+{
+    key_.d = d;
+    key_.p = p;
+    key_.q = q;
+    key_.u = u;
+    secret_ = true;
+}
+
+void
+RSAKeyMaterial::forget_secret_mpi()
+{
+    key_.d.forget();
+    key_.p.forget();
+    key_.q.forget();
+    key_.u.forget();
+}
+
+size_t
+RSAKeyMaterial::bits() const noexcept
+{
+    return 8 * key_.n.bytes();
+}
+
+const mpi &
+RSAKeyMaterial::n() const noexcept
+{
+    return key_.n;
+}
+
+const mpi &
+RSAKeyMaterial::e() const noexcept
+{
+    return key_.e;
+}
+
+const mpi &
+RSAKeyMaterial::d() const noexcept
+{
+    return key_.d;
+}
+
+const mpi &
+RSAKeyMaterial::p() const noexcept
+{
+    return key_.p;
+}
+
+const mpi &
+RSAKeyMaterial::q() const noexcept
+{
+    return key_.q;
+}
+
+const mpi &
+RSAKeyMaterial::u() const noexcept
+{
+    return key_.u;
+}
+
+std::unique_ptr<KeyMaterial>
+DSAKeyMaterial::clone()
+{
+    return std::unique_ptr<KeyMaterial>(new DSAKeyMaterial(*this));
+}
+
+void
+DSAKeyMaterial::grip_update(rnp::Hash &hash) const
+{
+    grip_hash_mpi(hash, key_.p, 'p');
+    grip_hash_mpi(hash, key_.q, 'q');
+    grip_hash_mpi(hash, key_.g, 'g');
+    grip_hash_mpi(hash, key_.y, 'y');
+}
+
+bool
+DSAKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
+{
+    return !dsa_validate_key(&ctx.rng, &key_, secret_);
+}
+
+bool
+DSAKeyMaterial::equals(const KeyMaterial &value) noexcept
+{
+    auto key = dynamic_cast<const DSAKeyMaterial *>(&value);
+    if (!key || !KeyMaterial::equals(value)) {
+        return false;
+    }
+    return (key->key_.p == key_.p) && (key->key_.q == key_.q) && (key->key_.g == key_.g) &&
+           (key->key_.y == key_.y);
+}
+
+bool
+DSAKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
+{
+    secret_ = false;
+    return pkt.get(key_.p) && pkt.get(key_.q) && pkt.get(key_.g) && pkt.get(key_.y);
+}
+
+bool
+DSAKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
+{
+    if (!pkt.get(key_.x)) {
+        RNP_LOG("failed to parse dsa secret key data");
+        return false;
+    }
+    secret_ = true;
+    return true;
+}
+
+void
+DSAKeyMaterial::write(pgp_packet_body_t &pkt)
+{
+    pkt.add(key_.p);
+    pkt.add(key_.q);
+    pkt.add(key_.g);
+    pkt.add(key_.y);
+}
+
+void
+DSAKeyMaterial::write_secret(pgp_packet_body_t &pkt)
+{
+    pkt.add(key_.x);
+}
+
+void
+DSAKeyMaterial::set_secret(const mpi &x)
+{
+    key_.x = x;
+    secret_ = true;
+}
+
+void
+DSAKeyMaterial::forget_secret_mpi()
+{
+    key_.x.forget();
+}
+
+size_t
+DSAKeyMaterial::bits() const noexcept
+{
+    return 8 * key_.p.bytes();
+}
+
+size_t
+DSAKeyMaterial::qbits() const noexcept
+{
+    return 8 * key_.q.bytes();
+}
+
+const mpi &
+DSAKeyMaterial::p() const noexcept
+{
+    return key_.p;
+}
+
+const mpi &
+DSAKeyMaterial::q() const noexcept
+{
+    return key_.q;
+}
+
+const mpi &
+DSAKeyMaterial::g() const noexcept
+{
+    return key_.g;
+}
+
+const mpi &
+DSAKeyMaterial::y() const noexcept
+{
+    return key_.y;
+}
+
+const mpi &
+DSAKeyMaterial::x() const noexcept
+{
+    return key_.x;
+}
+
+std::unique_ptr<KeyMaterial>
+EGKeyMaterial::clone()
+{
+    return std::unique_ptr<KeyMaterial>(new EGKeyMaterial(*this));
+}
+
+void
+EGKeyMaterial::grip_update(rnp::Hash &hash) const
+{
+    grip_hash_mpi(hash, key_.p, 'p');
+    grip_hash_mpi(hash, key_.g, 'g');
+    grip_hash_mpi(hash, key_.y, 'y');
+}
+
+bool
+EGKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
+{
+    return !elgamal_validate_key(&key_, secret_);
+}
+
+bool
+EGKeyMaterial::equals(const KeyMaterial &value) noexcept
+{
+    auto key = dynamic_cast<const EGKeyMaterial *>(&value);
+    if (!key || !KeyMaterial::equals(value)) {
+        return false;
+    }
+    return (key->key_.p == key_.p) && (key->key_.g == key_.g) && (key->key_.y == key_.y);
+}
+
+bool
+EGKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
+{
+    secret_ = false;
+    return pkt.get(key_.p) && pkt.get(key_.g) && pkt.get(key_.y);
+}
+
+bool
+EGKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
+{
+    if (!pkt.get(key_.x)) {
+        RNP_LOG("failed to parse eg secret key data");
+        return false;
+    }
+    secret_ = true;
+    return true;
+}
+
+void
+EGKeyMaterial::write(pgp_packet_body_t &pkt)
+{
+    pkt.add(key_.p);
+    pkt.add(key_.g);
+    pkt.add(key_.y);
+}
+
+void
+EGKeyMaterial::write_secret(pgp_packet_body_t &pkt)
+{
+    pkt.add(key_.x);
+}
+
+void
+EGKeyMaterial::set_secret(const mpi &x)
+{
+    key_.x = x;
+    secret_ = true;
+}
+
+void
+EGKeyMaterial::forget_secret_mpi()
+{
+    key_.x.forget();
+}
+
+size_t
+EGKeyMaterial::bits() const noexcept
+{
+    return 8 * key_.y.bytes();
+}
+
+const mpi &
+EGKeyMaterial::p() const noexcept
+{
+    return key_.p;
+}
+
+const mpi &
+EGKeyMaterial::g() const noexcept
+{
+    return key_.g;
+}
+
+const mpi &
+EGKeyMaterial::y() const noexcept
+{
+    return key_.y;
+}
+
+const mpi &
+EGKeyMaterial::x() const noexcept
+{
+    return key_.x;
+}
+
+void
+ECKeyMaterial::grip_update(rnp::Hash &hash) const
+{
+    grip_hash_ec(hash, key_);
+}
+
+bool
+ECKeyMaterial::equals(const KeyMaterial &value) noexcept
+{
+    auto key = dynamic_cast<const ECKeyMaterial *>(&value);
+    if (!key || !KeyMaterial::equals(value)) {
+        return false;
+    }
+    return (key->key_.curve == key_.curve) && (key->key_.p == key_.p);
+}
+
+bool
+ECKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
+{
+    secret_ = false;
+    if (!pkt.get(key_.curve) || !pkt.get(key_.p)) {
+        return false;
+    }
+    return true;
+}
+
+bool
+ECKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
+{
+    if (!pkt.get(key_.x)) {
+        RNP_LOG("failed to parse ecc secret key data");
+        return false;
+    }
+    secret_ = true;
+    return true;
+}
+
+void
+ECKeyMaterial::write(pgp_packet_body_t &pkt)
+{
+    pkt.add(key_.curve);
+    pkt.add(key_.p);
+}
+
+void
+ECKeyMaterial::write_secret(pgp_packet_body_t &pkt)
+{
+    pkt.add(key_.x);
+}
+
+void
+ECKeyMaterial::set_secret(const mpi &x)
+{
+    key_.x = x;
+    secret_ = true;
+}
+
+void
+ECKeyMaterial::forget_secret_mpi()
+{
+    key_.x.forget();
+}
+
+size_t
+ECKeyMaterial::bits() const noexcept
+{
+    auto curve_desc = get_curve_desc(key_.curve);
+    return curve_desc ? curve_desc->bitlen : 0;
+}
+
+pgp_curve_t
+ECKeyMaterial::curve() const noexcept
+{
+    return key_.curve;
+}
+
+const mpi &
+ECKeyMaterial::p() const noexcept
+{
+    return key_.p;
+}
+
+const mpi &
+ECKeyMaterial::x() const noexcept
+{
+    return key_.x;
+}
+
+bool
+ECDSAKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
+{
+    if (!curve_supported(key_.curve)) {
+        /* allow to import key if curve is not supported */
+        RNP_LOG("ECDSA validate: curve %d is not supported.", (int) key_.curve);
+        return true;
+    }
+    return !ecdsa_validate_key(&ctx.rng, &key_, secret_);
+}
+
+std::unique_ptr<KeyMaterial>
+ECDSAKeyMaterial::clone()
+{
+    return std::unique_ptr<KeyMaterial>(new ECDSAKeyMaterial(*this));
+}
+
+bool
+ECDHKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
+{
+    if (!curve_supported(key_.curve)) {
+        /* allow to import key if curve is not supported */
+        RNP_LOG("ECDH validate: curve %d is not supported.", (int) key_.curve);
+        return true;
+    }
+    return !ecdh_validate_key(&ctx.rng, &key_, secret_);
+}
+
+std::unique_ptr<KeyMaterial>
+ECDHKeyMaterial::clone()
+{
+    return std::unique_ptr<KeyMaterial>(new ECDHKeyMaterial(*this));
+}
+
+bool
+ECDHKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
+{
+    if (!ECKeyMaterial::parse(pkt)) {
+        return false;
+    }
+    /* Additional ECDH fields */
+    /* Read KDF parameters. At the moment should be 0x03 0x01 halg ealg */
+    uint8_t len = 0, halg = 0, walg = 0;
+    if (!pkt.get(len) || (len != 3)) {
+        return false;
+    }
+    if (!pkt.get(len) || (len != 1)) {
+        return false;
+    }
+    if (!pkt.get(halg) || !pkt.get(walg)) {
+        return false;
+    }
+    key_.kdf_hash_alg = (pgp_hash_alg_t) halg;
+    key_.key_wrap_alg = (pgp_symm_alg_t) walg;
+    return true;
+}
+
+void
+ECDHKeyMaterial::write(pgp_packet_body_t &pkt)
+{
+    ECKeyMaterial::write(pkt);
+    pkt.add_byte(3);
+    pkt.add_byte(1);
+    pkt.add_byte(key_.kdf_hash_alg);
+    pkt.add_byte(key_.key_wrap_alg);
+}
+
+pgp_hash_alg_t
+ECDHKeyMaterial::kdf_hash_alg() const noexcept
+{
+    return key_.kdf_hash_alg;
+}
+
+pgp_symm_alg_t
+ECDHKeyMaterial::key_wrap_alg() const noexcept
+{
+    return key_.key_wrap_alg;
+}
+
+bool
+EDDSAKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
+{
+    return !eddsa_validate_key(&ctx.rng, &key_, secret_);
+}
+
+std::unique_ptr<KeyMaterial>
+EDDSAKeyMaterial::clone()
+{
+    return std::unique_ptr<KeyMaterial>(new EDDSAKeyMaterial(*this));
+}
+
+bool
+SM2KeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
+{
+#if defined(ENABLE_SM2)
+    return !sm2_validate_key(&ctx.rng, &key_, secret_);
+#else
+    RNP_LOG("SM2 key validation is not available.");
+    return false;
+#endif
+}
+
+std::unique_ptr<KeyMaterial>
+SM2KeyMaterial::clone()
+{
+    return std::unique_ptr<KeyMaterial>(new SM2KeyMaterial(*this));
+}
+
+void
+SM2KeyMaterial::compute_za(rnp::Hash &hash) const
+{
+#if defined(ENABLE_SM2)
+    auto res = sm2_compute_za(key_, hash);
+    if (res) {
+        RNP_LOG("failed to compute SM2 ZA field");
+        throw rnp::rnp_exception(res);
+    }
+#else
+    RNP_LOG("SM2 ZA computation not available");
+    throw rnp::rnp_exception(RNP_ERROR_NOT_IMPLEMENTED);
+#endif
+}
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+std::unique_ptr<KeyMaterial>
+Ed25519KeyMaterial::clone()
+{
+    return std::unique_ptr<KeyMaterial>(new Ed25519KeyMaterial(*this));
+}
+
+void
+Ed25519KeyMaterial::grip_update(rnp::Hash &hash) const
+{
+    // TODO: if GnuPG would ever support v6, check whether this works correctly.
+    hash.add(pub());
+}
+
+bool
+Ed25519KeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
+{
+    return !ed25519_validate_key_native(&ctx.rng, &key_, secret_);
+}
+
+bool
+Ed25519KeyMaterial::equals(const KeyMaterial &value) noexcept
+{
+    auto key = dynamic_cast<const Ed25519KeyMaterial *>(&value);
+    if (!key || !KeyMaterial::equals(value)) {
+        return false;
+    }
+    return key->key_.pub == key_.pub;
+}
+
+bool
+Ed25519KeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
+{
+    secret_ = false;
+    auto                 ec_desc = get_curve_desc(PGP_CURVE_ED25519);
+    std::vector<uint8_t> buf(BITS_TO_BYTES(ec_desc->bitlen);
+    if (!pkt.get(buf.data(), buf.size())) {
+        RNP_LOG("failed to parse Ed25519 public key data");
+        return false;
+    }
+    key_.pub = buf;
+    return true;
+}
+
+bool
+Ed25519KeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
+{
+    auto                 ec_desc = get_curve_desc(PGP_CURVE_ED25519);
+    std::vector<uint8_t> buf(BITS_TO_BYTES(ec_desc->bitlen));
+    if (!pkt.get(buf.data(), buf.size())) {
+        RNP_LOG("failed to parse Ed25519 secret key data");
+        return false;
+    }
+    key_.priv = buf;
+    secret_ = true;
+    return true;
+}
+
+void
+Ed25519KeyMaterial::write(pgp_packet_body_t &pkt)
+{
+    pkt.add(key_.pub);
+}
+
+void
+Ed25519KeyMaterial::write_secret(pgp_packet_body_t &pkt)
+{
+    pkt.add(key_.priv);
+}
+
+void
+Ed25519KeyMaterial::forget_secret_mpi()
+{
+    secure_clear(key_.priv.data(), key_.priv.size());
+    key_.priv.clear();
+}
+
+size_t
+Ed25519KeyMaterial::bits() const noexcept
+{
+    return 255;
+}
+
+pgp_curve_t
+Ed25519KeyMaterial::curve() const noexcept
+{
+    return PGP_CURVE_ED25519;
+}
+
+const std::vector<uint8_t> &
+Ed25519KeyMaterial::pub() const noexcept
+{
+    return key_.pub;
+}
+
+const std::vector<uint8_t> &
+Ed25519KeyMaterial::priv() const noexcept
+{
+    return key_.priv;
+}
+
+std::unique_ptr<KeyMaterial>
+X25519KeyMaterial::clone()
+{
+    return std::unique_ptr<KeyMaterial>(new X25519KeyMaterial(*this));
+}
+
+void
+X25519KeyMaterial::grip_update(rnp::Hash &hash) const
+{
+    // TODO: if GnuPG would ever support v6, check whether this works correctly.
+    hash.add(pub());
+}
+
+bool
+X25519KeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
+{
+    return !x25519_validate_key_native(&ctx.rng, &key_, secret_);
+}
+
+bool
+X25519KeyMaterial::equals(const KeyMaterial &value) noexcept
+{
+    auto key = dynamic_cast<const X25519KeyMaterial *>(&value);
+    if (!key || !KeyMaterial::equals(value)) {
+        return false;
+    }
+    return key->key_.pub == key_.pub;
+}
+
+bool
+X25519KeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
+{
+    secret_ = false;
+    auto                 ec_desc = get_curve_desc(PGP_CURVE_25519);
+    std::vector<uint8_t> buf(BITS_TO_BYTES(ec_desc->bitlen));
+    if (!pkt.get(buf.data(), buf.size())) {
+        RNP_LOG("failed to parse X25519 public key data");
+        return false;
+    }
+    key_.pub = buf;
+}
+
+bool
+X25519KeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
+{
+    auto                 ec_desc = get_curve_desc(PGP_CURVE_25519);
+    std::vector<uint8_t> buf(BITS_TO_BYTES(ec_desc->bitlen));
+    if (!pkt.get(buf.data(), buf.size())) {
+        RNP_LOG("failed to parse X25519 secret key data");
+        return false;
+    }
+    key_.priv = buf;
+    secret_ = true;
+    return true;
+}
+
+void
+X25519KeyMaterial::write(pgp_packet_body_t &pkt)
+{
+    pkt.add(key_.pub);
+}
+
+void
+X25519KeyMaterial::write_secret(pgp_packet_body_t &pkt)
+{
+    pkt.add(key_.priv);
+}
+
+void
+X25519KeyMaterial::forget_secret_mpi()
+{
+    secure_clear(key_.priv.data(), key_.priv.size());
+    key_.priv.clear();
+}
+
+size_t
+X25519KeyMaterial::bits() const noexcept
+{
+    return 255;
+}
+
+pgp_curve_t
+X25519KeyMaterial::curve() const noexcept
+{
+    return PGP_CURVE_25519;
+}
+
+const std::vector<uint8_t> &
+X25519KeyMaterial::pub() const noexcept
+{
+    return key_.pub;
+}
+
+const std::vector<uint8_t> &
+X25519KeyMaterial::priv() const noexcept
+{
+    return key_.priv;
+}
+#endif
+
+#if defined(ENABLE_PQC)
+std::unique_ptr<KeyMaterial>
+KyberKeyMaterial::clone()
+{
+    return std::unique_ptr<KeyMaterial>(new KyberKeyMaterial(*this));
+}
+
+void
+KyberKeyMaterial::grip_update(rnp::Hash &hash) const
+{
+    hash.add(pub().get_encoded());
+}
+
+bool
+KyberKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
+{
+    return !kyber_ecdh_validate_key(&ctx.rng, &key_, secret_);
+}
+
+bool
+KyberKeyMaterial::equals(const KeyMaterial &value) noexcept
+{
+    auto key = dynamic_cast<const KyberKeyMaterial *>(&value);
+    if (!key || !KeyMaterial::equals(value)) {
+        return false;
+    }
+    return key->key_.pub == key_.pub;
+}
+
+bool
+KyberKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
+{
+    secret_ = false;
+    std::vector<uint8_t> buf(pgp_kyber_ecdh_composite_public_key_t::encoded_size(alg()));
+    if (!pkt.get(buf.data(), buf.size())) {
+        RNP_LOG("failed to parse mlkem-ecdh public key data");
+        return false;
+    }
+    key_.pub = pgp_kyber_ecdh_composite_public_key_t(buf, alg());
+    return true;
+}
+
+bool
+KyberKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
+{
+    std::vector<uint8_t> buf(pgp_kyber_ecdh_composite_private_key_t::encoded_size(alg()));
+    if (!pkt.get(buf.data(), buf.size())) {
+        RNP_LOG("failed to parse mkem-ecdh secret key data");
+        return false;
+    }
+    key_.priv = pgp_kyber_ecdh_composite_private_key_t(buf.data(), buf.size(), alg());
+    secret_ = true;
+    return true;
+}
+
+void
+KyberKeyMaterial::write(pgp_packet_body_t &pkt)
+{
+    pkt.add(key_.pub.get_encoded());
+}
+
+void
+KyberKeyMaterial::write_secret(pgp_packet_body_t &pkt)
+{
+    pkt.add(key_.priv.get_encoded());
+}
+
+void
+KyberKeyMaterial::forget_secret_mpi()
+{
+    key_.priv.secure_clear();
+}
+
+size_t
+KyberKeyMaterial::bits() const noexcept
+{
+    return 8 * pub().get_encoded().size(); /* public key length */
+}
+
+const pgp_kyber_ecdh_composite_public_key_t &
+KyberKeyMaterial::pub() const noexcept
+{
+    return key_.pub;
+}
+
+const pgp_kyber_ecdh_composite_private_key_t &
+KyberKeyMaterial::priv() const noexcept
+{
+    return key_.priv;
+}
+
+std::unique_ptr<KeyMaterial>
+DilithiumKeyMaterial::clone()
+{
+    return std::unique_ptr<KeyMaterial>(new DilithiumKeyMaterial(*this));
+}
+
+void
+DilithiumKeyMaterial::grip_update(rnp::Hash &hash) const
+{
+    hash.add(pub().get_encoded());
+}
+
+bool
+DilithiumKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
+{
+    return !dilithium_exdsa_validate_key(&ctx.rng, &key_, secret_);
+}
+
+bool
+DilithiumKeyMaterial::equals(const KeyMaterial &value) noexcept
+{
+    auto key = dynamic_cast<const DilithiumKeyMaterial *>(&value);
+    if (!key || !KeyMaterial::equals(value)) {
+        return false;
+    }
+    return key->key_.pub == key_.pub;
+}
+
+bool
+DilithiumKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
+{
+    secret_ = false;
+    std::vector<uint8_t> buf(pgp_dilithium_exdsa_composite_public_key_t::encoded_size(alg()));
+    if (!pkt.get(buf.data(), buf.size())) {
+        RNP_LOG("failed to parse mldsa-ecdsa/eddsa public key data");
+        return false;
+    }
+    key_.pub = pgp_dilithium_exdsa_composite_public_key_t(buf, alg());
+    return true;
+}
+
+bool
+DilithiumKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
+{
+    std::vector<uint8_t> buf(pgp_dilithium_exdsa_composite_private_key_t::encoded_size(alg()));
+    if (!pkt.get(buf.data(), buf.size())) {
+        RNP_LOG("failed to parse mldsa-ecdsa/eddsa secret key data");
+        return false;
+    }
+    key_.priv = pgp_dilithium_exdsa_composite_private_key_t(buf.data(), buf.size(), alg());
+    secret_ = true;
+    return true;
+}
+
+void
+DilithiumKeyMaterial::write(pgp_packet_body_t &pkt)
+{
+    pkt.add(key_.pub.get_encoded());
+}
+
+void
+DilithiumKeyMaterial::write_secret(pgp_packet_body_t &pkt)
+{
+    pkt.add(key_.priv.get_encoded());
+}
+
+void
+DilithiumKeyMaterial::forget_secret_mpi()
+{
+    key_.priv.secure_clear();
+}
+
+size_t
+DilithiumKeyMaterial::bits() const noexcept
+{
+    return 8 * pub().get_encoded().size(); /* public key length*/
+}
+
+const pgp_dilithium_exdsa_composite_public_key_t &
+DilithiumKeyMaterial::pub() const noexcept
+{
+    return key_.pub;
+}
+
+const pgp_dilithium_exdsa_composite_private_key_t &
+DilithiumKeyMaterial::priv() const noexcept
+{
+    return key_.priv;
+}
+
+std::unique_ptr<KeyMaterial>
+SphincsPlusKeyMaterial::clone()
+{
+    return std::unique_ptr<KeyMaterial>(new SphincsPlusKeyMaterial(*this));
+}
+
+void
+SphincsPlusKeyMaterial::grip_update(rnp::Hash &hash) const
+{
+    hash.add(pub().get_encoded());
+}
+
+bool
+SphincsPlusKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
+{
+    return !sphincsplus_validate_key(&ctx.rng, &key_, secret_);
+}
+
+bool
+SphincsPlusKeyMaterial::equals(const KeyMaterial &value) noexcept
+{
+    auto key = dynamic_cast<const SphincsPlusKeyMaterial *>(&value);
+    if (!key || !KeyMaterial::equals(value)) {
+        return false;
+    }
+    return key->key_.pub == key_.pub;
+}
+
+bool
+SphincsPlusKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
+{
+    secret_ = false;
+    uint8_t bt = 0;
+    if (!pkt.get(bt)) {
+        RNP_LOG("failed to parse SLH-DSA public key data");
+        return false;
+    }
+    sphincsplus_parameter_t param = (sphincsplus_parameter_t) bt;
+    std::vector<uint8_t>    buf(sphincsplus_pubkey_size(param));
+    if (!pkt.get(buf.data(), buf.size())) {
+        RNP_LOG("failed to parse SLH-DSA public key data");
+        return false;
+    }
+    key_.pub = pgp_sphincsplus_public_key_t(buf, param, alg());
+    return true;
+}
+
+bool
+SphincsPlusKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
+{
+    uint8_t bt = 0;
+    if (!pkt.get(bt)) {
+        RNP_LOG("failed to parse SLH-DSA secret key data");
+        return false;
+    }
+    sphincsplus_parameter_t param = (sphincsplus_parameter_t) bt;
+    std::vector<uint8_t>    buf(sphincsplus_privkey_size(param));
+    if (!pkt.get(buf.data(), buf.size())) {
+        RNP_LOG("failed to parse SLH-DSA secret key data");
+        return false;
+    }
+    key_.priv = pgp_sphincsplus_private_key_t(buf, param, alg());
+    secret_ = true;
+    return true;
+}
+
+void
+SphincsPlusKeyMaterial::write(pgp_packet_body_t &pkt)
+{
+    pkt.add_byte((uint8_t) key_.pub.param());
+    pkt.add(key_.pub.get_encoded());
+}
+
+void
+SphincsPlusKeyMaterial::write_secret(pgp_packet_body_t &pkt)
+{
+    pkt.add_byte((uint8_t) key_.priv.param());
+    pkt.add(key_.priv.get_encoded());
+}
+
+void
+SphincsPlusKeyMaterial::forget_secret_mpi()
+{
+    key_.priv.secure_clear();
+}
+
+size_t
+SphincsPlusKeyMaterial::bits() const noexcept
+{
+    return 8 * pub().get_encoded().size(); /* public key length */
+}
+
+const pgp_sphincsplus_public_key_t &
+SphincsPlusKeyMaterial::pub() const noexcept
+{
+    return key_.pub;
+}
+
+const pgp_sphincsplus_private_key_t &
+SphincsPlusKeyMaterial::priv() const noexcept
+{
+    return key_.priv;
+}
+#endif
+
+} // namespace pgp
