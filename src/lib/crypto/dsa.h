@@ -43,6 +43,17 @@ typedef struct pgp_dsa_key_t {
     pgp::mpi y;
     /* secret mpi */
     pgp::mpi x;
+
+    void
+    clear_secret()
+    {
+        x.forget();
+    }
+
+    ~pgp_dsa_key_t()
+    {
+        clear_secret();
+    }
 } pgp_dsa_key_t;
 
 typedef struct pgp_dsa_signature_t {

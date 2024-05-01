@@ -30,6 +30,22 @@
 #include "support.h"
 #include "crypto.h"
 
+bool
+rsa_sec_empty(const pgp::KeyMaterial &key)
+{
+    auto &rsa = dynamic_cast<const pgp::RSAKeyMaterial &>(key);
+    return mpi_empty(rsa.d()) && mpi_empty(rsa.p()) && mpi_empty(rsa.q()) &&
+           mpi_empty(rsa.u());
+}
+
+bool
+rsa_sec_filled(const pgp::KeyMaterial &key)
+{
+    auto &rsa = dynamic_cast<const pgp::RSAKeyMaterial &>(key);
+    return !mpi_empty(rsa.d()) && !mpi_empty(rsa.p()) && !mpi_empty(rsa.q()) &&
+           !mpi_empty(rsa.u());
+}
+
 /* This test loads a .gpg keyring and tests protect/unprotect functionality.
  * There is also some lock/unlock testing in here, since the two are
  * somewhat related.
@@ -77,10 +93,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     assert_int_equal(key->alg(), PGP_PKA_RSA);
 
     // confirm key material is currently all NULL (in other words, the key is locked)
-    assert_true(mpi_empty(key->material().rsa.d));
-    assert_true(mpi_empty(key->material().rsa.p));
-    assert_true(mpi_empty(key->material().rsa.q));
-    assert_true(mpi_empty(key->material().rsa.u));
+    assert_true(rsa_sec_empty(key->material()));
 
     // try to unprotect with a failing password provider
     pgp_password_provider_t pprov(failing_password_callback);
@@ -99,10 +112,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     assert_true(key->is_locked());
 
     // confirm secret key material is still NULL
-    assert_true(mpi_empty(key->material().rsa.d));
-    assert_true(mpi_empty(key->material().rsa.p));
-    assert_true(mpi_empty(key->material().rsa.q));
-    assert_true(mpi_empty(key->material().rsa.u));
+    assert_true(rsa_sec_empty(key->material()));
 
     // unlock (no password required since the key is not protected)
     pprov = {asserting_password_callback};
@@ -110,16 +120,14 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     assert_false(key->is_locked());
 
     // secret key material should be available
-    assert_false(mpi_empty(key->material().rsa.d));
-    assert_false(mpi_empty(key->material().rsa.p));
-    assert_false(mpi_empty(key->material().rsa.q));
-    assert_false(mpi_empty(key->material().rsa.u));
+    assert_true(rsa_sec_filled(key->material()));
 
     // save the secret MPIs for some later comparisons
-    pgp::mpi d = key->material().rsa.d;
-    pgp::mpi p = key->material().rsa.p;
-    pgp::mpi q = key->material().rsa.q;
-    pgp::mpi u = key->material().rsa.u;
+    auto &rsa = dynamic_cast<const pgp::RSAKeyMaterial &>(key->material());
+    auto  d = rsa.d();
+    auto  p = rsa.p();
+    auto  q = rsa.q();
+    auto  u = rsa.u();
 
     // confirm that packets[0] is no longer encrypted
     {
@@ -140,36 +148,35 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
         assert_false(reloaded_key->is_locked());
         assert_false(reloaded_key->is_protected());
         // secret key material should not be NULL
-        assert_false(mpi_empty(reloaded_key->material().rsa.d));
-        assert_false(mpi_empty(reloaded_key->material().rsa.p));
-        assert_false(mpi_empty(reloaded_key->material().rsa.q));
-        assert_false(mpi_empty(reloaded_key->material().rsa.u));
+        auto &rsar = dynamic_cast<const pgp::RSAKeyMaterial &>(reloaded_key->material());
+        assert_false(mpi_empty(rsar.d()));
+        assert_false(mpi_empty(rsar.p()));
+        assert_false(mpi_empty(rsar.q()));
+        assert_false(mpi_empty(rsar.u()));
 
         // compare MPIs of the reloaded key, with the unlocked key from earlier
-        assert_true(key->material().rsa.d == reloaded_key->material().rsa.d);
-        assert_true(key->material().rsa.p == reloaded_key->material().rsa.p);
-        assert_true(key->material().rsa.q == reloaded_key->material().rsa.q);
-        assert_true(key->material().rsa.u == reloaded_key->material().rsa.u);
+        assert_true(rsa.d() == rsar.d());
+        assert_true(rsa.p() == rsar.p());
+        assert_true(rsa.q() == rsar.q());
+        assert_true(rsa.u() == rsar.u());
         // negative test to try to ensure the above is a valid test
-        assert_false(key->material().rsa.d == reloaded_key->material().rsa.p);
+        assert_false(rsa.d() == rsar.p());
 
         // lock it
         assert_true(reloaded_key->lock());
         assert_true(reloaded_key->is_locked());
         // confirm that secret MPIs are NULL again
-        assert_true(mpi_empty(reloaded_key->material().rsa.d));
-        assert_true(mpi_empty(reloaded_key->material().rsa.p));
-        assert_true(mpi_empty(reloaded_key->material().rsa.q));
-        assert_true(mpi_empty(reloaded_key->material().rsa.u));
+        assert_true(rsa_sec_empty(reloaded_key->material()));
         // unlock it (no password, since it's not protected)
         pgp_password_provider_t pprov(asserting_password_callback);
         assert_true(reloaded_key->unlock(pprov));
         assert_false(reloaded_key->is_locked());
         // compare MPIs of the reloaded key, with the unlocked key from earlier
-        assert_true(key->material().rsa.d == reloaded_key->material().rsa.d);
-        assert_true(key->material().rsa.p == reloaded_key->material().rsa.p);
-        assert_true(key->material().rsa.q == reloaded_key->material().rsa.q);
-        assert_true(key->material().rsa.u == reloaded_key->material().rsa.u);
+        auto &rsar2 = dynamic_cast<const pgp::RSAKeyMaterial &>(reloaded_key->material());
+        assert_true(rsa.d() == rsar2.d());
+        assert_true(rsa.p() == rsar2.p());
+        assert_true(rsa.q() == rsar2.q());
+        assert_true(rsa.u() == rsar2.u());
 
         delete ks;
     }
@@ -212,10 +219,11 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     assert_false(key->is_locked());
 
     // compare secret MPIs with those from earlier
-    assert_true(key->material().rsa.d == d);
-    assert_true(key->material().rsa.p == p);
-    assert_true(key->material().rsa.q == q);
-    assert_true(key->material().rsa.u == u);
+    auto &rsa2 = dynamic_cast<const pgp::RSAKeyMaterial &>(key->material());
+    assert_true(rsa2.d() == d);
+    assert_true(rsa2.p() == p);
+    assert_true(rsa2.q() == q);
+    assert_true(rsa2.u() == u);
 
     // cleanup
     delete key;
