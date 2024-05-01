@@ -478,48 +478,6 @@ find_suitable_key(pgp_op_t op, pgp_key_t *key, rnp::KeyProvider *key_provider, b
     return subkey;
 }
 
-pgp_hash_alg_t
-pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey)
-{
-#if defined(ENABLE_PQC)
-    switch (pubkey->alg) {
-    case PGP_PKA_SPHINCSPLUS_SHA2:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        return sphincsplus_default_hash_alg(pubkey->alg,
-                                            pubkey->material.sphincsplus.pub.param());
-    case PGP_PKA_DILITHIUM3_ED25519:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
-        return dilithium_default_hash_alg();
-    default:
-        break;
-    }
-#endif
-
-    if ((pubkey->alg != PGP_PKA_DSA) && (pubkey->alg != PGP_PKA_ECDSA)) {
-        return hash;
-    }
-
-    pgp_hash_alg_t hash_min;
-    if (pubkey->alg == PGP_PKA_ECDSA) {
-        hash_min = ecdsa_get_min_hash(pubkey->material.ec.curve);
-    } else {
-        hash_min = dsa_get_min_hash(pubkey->material.dsa.q.bits());
-    }
-
-    if (rnp::Hash::size(hash) < rnp::Hash::size(hash_min)) {
-        return hash_min;
-    }
-    return hash;
-}
-
 static void
 bytevec_append_uniq(std::vector<uint8_t> &vec, uint8_t val)
 {
@@ -790,13 +748,13 @@ pgp_revoke_t::pgp_revoke_t(pgp_subsig_t &sig)
 
 pgp_key_t::pgp_key_t(const pgp_key_pkt_t &keypkt) : pkt_(keypkt)
 {
-    if (!is_key_pkt(pkt_.tag) || !pkt_.material.alg) {
+    if (!is_key_pkt(pkt_.tag) || !pkt_.material->alg()) {
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    if (pgp_keyid(keyid_, pkt_) || pgp_fingerprint(fingerprint_, pkt_) ||
-        !pkt_.material.get_grip(grip_)) {
+    if (pgp_keyid(keyid_, pkt_) || pgp_fingerprint(fingerprint_, pkt_)) {
         throw rnp::rnp_exception(RNP_ERROR_GENERIC);
     }
+    grip_ = pkt_.material->grip();
 
     /* parse secret key if not encrypted */
     if (is_secret_key_pkt(pkt_.tag)) {
@@ -806,7 +764,7 @@ pgp_key_t::pgp_key_t(const pgp_key_pkt_t &keypkt) : pkt_(keypkt)
             throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
         }
         /* decryption resets validity */
-        pkt_.material.validity = keypkt.material.validity;
+        pkt_.material->set_validity(keypkt.material->validity());
     }
     /* add rawpacket */
     rawpkt_ = pgp_rawpacket_t(pkt_);
@@ -1234,10 +1192,22 @@ pgp_key_t::set_pkt(const pgp_key_pkt_t &pkt)
     pkt_ = pkt;
 }
 
-pgp_key_material_t &
+const pgp::KeyMaterial &
+pgp_key_t::material() const
+{
+    if (!pkt_.material) {
+        throw rnp::rnp_exception(RNP_ERROR_NULL_POINTER);
+    }
+    return *pkt_.material;
+}
+
+pgp::KeyMaterial &
 pgp_key_t::material()
 {
-    return pkt_.material;
+    if (!pkt_.material) {
+        throw rnp::rnp_exception(RNP_ERROR_NULL_POINTER);
+    }
+    return *pkt_.material;
 }
 
 pgp_pubkey_alg_t
@@ -1249,21 +1219,7 @@ pgp_key_t::alg() const
 pgp_curve_t
 pgp_key_t::curve() const
 {
-    switch (alg()) {
-    case PGP_PKA_ECDH:
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-        return pkt_.material.ec.curve;
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_ED25519:
-        return PGP_CURVE_ED25519;
-    case PGP_PKA_X25519:
-        return PGP_CURVE_25519;
-#endif
-    default:
-        return PGP_CURVE_UNKNOWN;
-    }
+    return material().curve();
 }
 
 pgp_version_t
@@ -1281,7 +1237,7 @@ pgp_key_t::type() const
 bool
 pgp_key_t::encrypted() const
 {
-    return is_secret() && !pkt().material.secret;
+    return is_secret() && !material().secret();
 }
 
 uint8_t
@@ -1609,11 +1565,8 @@ pgp_key_t::unlock(const pgp_password_provider_t &provider, pgp_op_t op)
         return false;
     }
 
-    // this shouldn't really be necessary, but just in case
-    forget_secret_key_fields(&pkt_.material);
-    // copy the decrypted mpis into the pgp_key_t
-    pkt_.material = decrypted_seckey->material;
-    pkt_.material.secret = true;
+    // move the decrypted mpis into the pgp_key_t
+    pkt_.material = std::move(decrypted_seckey->material);
     delete decrypted_seckey;
     return true;
 }
@@ -1632,7 +1585,7 @@ pgp_key_t::lock()
         return true;
     }
 
-    forget_secret_key_fields(&pkt_.material);
+    material().clear_secret();
     return true;
 }
 
@@ -1662,7 +1615,7 @@ pgp_key_t::protect(pgp_key_pkt_t &                    decrypted,
         return false;
     }
     bool ownpkt = &decrypted == &pkt_;
-    if (!decrypted.material.secret) {
+    if (!decrypted.material->secret()) {
         RNP_LOG("Decrypted secret key must be provided");
         return false;
     }
@@ -1723,7 +1676,7 @@ pgp_key_t::unprotect(const pgp_password_provider_t &password_provider,
     }
     pkt_ = std::move(*decrypted_seckey);
     /* current logic is that unprotected key should be additionally unlocked */
-    forget_secret_key_fields(&pkt_.material);
+    material().clear_secret();
     delete decrypted_seckey;
     return true;
 }
@@ -2079,7 +2032,7 @@ pgp_key_t::validate_sig(pgp_signature_info_t &      sinfo,
 
     /* Validate signature itself */
     if (sinfo.signer_valid || valid_at(sinfo.sig->creation())) {
-        sinfo.valid = !signature_validate(*sinfo.sig, pkt_.material, hash, ctx, hdr);
+        sinfo.valid = !signature_validate(*sinfo.sig, *pkt_.material, hash, ctx, hdr);
     } else {
         sinfo.valid = false;
         RNP_LOG("invalid or untrusted key");
@@ -2453,7 +2406,7 @@ pgp_key_t::sign_init(rnp::RNG &       rng,
                      pgp_version_t    version) const
 {
     sig.version = version;
-    sig.halg = pgp_hash_adjust_alg_to_key(hash, &pkt_);
+    sig.halg = pkt_.material->adjust_hash(hash);
     sig.palg = alg();
     sig.set_keyfp(fp());
     sig.set_creation(creation);
@@ -2477,7 +2430,7 @@ pgp_key_t::sign_cert(const pgp_key_pkt_t &   key,
 {
     sig.fill_hashed_data();
     auto hash = signature_hash_certification(sig, key, uid);
-    signature_calculate(sig, pkt_.material, *hash, ctx);
+    signature_calculate(sig, *pkt_.material, *hash, ctx);
 }
 
 void
@@ -2487,7 +2440,7 @@ pgp_key_t::sign_direct(const pgp_key_pkt_t & key,
 {
     sig.fill_hashed_data();
     auto hash = signature_hash_direct(sig, key);
-    signature_calculate(sig, pkt_.material, *hash, ctx);
+    signature_calculate(sig, *pkt_.material, *hash, ctx);
 }
 
 void
@@ -2498,7 +2451,7 @@ pgp_key_t::sign_binding(const pgp_key_pkt_t & key,
     sig.fill_hashed_data();
     auto hash = is_primary() ? signature_hash_binding(sig, pkt(), key) :
                                signature_hash_binding(sig, key, pkt());
-    signature_calculate(sig, pkt_.material, *hash, ctx);
+    signature_calculate(sig, *pkt_.material, *hash, ctx);
 }
 
 void
@@ -2882,9 +2835,9 @@ pgp_key_t::merge(const pgp_key_t &src)
     if (is_secret() && !is_locked()) {
         /* we may do thing below only because key material is opaque structure without
          * pointers! */
-        tmpkey.pkt().material = pkt().material;
+        tmpkey.pkt().material = pkt().material->clone();
     } else if (src.is_secret() && !src.is_locked()) {
-        tmpkey.pkt().material = src.pkt().material;
+        tmpkey.pkt().material = src.pkt().material->clone();
     }
     /* copy validity status */
     tmpkey.validity_ = validity_;
@@ -2938,9 +2891,9 @@ pgp_key_t::merge(const pgp_key_t &src, pgp_key_t *primary)
     if (is_secret() && !is_locked()) {
         /* we may do thing below only because key material is opaque structure without
          * pointers! */
-        tmpkey.pkt().material = pkt().material;
+        tmpkey.pkt().material = pkt().material->clone();
     } else if (src.is_secret() && !src.is_locked()) {
-        tmpkey.pkt().material = src.pkt().material;
+        tmpkey.pkt().material = src.pkt().material->clone();
     }
     /* copy validity status */
     tmpkey.validity_ = validity_;
@@ -2948,292 +2901,4 @@ pgp_key_t::merge(const pgp_key_t &src, pgp_key_t *primary)
 
     *this = std::move(tmpkey);
     return true;
-}
-
-pgp_curve_t
-pgp_key_material_t::curve() const
-{
-    switch (alg) {
-    case PGP_PKA_ECDH:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_ECDSA:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_EDDSA:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SM2:
-        return ec.curve;
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_ED25519:
-        return PGP_CURVE_ED25519;
-    case PGP_PKA_X25519:
-        return PGP_CURVE_25519;
-#endif
-    default:
-        return PGP_CURVE_UNKNOWN;
-    }
-}
-
-size_t
-pgp_key_material_t::bits() const
-{
-    switch (alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        return 8 * rsa.n.bytes();
-    case PGP_PKA_DSA:
-        return 8 * dsa.p.bytes();
-    case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        return 8 * eg.y.bytes();
-    case PGP_PKA_ECDH:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_ECDSA:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_EDDSA:
-        FALLTHROUGH_STATEMENT;
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_ED25519:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_X25519:
-        FALLTHROUGH_STATEMENT;
-#endif
-    case PGP_PKA_SM2: {
-        /* handle ecc cases */
-        const ec_curve_desc_t *curve_desc = get_curve_desc(curve());
-        return curve_desc ? curve_desc->bitlen : 0;
-    }
-#if defined(ENABLE_PQC)
-    case PGP_PKA_KYBER768_X25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384:
-        return 8 * kyber_ecdh.pub.get_encoded().size(); /* public key length */
-    case PGP_PKA_DILITHIUM3_ED25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
-        return 8 * dilithium_exdsa.pub.get_encoded().size(); /* public key length*/
-    case PGP_PKA_SPHINCSPLUS_SHA2:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        return 8 * sphincsplus.pub.get_encoded().size(); /* public key length */
-#endif
-    default:
-        RNP_LOG("Unknown public key alg: %d", (int) alg);
-        return 0;
-    }
-}
-
-size_t
-pgp_key_material_t::qbits() const
-{
-    if (alg != PGP_PKA_DSA) {
-        return 0;
-    }
-    return 8 * dsa.q.bytes();
-}
-
-void
-pgp_key_material_t::validate(rnp::SecurityContext &ctx, bool reset)
-{
-    if (!reset && validity.validated) {
-        return;
-    }
-    validity.reset();
-    validity.valid = !validate_pgp_key_material(this, &ctx.rng);
-    validity.validated = true;
-}
-
-bool
-pgp_key_material_t::valid() const
-{
-    return validity.validated && validity.valid;
-}
-
-namespace {
-void
-grip_hash_mpi(rnp::Hash &hash, const pgp::mpi &val, const char name, bool lzero = true)
-{
-    size_t len = val.bytes();
-    size_t idx = 0;
-    for (idx = 0; (idx < len) && !val.mpi[idx]; idx++)
-        ;
-
-    if (name) {
-        size_t hlen = idx >= len ? 0 : len - idx;
-        if ((len > idx) && lzero && (val.mpi[idx] & 0x80)) {
-            hlen++;
-        }
-
-        char buf[26] = {0};
-        snprintf(buf, sizeof(buf), "(1:%c%zu:", name, hlen);
-        hash.add(buf, strlen(buf));
-    }
-
-    if (idx < len) {
-        /* gcrypt prepends mpis with zero if higher bit is set */
-        if (lzero && (val.mpi[idx] & 0x80)) {
-            uint8_t zero = 0;
-            hash.add(&zero, 1);
-        }
-        hash.add(val.mpi + idx, len - idx);
-    }
-    if (name) {
-        hash.add(")", 1);
-    }
-}
-
-void
-grip_hash_ecc_hex(rnp::Hash &hash, const char *hex, char name)
-{
-    pgp::mpi mpi = {};
-    mpi.len = rnp::hex_decode(hex, mpi.mpi, sizeof(mpi.mpi));
-    if (!mpi.len) {
-        RNP_LOG("wrong hex mpi");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
-
-    /* libgcrypt doesn't add leading zero when hashes ecc mpis */
-    return grip_hash_mpi(hash, mpi, name, false);
-}
-
-void
-grip_hash_ec(rnp::Hash &hash, const pgp_ec_key_t &key)
-{
-    const ec_curve_desc_t *desc = get_curve_desc(key.curve);
-    if (!desc) {
-        RNP_LOG("unknown curve %d", (int) key.curve);
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
-
-    /* build uncompressed point from gx and gy */
-    pgp::mpi g = {};
-    g.mpi[0] = 0x04;
-    g.len = 1;
-    size_t len = rnp::hex_decode(desc->gx, g.mpi + g.len, sizeof(g.mpi) - g.len);
-    if (!len) {
-        RNP_LOG("wrong x mpi");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
-    g.len += len;
-    len = rnp::hex_decode(desc->gy, g.mpi + g.len, sizeof(g.mpi) - g.len);
-    if (!len) {
-        RNP_LOG("wrong y mpi");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
-    g.len += len;
-
-    /* p, a, b, g, n, q */
-    grip_hash_ecc_hex(hash, desc->p, 'p');
-    grip_hash_ecc_hex(hash, desc->a, 'a');
-    grip_hash_ecc_hex(hash, desc->b, 'b');
-    grip_hash_mpi(hash, g, 'g', false);
-    grip_hash_ecc_hex(hash, desc->n, 'n');
-
-    if ((key.curve == PGP_CURVE_ED25519) || (key.curve == PGP_CURVE_25519)) {
-        if (g.len < 1) {
-            RNP_LOG("wrong 25519 p");
-            throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-        }
-        g.len = key.p.len - 1;
-        memcpy(g.mpi, key.p.mpi + 1, g.len);
-        grip_hash_mpi(hash, g, 'q', false);
-    } else {
-        grip_hash_mpi(hash, key.p, 'q', false);
-    }
-}
-} // namespace
-
-/* keygrip is subjectKeyHash from pkcs#15 for RSA. */
-bool
-pgp_key_material_t::get_grip(pgp_key_grip_t &grip) const
-{
-    try {
-        auto hash = rnp::Hash::create(PGP_HASH_SHA1);
-        switch (alg) {
-        case PGP_PKA_RSA:
-        case PGP_PKA_RSA_SIGN_ONLY:
-        case PGP_PKA_RSA_ENCRYPT_ONLY:
-            grip_hash_mpi(*hash, rsa.n, '\0');
-            break;
-        case PGP_PKA_DSA:
-            grip_hash_mpi(*hash, dsa.p, 'p');
-            grip_hash_mpi(*hash, dsa.q, 'q');
-            grip_hash_mpi(*hash, dsa.g, 'g');
-            grip_hash_mpi(*hash, dsa.y, 'y');
-            break;
-        case PGP_PKA_ELGAMAL:
-        case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-            grip_hash_mpi(*hash, eg.p, 'p');
-            grip_hash_mpi(*hash, eg.g, 'g');
-            grip_hash_mpi(*hash, eg.y, 'y');
-            break;
-        case PGP_PKA_ECDH:
-        case PGP_PKA_ECDSA:
-        case PGP_PKA_EDDSA:
-        case PGP_PKA_SM2:
-            grip_hash_ec(*hash, ec);
-            break;
-#if defined(ENABLE_CRYPTO_REFRESH)
-        // TODO: if GnuPG would ever support v6, check whether this works correctly.
-        case PGP_PKA_ED25519:
-            hash->add(ed25519.pub);
-            break;
-        case PGP_PKA_X25519:
-            hash->add(x25519.pub);
-            break;
-#endif
-#if defined(ENABLE_PQC)
-        case PGP_PKA_KYBER768_X25519:
-            FALLTHROUGH_STATEMENT;
-        // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
-        case PGP_PKA_KYBER768_P256:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_KYBER1024_P384:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_KYBER768_BP256:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_KYBER1024_BP384:
-            hash->add(kyber_ecdh.pub.get_encoded());
-            break;
-        case PGP_PKA_DILITHIUM3_ED25519:
-            FALLTHROUGH_STATEMENT;
-        // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
-        case PGP_PKA_DILITHIUM3_P256:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_DILITHIUM5_P384:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_DILITHIUM3_BP256:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_DILITHIUM5_BP384:
-            hash->add(dilithium_exdsa.pub.get_encoded());
-            break;
-        case PGP_PKA_SPHINCSPLUS_SHA2:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_SPHINCSPLUS_SHAKE:
-            hash->add(sphincsplus.pub.get_encoded());
-            break;
-#endif
-        default:
-            RNP_LOG("unsupported public-key algorithm %d", (int) alg);
-            return false;
-        }
-        return hash->finish(grip.data()) == grip.size();
-    } catch (const std::exception &e) {
-        RNP_LOG("Grip calculation failed: %s", e.what());
-        return false;
-    }
 }

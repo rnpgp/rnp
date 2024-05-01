@@ -880,6 +880,117 @@ stream_dump_signature(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     return ret;
 }
 
+static void
+stream_dump_key_material(rnp_dump_ctx_t &        ctx,
+                         const pgp::KeyMaterial *material,
+                         pgp_dest_t *            dst)
+{
+    if (!material) {
+        return;
+    }
+    switch (material->alg()) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY: {
+        auto &rsa = dynamic_cast<const pgp::RSAKeyMaterial &>(*material);
+        dst_print_mpi(dst, "rsa n", rsa.n(), ctx.dump_mpi);
+        dst_print_mpi(dst, "rsa e", rsa.e(), ctx.dump_mpi);
+        return;
+    }
+    case PGP_PKA_DSA: {
+        auto &dsa = dynamic_cast<const pgp::DSAKeyMaterial &>(*material);
+        dst_print_mpi(dst, "dsa p", dsa.p(), ctx.dump_mpi);
+        dst_print_mpi(dst, "dsa q", dsa.q(), ctx.dump_mpi);
+        dst_print_mpi(dst, "dsa g", dsa.g(), ctx.dump_mpi);
+        dst_print_mpi(dst, "dsa y", dsa.y(), ctx.dump_mpi);
+        return;
+    }
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
+        auto &eg = dynamic_cast<const pgp::EGKeyMaterial &>(*material);
+        dst_print_mpi(dst, "eg p", eg.p(), ctx.dump_mpi);
+        dst_print_mpi(dst, "eg g", eg.g(), ctx.dump_mpi);
+        dst_print_mpi(dst, "eg y", eg.y(), ctx.dump_mpi);
+        return;
+    }
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2: {
+        auto &ec = dynamic_cast<const pgp::ECKeyMaterial &>(*material);
+        auto  cdesc = get_curve_desc(ec.curve());
+        dst_print_mpi(dst, "ecc p", ec.p(), ctx.dump_mpi);
+        dst_printf(dst, "ecc curve: %s\n", cdesc ? cdesc->pgp_name : "unknown");
+        return;
+    }
+    case PGP_PKA_ECDH: {
+        auto &ec = dynamic_cast<const pgp::ECDHKeyMaterial &>(*material);
+        auto  cdesc = get_curve_desc(ec.curve());
+        /* Common EC fields */
+        dst_print_mpi(dst, "ecdh p", ec.p(), ctx.dump_mpi);
+        dst_printf(dst, "ecdh curve: %s\n", cdesc ? cdesc->pgp_name : "unknown");
+        /* ECDH-only fields */
+        dst_print_halg(dst, "ecdh hash algorithm", ec.kdf_hash_alg());
+        dst_printf(dst, "ecdh key wrap algorithm: %d\n", (int) ec.key_wrap_alg());
+        return;
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519: {
+        auto &ed25519 = dynamic_cast<const pgp::Ed25519KeyMaterial &>(*material);
+        dst_print_vec(dst, "ed25519", ed25519.pub(), ctx.dump_mpi);
+        return;
+    }
+    case PGP_PKA_X25519: {
+        auto &x25519 = dynamic_cast<const pgp::X25519KeyMaterial &>(*material);
+        dst_print_vec(dst, "x25519", x25519.pub(), ctx.dump_mpi);
+        return;
+    }
+#endif
+#if defined(ENABLE_PQC)
+    case PGP_PKA_KYBER768_X25519:
+        FALLTHROUGH_STATEMENT;
+    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER768_P256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_P384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER768_BP256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_BP384: {
+        auto &kyber = dynamic_cast<const pgp::KyberKeyMaterial &>(*material);
+        dst_print_vec(
+          dst, "mlkem-ecdh encoded pubkey", kyber.pub().get_encoded(), ctx.dump_mpi);
+        return;
+    }
+    case PGP_PKA_DILITHIUM3_ED25519:
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_P256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_P384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_BP256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_BP384: {
+        auto &dilithium = dynamic_cast<const pgp::DilithiumKeyMaterial &>(*material);
+        dst_print_vec(dst,
+                      "mldsa-ecdsa/eddsa encodced pubkey",
+                      dilithium.pub().get_encoded(),
+                      ctx.dump_mpi);
+        return;
+    }
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE: {
+        auto &sphincs = dynamic_cast<const pgp::SphincsPlusKeyMaterial &>(*material);
+        dst_print_vec(dst, "slhdsa encoded pubkey", sphincs.pub().get_encoded(), ctx.dump_mpi);
+        return;
+    }
+#endif
+    default:
+        dst_printf(dst, "unknown public key algorithm\n");
+    }
+}
+
 static rnp_result_t
 stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
@@ -913,93 +1024,7 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     }
     dst_printf(dst, "public key material:\n");
     indent_dest_increase(dst);
-
-    switch (key.alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        dst_print_mpi(dst, "rsa n", key.material.rsa.n, ctx->dump_mpi);
-        dst_print_mpi(dst, "rsa e", key.material.rsa.e, ctx->dump_mpi);
-        break;
-    case PGP_PKA_DSA:
-        dst_print_mpi(dst, "dsa p", key.material.dsa.p, ctx->dump_mpi);
-        dst_print_mpi(dst, "dsa q", key.material.dsa.q, ctx->dump_mpi);
-        dst_print_mpi(dst, "dsa g", key.material.dsa.g, ctx->dump_mpi);
-        dst_print_mpi(dst, "dsa y", key.material.dsa.y, ctx->dump_mpi);
-        break;
-    case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        dst_print_mpi(dst, "eg p", key.material.eg.p, ctx->dump_mpi);
-        dst_print_mpi(dst, "eg g", key.material.eg.g, ctx->dump_mpi);
-        dst_print_mpi(dst, "eg y", key.material.eg.y, ctx->dump_mpi);
-        break;
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2: {
-        const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ec.curve);
-        dst_print_mpi(dst, "ecc p", key.material.ec.p, ctx->dump_mpi);
-        dst_printf(dst, "ecc curve: %s\n", cdesc ? cdesc->pgp_name : "unknown");
-        break;
-    }
-    case PGP_PKA_ECDH: {
-        const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ec.curve);
-        dst_print_mpi(dst, "ecdh p", key.material.ec.p, ctx->dump_mpi);
-        dst_printf(dst, "ecdh curve: %s\n", cdesc ? cdesc->pgp_name : "unknown");
-        dst_print_halg(dst, "ecdh hash algorithm", key.material.ec.kdf_hash_alg);
-        dst_printf(dst, "ecdh key wrap algorithm: %d\n", (int) key.material.ec.key_wrap_alg);
-        break;
-    }
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_ED25519:
-        dst_print_vec(dst, "ed25519", key.material.ed25519.pub, ctx->dump_mpi);
-        break;
-    case PGP_PKA_X25519:
-        dst_print_vec(dst, "x25519", key.material.x25519.pub, ctx->dump_mpi);
-        break;
-#endif
-#if defined(ENABLE_PQC)
-    case PGP_PKA_KYBER768_X25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384:
-        dst_print_vec(dst,
-                      "mlkem-ecdh encoded pubkey",
-                      key.material.kyber_ecdh.pub.get_encoded(),
-                      ctx->dump_mpi);
-        break;
-    case PGP_PKA_DILITHIUM3_ED25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
-        dst_print_vec(dst,
-                      "mldsa-ecdsa/eddsa encodced pubkey",
-                      key.material.dilithium_exdsa.pub.get_encoded(),
-                      ctx->dump_mpi);
-        break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        dst_print_vec(dst,
-                      "slhdsa encoded pubkey",
-                      key.material.sphincsplus.pub.get_encoded(),
-                      ctx->dump_mpi);
-        break;
-#endif
-    default:
-        dst_printf(dst, "unknown public key algorithm\n");
-    }
+    stream_dump_key_material(*ctx, key.material.get(), dst);
     indent_dest_decrease(dst);
 
     if (is_secret_key_pkt(key.tag)) {
@@ -1051,8 +1076,8 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     }
 
     if (ctx->dump_grips) {
-        pgp_key_grip_t grip;
-        if (key.material.get_grip(grip)) {
+        if (key.material) {
+            pgp_key_grip_t grip = key.material->grip();
             dst_print_hex(dst, "grip", grip.data(), grip.size(), false);
         } else {
             dst_printf(dst, "grip: failed to calculate\n");
@@ -2047,6 +2072,114 @@ stream_dump_signature_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *
     return stream_dump_signature_pkt_json(ctx, &sig, pkt);
 }
 
+static bool
+stream_dump_key_material_json(rnp_dump_ctx_t &        ctx,
+                              const pgp::KeyMaterial *material,
+                              json_object *           jso)
+{
+    if (!material) {
+        return false; // LCOV_EXCL_LINE
+    }
+    switch (material->alg()) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY: {
+        auto &rsa = dynamic_cast<const pgp::RSAKeyMaterial &>(*material);
+        if (!obj_add_mpi_json(jso, "n", rsa.n(), ctx.dump_mpi) ||
+            !obj_add_mpi_json(jso, "e", rsa.e(), ctx.dump_mpi)) {
+            return false; // LCOV_EXCL_LINE
+        }
+        return true;
+    }
+    case PGP_PKA_DSA: {
+        auto &dsa = dynamic_cast<const pgp::DSAKeyMaterial &>(*material);
+        if (!obj_add_mpi_json(jso, "p", dsa.p(), ctx.dump_mpi) ||
+            !obj_add_mpi_json(jso, "q", dsa.q(), ctx.dump_mpi) ||
+            !obj_add_mpi_json(jso, "g", dsa.g(), ctx.dump_mpi) ||
+            !obj_add_mpi_json(jso, "y", dsa.y(), ctx.dump_mpi)) {
+            return false; // LCOV_EXCL_LINE
+        }
+        return true;
+    }
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
+        auto &eg = dynamic_cast<const pgp::EGKeyMaterial &>(*material);
+        if (!obj_add_mpi_json(jso, "p", eg.p(), ctx.dump_mpi) ||
+            !obj_add_mpi_json(jso, "g", eg.g(), ctx.dump_mpi) ||
+            !obj_add_mpi_json(jso, "y", eg.y(), ctx.dump_mpi)) {
+            return false; // LCOV_EXCL_LINE
+        }
+        return true;
+    }
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
+    case PGP_PKA_ECDH: {
+        auto &ec = dynamic_cast<const pgp::ECKeyMaterial &>(*material);
+        auto  cdesc = get_curve_desc(ec.curve());
+        /* Common EC fields */
+        if (!obj_add_mpi_json(jso, "p", ec.p(), ctx.dump_mpi)) {
+            return false; // LCOV_EXCL_LINE
+        }
+        if (!json_add(jso, "curve", cdesc ? cdesc->pgp_name : "unknown")) {
+            return false; // LCOV_EXCL_LINE
+        }
+        if (material->alg() != PGP_PKA_ECDH) {
+            return true;
+        }
+        /* ECDH-only fields */
+        auto &ecdh = dynamic_cast<const pgp::ECDHKeyMaterial &>(*material);
+        if (!obj_add_intstr_json(jso, "hash algorithm", ecdh.kdf_hash_alg(), hash_alg_map)) {
+            return false; // LCOV_EXCL_LINE
+        }
+        if (!obj_add_intstr_json(
+              jso, "key wrap algorithm", ecdh.key_wrap_alg(), symm_alg_map)) {
+            return false; // LCOV_EXCL_LINE
+        }
+        return true;
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+    case PGP_PKA_X25519:
+        /* TODO */
+        return true;
+#endif
+#if defined(ENABLE_PQC)
+    case PGP_PKA_KYBER768_X25519:
+        FALLTHROUGH_STATEMENT;
+    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER768_P256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_P384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER768_BP256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_BP384:
+        // TODO
+        return true;
+    case PGP_PKA_DILITHIUM3_ED25519:
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_P256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_P384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_BP256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_BP384:
+        /* TODO */
+        return true;
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
+        /* TODO */
+        return true;
+#endif
+    default:
+        return false;
+    }
+}
+
 static rnp_result_t
 stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
 {
@@ -2087,101 +2220,8 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     if (!material || !json_add(pkt, "material", material)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
-
-    switch (key.alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        if (!obj_add_mpi_json(material, "n", key.material.rsa.n, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "e", key.material.rsa.e, ctx->dump_mpi)) {
-            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-        }
-        break;
-    case PGP_PKA_DSA:
-        if (!obj_add_mpi_json(material, "p", key.material.dsa.p, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "q", key.material.dsa.q, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "g", key.material.dsa.g, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "y", key.material.dsa.y, ctx->dump_mpi)) {
-            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-        }
-        break;
-    case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!obj_add_mpi_json(material, "p", key.material.eg.p, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "g", key.material.eg.g, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "y", key.material.eg.y, ctx->dump_mpi)) {
-            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-        }
-        break;
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2: {
-        const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ec.curve);
-        if (!obj_add_mpi_json(material, "p", key.material.ec.p, ctx->dump_mpi)) {
-            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-        }
-        if (!json_add(material, "curve", cdesc ? cdesc->pgp_name : "unknown")) {
-            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-        }
-        break;
-    }
-    case PGP_PKA_ECDH: {
-        const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ec.curve);
-        if (!obj_add_mpi_json(material, "p", key.material.ec.p, ctx->dump_mpi)) {
-            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-        }
-        if (!json_add(material, "curve", cdesc ? cdesc->pgp_name : "unknown")) {
-            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-        }
-        if (!obj_add_intstr_json(
-              material, "hash algorithm", key.material.ec.kdf_hash_alg, hash_alg_map)) {
-            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-        }
-        if (!obj_add_intstr_json(
-              material, "key wrap algorithm", key.material.ec.key_wrap_alg, symm_alg_map)) {
-            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-        }
-        break;
-    }
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_ED25519:
-    case PGP_PKA_X25519:
-        /* TODO */
-        break;
-#endif
-#if defined(ENABLE_PQC)
-    case PGP_PKA_KYBER768_X25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384:
-        // TODO
-        break;
-    case PGP_PKA_DILITHIUM3_ED25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
-        /* TODO */
-        break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        /* TODO */
-        break;
-#endif
-    default:
-        break;
+    if (!stream_dump_key_material_json(*ctx, key.material.get(), material)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     if (is_secret_key_pkt(key.tag)) {
@@ -2217,10 +2257,13 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
 
-        pgp_key_grip_t grip;
-        if (!key.material.get_grip(grip) ||
-            !json_add_hex(pkt, "grip", grip.data(), grip.size())) {
-            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+        if (key.material) {
+            pgp_key_grip_t grip = key.material->grip();
+            if (!json_add_hex(pkt, "grip", grip.data(), grip.size())) {
+                return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+            }
+        } else {
+            return RNP_ERROR_BAD_PARAMETERS; // LCOV_EXCL_LINE
         }
     }
     return RNP_SUCCESS;

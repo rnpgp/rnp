@@ -4160,7 +4160,8 @@ try {
         (seckey->curve() != PGP_CURVE_25519)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    *result = x25519_bits_tweaked(seckey->material().ec);
+    auto &material = dynamic_cast<const pgp::ECDHKeyMaterial &>(seckey->material());
+    *result = material.x25519_bits_tweaked();
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -4176,7 +4177,8 @@ try {
         (seckey->curve() != PGP_CURVE_25519)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!x25519_tweak_bits(seckey->pkt().material.ec)) {
+    auto &material = dynamic_cast<pgp::ECDHKeyMaterial &>(seckey->material());
+    if (!material.x25519_tweak_bits()) {
         FFI_LOG(key->ffi, "Failed to tweak 25519 key bits.");
         return RNP_ERROR_BAD_STATE;
     }
@@ -6846,8 +6848,8 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    return get_map_value(
-      sphincsplus_params_map, key->material().sphincsplus.pub.param(), param);
+    auto &material = dynamic_cast<const pgp::SphincsPlusKeyMaterial &>(key->material());
+    return get_map_value(sphincsplus_params_map, material.pub().param(), param);
 }
 FFI_GUARD
 #endif
@@ -6875,11 +6877,11 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
     pgp_key_t *key = get_key_prefer_public(handle);
-    size_t     _qbits = key->material().qbits();
-    if (!_qbits) {
+    auto       material = dynamic_cast<const pgp::DSAKeyMaterial *>(&key->material());
+    if (!material) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    *qbits = _qbits;
+    *qbits = material->qbits();
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -7692,25 +7694,46 @@ done:
 }
 
 static rnp_result_t
-add_json_public_mpis(json_object *jso, pgp_key_t *key)
+add_json_mpis(json_object *jso, pgp_key_t *key, bool secret = false)
 {
-    const pgp_key_material_t &km = key->material();
-    switch (km.alg) {
+    auto &km = key->material();
+    switch (km.alg()) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        return add_json_mpis(jso, "n", &km.rsa.n, "e", &km.rsa.e, NULL);
-    case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        return add_json_mpis(jso, "p", &km.eg.p, "g", &km.eg.g, "y", &km.eg.y, NULL);
-    case PGP_PKA_DSA:
+    case PGP_PKA_RSA_SIGN_ONLY: {
+        auto &rsa = dynamic_cast<pgp::RSAKeyMaterial &>(km);
+        if (!secret) {
+            return add_json_mpis(jso, "n", &rsa.n(), "e", &rsa.e(), NULL);
+        }
         return add_json_mpis(
-          jso, "p", &km.dsa.p, "q", &km.dsa.q, "g", &km.dsa.g, "y", &km.dsa.y, NULL);
+          jso, "d", &rsa.d(), "p", &rsa.p(), "q", &rsa.q(), "u", &rsa.u(), NULL);
+    }
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
+        auto &eg = dynamic_cast<pgp::EGKeyMaterial &>(km);
+        if (!secret) {
+            return add_json_mpis(jso, "p", &eg.p(), "g", &eg.g(), "y", &eg.y(), NULL);
+        }
+        return add_json_mpis(jso, "x", &eg.x(), NULL);
+    }
+    case PGP_PKA_DSA: {
+        auto &dsa = dynamic_cast<pgp::DSAKeyMaterial &>(km);
+        if (!secret) {
+            return add_json_mpis(
+              jso, "p", &dsa.p(), "q", &dsa.q(), "g", &dsa.g(), "y", &dsa.y(), NULL);
+        }
+        return add_json_mpis(jso, "x", &dsa.x(), NULL);
+    }
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-        return add_json_mpis(jso, "point", &km.ec.p, NULL);
+    case PGP_PKA_SM2: {
+        auto &ec = dynamic_cast<pgp::ECKeyMaterial &>(km);
+        if (!secret) {
+            return add_json_mpis(jso, "point", &ec.p(), NULL);
+        }
+        return add_json_mpis(jso, "x", &ec.x(), NULL);
+    }
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
     case PGP_PKA_X25519:
@@ -7742,50 +7765,6 @@ add_json_public_mpis(json_object *jso, pgp_key_t *key)
     case PGP_PKA_SPHINCSPLUS_SHA2:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE:
-        return RNP_SUCCESS; /* TODO */
-#endif
-    default:
-        return RNP_ERROR_NOT_SUPPORTED;
-    }
-    return RNP_SUCCESS;
-}
-
-static rnp_result_t
-add_json_secret_mpis(json_object *jso, pgp_key_t *key)
-{
-    const pgp_key_material_t &km = key->material();
-    switch (key->alg()) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        return add_json_mpis(
-          jso, "d", &km.rsa.d, "p", &km.rsa.p, "q", &km.rsa.q, "u", &km.rsa.u, NULL);
-    case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        return add_json_mpis(jso, "x", &km.eg.x, NULL);
-    case PGP_PKA_DSA:
-        return add_json_mpis(jso, "x", &km.dsa.x, NULL);
-    case PGP_PKA_ECDH:
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-        return add_json_mpis(jso, "x", &km.ec.x, NULL);
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_ED25519:
-    case PGP_PKA_X25519:
-        return RNP_SUCCESS; /* TODO */
-#endif
-#if defined(ENABLE_PQC)
-    case PGP_PKA_KYBER768_X25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384:
         return RNP_SUCCESS; /* TODO */
 #endif
     default:
@@ -8029,13 +8008,16 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     // curve / alg-specific items
     switch (key->alg()) {
     case PGP_PKA_ECDH: {
-        const char *hash_name =
-          id_str_pair::lookup(hash_alg_map, key->material().ec.kdf_hash_alg, NULL);
+        auto ecdh = dynamic_cast<pgp::ECDHKeyMaterial *>(&key->material());
+        if (!ecdh) {
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        const char *hash_name = id_str_pair::lookup(hash_alg_map, ecdh->kdf_hash_alg(), NULL);
         if (!hash_name) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
         const char *cipher_name =
-          id_str_pair::lookup(symm_alg_map, key->material().ec.key_wrap_alg, NULL);
+          id_str_pair::lookup(symm_alg_map, ecdh->key_wrap_alg(), NULL);
         if (!cipher_name) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
@@ -8049,7 +8031,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2: {
         const char *curve_name = NULL;
-        if (!curve_type_to_str(key->material().ec.curve, &curve_name)) {
+        if (!curve_type_to_str(key->material().curve(), &curve_name)) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
         if (!json_add(jso, "curve", curve_name)) {
@@ -8182,7 +8164,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         rnp_result_t tmpret;
-        if ((tmpret = add_json_public_mpis(jsompis, key))) {
+        if ((tmpret = add_json_mpis(jsompis, key))) {
             return tmpret;
         }
     }
@@ -8203,7 +8185,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
                     return RNP_ERROR_OUT_OF_MEMORY;
                 }
                 rnp_result_t tmpret;
-                if ((tmpret = add_json_secret_mpis(jsompis, handle->sec))) {
+                if ((tmpret = add_json_mpis(jsompis, handle->sec, true))) {
                     return tmpret;
                 }
             }

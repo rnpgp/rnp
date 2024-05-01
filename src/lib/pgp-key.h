@@ -211,11 +211,11 @@ struct pgp_key_t {
     size_t              revoker_count() const;
     const pgp_fingerprint_t &get_revoker(size_t idx) const;
 
-    const pgp_key_pkt_t &pkt() const;
-    pgp_key_pkt_t &      pkt();
-    void                 set_pkt(const pgp_key_pkt_t &pkt);
-
-    pgp_key_material_t &material();
+    const pgp_key_pkt_t &   pkt() const;
+    pgp_key_pkt_t &         pkt();
+    void                    set_pkt(const pgp_key_pkt_t &pkt);
+    const pgp::KeyMaterial &material() const;
+    pgp::KeyMaterial &      material();
 
     pgp_pubkey_alg_t alg() const;
     pgp_curve_t      curve() const;
@@ -688,18 +688,5 @@ pgp_key_t *find_suitable_key(pgp_op_t          op,
                              pgp_key_t *       key,
                              rnp::KeyProvider *key_provider,
                              bool              no_primary = false);
-
-/*
- *  Picks up hash algorithm according to domain parameters set
- *  in `pubkey' and user provided hash. That's mostly because DSA
- *  and ECDSA needs special treatment.
- *
- *  @param hash set by the caller
- *  @param pubkey initialized public key
- *
- *  @returns hash algorithm that must be use for operation (mostly
-             signing with secure key which corresponds to 'pubkey')
- */
-pgp_hash_alg_t pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey);
 
 #endif // RNP_PACKET_KEY_H
