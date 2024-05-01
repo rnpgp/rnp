@@ -302,7 +302,7 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
                    const pgp_ec_key_t *        key,
                    const pgp_fingerprint_t &   fingerprint)
 {
-    if (!out_len || !in || !key || !key->x.bytes()) {
+    if (!out || !out_len || !in || !key || !key->x.bytes()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 

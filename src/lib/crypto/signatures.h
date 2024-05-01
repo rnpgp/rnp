@@ -28,6 +28,7 @@
 #define RNP_SIGNATURES_H_
 
 #include "crypto/hash.hpp"
+#include "key_material.hpp"
 
 /**
  * @brief Initialize a signature computation.
@@ -48,7 +49,7 @@ std::unique_ptr<rnp::Hash> signature_init(const pgp_key_pkt_t &  key,
  * @param hdr literal packet header for attached document signatures or NULL otherwise.
  */
 void signature_calculate(pgp_signature_t &        sig,
-                         pgp_key_material_t &     seckey,
+                         pgp::KeyMaterial &       seckey,
                          rnp::Hash &              hash,
                          rnp::SecurityContext &   ctx,
                          const pgp_literal_hdr_t *hdr = NULL);
@@ -66,7 +67,7 @@ void signature_calculate(pgp_signature_t &        sig,
  * @return RNP_SUCCESS if signature was successfully validated or error code otherwise.
  */
 rnp_result_t signature_validate(const pgp_signature_t &     sig,
-                                const pgp_key_material_t &  key,
+                                const pgp::KeyMaterial &    key,
                                 rnp::Hash &                 hash,
                                 const rnp::SecurityContext &ctx,
                                 const pgp_literal_hdr_t *   hdr = NULL);

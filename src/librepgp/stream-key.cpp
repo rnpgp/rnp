@@ -597,129 +597,18 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
         /* parse mpis depending on algorithm */
         pgp_packet_body_t body(mpis, len);
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
-        std::vector<uint8_t> tmpbuf;
-#endif
-
-        switch (key.alg) {
-        case PGP_PKA_RSA:
-        case PGP_PKA_RSA_ENCRYPT_ONLY:
-        case PGP_PKA_RSA_SIGN_ONLY:
-            if (!body.get(key.material.rsa.d) || !body.get(key.material.rsa.p) ||
-                !body.get(key.material.rsa.q) || !body.get(key.material.rsa.u)) {
-                RNP_LOG("failed to parse rsa secret key data");
-                return RNP_ERROR_BAD_FORMAT;
-            }
-            break;
-        case PGP_PKA_DSA:
-            if (!body.get(key.material.dsa.x)) {
-                RNP_LOG("failed to parse dsa secret key data");
-                return RNP_ERROR_BAD_FORMAT;
-            }
-            break;
-        case PGP_PKA_EDDSA:
-        case PGP_PKA_ECDSA:
-        case PGP_PKA_SM2:
-        case PGP_PKA_ECDH:
-            if (!body.get(key.material.ec.x)) {
-                RNP_LOG("failed to parse ecc secret key data");
-                return RNP_ERROR_BAD_FORMAT;
-            }
-            break;
-        case PGP_PKA_ELGAMAL:
-        case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-            if (!body.get(key.material.eg.x)) {
-                RNP_LOG("failed to parse eg secret key data");
-                return RNP_ERROR_BAD_FORMAT;
-            }
-            break;
-#if defined(ENABLE_CRYPTO_REFRESH)
-        case PGP_PKA_ED25519: {
-            const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_ED25519);
-            tmpbuf.resize(BITS_TO_BYTES(ec_desc->bitlen));
-            if (!body.get(tmpbuf.data(), tmpbuf.size())) {
-                RNP_LOG("failed to parse Ed25519 secret key data");
-                return RNP_ERROR_BAD_FORMAT;
-            }
-            key.material.ed25519.priv = tmpbuf;
-            break;
-        }
-        case PGP_PKA_X25519: {
-            const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_25519);
-            tmpbuf.resize(BITS_TO_BYTES(ec_desc->bitlen));
-            if (!body.get(tmpbuf.data(), tmpbuf.size())) {
-                RNP_LOG("failed to parse X25519 secret key data");
-                return RNP_ERROR_BAD_FORMAT;
-            }
-            key.material.x25519.priv = tmpbuf;
-            break;
-        }
-#endif
-#if defined(ENABLE_PQC)
-        case PGP_PKA_KYBER768_X25519:
-            FALLTHROUGH_STATEMENT;
-        // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
-        case PGP_PKA_KYBER768_P256:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_KYBER1024_P384:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_KYBER768_BP256:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_KYBER1024_BP384:
-            tmpbuf.resize(pgp_kyber_ecdh_composite_private_key_t::encoded_size(key.alg));
-            if (!body.get(tmpbuf.data(), tmpbuf.size())) {
-                RNP_LOG("failed to parse mkem-ecdh secret key data");
-                return RNP_ERROR_BAD_FORMAT;
-            }
-            key.material.kyber_ecdh.priv =
-              pgp_kyber_ecdh_composite_private_key_t(tmpbuf.data(), tmpbuf.size(), key.alg);
-            break;
-        case PGP_PKA_DILITHIUM3_ED25519:
-            FALLTHROUGH_STATEMENT;
-        // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
-        case PGP_PKA_DILITHIUM3_P256:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_DILITHIUM5_P384:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_DILITHIUM3_BP256:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_DILITHIUM5_BP384:
-            tmpbuf.resize(pgp_dilithium_exdsa_composite_private_key_t::encoded_size(key.alg));
-            if (!body.get(tmpbuf.data(), tmpbuf.size())) {
-                RNP_LOG("failed to parse mldsa-ecdsa/eddsa secret key data");
-                return RNP_ERROR_BAD_FORMAT;
-            }
-            key.material.dilithium_exdsa.priv = pgp_dilithium_exdsa_composite_private_key_t(
-              tmpbuf.data(), tmpbuf.size(), key.alg);
-            break;
-        case PGP_PKA_SPHINCSPLUS_SHA2:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_SPHINCSPLUS_SHAKE: {
-            uint8_t param;
-            if (!body.get(param)) {
-                RNP_LOG("failed to parse SLH-DSA secret key data");
-                return RNP_ERROR_BAD_FORMAT;
-            }
-            tmpbuf.resize(sphincsplus_privkey_size((sphincsplus_parameter_t) param));
-            if (!body.get(tmpbuf.data(), tmpbuf.size())) {
-                RNP_LOG("failed to parse SLH-DSA secret key data");
-                return RNP_ERROR_BAD_FORMAT;
-            }
-            key.material.sphincsplus.priv =
-              pgp_sphincsplus_private_key_t(tmpbuf, (sphincsplus_parameter_t) param, key.alg);
-            break;
-        }
-#endif
-        default:
+        if (!key.material) {
             RNP_LOG("unknown pk alg : %d", (int) key.alg);
             return RNP_ERROR_BAD_PARAMETERS;
+        }
+        if (!key.material->parse_secret(body)) {
+            return RNP_ERROR_BAD_FORMAT;
         }
 
         if (body.left()) {
             RNP_LOG("extra data in sec key");
             return RNP_ERROR_BAD_FORMAT;
         }
-        key.material.secret = true;
         return RNP_SUCCESS;
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
@@ -737,7 +626,7 @@ decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
         return RNP_ERROR_BAD_PARAMETERS;
     }
     /* mark material as not validated as it may be valid for public part */
-    key->material.validity.reset();
+    key->material->reset_validity();
 
     /* check whether data is not encrypted */
     if (!key->sec_protection.s2k.usage) {
@@ -816,72 +705,7 @@ static void
 write_secret_key_mpis(pgp_packet_body_t &body, pgp_key_pkt_t &key)
 {
     /* add mpis */
-    switch (key.alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        body.add(key.material.rsa.d);
-        body.add(key.material.rsa.p);
-        body.add(key.material.rsa.q);
-        body.add(key.material.rsa.u);
-        break;
-    case PGP_PKA_DSA:
-        body.add(key.material.dsa.x);
-        break;
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_SM2:
-    case PGP_PKA_ECDH:
-        body.add(key.material.ec.x);
-        break;
-    case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        body.add(key.material.eg.x);
-        break;
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_ED25519:
-        body.add(key.material.ed25519.priv);
-        break;
-    case PGP_PKA_X25519:
-        body.add(key.material.x25519.priv);
-        break;
-#endif
-#if defined(ENABLE_PQC)
-    case PGP_PKA_KYBER768_X25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384:
-        body.add(key.material.kyber_ecdh.priv.get_encoded());
-        break;
-    case PGP_PKA_DILITHIUM3_ED25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
-        body.add(key.material.dilithium_exdsa.priv.get_encoded());
-        break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        body.add_byte((uint8_t) key.material.sphincsplus.priv.param());
-        body.add(key.material.sphincsplus.priv.get_encoded());
-        break;
-#endif
-    default:
-        RNP_LOG("unknown pk alg : %d", (int) key.alg);
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
+    key.material->write_secret(body);
 
 #if defined(ENABLE_CRYPTO_REFRESH)
     if (key.version == PGP_V6 && key.sec_protection.s2k.usage == PGP_S2KU_NONE) {
@@ -914,7 +738,7 @@ write_secret_key_mpis(pgp_packet_body_t &body, pgp_key_pkt_t &key)
 rnp_result_t
 encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rnp::RNG &rng)
 {
-    if (!is_secret_key_pkt(key->tag) || !key->material.secret) {
+    if (!is_secret_key_pkt(key->tag) || !key->material->secret()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     if (key->sec_protection.s2k.usage &&
@@ -984,89 +808,12 @@ encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rnp::RNG &rng)
         memcpy(key->sec_data, body.data(), body.size());
         key->sec_len = body.size();
         /* cleanup cleartext fields */
-        forget_secret_key_fields(&key->material);
+        key->material->clear_secret();
         return RNP_SUCCESS;
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         return RNP_ERROR_GENERIC;
     }
-}
-
-void
-forget_secret_key_fields(pgp_key_material_t *key)
-{
-    if (!key || !key->secret) {
-        return;
-    }
-
-    switch (key->alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        key->rsa.d.forget();
-        key->rsa.p.forget();
-        key->rsa.q.forget();
-        key->rsa.u.forget();
-        break;
-    case PGP_PKA_DSA:
-        key->dsa.x.forget();
-        break;
-    case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        key->eg.x.forget();
-        break;
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-    case PGP_PKA_ECDH:
-        key->ec.x.forget();
-        break;
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_ED25519:
-        secure_clear(key->ed25519.priv.data(), key->ed25519.priv.size());
-        key->ed25519.priv.clear();
-        break;
-    case PGP_PKA_X25519:
-        secure_clear(key->x25519.priv.data(), key->x25519.priv.size());
-        key->x25519.priv.clear();
-        break;
-#endif
-#if defined(ENABLE_PQC)
-    case PGP_PKA_KYBER768_X25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384:
-        key->kyber_ecdh.priv.secure_clear();
-        break;
-    case PGP_PKA_DILITHIUM3_ED25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
-        key->dilithium_exdsa.priv.secure_clear();
-        break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        key->sphincsplus.priv.secure_clear();
-        break;
-#endif
-    default:
-        RNP_LOG("unknown key algorithm: %d", (int) key->alg);
-    }
-
-    key->secret = false;
 }
 
 pgp_userid_pkt_t::pgp_userid_pkt_t(const pgp_userid_pkt_t &src)
@@ -1211,9 +958,11 @@ pgp_key_pkt_t::pgp_key_pkt_t(const pgp_key_pkt_t &src, bool pubonly)
         }
         memcpy(hashed_data, src.hashed_data, hashed_len);
     }
-    material = src.material;
+    material = src.material ? src.material->clone() : nullptr;
     if (pubonly) {
-        forget_secret_key_fields(&material);
+        if (material) {
+            material->clear_secret();
+        }
         sec_len = 0;
         v5_s2k_len = 0;
         v5_sec_len = 0;
@@ -1245,8 +994,7 @@ pgp_key_pkt_t::pgp_key_pkt_t(pgp_key_pkt_t &&src)
     hashed_len = src.hashed_len;
     hashed_data = src.hashed_data;
     src.hashed_data = NULL;
-    material = src.material;
-    forget_secret_key_fields(&src.material);
+    material = std::move(src.material);
     sec_len = src.sec_len;
     v5_s2k_len = src.v5_s2k_len;
     v5_sec_len = src.v5_sec_len;
@@ -1270,8 +1018,7 @@ pgp_key_pkt_t::operator=(pgp_key_pkt_t &&src)
     free(hashed_data);
     hashed_data = src.hashed_data;
     src.hashed_data = NULL;
-    material = src.material;
-    forget_secret_key_fields(&src.material);
+    material = std::move(src.material);
     secure_clear(sec_data, sec_len);
     free(sec_data);
     sec_len = src.sec_len;
@@ -1303,7 +1050,7 @@ pgp_key_pkt_t::operator=(const pgp_key_pkt_t &src)
         }
         memcpy(hashed_data, src.hashed_data, hashed_len);
     }
-    material = src.material;
+    material = src.material ? src.material->clone() : nullptr;
     secure_clear(sec_data, sec_len);
     free(sec_data);
     sec_data = NULL;
@@ -1323,7 +1070,6 @@ pgp_key_pkt_t::operator=(const pgp_key_pkt_t &src)
 
 pgp_key_pkt_t::~pgp_key_pkt_t()
 {
-    forget_secret_key_fields(&material);
     free(hashed_data);
     secure_clear(sec_data, sec_len);
     free(sec_data);
@@ -1488,7 +1234,11 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         return RNP_ERROR_BAD_FORMAT;
     }
     alg = (pgp_pubkey_alg_t) analg;
-    material.alg = (pgp_pubkey_alg_t) analg;
+    material = pgp::KeyMaterial::create(alg);
+    if (!material) {
+        RNP_LOG("unknown key algorithm: %d", (int) alg);
+        return RNP_ERROR_BAD_FORMAT;
+    }
     switch (version) {
     case PGP_V2:
     case PGP_V3:
@@ -1516,131 +1266,10 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
     }
 
     /* algorithm specific fields */
-    switch (alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        if (!pkt.get(material.rsa.n) || !pkt.get(material.rsa.e)) {
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        break;
-    case PGP_PKA_DSA:
-        if (!pkt.get(material.dsa.p) || !pkt.get(material.dsa.q) || !pkt.get(material.dsa.g) ||
-            !pkt.get(material.dsa.y)) {
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        break;
-    case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!pkt.get(material.eg.p) || !pkt.get(material.eg.g) || !pkt.get(material.eg.y)) {
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        break;
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-        if (!pkt.get(material.ec.curve) || !pkt.get(material.ec.p)) {
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        break;
-    case PGP_PKA_ECDH: {
-        if (!pkt.get(material.ec.curve) || !pkt.get(material.ec.p)) {
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        /* read KDF parameters. At the moment should be 0x03 0x01 halg ealg */
-        uint8_t len = 0, halg = 0, walg = 0;
-        if (!pkt.get(len) || (len != 3)) {
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        if (!pkt.get(len) || (len != 1)) {
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        if (!pkt.get(halg) || !pkt.get(walg)) {
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        material.ec.kdf_hash_alg = (pgp_hash_alg_t) halg;
-        material.ec.key_wrap_alg = (pgp_symm_alg_t) walg;
-        break;
-    }
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_ED25519: {
-        const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_ED25519);
-        tmpbuf.resize(BITS_TO_BYTES(ec_desc->bitlen));
-        if (!pkt.get(tmpbuf.data(), tmpbuf.size())) {
-            RNP_LOG("failed to parse Ed25519 public key data");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        material.ed25519.pub = tmpbuf;
-        break;
-    }
-    case PGP_PKA_X25519: {
-        const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_25519);
-        tmpbuf.resize(BITS_TO_BYTES(ec_desc->bitlen));
-        if (!pkt.get(tmpbuf.data(), tmpbuf.size())) {
-            RNP_LOG("failed to parse X25519 public key data");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        material.x25519.pub = tmpbuf;
-        break;
-    }
-#endif
-#if defined(ENABLE_PQC)
-    case PGP_PKA_KYBER768_X25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384:
-        tmpbuf.resize(pgp_kyber_ecdh_composite_public_key_t::encoded_size(alg));
-        if (!pkt.get(tmpbuf.data(), tmpbuf.size())) {
-            RNP_LOG("failed to parse mlkem-ecdh public key data");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        material.kyber_ecdh.pub = pgp_kyber_ecdh_composite_public_key_t(tmpbuf, alg);
-        break;
-    case PGP_PKA_DILITHIUM3_ED25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
-        tmpbuf.resize(pgp_dilithium_exdsa_composite_public_key_t::encoded_size(alg));
-        if (!pkt.get(tmpbuf.data(), tmpbuf.size())) {
-            RNP_LOG("failed to parse mldsa-ecdsa/eddsa public key data");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        material.dilithium_exdsa.pub = pgp_dilithium_exdsa_composite_public_key_t(tmpbuf, alg);
-        break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE: {
-        uint8_t param;
-        if (!pkt.get(param)) {
-            RNP_LOG("failed to parse SLH-DSA public key data");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        tmpbuf.resize(sphincsplus_pubkey_size((sphincsplus_parameter_t) param));
-        if (!pkt.get(tmpbuf.data(), tmpbuf.size())) {
-            RNP_LOG("failed to parse SLH-DSA public key data");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        material.sphincsplus.pub =
-          pgp_sphincsplus_public_key_t(tmpbuf, (sphincsplus_parameter_t) param, alg);
-        break;
-    }
-#endif
-    default:
-        RNP_LOG("unknown key algorithm: %d", (int) alg);
+    if (!material->parse(pkt)) {
         return RNP_ERROR_BAD_FORMAT;
     }
+
     /* fill hashed data used for signatures */
     if (!(hashed_data = (uint8_t *) malloc(pkt.size() - pkt.left()))) {
         RNP_LOG("allocation failed");
@@ -1764,88 +1393,6 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
 }
 
 void
-pgp_key_pkt_t::make_alg_spec_fields_for_public_key(pgp_packet_body_t &hbody)
-{
-    switch (alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        hbody.add(material.rsa.n);
-        hbody.add(material.rsa.e);
-        break;
-    case PGP_PKA_DSA:
-        hbody.add(material.dsa.p);
-        hbody.add(material.dsa.q);
-        hbody.add(material.dsa.g);
-        hbody.add(material.dsa.y);
-        break;
-    case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        hbody.add(material.eg.p);
-        hbody.add(material.eg.g);
-        hbody.add(material.eg.y);
-        break;
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-        hbody.add(material.ec.curve);
-        hbody.add(material.ec.p);
-        break;
-    case PGP_PKA_ECDH:
-        hbody.add(material.ec.curve);
-        hbody.add(material.ec.p);
-        hbody.add_byte(3);
-        hbody.add_byte(1);
-        hbody.add_byte(material.ec.kdf_hash_alg);
-        hbody.add_byte(material.ec.key_wrap_alg);
-        break;
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_ED25519:
-        hbody.add(material.ed25519.pub);
-        break;
-    case PGP_PKA_X25519:
-        hbody.add(material.x25519.pub);
-        break;
-#endif
-#if defined(ENABLE_PQC)
-    case PGP_PKA_KYBER768_X25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384:
-        hbody.add(material.kyber_ecdh.pub.get_encoded());
-        break;
-    case PGP_PKA_DILITHIUM3_ED25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
-        hbody.add(material.dilithium_exdsa.pub.get_encoded());
-        break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        hbody.add_byte((uint8_t) material.sphincsplus.pub.param());
-        hbody.add(material.sphincsplus.pub.get_encoded());
-        break;
-#endif
-    default:
-        RNP_LOG("unknown key algorithm: %d", (int) alg);
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
-}
-
-void
 pgp_key_pkt_t::fill_hashed_data()
 {
     /* we don't have a need to write v2-v3 signatures */
@@ -1868,7 +1415,7 @@ pgp_key_pkt_t::fill_hashed_data()
 
     /* Algorithm specific fields */
     pgp_packet_body_t alg_spec_fields(PGP_PKT_RESERVED);
-    make_alg_spec_fields_for_public_key(alg_spec_fields);
+    material->write(alg_spec_fields);
 #if defined(ENABLE_CRYPTO_REFRESH)
     if (version == PGP_V6) {
         hbody.add_uint32(alg_spec_fields.size());
@@ -1904,7 +1451,7 @@ pgp_key_pkt_t::equals(const pgp_key_pkt_t &key, bool pubonly) const noexcept
         return false;
     }
     /* check key material */
-    return key_material_equal(&material, &key.material);
+    return material->equals(*key.material);
 }
 
 pgp_transferable_subkey_t::pgp_transferable_subkey_t(const pgp_transferable_subkey_t &src,

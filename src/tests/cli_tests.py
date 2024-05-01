@@ -2490,7 +2490,7 @@ class Misc(unittest.TestCase):
 
     def test_rnp_list_packets(self):
         KEY_P256 = data_path('test_list_packets/ecc-p256-pub.asc')
-        # List packets in humand-readable format
+        # List packets in human-readable format
         params = ['--list-packets', KEY_P256]
         ret, out, _ = run_proc(RNP, params)
         self.assertEqual(ret, 0, PKT_LIST_FAILED)

@@ -35,6 +35,7 @@
 #include <repgp/repgp_def.h>
 #include "crypto/rng.h"
 #include "crypto/mpi.h"
+#include "crypto/mem.h"
 #include <vector>
 
 #define MAX_CURVE_BIT_SIZE 521 // secp521r1
@@ -83,6 +84,17 @@ typedef struct pgp_ec_key_t {
     /* ecdh params */
     pgp_hash_alg_t kdf_hash_alg; /* Hash used by kdf */
     pgp_symm_alg_t key_wrap_alg; /* Symmetric algorithm used to wrap KEK*/
+
+    void
+    clear_secret()
+    {
+        x.forget();
+    }
+
+    ~pgp_ec_key_t()
+    {
+        clear_secret();
+    }
 } pgp_ec_key_t;
 
 typedef struct pgp_ec_signature_t {
@@ -94,6 +106,18 @@ typedef struct pgp_ec_signature_t {
 typedef struct pgp_ed25519_key_t {
     std::vector<uint8_t> pub;  // \  native encoding
     std::vector<uint8_t> priv; // /
+
+    void
+    clear_secret()
+    {
+        secure_clear(priv.data(), priv.size());
+        priv.resize(0);
+    }
+
+    ~pgp_ed25519_key_t()
+    {
+        clear_secret();
+    }
 } pgp_ed25519_key_t;
 
 typedef struct pgp_ed25519_signature_t {
@@ -103,6 +127,18 @@ typedef struct pgp_ed25519_signature_t {
 typedef struct pgp_x25519_key_t {
     std::vector<uint8_t> pub;  // \  native encoding
     std::vector<uint8_t> priv; // /
+
+    void
+    clear_secret()
+    {
+        secure_clear(priv.data(), priv.size());
+        priv.resize(0);
+    }
+
+    ~pgp_x25519_key_t()
+    {
+        clear_secret();
+    }
 } pgp_x25519_key_t;
 
 typedef struct pgp_x25519_encrypted_t {
