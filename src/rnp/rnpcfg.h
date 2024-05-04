@@ -66,6 +66,7 @@
 #define CFG_CIPHER "cipher"             /* symmetric encryption algorithm as string */
 #define CFG_HASH "hash"                 /* hash algorithm used, string like 'SHA1'*/
 #define CFG_WEAK_HASH "weak-hash"       /* allow weak algorithms */
+#define CFG_ALLOW_SHA1 "allow-sha1"     /* allow SHA-1 key signatures */
 #define CFG_S2K_ITER "s2k-iter"         /* number of S2K hash iterations to perform */
 #define CFG_S2K_MSEC "s2k-msec"         /* number of milliseconds S2K should target */
 #define CFG_ENCRYPT_PK "encrypt_pk"     /* public key should be used during encryption */
