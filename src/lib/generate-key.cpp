@@ -74,8 +74,9 @@ static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_DILITHIUM5_P384, "ML-DSA-87_P384"},
   {PGP_PKA_DILITHIUM3_BP256, "ML-DSA-65_BP256"},
   {PGP_PKA_DILITHIUM5_BP384, "ML-DSA-87_BP384"},
-  {PGP_PKA_SPHINCSPLUS_SHA2, "SLH-DSA-SHA2"},
-  {PGP_PKA_SPHINCSPLUS_SHAKE, "SLH-DSA-SHAKE"},
+  {PGP_PKA_SPHINCSPLUS_SHAKE_128f, "SLH-DSA-SHAKE-128f"},
+  {PGP_PKA_SPHINCSPLUS_SHAKE_128s, "SLH-DSA-SHAKE-128s"},
+  {PGP_PKA_SPHINCSPLUS_SHAKE_256s, "SLH-DSA-SHAKE-256s"},
   {PGP_PKA_PRIVATE00, "Private/Experimental"},
   {PGP_PKA_PRIVATE01, "Private/Experimental"},
   {PGP_PKA_PRIVATE02, "Private/Experimental"},
@@ -314,10 +315,12 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         return pgp_dilithium_exdsa_composite_public_key_t::encoded_size(crypto->key_alg) * 8;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        return sphincsplus_pubkey_size(crypto->sphincsplus.param) * 8;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
+        return sphincsplus_pubkey_size(crypto->key_alg) * 8;
 #endif
     default:
         return 0;
@@ -381,11 +384,12 @@ static bool
 pgp_check_key_hash_requirements(rnp_keygen_crypto_params_t &crypto)
 {
     switch (crypto.key_alg) {
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        if (!sphincsplus_hash_allowed(
-              crypto.key_alg, crypto.sphincsplus.param, crypto.hash_alg)) {
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
+        if (!sphincsplus_hash_allowed(crypto.key_alg, crypto.hash_alg)) {
             return false;
         }
         break;

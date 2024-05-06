@@ -692,21 +692,17 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
             key.material.dilithium_exdsa.priv = pgp_dilithium_exdsa_composite_private_key_t(
               tmpbuf.data(), tmpbuf.size(), key.alg);
             break;
-        case PGP_PKA_SPHINCSPLUS_SHA2:
+        case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
             FALLTHROUGH_STATEMENT;
-        case PGP_PKA_SPHINCSPLUS_SHAKE: {
-            uint8_t param;
-            if (!body.get(param)) {
-                RNP_LOG("failed to parse SLH-DSA secret key data");
-                return RNP_ERROR_BAD_FORMAT;
-            }
-            tmpbuf.resize(sphincsplus_privkey_size((sphincsplus_parameter_t) param));
+        case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+            FALLTHROUGH_STATEMENT;
+        case PGP_PKA_SPHINCSPLUS_SHAKE_256s: {
+            tmpbuf.resize(sphincsplus_privkey_size(key.alg));
             if (!body.get(tmpbuf.data(), tmpbuf.size())) {
                 RNP_LOG("failed to parse SLH-DSA secret key data");
                 return RNP_ERROR_BAD_FORMAT;
             }
-            key.material.sphincsplus.priv =
-              pgp_sphincsplus_private_key_t(tmpbuf, (sphincsplus_parameter_t) param, key.alg);
+            key.material.sphincsplus.priv = pgp_sphincsplus_private_key_t(tmpbuf, key.alg);
             break;
         }
 #endif
@@ -871,10 +867,11 @@ write_secret_key_mpis(pgp_packet_body_t &body, pgp_key_pkt_t &key)
     case PGP_PKA_DILITHIUM5_BP384:
         body.add(key.material.dilithium_exdsa.priv.get_encoded());
         break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        body.add_byte((uint8_t) key.material.sphincsplus.priv.param());
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         body.add(key.material.sphincsplus.priv.get_encoded());
         break;
 #endif
@@ -1056,9 +1053,11 @@ forget_secret_key_fields(pgp_key_material_t *key)
     case PGP_PKA_DILITHIUM5_BP384:
         key->dilithium_exdsa.priv.secure_clear();
         break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         key->sphincsplus.priv.secure_clear();
         break;
 #endif
@@ -1619,21 +1618,17 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         }
         material.dilithium_exdsa.pub = pgp_dilithium_exdsa_composite_public_key_t(tmpbuf, alg);
         break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE: {
-        uint8_t param;
-        if (!pkt.get(param)) {
-            RNP_LOG("failed to parse SLH-DSA public key data");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        tmpbuf.resize(sphincsplus_pubkey_size((sphincsplus_parameter_t) param));
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s: {
+        tmpbuf.resize(sphincsplus_pubkey_size(alg));
         if (!pkt.get(tmpbuf.data(), tmpbuf.size())) {
             RNP_LOG("failed to parse SLH-DSA public key data");
             return RNP_ERROR_BAD_FORMAT;
         }
-        material.sphincsplus.pub =
-          pgp_sphincsplus_public_key_t(tmpbuf, (sphincsplus_parameter_t) param, alg);
+        material.sphincsplus.pub = pgp_sphincsplus_public_key_t(tmpbuf, alg);
         break;
     }
 #endif
@@ -1832,10 +1827,11 @@ pgp_key_pkt_t::make_alg_spec_fields_for_public_key(pgp_packet_body_t &hbody)
     case PGP_PKA_DILITHIUM5_BP384:
         hbody.add(material.dilithium_exdsa.pub.get_encoded());
         break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        hbody.add_byte((uint8_t) material.sphincsplus.pub.param());
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         hbody.add(material.sphincsplus.pub.get_encoded());
         break;
 #endif

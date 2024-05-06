@@ -1673,17 +1673,12 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
             return false;
         }
         break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE: {
-        uint8_t param;
-        if (!pkt.get(param)) {
-            RNP_LOG("failed to parse SLH-DSA signature data");
-            return false;
-        }
-        material.sphincsplus.param = (sphincsplus_parameter_t) param;
-        material.sphincsplus.sig.resize(
-          sphincsplus_signature_size(material.sphincsplus.param));
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s: {
+        material.sphincsplus.sig.resize(sphincsplus_signature_size(palg));
         if (!pkt.get(material.sphincsplus.sig.data(), material.sphincsplus.sig.size())) {
             RNP_LOG("failed to parse SLH-DSA signature data");
             return false;
@@ -1781,10 +1776,11 @@ pgp_signature_t::write_material(const pgp_signature_material_t &material)
     case PGP_PKA_DILITHIUM5_BP384:
         pktbody.add(material.dilithium_exdsa.sig);
         break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        pktbody.add_byte((uint8_t) material.sphincsplus.param);
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         pktbody.add(material.sphincsplus.sig);
         break;
 #endif

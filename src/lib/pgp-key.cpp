@@ -196,9 +196,11 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
 #endif
 
@@ -496,11 +498,12 @@ pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey)
 {
 #if defined(ENABLE_PQC)
     switch (pubkey->alg) {
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        return sphincsplus_default_hash_alg(pubkey->alg,
-                                            pubkey->material.sphincsplus.pub.param());
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
+        return sphincsplus_default_hash_alg(pubkey->alg);
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
@@ -1368,9 +1371,11 @@ pgp_key_t::is_pqc_alg() const
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         return true;
     default:
         return false;
@@ -3074,9 +3079,11 @@ pgp_key_material_t::bits() const
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         return 8 * dilithium_exdsa.pub.get_encoded().size(); /* public key length*/
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         return 8 * sphincsplus.pub.get_encoded().size(); /* public key length */
 #endif
     default:
@@ -3269,9 +3276,11 @@ pgp_key_material_t::get_grip(pgp_key_grip_t &grip) const
         case PGP_PKA_DILITHIUM5_BP384:
             hash->add(dilithium_exdsa.pub.get_encoded());
             break;
-        case PGP_PKA_SPHINCSPLUS_SHA2:
+        case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
             FALLTHROUGH_STATEMENT;
-        case PGP_PKA_SPHINCSPLUS_SHAKE:
+        case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+            FALLTHROUGH_STATEMENT;
+        case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
             hash->add(sphincsplus.pub.get_encoded());
             break;
 #endif

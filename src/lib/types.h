@@ -463,12 +463,6 @@ struct rnp_keygen_elgamal_params_t {
     size_t key_bitlen;
 };
 
-#if defined(ENABLE_PQC)
-struct rnp_keygen_sphincsplus_params_t {
-    sphincsplus_parameter_t param;
-};
-#endif
-
 /* structure used to hold context of key generation */
 namespace rnp {
 class SecurityContext;
@@ -486,9 +480,6 @@ typedef struct rnp_keygen_crypto_params_t {
         struct rnp_keygen_rsa_params_t     rsa;
         struct rnp_keygen_dsa_params_t     dsa;
         struct rnp_keygen_elgamal_params_t elgamal;
-#if defined(ENABLE_PQC)
-        struct rnp_keygen_sphincsplus_params_t sphincsplus;
-#endif
     };
 } rnp_keygen_crypto_params_t;
 

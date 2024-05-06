@@ -4505,15 +4505,16 @@ class Encryption(unittest.TestCase):
                              "(28) (ML-DSA-87 + ECDSA-NIST-P-384) + (ML-KEM-1024 + ECDH-NIST-P-384)",
                              "(29) (ML-DSA-65 + ECDSA-brainpoolP256r1) + (ML-KEM-768 + ECDH-brainpoolP256r1)",
                              "(30) (ML-DSA-87 + ECDSA-brainpoolP384r1) + (ML-KEM-1024 + ECDH-brainpoolP384r1)",
-                             "(31) SLH-DSA-SHA2 + MLKEM-ECDH Composite",
-                             "(32) SLH-DSA-SHAKE + MLKEM-ECDH Composite",
+                             "(31) SLH-DSA-SHAKE-128f + (ML-KEM-768 + X25519)",
+                             "(32) SLH-DSA-SHAKE-128s + (ML-KEM-768 + X25519)",
+                             "(33) SLH-DSA-SHAKE-256s + (ML-KEM-1024 + ECDH-NIST-P-384)",
                                ]
         USERIDS = ['enc-sign25@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign32a@rnp','enc-sign32b@rnp','enc-sign32c@rnp','enc-sign24-v4-key@rnp']
 
         # '24' in the below array creates a v4 primary signature key with a v4 pqc subkey without a Features Subpacket. This way we test PQC encryption to a v4 subkey. RNP prefers the PQC subkey in case of a certificate having a PQC and a
         # non-PQC subkey.
-        ALGO       = [25,   27,   28,   29,   30,   32, 32, 32, 24, ]
-        ALGO_PARAM = [None, None, None, None, None, 1,  2,  6,  None,  ]
+        ALGO       = [25,   27,   28,   29,   30,   31, 32, 33, 24, ]
+        ALGO_PARAM = [None, None, None, None, None, None,  None,  None,  None,  ]
         aead_list = []
         passwds = [ ]
         for x in range(len(ALGO)): passwds.append('testpw' if x % 1 == 0 else '')

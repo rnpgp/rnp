@@ -243,9 +243,11 @@ signature_calculate(pgp_signature_t &        sig,
         ret = seckey.dilithium_exdsa.priv.sign(
           &ctx.rng, &material.dilithium_exdsa, hash_alg, hval, hlen);
         break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         ret = seckey.sphincsplus.priv.sign(&ctx.rng, &material.sphincsplus, hval, hlen);
         break;
 #endif
@@ -291,9 +293,11 @@ signature_validate(const pgp_signature_t &     sig,
     /* check that hash matches key requirements */
     bool hash_alg_valid = false;
     switch (key.alg) {
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         hash_alg_valid = key.sphincsplus.pub.validate_signature_hash_requirements(hash.alg());
         break;
     default:
@@ -387,9 +391,11 @@ signature_validate(const pgp_signature_t &     sig,
         ret =
           key.dilithium_exdsa.pub.verify(&material.dilithium_exdsa, hash.alg(), hval, hlen);
         break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         ret = key.sphincsplus.pub.verify(&material.sphincsplus, hval, hlen);
         break;
 #endif

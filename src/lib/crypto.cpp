@@ -205,13 +205,13 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t &crypto,
             return false;
         }
         break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        if (pgp_sphincsplus_generate(&crypto.ctx->rng,
-                                     &seckey.material.sphincsplus,
-                                     crypto.sphincsplus.param,
-                                     seckey.alg)) {
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
+        if (pgp_sphincsplus_generate(
+              &crypto.ctx->rng, &seckey.material.sphincsplus, seckey.alg)) {
             RNP_LOG("failed to generate SLH-DSA key for PK alg %d", seckey.alg);
             return false;
         }
@@ -286,9 +286,11 @@ key_material_equal(const pgp_key_material_t *key1, const pgp_key_material_t *key
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         return (key1->dilithium_exdsa.pub == key2->dilithium_exdsa.pub);
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         return (key1->sphincsplus.pub == key2->sphincsplus.pub);
 #endif
     default:
@@ -367,9 +369,11 @@ validate_pgp_key_material(const pgp_key_material_t *material, rnp::RNG *rng)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         return dilithium_exdsa_validate_key(rng, &material->dilithium_exdsa, material->secret);
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         return sphincsplus_validate_key(rng, &material->sphincsplus, material->secret);
 #endif
     default:
