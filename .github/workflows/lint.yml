@@ -59,3 +59,19 @@ jobs:
         run: |
           set -x
           diff "rnp/cmake/version.cmake" "cmake-versioning/version.cmake"
+  version-text:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          path: rnp
+          sparse-checkout: version.txt
+      - name: Check version.txt contents
+        run: |
+          set -eux
+          pwd
+          [[ "$(cat ./rnp/version.txt)" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]];
+
