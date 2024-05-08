@@ -12,6 +12,7 @@ on:
       - '**.md'
       - '**.nix'
       - 'flake.lock'
+      - 'version.txt'
 
 concurrency:
   group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'

@@ -14,6 +14,7 @@ on:
       - '**.md'
       - '**.nix'
       - 'flake.lock'
+      - 'version.txt'
       - '.github/workflows/*.yml'
       - '!.github/workflows/centos-and-fedora.yml'
   pull_request:
@@ -27,6 +28,7 @@ on:
       - '**.md'
       - '**.nix'
       - 'flake.lock'
+      - 'version.txt'
 
 concurrency:
   group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'

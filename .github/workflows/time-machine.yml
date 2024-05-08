@@ -37,6 +37,7 @@ on:
       - '**.md'
       - '**.nix'
       - 'flake.lock'
+      - 'version.txt'
       - '.github/workflows/*.yml'
       - '!.github/workflows/time-machine.yml'
   pull_request:
@@ -50,6 +51,7 @@ on:
       - '**.md'
       - '**.nix'
       - 'flake.lock'
+      - 'version.txt'
       - '.github/workflows/*.yml'
       - '!.github/workflows/time-machine.yml'
   workflow_dispatch:
