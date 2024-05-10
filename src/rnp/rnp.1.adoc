@@ -81,7 +81,7 @@ Select a compression algorithm and level.
 Output ASCII data instead of binary via the *--armor* option. If the input file is _file.ext_, and *--output* is not specified, then the data will be written (depending on *--armor* option) to _file.ext.pgp_ or _file.ext.asc_. +
 
 *--no-wrap*:::
-Do not wrap the output in literal data packet. This could be used to encrypt a file which is already signed or encrypted.
+Do not wrap the output in a literal data packet. This could be used to encrypt a file which is already signed or encrypted.
 By default this would also disable compression, use option *-z* to override.
 
 *--overwrite*:::
@@ -330,7 +330,7 @@ By default RNP uses system's time in all signature/key checks, however in some s
 Override or set a file name, stored inside of OpenPGP message. +
 +
 By default RNP will store input filename (or empty string for *stdin*/*env* input) in the resulting OpenPGP message during encryption or embedded signing.
-This option allows to override this. Special value *_CONSOLE* may be used for "for your eyes only"-message. Refer OpenPGP documentation for the details.
+This option allows the user to override this filename. Special value *_CONSOLE* may be used for "for your eyes only"-message. Refer to OpenPGP documentation for details.
 
 *--allow-hidden* ::
 Allow hidden recipient support. +
