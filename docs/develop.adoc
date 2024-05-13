@@ -99,7 +99,25 @@ Or, more specific:
 ctest -V -R cli_tests-Misc
 --
 
-If test fails under the specific OS, you should construct corresponding Docker container and run tests inside, taking Github workflows as a guide.
+If test fails under the specific OS, you may use corresponding Docker container which is used by the CI.
+We maintain a bunch of containers which install all the prerequisites in this repository: https://github.com/rnpgp/rnp-ci-containers
+
+Sample building and running process could be as following:
+
+[source,console]
+--
+# Start docker, mounting rnp sources directory
+docker run -it -v $(pwd):/opt/rnp:ro ghcr.io/rnpgp/ci-rnp-fedora-38-amd64 bash
+
+# Configure and build rnp, adding additional options like backend selection or enabled sanitizers if needed
+cd /opt
+cmake -B build -DBUILD_SHARED_LIBS=On -DCRYPTO_BACKEND=Botan ./rnp
+cmake --build build --parallel "$(nproc)"
+
+# Run the tests. Please note that some tests would fail if run under the root as they check permissions.
+# Please see how this is handled in centos-and-fedora.yml or other workflows.
+ctest --parallel $(nproc) --test-dir build --output-on-failure
+--
 
 == Code Coverage
 
