@@ -11,7 +11,7 @@
 
 #### FFI
 
-* Added functions `rnp_key_set_features()` and `rnp_signature_get_features()`.
+* Added function `rnp_signature_get_features()`.
 
 ### 0.17.0 [2023-05-01]
 
