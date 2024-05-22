@@ -59,6 +59,14 @@ add_executable(rnp
 
 if(BUILD_SHARED_LIBS)
   target_sources(rnp PRIVATE ../lib/logging.cpp $<TARGET_OBJECTS:rnp-common>)
+
+  if(APPLE)
+    # Since cmd line tools version 2397 dyld doesn't look in ../lib
+    # See issue #2153 and https://developer.apple.com/forums/thread/737920 for the details.
+    set_target_properties(rnp PROPERTIES
+      INSTALL_RPATH "@executable_path/../lib"
+    )
+  endif(APPLE)
 endif(BUILD_SHARED_LIBS)
 
 target_include_directories(rnp
