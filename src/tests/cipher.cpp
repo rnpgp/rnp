@@ -635,7 +635,7 @@ TEST_F(rnp_tests, kyber_ecdh_roundtrip)
         assert_rnp_success(key_pkt.material.kyber_ecdh.pub.encrypt(
           &global_ctx.rng, &enc, plaintext, plaintext_len));
         assert_rnp_success(key_pkt.material.kyber_ecdh.priv.decrypt(
-          &global_ctx.rng, result, &result_len, &enc));
+          &global_ctx.rng, result, &result_len, &enc, key_pkt.material.kyber_ecdh.pub));
 
         assert_int_equal(plaintext_len, result_len);
         assert_int_equal(memcmp(plaintext, result, result_len), 0);

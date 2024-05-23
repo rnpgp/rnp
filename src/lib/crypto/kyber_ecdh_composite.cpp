@@ -28,7 +28,7 @@
 #include "logging.h"
 #include "types.h"
 #include "ecdh_utils.h"
-#include "kmac.hpp"
+#include "kem_combiner.hpp"
 #include <botan/rfc3394.h>
 #include <botan/symkey.h>
 #include <cassert>
@@ -336,10 +336,12 @@ hashed_ecc_keyshare(const std::vector<uint8_t> &key_share,
 } // namespace
 
 rnp_result_t
-pgp_kyber_ecdh_composite_private_key_t::decrypt(rnp::RNG *                        rng,
-                                                uint8_t *                         out,
-                                                size_t *                          out_len,
-                                                const pgp_kyber_ecdh_encrypted_t *enc)
+pgp_kyber_ecdh_composite_private_key_t::decrypt(
+  rnp::RNG *                                   rng,
+  uint8_t *                                    out,
+  size_t *                                     out_len,
+  const pgp_kyber_ecdh_encrypted_t *           enc,
+  const pgp_kyber_ecdh_composite_public_key_t &ecdh_kyber_pub_key)
 {
     initialized_or_throw();
     rnp_result_t         res;
@@ -380,13 +382,14 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(rnp::RNG *                      
     // Compute KEK := multiKeyCombine(eccKeyShare, kyberKeyShare, fixedInfo) as defined in
     // Section 4.2.2
     std::vector<uint8_t> kek_vec;
-    auto                 kmac = rnp::KMAC256::create();
-    kmac->compute(hashed_ecdh_keyshare,
-                  ecdh_encapsulated_keyshare,
-                  kyber_keyshare,
-                  kyber_encapsulated_keyshare,
-                  pk_alg(),
-                  kek_vec);
+    rnp::PQC_KEM_COMBINER::compute(ecdh_key_->get_pubkey_encoded(rng),
+                                   hashed_ecdh_keyshare,
+                                   ecdh_encapsulated_keyshare,
+                                   ecdh_kyber_pub_key.get_encoded_kyber_key(),
+                                   kyber_keyshare,
+                                   kyber_encapsulated_keyshare,
+                                   pk_alg(),
+                                   kek_vec);
     Botan::SymmetricKey kek(kek_vec);
 
     // Compute sessionKey := AESKeyUnwrap(KEK, C) with AES-256 as per [RFC3394], aborting if
@@ -524,13 +527,14 @@ pgp_kyber_ecdh_composite_public_key_t::encrypt(rnp::RNG *                  rng,
     // Compute KEK := multiKeyCombine(eccKeyShare, kyberKeyShare, fixedInfo) as defined in
     // Section 4.2.2
     std::vector<uint8_t> kek_vec;
-    auto                 kmac = rnp::KMAC256::create();
-    kmac->compute(ecdh_hashed_symmetric_key,
-                  ecdh_ciphertext,
-                  kyber_encap.symmetric_key,
-                  kyber_encap.ciphertext,
-                  pk_alg(),
-                  kek_vec);
+    rnp::PQC_KEM_COMBINER::compute(ecdh_key_.get_encoded(),
+                                   ecdh_hashed_symmetric_key,
+                                   ecdh_ciphertext,
+                                   kyber_key_.get_encoded(),
+                                   kyber_encap.symmetric_key,
+                                   kyber_encap.ciphertext,
+                                   pk_alg(),
+                                   kek_vec);
     Botan::SymmetricKey kek(kek_vec);
 
     // Compute C := AESKeyWrap(KEK, sessionKey) with AES-256 as per [RFC3394] that includes a
@@ -561,6 +565,13 @@ pgp_kyber_ecdh_composite_public_key_t::get_encoded() const
     result.insert(result.end(), std::begin(ecdh_key_encoded), std::end(ecdh_key_encoded));
     result.insert(result.end(), std::begin(kyber_key_encoded), std::end(kyber_key_encoded));
     return result;
+};
+
+std::vector<uint8_t>
+pgp_kyber_ecdh_composite_public_key_t::get_encoded_kyber_key() const
+{
+    initialized_or_throw();
+    return kyber_key_.get_encoded();
 };
 
 bool

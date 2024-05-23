@@ -24,8 +24,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef CRYPTO_KMAC_H_
-#define CRYPTO_KMAC_H_
+#ifndef CRYPTO_KEM_COMBINER_H_
+#define CRYPTO_KEM_COMBINER_H_
 
 #include <repgp/repgp_def.h>
 #include "types.h"
@@ -33,11 +33,11 @@
 #include "pgp-key.h"
 
 namespace rnp {
-class KMAC256 {
+class PQC_KEM_COMBINER {
     /* KDF for PQC key combiner according to
-     * https://datatracker.ietf.org/doc/html/draft-wussler-openpgp-pqc-02 */
+     * https://datatracker.ietf.org/doc/html/draft-ietf-openpgp-pqc */
 
-  protected:
+  private:
     /*  The value of domSeparation is the UTF-8 encoding of the string
        "OpenPGPCompositeKeyDerivationFunction" and MUST be the following octet sequence:
 
@@ -46,41 +46,41 @@ class KMAC256 {
                          63 74 69 6F 6E
 
     */
-    const std::vector<uint8_t> domSeparation_ = std::vector<uint8_t>(
-      {0x4F, 0x70, 0x65, 0x6E, 0x50, 0x47, 0x50, 0x43, 0x6F, 0x6D, 0x70, 0x6F, 0x73,
-       0x69, 0x74, 0x65, 0x4B, 0x65, 0x79, 0x44, 0x65, 0x72, 0x69, 0x76, 0x61, 0x74,
-       0x69, 0x6F, 0x6E, 0x46, 0x75, 0x6E, 0x63, 0x74, 0x69, 0x6F, 0x6E});
-
-    /* customizationString := 4B 44 46 */
-    const std::vector<uint8_t> customizationString_ = std::vector<uint8_t>({0x4B, 0x44, 0x46});
+    static std::vector<uint8_t>
+    domSeparation()
+    {
+        return std::vector<uint8_t>(
+          {0x4F, 0x70, 0x65, 0x6E, 0x50, 0x47, 0x50, 0x43, 0x6F, 0x6D, 0x70, 0x6F, 0x73,
+           0x69, 0x74, 0x65, 0x4B, 0x65, 0x79, 0x44, 0x65, 0x72, 0x69, 0x76, 0x61, 0x74,
+           0x69, 0x6F, 0x6E, 0x46, 0x75, 0x6E, 0x63, 0x74, 0x69, 0x6F, 0x6E});
+    }
 
     /* counter - a 4 byte counter set to the value 1 */
-    const std::vector<uint8_t> counter_ = std::vector<uint8_t>({0x00, 0x00, 0x00, 0x01});
+    static std::vector<uint8_t>
+    counter()
+    {
+        return std::vector<uint8_t>({0x00, 0x00, 0x00, 0x01});
+    }
 
-    std::vector<uint8_t> domSeparation() const;
-    std::vector<uint8_t> customizationString() const;
-    std::vector<uint8_t> counter() const;
-    std::vector<uint8_t> fixedInfo(pgp_pubkey_alg_t alg_id);
-    std::vector<uint8_t> encData(const std::vector<uint8_t> &ecc_key_share,
-                                 const std::vector<uint8_t> &ecc_ciphertext,
-                                 const std::vector<uint8_t> &kyber_key_share,
-                                 const std::vector<uint8_t> &kyber_ciphertext,
-                                 pgp_pubkey_alg_t            alg_id);
-
-    KMAC256(){};
+    static std::vector<uint8_t> fixedInfo(pgp_pubkey_alg_t alg_id);
+    static std::vector<uint8_t> encData(const std::vector<uint8_t> &ecc_pub_key,
+                                        const std::vector<uint8_t> &ecc_key_share,
+                                        const std::vector<uint8_t> &ecc_ciphertext,
+                                        const std::vector<uint8_t> &mlkem_pub_key,
+                                        const std::vector<uint8_t> &mlkem_key_share,
+                                        const std::vector<uint8_t> &mlkem_ciphertext,
+                                        pgp_pubkey_alg_t            alg_id);
 
   public:
-    static std::unique_ptr<KMAC256> create();
-
-    /* KMAC interface for OpenPGP PQC composite algorithms */
-    virtual void compute(const std::vector<uint8_t> &ecc_key_share,
-                         const std::vector<uint8_t> &ecc_key_ciphertext,
-                         const std::vector<uint8_t> &kyber_key_share,
-                         const std::vector<uint8_t> &kyber_ciphertext,
-                         const pgp_pubkey_alg_t      alg_id,
-                         std::vector<uint8_t> &      out) = 0;
-
-    virtual ~KMAC256();
+    /* PQC KEM Combiner interface for OpenPGP PQC composite algorithms */
+    static void compute(const std::vector<uint8_t> &ecc_pub_key,
+                        const std::vector<uint8_t> &ecc_key_share,
+                        const std::vector<uint8_t> &ecc_ciphertext,
+                        const std::vector<uint8_t> &mlkem_pub_key,
+                        const std::vector<uint8_t> &mlkem_key_share,
+                        const std::vector<uint8_t> &mlkem_ciphertext,
+                        const pgp_pubkey_alg_t      alg_id,
+                        std::vector<uint8_t> &      out);
 };
 
 } // namespace rnp

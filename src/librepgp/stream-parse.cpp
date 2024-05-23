@@ -1674,8 +1674,11 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     case PGP_PKA_KYBER1024_BP384: {
         pgp_key_t key(*seckey, true); /* make public-key `pgp_key_t` object from seckey */
         declen = decbuf.size();
-        err = keymaterial->kyber_ecdh.priv.decrypt(
-          &ctx.rng, decbuf.data(), &declen, &encmaterial.kyber_ecdh);
+        err = keymaterial->kyber_ecdh.priv.decrypt(&ctx.rng,
+                                                   decbuf.data(),
+                                                   &declen,
+                                                   &encmaterial.kyber_ecdh,
+                                                   keymaterial->kyber_ecdh.pub);
         if (err != RNP_SUCCESS) {
             RNP_LOG("ML-KEM + ECC decryption failure");
             return false;
