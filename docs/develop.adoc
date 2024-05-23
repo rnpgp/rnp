@@ -258,6 +258,8 @@ docker commit clang-format clang-format
 docker rm clang-format
 --
 
+How to use pre-built docker container from the linter action please see below.
+
 You can then reformat a file (say, `src/lib/crypto/bn.cpp`) like so:
 
 [source,console]
@@ -278,6 +280,29 @@ docker run --rm -v $PWD:/rnp -w /rnp clang-format clang-format -style=file -i `g
 [source,console]
 --
 docker run --rm -v $PWD:/rnp -w /rnp clang-format clang-format -style=file -i `git diff --name-only 54c5476..HEAD |grep "\.\(c\|h\|cpp\)\$"`
+--
+
+==== clang-format (manually, using the docker container from the clang-format-lint-action)
+
+Build container:
+
+[source,console]
+--
+docker build -t clang-format-lint github.com/DoozyX/clang-format-lint-action
+--
+
+Get a diff with formatting errors:
+
+[source,console]
+--
+docker run -it --rm --workdir /src -v $(pwd):/src clang-format-lint --clang-format-executable /clang-format/clang-format11.0.0 -r --exclude .git .
+--
+
+To edit files in-place, fixing the formatting errors, you should add `--inplace` parameter:
+
+[source,console]
+--
+docker run -it --rm --workdir /src -v $(pwd):/src clang-format-lint --clang-format-executable /clang-format/clang-format11.0.0 -r --exclude .git . --inplace true
 --
 
 === Style Guide
