@@ -102,7 +102,7 @@ SECRING_1 = 'keyrings/1/secring.gpg'
 KEYRING_DIR_1 = 'keyrings/1'
 KEYRING_DIR_2 = 'keyrings/2'
 KEYRING_DIR_3 = 'keyrings/3'
-KEYRING_DIR_7 = 'keyrings/7'
+PUBRING_7 = 'keyrings/7/pubring.gpg'
 SECRING_G10 = 'test_stream_key_load/g10'
 KEY_ALICE_PUB = 'test_key_validity/alice-pub.asc'
 KEY_ALICE_SUB_PUB = 'test_key_validity/alice-sub-pub.pgp'
@@ -4068,29 +4068,31 @@ class Misc(unittest.TestCase):
         shutil.rmtree(RNP2, ignore_errors=True)
 
     def test_allow_sha1_key_sigs(self):
-        RNP7 = RNPDIR + '7'
-        kring = shutil.copytree(data_path(KEYRING_DIR_7), RNP7)
-
         src, sig = reg_workfiles('cleartext', '.txt', '.sig')
         random_text(src, 120)
 
-        # rnpkeys, force weak hashes for key generation
-        ret, _, err = run_proc(RNP, ['--homedir', kring, '--password=', '--sign', src, '--output', sig])
+        ret, out, _ = run_proc(RNPK, ['--keyfile', data_path(PUBRING_7), '--notty', '--list-keys'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*\[INVALID\].*$')
+        ret, out, _ = run_proc(RNPK, ['--keyfile', data_path(PUBRING_7), '--notty', '--list-keys', '--allow-sha1-key-sigs'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*pub.*2024-05-27.*EXPIRES 2026.*sub.*2024-05-27.*EXPIRES 2026.*$')
+
+        ret, _, err = run_proc(RNP, ['--keyfile', data_path(PUBRING_7), '--notty', '--password=', '-e', src, '--output', sig])
         self.assertNotEqual(ret, 0)
-        self.assertRegex(err, r'(?s)^.*Failed to add signature.*')
-        ret, _, err = run_proc(RNP, ['--homedir', kring, '--password=', '--sign', src, '--output', sig, '--allow-sha1-key-sigs'])
+        self.assertRegex(err, r'(?s)^.*Failed to add recipient.*')
+        ret, _, err = run_proc(RNP, ['--keyfile', data_path(PUBRING_7), '--notty', '--password=', '-e', src, '--output', sig, '--allow-sha1-key-sigs'])
         self.assertEqual(ret, 0)
         remove_files(sig)
 
-        ret, _, err = run_proc(RNP, ['--homedir', kring, '--password=', '--sign', src, '--output', sig, '--hash', 'SHA1'])
+        ret, _, err = run_proc(RNP, ['--keyfile', data_path(PUBRING_7), '--notty', '--password=', '-e', src, '--output', sig, '--hash', 'SHA1'])
         self.assertNotEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*Hash algorithm \'SHA1\' is cryptographically weak!.*Weak hash algorithm detected. Pass --allow-weak-hash option if you really want to use it\..*')
-        ret, _, err = run_proc(RNP, ['--homedir', kring, '--password=', '--sign', src, '--output', sig, '--hash', 'SHA1', '--allow-sha1-key-sigs'])
+        ret, _, err = run_proc(RNP, ['--keyfile', data_path(PUBRING_7), '--notty', '--password=', '-e', src, '--output', sig, '--hash', 'SHA1', '--allow-sha1-key-sigs'])
         self.assertEqual(ret, 0)
         remove_files(sig)
 
         clear_workfiles()
-        shutil.rmtree(RNP7, ignore_errors=True)
 
     def test_armored_detection_on_cleartext(self):
         ret, out, err = run_proc(RNP, ['--keyfile', data_path(SECRING_1), '--password', PASSWORD, '--clearsign'], 'Hello\n')
