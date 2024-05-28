@@ -46,7 +46,7 @@ bn_bn2bin(const bignum_t *a, unsigned char *b)
 }
 
 bignum_t *
-mpi2bn(const pgp_mpi_t *val)
+mpi2bn(const pgp::mpi *val)
 {
     assert(val);
     if (!val) {
@@ -65,7 +65,7 @@ mpi2bn(const pgp_mpi_t *val)
 }
 
 bool
-bn2mpi(const bignum_t *bn, pgp_mpi_t *val)
+bn2mpi(const bignum_t *bn, pgp::mpi *val)
 {
     val->len = bn_num_bytes(*bn);
     if (val->len > PGP_MPINT_SIZE) {

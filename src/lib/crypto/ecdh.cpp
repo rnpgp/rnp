@@ -43,7 +43,7 @@ compute_kek(uint8_t *              kek,
             const uint8_t *        other_info,
             size_t                 other_info_size,
             const ec_curve_desc_t *curve_desc,
-            const pgp_mpi_t *      ec_pubkey,
+            const pgp::mpi *       ec_pubkey,
             const botan_privkey_t  ec_prvkey,
             const pgp_hash_alg_t   hash_alg)
 {
@@ -98,7 +98,7 @@ ecdh_load_public_key(botan_pubkey_t *pubkey, const pgp_ec_key_t *key)
         return !botan_pubkey_load_x25519(pubkey, pkey.data());
     }
 
-    if (!mpi_bytes(&key->p) || (key->p.mpi[0] != 0x04)) {
+    if (!key->p.bytes() || (key->p.mpi[0] != 0x04)) {
         RNP_LOG("Failed to load public key");
         return false;
     }
@@ -302,7 +302,7 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
                    const pgp_ec_key_t *        key,
                    const pgp_fingerprint_t &   fingerprint)
 {
-    if (!out_len || !in || !key || !mpi_bytes(&key->x)) {
+    if (!out_len || !in || !key || !key->x.bytes()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 

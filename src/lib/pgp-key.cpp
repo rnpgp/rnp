@@ -511,7 +511,7 @@ pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey)
     if (pubkey->alg == PGP_PKA_ECDSA) {
         hash_min = ecdsa_get_min_hash(pubkey->material.ec.curve);
     } else {
-        hash_min = dsa_get_min_hash(mpi_bits(&pubkey->material.dsa.q));
+        hash_min = dsa_get_min_hash(pubkey->material.dsa.q.bits());
     }
 
     if (rnp::Hash::size(hash) < rnp::Hash::size(hash_min)) {
@@ -2980,12 +2980,12 @@ pgp_key_material_t::bits() const
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        return 8 * mpi_bytes(&rsa.n);
+        return 8 * rsa.n.bytes();
     case PGP_PKA_DSA:
-        return 8 * mpi_bytes(&dsa.p);
+        return 8 * dsa.p.bytes();
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        return 8 * mpi_bytes(&eg.y);
+        return 8 * eg.y.bytes();
     case PGP_PKA_ECDH:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_ECDSA:
@@ -3043,7 +3043,7 @@ pgp_key_material_t::qbits() const
     if (alg != PGP_PKA_DSA) {
         return 0;
     }
-    return 8 * mpi_bytes(&dsa.q);
+    return 8 * dsa.q.bytes();
 }
 
 void
@@ -3065,9 +3065,9 @@ pgp_key_material_t::valid() const
 
 namespace {
 void
-grip_hash_mpi(rnp::Hash &hash, const pgp_mpi_t &val, const char name, bool lzero = true)
+grip_hash_mpi(rnp::Hash &hash, const pgp::mpi &val, const char name, bool lzero = true)
 {
-    size_t len = mpi_bytes(&val);
+    size_t len = val.bytes();
     size_t idx = 0;
     for (idx = 0; (idx < len) && !val.mpi[idx]; idx++)
         ;
@@ -3099,7 +3099,7 @@ grip_hash_mpi(rnp::Hash &hash, const pgp_mpi_t &val, const char name, bool lzero
 void
 grip_hash_ecc_hex(rnp::Hash &hash, const char *hex, char name)
 {
-    pgp_mpi_t mpi = {};
+    pgp::mpi mpi = {};
     mpi.len = rnp::hex_decode(hex, mpi.mpi, sizeof(mpi.mpi));
     if (!mpi.len) {
         RNP_LOG("wrong hex mpi");
@@ -3120,7 +3120,7 @@ grip_hash_ec(rnp::Hash &hash, const pgp_ec_key_t &key)
     }
 
     /* build uncompressed point from gx and gy */
-    pgp_mpi_t g = {};
+    pgp::mpi g = {};
     g.mpi[0] = 0x04;
     g.len = 1;
     size_t len = rnp::hex_decode(desc->gx, g.mpi + g.len, sizeof(g.mpi) - g.len);

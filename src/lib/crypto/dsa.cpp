@@ -160,7 +160,6 @@ dsa_sign(rnp::RNG *           rng,
 {
     botan_privkey_t    dsa_key = NULL;
     botan_pk_op_sign_t sign_op = NULL;
-    size_t             q_order = 0;
     uint8_t            sign_buf[2 * BITS_TO_BYTES(DSA_MAX_Q_BITLEN)] = {0};
     bignum_t *         p = NULL, *q = NULL, *g = NULL, *x = NULL;
     rnp_result_t       ret = RNP_ERROR_SIGNING_FAILED;
@@ -169,7 +168,7 @@ dsa_sign(rnp::RNG *           rng,
     size_t z_len = 0;
 
     memset(sig, 0, sizeof(*sig));
-    q_order = mpi_bytes(&key->q);
+    size_t q_order = key->q.bytes();
     if ((2 * q_order) > sizeof(sign_buf)) {
         RNP_LOG("wrong q order");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -209,8 +208,7 @@ dsa_sign(rnp::RNG *           rng,
     }
 
     // Now load the DSA (r,s) values from the signature.
-    if (!mem2mpi(&sig->r, sign_buf, q_order) ||
-        !mem2mpi(&sig->s, sign_buf + q_order, q_order)) {
+    if (!sig->r.from_mem(sign_buf, q_order) || !sig->s.from_mem(sign_buf + q_order, q_order)) {
         goto end;
     }
     ret = RNP_SUCCESS;
@@ -234,30 +232,27 @@ dsa_verify(const pgp_dsa_signature_t *sig,
     botan_pubkey_t       dsa_key = NULL;
     botan_pk_op_verify_t verify_op = NULL;
     uint8_t              sign_buf[2 * BITS_TO_BYTES(DSA_MAX_Q_BITLEN)] = {0};
-    size_t               q_order = 0;
-    size_t               r_blen, s_blen;
-    bignum_t *           p = NULL, *q = NULL, *g = NULL, *y = NULL;
     rnp_result_t         ret = RNP_ERROR_GENERIC;
     size_t               z_len = 0;
 
-    q_order = mpi_bytes(&key->q);
+    size_t q_order = key->q.bytes();
     if ((2 * q_order) > sizeof(sign_buf)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     z_len = hash_len < q_order ? hash_len : q_order;
 
-    r_blen = mpi_bytes(&sig->r);
-    s_blen = mpi_bytes(&sig->s);
+    size_t r_blen = sig->r.bytes();
+    size_t s_blen = sig->s.bytes();
     if ((r_blen > q_order) || (s_blen > q_order)) {
         RNP_LOG("Wrong signature");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    p = mpi2bn(&key->p);
-    q = mpi2bn(&key->q);
-    g = mpi2bn(&key->g);
-    y = mpi2bn(&key->y);
+    bignum_t *p = mpi2bn(&key->p);
+    bignum_t *q = mpi2bn(&key->q);
+    bignum_t *g = mpi2bn(&key->g);
+    bignum_t *y = mpi2bn(&key->y);
 
     if (!p || !q || !g || !y) {
         RNP_LOG("out of memory");
@@ -271,8 +266,8 @@ dsa_verify(const pgp_dsa_signature_t *sig,
         goto end;
     }
 
-    mpi2mem(&sig->r, sign_buf + q_order - r_blen);
-    mpi2mem(&sig->s, sign_buf + 2 * q_order - s_blen);
+    sig->r.to_mem(sign_buf + q_order - r_blen);
+    sig->s.to_mem(sign_buf + 2 * q_order - s_blen);
 
     if (botan_pk_op_verify_create(&verify_op, dsa_key, "Raw", 0)) {
         RNP_LOG("Can't create verifier");

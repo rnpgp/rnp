@@ -1003,23 +1003,23 @@ forget_secret_key_fields(pgp_key_material_t *key)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        mpi_forget(&key->rsa.d);
-        mpi_forget(&key->rsa.p);
-        mpi_forget(&key->rsa.q);
-        mpi_forget(&key->rsa.u);
+        key->rsa.d.forget();
+        key->rsa.p.forget();
+        key->rsa.q.forget();
+        key->rsa.u.forget();
         break;
     case PGP_PKA_DSA:
-        mpi_forget(&key->dsa.x);
+        key->dsa.x.forget();
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        mpi_forget(&key->eg.x);
+        key->eg.x.forget();
         break;
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH:
-        mpi_forget(&key->ec.x);
+        key->ec.x.forget();
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:

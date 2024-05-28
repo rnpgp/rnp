@@ -91,7 +91,7 @@ pgp_keyid(pgp_key_id_t &keyid, const pgp_key_pkt_t &key)
             RNP_LOG("bad algorithm");
             return RNP_ERROR_NOT_SUPPORTED;
         }
-        size_t n = mpi_bytes(&key.material.rsa.n);
+        size_t n = key.material.rsa.n.bytes();
         (void) memcpy(keyid.data(), key.material.rsa.n.mpi + n - keyid.size(), keyid.size());
         return RNP_SUCCESS;
     }

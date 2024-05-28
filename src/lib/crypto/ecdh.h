@@ -41,9 +41,9 @@
 typedef struct pgp_fingerprint_t pgp_fingerprint_t;
 
 typedef struct pgp_ecdh_encrypted_t {
-    pgp_mpi_t p;
-    uint8_t   m[ECDH_WRAPPED_KEY_SIZE];
-    size_t    mlen;
+    pgp::mpi p;
+    uint8_t  m[ECDH_WRAPPED_KEY_SIZE];
+    size_t   mlen;
 } pgp_ecdh_encrypted_t;
 
 rnp_result_t ecdh_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret);

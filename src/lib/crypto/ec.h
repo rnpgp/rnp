@@ -77,17 +77,17 @@ typedef struct ec_curve_desc_t {
 
 typedef struct pgp_ec_key_t {
     pgp_curve_t curve;
-    pgp_mpi_t   p;
+    pgp::mpi    p;
     /* secret mpi */
-    pgp_mpi_t x;
+    pgp::mpi x;
     /* ecdh params */
     pgp_hash_alg_t kdf_hash_alg; /* Hash used by kdf */
     pgp_symm_alg_t key_wrap_alg; /* Symmetric algorithm used to wrap KEK*/
 } pgp_ec_key_t;
 
 typedef struct pgp_ec_signature_t {
-    pgp_mpi_t r;
-    pgp_mpi_t s;
+    pgp::mpi r;
+    pgp::mpi s;
 } pgp_ec_signature_t;
 
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
