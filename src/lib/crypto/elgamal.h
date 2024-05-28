@@ -32,23 +32,23 @@
 #include "crypto/mpi.h"
 
 typedef struct pgp_eg_key_t {
-    pgp_mpi_t p;
-    pgp_mpi_t g;
-    pgp_mpi_t y;
+    pgp::mpi p;
+    pgp::mpi g;
+    pgp::mpi y;
     /* secret mpi */
-    pgp_mpi_t x;
+    pgp::mpi x;
 } pgp_eg_key_t;
 
 typedef struct pgp_eg_signature_t {
     /* This is kept only for packet reading. Implementation MUST
      * not create elgamal signatures */
-    pgp_mpi_t r;
-    pgp_mpi_t s;
+    pgp::mpi r;
+    pgp::mpi s;
 } pgp_eg_signature_t;
 
 typedef struct pgp_eg_encrypted_t {
-    pgp_mpi_t g;
-    pgp_mpi_t m;
+    pgp::mpi g;
+    pgp::mpi m;
 } pgp_eg_encrypted_t;
 
 bool elgamal_validate_key(const pgp_eg_key_t *key, bool secret);

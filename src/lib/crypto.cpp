@@ -243,20 +243,19 @@ key_material_equal(const pgp_key_material_t *key1, const pgp_key_material_t *key
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        return mpi_equal(&key1->rsa.n, &key2->rsa.n) && mpi_equal(&key1->rsa.e, &key2->rsa.e);
+        return (key1->rsa.n == key2->rsa.n) && (key1->rsa.e == key2->rsa.e);
     case PGP_PKA_DSA:
-        return mpi_equal(&key1->dsa.p, &key2->dsa.p) &&
-               mpi_equal(&key1->dsa.q, &key2->dsa.q) &&
-               mpi_equal(&key1->dsa.g, &key2->dsa.g) && mpi_equal(&key1->dsa.y, &key2->dsa.y);
+        return (key1->dsa.p == key2->dsa.p) && (key1->dsa.q == key2->dsa.q) &&
+               (key1->dsa.g == key2->dsa.g) && (key1->dsa.y == key2->dsa.y);
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        return mpi_equal(&key1->eg.p, &key2->eg.p) && mpi_equal(&key1->eg.g, &key2->eg.g) &&
-               mpi_equal(&key1->eg.y, &key2->eg.y);
+        return (key1->eg.p == key2->eg.p) && (key1->eg.g == key2->eg.g) &&
+               (key1->eg.y == key2->eg.y);
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
-        return (key1->ec.curve == key2->ec.curve) && mpi_equal(&key1->ec.p, &key2->ec.p);
+        return (key1->ec.curve == key2->ec.curve) && (key1->ec.p == key2->ec.p);
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
         return (key1->ed25519.pub == key2->ed25519.pub);

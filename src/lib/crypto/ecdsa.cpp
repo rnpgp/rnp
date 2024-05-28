@@ -44,9 +44,8 @@ ecdsa_load_public_key(botan_pubkey_t *pubkey, const pgp_ec_key_t *keydata)
     }
     const size_t curve_order = BITS_TO_BYTES(curve->bitlen);
 
-    if (!mpi_bytes(&keydata->p) || (keydata->p.mpi[0] != 0x04)) {
-        RNP_LOG(
-          "Failed to load public key: %zu, %02x", mpi_bytes(&keydata->p), keydata->p.mpi[0]);
+    if (!keydata->p.bytes() || (keydata->p.mpi[0] != 0x04)) {
+        RNP_LOG("Failed to load public key: %zu, %02x", keydata->p.bytes(), keydata->p.mpi[0]);
         return false;
     }
 
@@ -183,8 +182,8 @@ ecdsa_sign(rnp::RNG *          rng,
     }
 
     // Allocate memory and copy results
-    if (mem2mpi(&sig->r, out_buf, curve_order) &&
-        mem2mpi(&sig->s, out_buf + curve_order, curve_order)) {
+    if (sig->r.from_mem(out_buf, curve_order) &&
+        sig->s.from_mem(out_buf + curve_order, curve_order)) {
         ret = RNP_SUCCESS;
     }
 end:
@@ -226,8 +225,8 @@ ecdsa_verify(const pgp_ec_signature_t *sig,
         goto end;
     }
 
-    r_blen = mpi_bytes(&sig->r);
-    s_blen = mpi_bytes(&sig->s);
+    r_blen = sig->r.bytes();
+    s_blen = sig->s.bytes();
     if ((r_blen > curve_order) || (s_blen > curve_order) ||
         (curve_order > MAX_CURVE_BYTELEN)) {
         ret = RNP_ERROR_BAD_PARAMETERS;
@@ -235,8 +234,8 @@ ecdsa_verify(const pgp_ec_signature_t *sig,
     }
 
     // Both can't fail
-    mpi2mem(&sig->r, &sign_buf[curve_order - r_blen]);
-    mpi2mem(&sig->s, &sign_buf[curve_order + curve_order - s_blen]);
+    sig->r.to_mem(&sign_buf[curve_order - r_blen]);
+    sig->s.to_mem(&sign_buf[curve_order + curve_order - s_blen]);
 
     if (!botan_pk_op_verify_finish(verifier, sign_buf, curve_order * 2)) {
         ret = RNP_SUCCESS;

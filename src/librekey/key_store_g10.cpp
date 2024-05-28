@@ -286,7 +286,7 @@ lookup_var_data(const sexp_list_t *list, const std::string &name) noexcept
 }
 
 static bool
-read_mpi(const sexp_list_t *list, const std::string &name, pgp_mpi_t &val) noexcept
+read_mpi(const sexp_list_t *list, const std::string &name, pgp::mpi &val) noexcept
 {
     const sexp_string_t *data = lookup_var_data(list, name);
     if (!data) {
@@ -296,9 +296,9 @@ read_mpi(const sexp_list_t *list, const std::string &name, pgp_mpi_t &val) noexc
     /* strip leading zero */
     const auto &bytes = data->get_string();
     if ((bytes.size() > 1) && !bytes[0] && (bytes[1] & 0x80)) {
-        return mem2mpi(&val, bytes.data() + 1, bytes.size() - 1);
+        return val.from_mem(bytes.data() + 1, bytes.size() - 1);
     }
-    return mem2mpi(&val, bytes.data(), bytes.size());
+    return val.from_mem(bytes.data(), bytes.size());
 }
 
 static bool
@@ -321,7 +321,7 @@ read_curve(const sexp_list_t *list, const std::string &name, pgp_ec_key_t &key) 
 }
 
 void
-gnupg_sexp_t::add_mpi(const std::string &name, const pgp_mpi_t &mpi)
+gnupg_sexp_t::add_mpi(const std::string &name, const pgp::mpi &mpi)
 {
     auto sub_s_exp = add_sub();
     sub_s_exp->push_back(std::make_shared<sexp_string_t>(name));
@@ -329,7 +329,7 @@ gnupg_sexp_t::add_mpi(const std::string &name, const pgp_mpi_t &mpi)
     sub_s_exp->push_back(value_block);
 
     sexp_simple_string_t data;
-    size_t               len = mpi_bytes(&mpi);
+    size_t               len = mpi.bytes();
     size_t               idx;
 
     for (idx = 0; (idx < len) && !mpi.mpi[idx]; idx++)

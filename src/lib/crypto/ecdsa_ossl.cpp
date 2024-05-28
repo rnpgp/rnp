@@ -92,7 +92,7 @@ ecdsa_sign(rnp::RNG *          rng,
            size_t              hash_len,
            const pgp_ec_key_t *key)
 {
-    if (mpi_bytes(&key->x) == 0) {
+    if (!key->x.bytes()) {
         RNP_LOG("private key not set");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -157,7 +157,7 @@ ecdsa_verify(const pgp_ec_signature_t *sig,
         RNP_LOG("Failed to initialize verify: %lu", ERR_peek_last_error());
         goto done;
     }
-    pgp_mpi_t sigbuf;
+    pgp::mpi sigbuf;
     if (!ecdsa_encode_sig(sigbuf.mpi, &sigbuf.len, *sig)) {
         goto done;
     }

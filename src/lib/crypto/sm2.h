@@ -31,7 +31,7 @@
 #include "ec.h"
 
 typedef struct pgp_sm2_encrypted_t {
-    pgp_mpi_t m;
+    pgp::mpi m;
 } pgp_sm2_encrypted_t;
 
 namespace rnp {

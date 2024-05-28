@@ -432,7 +432,7 @@ rsa_verify_pkcs1(const pgp_rsa_signature_t *sig,
     int res;
     if (sig->s.len < key->n.len) {
         /* OpenSSL doesn't like signatures smaller then N */
-        pgp_mpi_t sn;
+        pgp::mpi sn;
         sn.len = key->n.len;
         size_t diff = key->n.len - sig->s.len;
         memset(sn.mpi, 0, diff);
@@ -460,7 +460,7 @@ rsa_sign_pkcs1(rnp::RNG *           rng,
                const pgp_rsa_key_t *key)
 {
     rnp_result_t ret = RNP_ERROR_GENERIC;
-    if (mpi_bytes(&key->q) == 0) {
+    if (!key->q.bytes()) {
         RNP_LOG("private key not set");
         return ret;
     }
@@ -508,7 +508,7 @@ rsa_decrypt_pkcs1(rnp::RNG *                 rng,
                   const pgp_rsa_key_t *      key)
 {
     rnp_result_t ret = RNP_ERROR_GENERIC;
-    if (mpi_bytes(&key->q) == 0) {
+    if (!key->q.bytes()) {
         RNP_LOG("private key not set");
         return ret;
     }

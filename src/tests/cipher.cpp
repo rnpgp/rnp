@@ -162,7 +162,7 @@ TEST_F(rnp_tests, rnp_test_eddsa)
     assert_rnp_failure(eddsa_verify(&sig, hash, sizeof(hash) - 1, &seckey.material.ec));
 
     // swap r/s -> invalid sig
-    pgp_mpi_t tmp = sig.r;
+    pgp::mpi tmp = sig.r;
     sig.r = sig.s;
     sig.s = tmp;
     assert_rnp_failure(eddsa_verify(&sig, hash, sizeof(hash), &seckey.material.ec));

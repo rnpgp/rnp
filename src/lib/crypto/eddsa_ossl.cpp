@@ -40,10 +40,10 @@ rnp_result_t
 eddsa_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret)
 {
     /* Not implemented in the OpenSSL, so just do basic size checks. */
-    if ((mpi_bytes(&key->p) != 33) || (key->p.mpi[0] != 0x40)) {
+    if ((key->p.bytes() != 33) || (key->p.mpi[0] != 0x40)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (secret && mpi_bytes(&key->x) > 32) {
+    if (secret && key->x.bytes() > 32) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     return RNP_SUCCESS;
@@ -65,11 +65,11 @@ eddsa_verify(const pgp_ec_signature_t *sig,
              size_t                    hash_len,
              const pgp_ec_key_t *      key)
 {
-    if ((mpi_bytes(&sig->r) > 32) || (mpi_bytes(&sig->s) > 32)) {
+    if ((sig->r.bytes() > 32) || (sig->s.bytes() > 32)) {
         RNP_LOG("Invalid EdDSA signature.");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if ((mpi_bytes(&key->p) != 33) || (key->p.mpi[0] != 0x40)) {
+    if ((key->p.bytes() != 33) || (key->p.mpi[0] != 0x40)) {
         RNP_LOG("Invalid EdDSA public key.");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -93,8 +93,8 @@ eddsa_verify(const pgp_ec_signature_t *sig,
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
         goto done;
     }
-    mpi2mem(&sig->r, &sigbuf[32 - mpi_bytes(&sig->r)]);
-    mpi2mem(&sig->s, &sigbuf[64 - mpi_bytes(&sig->s)]);
+    sig->r.to_mem(&sigbuf[32 - sig->r.bytes()]);
+    sig->s.to_mem(&sigbuf[64 - sig->s.bytes()]);
 
     if (EVP_DigestVerify(md, sigbuf, 64, hash, hash_len) > 0) {
         ret = RNP_SUCCESS;
@@ -113,7 +113,7 @@ eddsa_sign(rnp::RNG *          rng,
            size_t              hash_len,
            const pgp_ec_key_t *key)
 {
-    if (!mpi_bytes(&key->x)) {
+    if (!key->x.bytes()) {
         RNP_LOG("private key not set");
         return RNP_ERROR_BAD_PARAMETERS;
     }

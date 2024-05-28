@@ -121,7 +121,7 @@ void clean_temp_dir(const char *path);
 /* check whether bin value is equals hex string */
 bool bin_eq_hex(const uint8_t *data, size_t len, const char *val);
 
-bool hex2mpi(pgp_mpi_t *val, const char *hex);
+bool hex2mpi(pgp::mpi *val, const char *hex);
 
 /* check whether key id is equal to hex string */
 bool cmp_keyid(const pgp_key_id_t &id, const std::string &val);
@@ -131,7 +131,7 @@ bool cmp_keyfp(const pgp_fingerprint_t &fp, const std::string &val);
 
 void test_ffi_init(rnp_ffi_t *ffi);
 
-bool mpi_empty(const pgp_mpi_t &val);
+bool mpi_empty(const pgp::mpi &val);
 
 bool write_pass_to_pipe(int fd, size_t count);
 /* Setup readable pipe with default password inside */

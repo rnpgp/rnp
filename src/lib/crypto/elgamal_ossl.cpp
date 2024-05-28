@@ -183,7 +183,7 @@ elgamal_encrypt_pkcs1(rnp::RNG *          rng,
                       size_t              in_len,
                       const pgp_eg_key_t *key)
 {
-    pgp_mpi_t mm = {};
+    pgp::mpi mm = {};
     mm.len = key->p.len;
     if (!pkcs1v15_pad(mm.mpi, mm.len, in, in_len)) {
         /* LCOV_EXCL_START */
@@ -280,7 +280,7 @@ elgamal_decrypt_pkcs1(rnp::RNG *                rng,
                       const pgp_eg_encrypted_t *in,
                       const pgp_eg_key_t *      key)
 {
-    if (!mpi_bytes(&key->x)) {
+    if (!key->x.bytes()) {
         RNP_LOG("Secret key not set.");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -291,7 +291,7 @@ elgamal_decrypt_pkcs1(rnp::RNG *                rng,
         return RNP_ERROR_OUT_OF_MEMORY;
         /* LCOV_EXCL_END */
     }
-    pgp_mpi_t    mm = {};
+    pgp::mpi     mm = {};
     size_t       padlen = 0;
     rnp_result_t ret = RNP_ERROR_GENERIC;
     BN_CTX_start(ctx);

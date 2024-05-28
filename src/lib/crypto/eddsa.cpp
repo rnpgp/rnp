@@ -38,7 +38,7 @@ eddsa_load_public_key(botan_pubkey_t *pubkey, const pgp_ec_key_t *keydata)
     /*
      * See draft-ietf-openpgp-rfc4880bis-01 section 13.3
      */
-    if ((mpi_bytes(&keydata->p) != 33) || (keydata->p.mpi[0] != 0x40)) {
+    if ((keydata->p.bytes() != 33) || (keydata->p.mpi[0] != 0x40)) {
         return false;
     }
     if (botan_pubkey_load_ed25519(pubkey, keydata->p.mpi + 1)) {
@@ -51,17 +51,15 @@ eddsa_load_public_key(botan_pubkey_t *pubkey, const pgp_ec_key_t *keydata)
 static bool
 eddsa_load_secret_key(botan_privkey_t *seckey, const pgp_ec_key_t *keydata)
 {
-    uint8_t keybuf[32] = {0};
-    size_t  sz;
-
     if (keydata->curve != PGP_CURVE_ED25519) {
         return false;
     }
-    sz = mpi_bytes(&keydata->x);
+    size_t sz = keydata->x.bytes();
     if (!sz || (sz > 32)) {
         return false;
     }
-    mpi2mem(&keydata->x, keybuf + 32 - sz);
+    uint8_t keybuf[32] = {0};
+    keydata->x.to_mem(keybuf + 32 - sz);
     if (botan_privkey_load_ed25519(seckey, keybuf)) {
         return false;
     }
@@ -115,10 +113,10 @@ eddsa_generate(rnp::RNG *rng, pgp_ec_key_t *key)
     // First 32 bytes of key_bits are the EdDSA seed (private key)
     // Second 32 bytes are the EdDSA public key
 
-    mem2mpi(&key->x, key_bits, 32);
+    key->x.from_mem(key_bits, 32);
     // insert the required 0x40 prefix on the public key
     key_bits[31] = 0x40;
-    mem2mpi(&key->p, key_bits + 31, 33);
+    key->p.from_mem(key_bits + 31, 33);
     key->curve = PGP_CURVE_ED25519;
 
     ret = RNP_SUCCESS;
@@ -152,11 +150,11 @@ eddsa_verify(const pgp_ec_signature_t *sig,
     }
 
     // Unexpected size for Ed25519 signature
-    if ((mpi_bytes(&sig->r) > 32) || (mpi_bytes(&sig->s) > 32)) {
+    if ((sig->r.bytes() > 32) || (sig->s.bytes() > 32)) {
         goto done;
     }
-    mpi2mem(&sig->r, &bn_buf[32 - mpi_bytes(&sig->r)]);
-    mpi2mem(&sig->s, &bn_buf[64 - mpi_bytes(&sig->s)]);
+    sig->r.to_mem(&bn_buf[32 - sig->r.bytes()]);
+    sig->s.to_mem(&bn_buf[64 - sig->s.bytes()]);
 
     if (botan_pk_op_verify_finish(verify_op, bn_buf, 64) == 0) {
         ret = RNP_SUCCESS;
@@ -202,8 +200,8 @@ eddsa_sign(rnp::RNG *          rng,
         goto done;
     }
 
-    mem2mpi(&sig->r, bn_buf, 32);
-    mem2mpi(&sig->s, bn_buf + 32, 32);
+    sig->r.from_mem(bn_buf, 32);
+    sig->s.from_mem(bn_buf + 32, 32);
     ret = RNP_SUCCESS;
 done:
     botan_pk_op_sign_destroy(sign_op);

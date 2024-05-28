@@ -47,7 +47,7 @@ elgamal_load_public_key(botan_pubkey_t *pubkey, const pgp_eg_key_t *keydata)
     bool      res = false;
 
     // Check if provided public key byte size is not greater than ELGAMAL_MAX_P_BYTELEN.
-    if (mpi_bytes(&keydata->p) > ELGAMAL_MAX_P_BYTELEN) {
+    if (keydata->p.bytes() > ELGAMAL_MAX_P_BYTELEN) {
         goto done;
     }
 
@@ -74,7 +74,7 @@ elgamal_load_secret_key(botan_privkey_t *seckey, const pgp_eg_key_t *keydata)
     bool      res = false;
 
     // Check if provided secret key byte size is not greater than ELGAMAL_MAX_P_BYTELEN.
-    if (mpi_bytes(&keydata->p) > ELGAMAL_MAX_P_BYTELEN) {
+    if (keydata->p.bytes() > ELGAMAL_MAX_P_BYTELEN) {
         goto done;
     }
 
@@ -96,7 +96,7 @@ bool
 elgamal_validate_key(const pgp_eg_key_t *key, bool secret)
 {
     // Check if provided public key byte size is not greater than ELGAMAL_MAX_P_BYTELEN.
-    if (mpi_bytes(&key->p) > ELGAMAL_MAX_P_BYTELEN) {
+    if (key->p.bytes() > ELGAMAL_MAX_P_BYTELEN) {
         return false;
     }
 
@@ -162,7 +162,7 @@ elgamal_encrypt_pkcs1(rnp::RNG *          rng,
      * Successful call to botan's ElGamal encryption will return output that's
      * always 2*pubkey size.
      */
-    p_len = mpi_bytes(&key->p) * 2;
+    p_len = key->p.bytes() * 2;
 
     if (botan_pk_op_encrypt_create(&op_ctx, b_key, "PKCS1v15", 0) ||
         botan_pk_op_encrypt(op_ctx, rng->handle(), enc_buf, &p_len, in, in_len)) {
@@ -182,7 +182,7 @@ elgamal_encrypt_pkcs1(rnp::RNG *          rng,
      * memory corruption)
      */
     p_len /= 2;
-    if (mem2mpi(&out->g, enc_buf, p_len) && mem2mpi(&out->m, enc_buf + p_len, p_len)) {
+    if (out->g.from_mem(enc_buf, p_len) && out->m.from_mem(enc_buf + p_len, p_len)) {
         ret = RNP_SUCCESS;
     }
 end:
@@ -206,15 +206,15 @@ elgamal_decrypt_pkcs1(rnp::RNG *                rng,
     size_t                g_len;
     size_t                m_len;
 
-    if (!mpi_bytes(&key->x)) {
+    if (!key->x.bytes()) {
         RNP_LOG("empty secret key");
         goto end;
     }
 
     // Check if provided public key byte size is not greater than ELGAMAL_MAX_P_BYTELEN.
-    p_len = mpi_bytes(&key->p);
-    g_len = mpi_bytes(&in->g);
-    m_len = mpi_bytes(&in->m);
+    p_len = key->p.bytes();
+    g_len = in->g.bytes();
+    m_len = in->m.bytes();
 
     if ((2 * p_len > sizeof(enc_buf)) || (g_len > p_len) || (m_len > p_len)) {
         RNP_LOG("Unsupported/wrong public key or encrypted data");

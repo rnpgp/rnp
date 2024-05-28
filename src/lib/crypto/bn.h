@@ -55,9 +55,9 @@ void      bn_free(bignum_t * /*a*/);
 
 int bn_bn2bin(const bignum_t * /*a*/, unsigned char * /*b*/);
 
-bignum_t *mpi2bn(const pgp_mpi_t *val);
+bignum_t *mpi2bn(const pgp::mpi *val);
 
-bool bn2mpi(const bignum_t *bn, pgp_mpi_t *val);
+bool bn2mpi(const bignum_t *bn, pgp::mpi *val);
 
 size_t bn_num_bytes(const bignum_t &a);
 
@@ -71,7 +71,7 @@ class bn {
     {
     }
 
-    bn(const pgp_mpi_t &val) : _bn(mpi2bn(&val))
+    bn(const pgp::mpi &val) : _bn(mpi2bn(&val))
     {
     }
 
@@ -88,7 +88,7 @@ class bn {
     }
 
     void
-    set(const pgp_mpi_t &val) noexcept
+    set(const pgp::mpi &val) noexcept
     {
         BN_free(_bn);
         _bn = mpi2bn(&val);
@@ -131,7 +131,7 @@ class bn {
     }
 
     bool
-    mpi(pgp_mpi_t &mpi) const noexcept
+    mpi(pgp::mpi &mpi) const noexcept
     {
         return bn2mpi(_bn, &mpi);
     }

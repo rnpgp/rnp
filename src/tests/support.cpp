@@ -367,10 +367,10 @@ bin_eq_hex(const uint8_t *data, size_t len, const char *val)
 }
 
 bool
-hex2mpi(pgp_mpi_t *val, const char *hex)
+hex2mpi(pgp::mpi *val, const char *hex)
 {
     auto hexbin = rnp::hex_to_bin(hex);
-    return mem2mpi(val, hexbin.data(), hexbin.size());
+    return val->from_mem(hexbin.data(), hexbin.size());
 }
 
 bool
@@ -396,9 +396,9 @@ test_ffi_init(rnp_ffi_t *ffi)
 }
 
 bool
-mpi_empty(const pgp_mpi_t &val)
+mpi_empty(const pgp::mpi &val)
 {
-    pgp_mpi_t zero{};
+    pgp::mpi zero{};
     return (val.len == 0) && !memcmp(val.mpi, zero.mpi, PGP_MPINT_SIZE);
 }
 

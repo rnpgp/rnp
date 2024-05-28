@@ -7675,7 +7675,7 @@ add_json_mpis(json_object *jso, ...)
 
     va_start(ap, jso);
     while ((name = va_arg(ap, const char *))) {
-        pgp_mpi_t *val = va_arg(ap, pgp_mpi_t *);
+        pgp::mpi *val = va_arg(ap, pgp::mpi *);
         if (!val) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;

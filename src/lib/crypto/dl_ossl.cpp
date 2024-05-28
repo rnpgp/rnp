@@ -63,11 +63,11 @@ dl_build_params(bignum_t *p, bignum_t *q, bignum_t *g, bignum_t *y, bignum_t *x)
 #endif
 
 EVP_PKEY *
-dl_load_key(const pgp_mpi_t &mp,
-            const pgp_mpi_t *mq,
-            const pgp_mpi_t &mg,
-            const pgp_mpi_t &my,
-            const pgp_mpi_t *mx)
+dl_load_key(const pgp::mpi &mp,
+            const pgp::mpi *mq,
+            const pgp::mpi &mg,
+            const pgp::mpi &my,
+            const pgp::mpi *mx)
 {
     EVP_PKEY *evpkey = NULL;
     rnp::bn   p(mpi2bn(&mp));
@@ -153,7 +153,7 @@ done:
 
 #if !defined(CRYPTO_BACKEND_OPENSSL3)
 static rnp_result_t
-dl_validate_secret_key(EVP_PKEY *dlkey, const pgp_mpi_t &mx)
+dl_validate_secret_key(EVP_PKEY *dlkey, const pgp::mpi &mx)
 {
     const DH *dh = EVP_PKEY_get0_DH(dlkey);
     assert(dh);
@@ -217,7 +217,7 @@ done:
 #endif
 
 rnp_result_t
-dl_validate_key(EVP_PKEY *pkey, const pgp_mpi_t *x)
+dl_validate_key(EVP_PKEY *pkey, const pgp::mpi *x)
 {
     rnp_result_t  ret = RNP_ERROR_GENERIC;
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, NULL);

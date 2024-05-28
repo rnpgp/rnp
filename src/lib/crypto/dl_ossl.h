@@ -33,12 +33,12 @@
 #include "mpi.h"
 #include <openssl/evp.h>
 
-EVP_PKEY *dl_load_key(const pgp_mpi_t &mp,
-                      const pgp_mpi_t *mq,
-                      const pgp_mpi_t &mg,
-                      const pgp_mpi_t &my,
-                      const pgp_mpi_t *mx);
+EVP_PKEY *dl_load_key(const pgp::mpi &mp,
+                      const pgp::mpi *mq,
+                      const pgp::mpi &mg,
+                      const pgp::mpi &my,
+                      const pgp::mpi *mx);
 
-rnp_result_t dl_validate_key(EVP_PKEY *pkey, const pgp_mpi_t *mx);
+rnp_result_t dl_validate_key(EVP_PKEY *pkey, const pgp::mpi *mx);
 
 #endif
