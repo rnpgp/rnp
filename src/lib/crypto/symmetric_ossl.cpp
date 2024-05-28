@@ -268,17 +268,19 @@ pgp_cipher_aead_start(pgp_crypt_t *crypt, const uint8_t *nonce, size_t len)
 }
 
 bool
-pgp_cipher_aead_update(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t len)
+pgp_cipher_aead_update(
+  pgp_crypt_t &crypt, uint8_t *out, const uint8_t *in, size_t len, size_t &read)
 {
     if (!len) {
         return true;
     }
     int  out_len = 0;
-    bool res = EVP_CipherUpdate(crypt->aead.obj, out, &out_len, in, len) == 1;
+    bool res = EVP_CipherUpdate(crypt.aead.obj, out, &out_len, in, len) == 1;
     if (!res) {
         RNP_LOG("Failed to update cipher: %lu", ERR_peek_last_error()); // LCOV_EXCL_LINE
     }
     assert(out_len == (int) len);
+    read = len;
     return res;
 }
 

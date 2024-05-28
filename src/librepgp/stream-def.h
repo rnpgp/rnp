@@ -54,7 +54,7 @@
 #define ST_FROM ("From")
 
 /* Preallocated cache length for AEAD encryption/decryption */
-#define PGP_AEAD_CACHE_LEN (PGP_INPUT_CACHE_SIZE + PGP_AEAD_MAX_TAG_LEN)
+#define PGP_AEAD_CACHE_LEN (PGP_INPUT_CACHE_SIZE + 2 * PGP_AEAD_MAX_TAG_LEN)
 
 /* Maximum OpenPGP packet nesting level */
 #define MAXIMUM_NESTING_LEVEL 32

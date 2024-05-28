@@ -213,10 +213,12 @@ bool pgp_cipher_aead_start(pgp_crypt_t *crypt, const uint8_t *nonce, size_t len)
  *             len bytes
  *  @param in buffer with input, cannot be NULL
  *  @param len number of bytes to process. Should be multiple of update granularity.
+ *  @param read number of bytes read and processed, in rare cases could be less then len.
  *  @return true on success or false otherwise. On success exactly len processed bytes will be
  *          stored in out buffer
  */
-bool pgp_cipher_aead_update(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t len);
+bool pgp_cipher_aead_update(
+  pgp_crypt_t &crypt, uint8_t *out, const uint8_t *in, size_t len, size_t &read);
 
 /** @brief Do final update on the cipher. For decryption final chunk should contain at least
  *         authentication tag, for encryption input could be zero-size.
