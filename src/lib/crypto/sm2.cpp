@@ -45,7 +45,7 @@ sm2_load_public_key(botan_pubkey_t *pubkey, const pgp_ec_key_t *keydata)
     }
 
     const size_t sign_half_len = BITS_TO_BYTES(curve->bitlen);
-    sz = mpi_bytes(&keydata->p);
+    sz = keydata->p.bytes();
     if (!sz || (sz != (2 * sign_half_len + 1)) || (keydata->p.mpi[0] != 0x04)) {
         goto end;
     }
@@ -202,8 +202,8 @@ sm2_sign(rnp::RNG *          rng,
     }
 
     // Allocate memory and copy results
-    if (mem2mpi(&sig->r, out_buf, sign_half_len) &&
-        mem2mpi(&sig->s, out_buf + sign_half_len, sign_half_len)) {
+    if (sig->r.from_mem(out_buf, sign_half_len) &&
+        sig->s.from_mem(out_buf + sign_half_len, sign_half_len)) {
         // All good now
         ret = RNP_SUCCESS;
     }
@@ -262,8 +262,8 @@ sm2_verify(const pgp_ec_signature_t *sig,
         goto end;
     }
 
-    mpi2mem(&sig->r, sign_buf + sign_half_len - r_blen);
-    mpi2mem(&sig->s, sign_buf + 2 * sign_half_len - s_blen);
+    sig->r.to_mem(sign_buf + sign_half_len - r_blen);
+    sig->s.to_mem(sign_buf + 2 * sign_half_len - s_blen);
 
     if (!botan_pk_op_verify_finish(verifier, sign_buf, sign_half_len * 2)) {
         ret = RNP_SUCCESS;
@@ -343,17 +343,15 @@ sm2_decrypt(uint8_t *                  out,
             const pgp_sm2_encrypted_t *in,
             const pgp_ec_key_t *       key)
 {
-    const ec_curve_desc_t *curve;
-    botan_pk_op_decrypt_t  decrypt_op = NULL;
-    botan_privkey_t        b_key = NULL;
-    size_t                 in_len;
-    rnp_result_t           ret = RNP_ERROR_GENERIC;
-    uint8_t                hash_id;
-    const char *           hash_name = NULL;
+    botan_pk_op_decrypt_t decrypt_op = NULL;
+    botan_privkey_t       b_key = NULL;
+    rnp_result_t          ret = RNP_ERROR_GENERIC;
+    uint8_t               hash_id;
+    const char *          hash_name = NULL;
 
-    curve = get_curve_desc(key->curve);
-    in_len = mpi_bytes(&in->m);
-    if (curve == NULL || in_len < 64) {
+    auto   curve = get_curve_desc(key->curve);
+    size_t in_len = in->m.bytes();
+    if (!curve || in_len < 64) {
         goto done;
     }
 

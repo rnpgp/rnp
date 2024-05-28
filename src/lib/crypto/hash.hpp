@@ -59,7 +59,7 @@ class Hash {
     virtual void   add(const void *buf, size_t len) = 0;
     virtual void   add(const std::vector<uint8_t> &val);
     virtual void   add(uint32_t val);
-    virtual void   add(const pgp_mpi_t &mpi);
+    virtual void   add(const pgp::mpi &mpi);
     virtual size_t finish(uint8_t *digest = NULL) = 0;
 
     virtual ~Hash();

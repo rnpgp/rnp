@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2018 Ribose Inc.
+ * Copyright (c) 2018, 2024 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,18 +30,20 @@
 #include "mem.h"
 #include "utils.h"
 
+namespace pgp {
+
 size_t
-mpi_bits(const pgp_mpi_t *val)
+mpi::bits() const noexcept
 {
     size_t  bits = 0;
     size_t  idx = 0;
     uint8_t bt;
 
-    for (idx = 0; (idx < val->len) && !val->mpi[idx]; idx++)
+    for (idx = 0; (idx < len) && !mpi[idx]; idx++)
         ;
 
-    if (idx < val->len) {
-        for (bits = (val->len - idx - 1) << 3, bt = val->mpi[idx]; bt; bits++, bt = bt >> 1)
+    if (idx < len) {
+        for (bits = (len - idx - 1) << 3, bt = mpi[idx]; bt; bits++, bt = bt >> 1)
             ;
     }
 
@@ -49,48 +51,50 @@ mpi_bits(const pgp_mpi_t *val)
 }
 
 size_t
-mpi_bytes(const pgp_mpi_t *val)
+mpi::bytes() const noexcept
 {
-    return val->len;
+    return len;
 }
 
 bool
-mem2mpi(pgp_mpi_t *val, const void *mem, size_t len)
+mpi::from_mem(const void *mem, size_t mlen) noexcept
 {
-    if (len > sizeof(val->mpi)) {
+    if (mlen > sizeof(mpi)) {
         return false;
     }
 
-    memcpy(val->mpi, mem, len);
-    val->len = len;
+    memcpy(mpi, mem, mlen);
+    len = mlen;
     return true;
 }
 
 void
-mpi2mem(const pgp_mpi_t *val, void *mem)
+mpi::to_mem(void *mem) const noexcept
 {
-    memcpy(mem, val->mpi, val->len);
+    memcpy(mem, mpi, len);
 }
 
 bool
-mpi_equal(const pgp_mpi_t *val1, const pgp_mpi_t *val2)
+mpi::operator==(const struct mpi &src) const
 {
     size_t idx1 = 0;
     size_t idx2 = 0;
 
-    for (idx1 = 0; (idx1 < val1->len) && !val1->mpi[idx1]; idx1++)
+    for (idx1 = 0; (idx1 < this->len) && !this->mpi[idx1]; idx1++)
         ;
 
-    for (idx2 = 0; (idx2 < val2->len) && !val2->mpi[idx2]; idx2++)
+    for (idx2 = 0; (idx2 < src.len) && !src.mpi[idx2]; idx2++)
         ;
 
-    return ((val1->len - idx1) == (val2->len - idx2) &&
-            !memcmp(val1->mpi + idx1, val2->mpi + idx2, val1->len - idx1));
+    return ((this->len - idx1) == (src.len - idx2) &&
+            !memcmp(this->mpi + idx1, src.mpi + idx2, this->len - idx1));
 }
 
 void
-mpi_forget(pgp_mpi_t *val)
+mpi::forget() noexcept
 {
-    secure_clear(val, sizeof(*val));
-    val->len = 0;
+    secure_clear(mpi, sizeof(mpi));
+    len = 0;
 }
+
+} // namespace pgp

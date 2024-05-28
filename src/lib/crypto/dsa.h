@@ -37,17 +37,17 @@
 #include "crypto/mpi.h"
 
 typedef struct pgp_dsa_key_t {
-    pgp_mpi_t p;
-    pgp_mpi_t q;
-    pgp_mpi_t g;
-    pgp_mpi_t y;
+    pgp::mpi p;
+    pgp::mpi q;
+    pgp::mpi g;
+    pgp::mpi y;
     /* secret mpi */
-    pgp_mpi_t x;
+    pgp::mpi x;
 } pgp_dsa_key_t;
 
 typedef struct pgp_dsa_signature_t {
-    pgp_mpi_t r;
-    pgp_mpi_t s;
+    pgp::mpi r;
+    pgp::mpi s;
 } pgp_dsa_signature_t;
 
 /**

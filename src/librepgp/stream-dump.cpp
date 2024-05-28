@@ -329,14 +329,14 @@ vsnprinthex(char *str, size_t slen, const uint8_t *buf, size_t buflen)
 }
 
 static void
-dst_print_mpi(pgp_dest_t *dst, const char *name, pgp_mpi_t *mpi, bool dumpbin)
+dst_print_mpi(pgp_dest_t *dst, const char *name, const pgp::mpi &mpi, bool dumpbin)
 {
-    char hex[5000];
     if (!dumpbin) {
-        dst_printf(dst, "%s: %d bits\n", name, (int) mpi_bits(mpi));
+        dst_printf(dst, "%s: %zu bits\n", name, mpi.bits());
     } else {
-        vsnprinthex(hex, sizeof(hex), mpi->mpi, mpi->len);
-        dst_printf(dst, "%s: %d bits, %s\n", name, (int) mpi_bits(mpi), hex);
+        char hex[5000];
+        vsnprinthex(hex, sizeof(hex), mpi.mpi, mpi.len);
+        dst_printf(dst, "%s: %zu bits, %s\n", name, mpi.bits(), hex);
     }
 }
 
@@ -805,23 +805,23 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        dst_print_mpi(dst, "rsa s", &material.rsa.s, ctx->dump_mpi);
+        dst_print_mpi(dst, "rsa s", material.rsa.s, ctx->dump_mpi);
         break;
     case PGP_PKA_DSA:
-        dst_print_mpi(dst, "dsa r", &material.dsa.r, ctx->dump_mpi);
-        dst_print_mpi(dst, "dsa s", &material.dsa.s, ctx->dump_mpi);
+        dst_print_mpi(dst, "dsa r", material.dsa.r, ctx->dump_mpi);
+        dst_print_mpi(dst, "dsa s", material.dsa.s, ctx->dump_mpi);
         break;
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH:
-        dst_print_mpi(dst, "ecc r", &material.ecc.r, ctx->dump_mpi);
-        dst_print_mpi(dst, "ecc s", &material.ecc.s, ctx->dump_mpi);
+        dst_print_mpi(dst, "ecc r", material.ecc.r, ctx->dump_mpi);
+        dst_print_mpi(dst, "ecc s", material.ecc.s, ctx->dump_mpi);
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        dst_print_mpi(dst, "eg r", &material.eg.r, ctx->dump_mpi);
-        dst_print_mpi(dst, "eg s", &material.eg.s, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg r", material.eg.r, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg s", material.eg.s, ctx->dump_mpi);
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
@@ -918,32 +918,32 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        dst_print_mpi(dst, "rsa n", &key.material.rsa.n, ctx->dump_mpi);
-        dst_print_mpi(dst, "rsa e", &key.material.rsa.e, ctx->dump_mpi);
+        dst_print_mpi(dst, "rsa n", key.material.rsa.n, ctx->dump_mpi);
+        dst_print_mpi(dst, "rsa e", key.material.rsa.e, ctx->dump_mpi);
         break;
     case PGP_PKA_DSA:
-        dst_print_mpi(dst, "dsa p", &key.material.dsa.p, ctx->dump_mpi);
-        dst_print_mpi(dst, "dsa q", &key.material.dsa.q, ctx->dump_mpi);
-        dst_print_mpi(dst, "dsa g", &key.material.dsa.g, ctx->dump_mpi);
-        dst_print_mpi(dst, "dsa y", &key.material.dsa.y, ctx->dump_mpi);
+        dst_print_mpi(dst, "dsa p", key.material.dsa.p, ctx->dump_mpi);
+        dst_print_mpi(dst, "dsa q", key.material.dsa.q, ctx->dump_mpi);
+        dst_print_mpi(dst, "dsa g", key.material.dsa.g, ctx->dump_mpi);
+        dst_print_mpi(dst, "dsa y", key.material.dsa.y, ctx->dump_mpi);
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        dst_print_mpi(dst, "eg p", &key.material.eg.p, ctx->dump_mpi);
-        dst_print_mpi(dst, "eg g", &key.material.eg.g, ctx->dump_mpi);
-        dst_print_mpi(dst, "eg y", &key.material.eg.y, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg p", key.material.eg.p, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg g", key.material.eg.g, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg y", key.material.eg.y, ctx->dump_mpi);
         break;
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2: {
         const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ec.curve);
-        dst_print_mpi(dst, "ecc p", &key.material.ec.p, ctx->dump_mpi);
+        dst_print_mpi(dst, "ecc p", key.material.ec.p, ctx->dump_mpi);
         dst_printf(dst, "ecc curve: %s\n", cdesc ? cdesc->pgp_name : "unknown");
         break;
     }
     case PGP_PKA_ECDH: {
         const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ec.curve);
-        dst_print_mpi(dst, "ecdh p", &key.material.ec.p, ctx->dump_mpi);
+        dst_print_mpi(dst, "ecdh p", key.material.ec.p, ctx->dump_mpi);
         dst_printf(dst, "ecdh curve: %s\n", cdesc ? cdesc->pgp_name : "unknown");
         dst_print_halg(dst, "ecdh hash algorithm", key.material.ec.kdf_hash_alg);
         dst_printf(dst, "ecdh key wrap algorithm: %d\n", (int) key.material.ec.key_wrap_alg);
@@ -1149,18 +1149,18 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        dst_print_mpi(dst, "rsa m", &material.rsa.m, ctx->dump_mpi);
+        dst_print_mpi(dst, "rsa m", material.rsa.m, ctx->dump_mpi);
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        dst_print_mpi(dst, "eg g", &material.eg.g, ctx->dump_mpi);
-        dst_print_mpi(dst, "eg m", &material.eg.m, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg g", material.eg.g, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg m", material.eg.m, ctx->dump_mpi);
         break;
     case PGP_PKA_SM2:
-        dst_print_mpi(dst, "sm2 m", &material.sm2.m, ctx->dump_mpi);
+        dst_print_mpi(dst, "sm2 m", material.sm2.m, ctx->dump_mpi);
         break;
     case PGP_PKA_ECDH:
-        dst_print_mpi(dst, "ecdh p", &material.ecdh.p, ctx->dump_mpi);
+        dst_print_mpi(dst, "ecdh p", material.ecdh.p, ctx->dump_mpi);
         if (ctx->dump_mpi) {
             dst_print_hex(dst, "ecdh m", material.ecdh.m, material.ecdh.mlen, true);
         } else {
@@ -1637,18 +1637,18 @@ obj_add_intstr_json(json_object *obj, const char *name, int val, const id_str_pa
 }
 
 static bool
-obj_add_mpi_json(json_object *obj, const char *name, const pgp_mpi_t *mpi, bool contents)
+obj_add_mpi_json(json_object *obj, const char *name, const pgp::mpi &mpi, bool contents)
 {
     char strname[64] = {0};
     snprintf(strname, sizeof(strname), "%s.bits", name);
-    if (!json_add(obj, strname, (int) mpi_bits(mpi))) {
+    if (!json_add(obj, strname, (int) mpi.bits())) {
         return false; // LCOV_EXCL_LINE
     }
     if (!contents) {
         return true;
     }
     snprintf(strname, sizeof(strname), "%s.raw", name);
-    return json_add_hex(obj, strname, mpi->mpi, mpi->len);
+    return json_add_hex(obj, strname, mpi.mpi, mpi.len);
 }
 
 static bool
@@ -1972,13 +1972,13 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (!obj_add_mpi_json(material, "s", &sigmaterial.rsa.s, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "s", sigmaterial.rsa.s, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     case PGP_PKA_DSA:
-        if (!obj_add_mpi_json(material, "r", &sigmaterial.dsa.r, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "s", &sigmaterial.dsa.s, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "r", sigmaterial.dsa.r, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "s", sigmaterial.dsa.s, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
@@ -1986,15 +1986,15 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH:
-        if (!obj_add_mpi_json(material, "r", &sigmaterial.ecc.r, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "s", &sigmaterial.ecc.s, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "r", sigmaterial.ecc.r, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "s", sigmaterial.ecc.s, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!obj_add_mpi_json(material, "r", &sigmaterial.eg.r, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "s", &sigmaterial.eg.s, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "r", sigmaterial.eg.r, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "s", sigmaterial.eg.s, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
@@ -2092,24 +2092,24 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (!obj_add_mpi_json(material, "n", &key.material.rsa.n, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "e", &key.material.rsa.e, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "n", key.material.rsa.n, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "e", key.material.rsa.e, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     case PGP_PKA_DSA:
-        if (!obj_add_mpi_json(material, "p", &key.material.dsa.p, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "q", &key.material.dsa.q, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "g", &key.material.dsa.g, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "y", &key.material.dsa.y, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "p", key.material.dsa.p, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "q", key.material.dsa.q, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "g", key.material.dsa.g, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "y", key.material.dsa.y, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!obj_add_mpi_json(material, "p", &key.material.eg.p, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "g", &key.material.eg.g, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "y", &key.material.eg.y, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "p", key.material.eg.p, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "g", key.material.eg.g, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "y", key.material.eg.y, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
@@ -2117,7 +2117,7 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2: {
         const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ec.curve);
-        if (!obj_add_mpi_json(material, "p", &key.material.ec.p, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "p", key.material.ec.p, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         if (!json_add(material, "curve", cdesc ? cdesc->pgp_name : "unknown")) {
@@ -2127,7 +2127,7 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     }
     case PGP_PKA_ECDH: {
         const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ec.curve);
-        if (!obj_add_mpi_json(material, "p", &key.material.ec.p, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "p", key.material.ec.p, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         if (!json_add(material, "curve", cdesc ? cdesc->pgp_name : "unknown")) {
@@ -2291,24 +2291,24 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (!obj_add_mpi_json(material, "m", &pkmaterial.rsa.m, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "m", pkmaterial.rsa.m, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!obj_add_mpi_json(material, "g", &pkmaterial.eg.g, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "m", &pkmaterial.eg.m, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "g", pkmaterial.eg.g, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "m", pkmaterial.eg.m, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     case PGP_PKA_SM2:
-        if (!obj_add_mpi_json(material, "m", &pkmaterial.sm2.m, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "m", pkmaterial.sm2.m, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     case PGP_PKA_ECDH:
-        if (!obj_add_mpi_json(material, "p", &pkmaterial.ecdh.p, ctx->dump_mpi) ||
+        if (!obj_add_mpi_json(material, "p", pkmaterial.ecdh.p, ctx->dump_mpi) ||
             !json_add(material, "m.bytes", (int) pkmaterial.ecdh.mlen)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
