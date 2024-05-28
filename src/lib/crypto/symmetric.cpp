@@ -277,25 +277,27 @@ pgp_cipher_aead_start(pgp_crypt_t *crypt, const uint8_t *nonce, size_t len)
 }
 
 bool
-pgp_cipher_aead_update(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t len)
+pgp_cipher_aead_update(
+  pgp_crypt_t &crypt, uint8_t *out, const uint8_t *in, size_t len, size_t &read)
 {
-    if (len % crypt->aead.granularity) {
+    if (len % crypt.aead.granularity) {
         RNP_LOG("aead wrong update len");
         return false;
     }
 
     size_t outwr = 0;
     size_t inread = 0;
-    if (botan_cipher_update(crypt->aead.obj, 0, out, len, &outwr, in, len, &inread) != 0) {
+    if (botan_cipher_update(crypt.aead.obj, 0, out, len, &outwr, in, len, &inread)) {
         RNP_LOG("aead update failed");
         return false;
     }
 
-    if ((outwr != len) || (inread != len)) {
-        RNP_LOG("wrong aead usage");
+    if (outwr != inread) {
+        RNP_LOG("wrong aead usage: %zu vs %zu, len is %zu", outwr, inread, len);
         return false;
     }
 
+    read = inread;
     return true;
 }
 

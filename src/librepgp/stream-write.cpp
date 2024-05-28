@@ -467,7 +467,8 @@ encrypted_dst_write_aead(pgp_dest_t *dst, const void *buf, size_t len)
     }
 
     while (len > 0) {
-        sz = std::min(sizeof(param->cache) - PGP_AEAD_MAX_TAG_LEN - param->cachelen, len);
+        /* 2 tags to align to the PGP_INPUT_CACHE_SIZE size */
+        sz = std::min(sizeof(param->cache) - 2 * PGP_AEAD_MAX_TAG_LEN - param->cachelen, len);
         sz = std::min(sz, param->chunklen - param->chunkout - param->cachelen);
         memcpy(param->cache + param->cachelen, buf, sz);
         param->cachelen += sz;
@@ -481,8 +482,16 @@ encrypted_dst_write_aead(pgp_dest_t *dst, const void *buf, size_t len)
         } else if (param->cachelen >= gran) {
             /* we have part of the chunk - so need to adjust it to the granularity */
             size_t gransz = param->cachelen - param->cachelen % gran;
-            if (!pgp_cipher_aead_update(&param->encrypt, param->cache, param->cache, gransz)) {
+            size_t inread = 0;
+            if (!pgp_cipher_aead_update(
+                  param->encrypt, param->cache, param->cache, gransz, inread)) {
                 return RNP_ERROR_BAD_STATE;
+            }
+            if (inread != gransz) {
+                /* LCOV_EXCL_START */
+                RNP_LOG("Unexpected aead update: read %zu instead of %zu.", inread, gransz);
+                return RNP_ERROR_BAD_STATE;
+                /* LCOV_EXCL_END */
             }
             dst_write(param->pkt.writedst, param->cache, gransz);
             memmove(param->cache, param->cache + gransz, param->cachelen - gransz);
