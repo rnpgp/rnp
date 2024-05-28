@@ -96,14 +96,15 @@ typedef struct pgp_source_encrypted_param_t {
     size_t                     chunklen{};   /* size of AEAD chunk in bytes */
     size_t                     chunkin{};    /* number of bytes read from the current chunk */
     size_t                     chunkidx{};   /* index of the current chunk */
-    uint8_t                    cache[PGP_AEAD_CACHE_LEN]; /* read cache */
-    size_t                     cachelen{};                /* number of bytes in the cache */
-    size_t                     cachepos{}; /* index of first unread byte in the cache */
-    pgp_aead_hdr_t             aead_hdr;   /* AEAD encryption parameters */
-    uint8_t                    aead_ad[PGP_AEAD_MAX_AD_LEN]; /* additional data */
-    size_t                     aead_adlen{}; /* length of the additional data */
-    pgp_symm_alg_t             salg;         /* data encryption algorithm */
-    pgp_parse_handler_t *      handler{};    /* parsing handler with callbacks */
+    size_t               rawbytes{}; /* number of bytes in cache read but not decrypted */
+    uint8_t              cache[PGP_AEAD_CACHE_LEN]; /* read cache */
+    size_t               cachelen{};                /* number of bytes in the cache */
+    size_t               cachepos{}; /* index of first unread byte in the cache */
+    pgp_aead_hdr_t       aead_hdr;   /* AEAD encryption parameters */
+    uint8_t              aead_ad[PGP_AEAD_MAX_AD_LEN]; /* additional data */
+    size_t               aead_adlen{};                 /* length of the additional data */
+    pgp_symm_alg_t       salg;                         /* data encryption algorithm */
+    pgp_parse_handler_t *handler{};                    /* parsing handler with callbacks */
 #ifdef ENABLE_CRYPTO_REFRESH
     pgp_seipdv2_hdr_t seipdv2_hdr; /* SEIPDv2 encryption parameters */
 #endif
@@ -558,6 +559,10 @@ encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool
 static bool
 encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
 {
+    /* Check whether we have some bytes which were read but not decrypted */
+    if (param->rawbytes) {
+        memcpy(param->cache, param->cache + param->cachelen, param->rawbytes);
+    }
     param->cachepos = 0;
     param->cachelen = 0;
 
@@ -567,34 +572,38 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
 
     /* it is always 16 for defined EAX and OCB, however this may change in future */
     size_t taglen = pgp_cipher_aead_tag_len(param->aead_hdr.aalg);
-    size_t read = sizeof(param->cache) - 2 * PGP_AEAD_MAX_TAG_LEN;
+    size_t read = sizeof(param->cache) - 2 * PGP_AEAD_MAX_TAG_LEN - param->rawbytes;
     bool   chunkend = false;
 
     if (read >= param->chunklen - param->chunkin) {
-        read = param->chunklen - param->chunkin;
+        /* param->rawbytes is smaller then param->chunklen - param->chunkin due to the previous
+         * call */
+        read = param->chunklen - param->chunkin - param->rawbytes;
         chunkend = true;
     } else {
-        read = read - read % pgp_cipher_aead_granularity(&param->decrypt);
+        read = read - (read + param->rawbytes) % pgp_cipher_aead_granularity(&param->decrypt);
     }
 
-    if (!param->pkt.readsrc->read(param->cache, read, &read)) {
+    if (!param->pkt.readsrc->read(param->cache + param->rawbytes, read, &read)) {
         return false;
     }
 
     /* checking whether we have enough input for the final tags */
     size_t tagread = 0;
-    if (!param->pkt.readsrc->peek(param->cache + read, taglen * 2, &tagread)) {
+    if (!param->pkt.readsrc->peek(
+          param->cache + param->rawbytes + read, taglen * 2, &tagread)) {
         return false;
     }
 
-    bool lastchunk = false;
+    bool   lastchunk = false;
+    size_t avail = param->rawbytes + read + tagread;
     if (tagread < taglen * 2) {
         /* this would mean the end of the stream */
-        if ((param->chunkin == 0) && (read + tagread == taglen)) {
+        if ((param->chunkin == 0) && (avail == taglen)) {
             /* we have empty chunk and final tag */
             chunkend = false;
             lastchunk = true;
-        } else if (read + tagread >= 2 * taglen) {
+        } else if (avail >= 2 * taglen) {
             /* we have end of chunk and final tag */
             chunkend = true;
             lastchunk = true;
@@ -604,57 +613,69 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
         }
     }
 
-    bool res = false;
     if (!chunkend && !lastchunk) {
-        param->chunkin += read;
-        res = pgp_cipher_aead_update(&param->decrypt, param->cache, param->cache, read);
+        size_t used = 0;
+        bool   res = pgp_cipher_aead_update(
+          param->decrypt, param->cache, param->cache, param->rawbytes + read, used);
+
+        param->chunkin += used;
         if (res) {
-            param->cachelen = read;
+            param->cachelen = used;
+            param->rawbytes = param->rawbytes + read - used;
         }
         return res;
     }
 
+    /* Processing end of chunk */
     if (chunkend) {
         if (tagread > taglen) {
             param->pkt.readsrc->skip(tagread - taglen);
         }
 
-        res = pgp_cipher_aead_finish(
-          &param->decrypt, param->cache, param->cache, read + tagread - taglen);
-        if (!res) {
+        if (!pgp_cipher_aead_finish(&param->decrypt,
+                                    param->cache,
+                                    param->cache,
+                                    param->rawbytes + read + tagread - taglen)) {
             RNP_LOG("failed to finalize aead chunk");
-            return res;
+            return false;
         }
-        param->cachelen = read + tagread - 2 * taglen;
+        param->cachelen = param->rawbytes + read + tagread - 2 * taglen;
         param->chunkin += param->cachelen;
+        param->rawbytes = 0;
     }
 
+    /* Starting a new chunk */
     size_t chunkidx = param->chunkidx;
     if (chunkend && param->chunkin) {
         chunkidx++;
     }
 
-    if (!(res = encrypted_start_aead_chunk(param, chunkidx, lastchunk))) {
+    if (!encrypted_start_aead_chunk(param, chunkidx, lastchunk)) {
         RNP_LOG("failed to start aead chunk");
-        return res;
+        return false;
     }
 
-    if (lastchunk) {
-        if (tagread > 0) {
-            param->pkt.readsrc->skip(tagread);
-        }
-
-        size_t off = read + tagread - taglen;
-        res = pgp_cipher_aead_finish(
-          &param->decrypt, param->cache + off, param->cache + off, taglen);
-        if (!res) {
-            RNP_LOG("wrong last chunk");
-            return res;
-        }
-        param->auth_validated = true;
+    if (!lastchunk) {
+        return true;
     }
 
-    return res;
+    /* Processing last chunk */
+    if (tagread > 0) {
+        param->pkt.readsrc->skip(tagread);
+    }
+
+    /* Probably math below could be improved. The reason of this is that for chunkend we set
+     * rawbytes to 0 but it still be useful. */
+    size_t off =
+      chunkend ? param->cachelen + taglen : param->rawbytes + read + tagread - taglen;
+    if (!pgp_cipher_aead_finish(
+          &param->decrypt, param->cache + off, param->cache + off, taglen)) {
+        RNP_LOG("wrong last chunk");
+        return false;
+    }
+    param->rawbytes = 0;
+    param->auth_validated = true;
+    return true;
 }
 #endif
 
@@ -683,7 +704,6 @@ encrypted_src_read_aead(pgp_source_t *src, void *buf, size_t len, size_t *read)
             memcpy(buf, param->cache + param->cachepos, cbytes);
             buf = (uint8_t *) buf + cbytes;
             left -= cbytes;
-            param->cachepos = param->cachelen = 0;
         }
 
         /* read something into cache */
