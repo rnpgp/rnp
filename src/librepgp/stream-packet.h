@@ -117,7 +117,7 @@ typedef struct pgp_packet_body_t {
      *  @return true on success or false otherwise (if end of the packet is reached
      *          or mpi is ill-formed)
      **/
-    bool get(pgp_mpi_t &val) noexcept;
+    bool get(pgp::mpi &val) noexcept;
     /** @brief Read ECC key curve and convert it to pgp_curve_t */
     bool get(pgp_curve_t &val) noexcept;
     /** @brief read s2k from the packet */
@@ -135,7 +135,7 @@ typedef struct pgp_packet_body_t {
     /** @brief append keyid to the packet body */
     void add(const pgp_key_id_t &val);
     /** @brief add pgp mpi (including header) to the packet body */
-    void add(const pgp_mpi_t &val);
+    void add(const pgp::mpi &val);
     /**
      * @brief add pgp signature subpackets (including their length) to the packet body
      * @param sig signature, containing subpackets

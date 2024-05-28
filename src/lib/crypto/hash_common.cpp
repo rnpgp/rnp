@@ -115,9 +115,9 @@ Hash::add(uint32_t val)
 }
 
 void
-Hash::add(const pgp_mpi_t &val)
+Hash::add(const pgp::mpi &val)
 {
-    size_t len = mpi_bytes(&val);
+    size_t len = val.bytes();
     size_t idx = 0;
     while ((idx < len) && (!val.mpi[idx])) {
         idx++;

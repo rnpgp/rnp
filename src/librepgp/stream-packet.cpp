@@ -560,7 +560,7 @@ pgp_packet_body_t::get(pgp_key_id_t &val) noexcept
 }
 
 bool
-pgp_packet_body_t::get(pgp_mpi_t &val) noexcept
+pgp_packet_body_t::get(pgp::mpi &val) noexcept
 {
     uint16_t bits = 0;
     if (!get(bits)) {
@@ -581,7 +581,7 @@ pgp_packet_body_t::get(pgp_mpi_t &val) noexcept
     }
     /* check the mpi bit count */
     val.len = len;
-    size_t mbits = mpi_bits(&val);
+    size_t mbits = val.bits();
     if (mbits != bits) {
         RNP_LOG(
           "Warning! Wrong mpi bit count: got %" PRIu16 ", but actual is %zu", bits, mbits);
@@ -726,7 +726,7 @@ pgp_packet_body_t::add(const pgp_key_id_t &val)
 }
 
 void
-pgp_packet_body_t::add(const pgp_mpi_t &val)
+pgp_packet_body_t::add(const pgp::mpi &val)
 {
     if (!val.len) {
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);

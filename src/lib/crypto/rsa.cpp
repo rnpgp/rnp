@@ -272,26 +272,25 @@ rsa_sign_pkcs1(rnp::RNG *           rng,
                size_t               hash_len,
                const pgp_rsa_key_t *key)
 {
-    char               padding_name[64] = {0};
-    botan_privkey_t    rsa_key;
-    botan_pk_op_sign_t sign_op;
-    rnp_result_t       ret = RNP_ERROR_GENERIC;
-
-    if (mpi_bytes(&key->q) == 0) {
+    if (!key->q.bytes()) {
         RNP_LOG("private key not set");
-        return ret;
+        return RNP_ERROR_GENERIC;
     }
 
+    botan_privkey_t rsa_key;
     if (!rsa_load_secret_key(&rsa_key, key)) {
         RNP_LOG("failed to load key");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
+    char padding_name[64] = {0};
     snprintf(padding_name,
              sizeof(padding_name),
              "EMSA-PKCS1-v1_5(Raw,%s)",
              rnp::Hash_Botan::name_backend(hash_alg));
 
+    rnp_result_t       ret = RNP_ERROR_GENERIC;
+    botan_pk_op_sign_t sign_op;
     if (botan_pk_op_sign_create(&sign_op, rsa_key, padding_name, 0) != 0) {
         goto done;
     }
@@ -319,21 +318,20 @@ rsa_decrypt_pkcs1(rnp::RNG *                 rng,
                   const pgp_rsa_encrypted_t *in,
                   const pgp_rsa_key_t *      key)
 {
-    botan_privkey_t       rsa_key = NULL;
-    botan_pk_op_decrypt_t decrypt_op = NULL;
-    rnp_result_t          ret = RNP_ERROR_GENERIC;
-
-    if (mpi_bytes(&key->q) == 0) {
+    if (!key->q.bytes()) {
         RNP_LOG("private key not set");
-        return ret;
+        return RNP_ERROR_GENERIC;
     }
 
+    botan_privkey_t rsa_key = NULL;
     if (!rsa_load_secret_key(&rsa_key, key)) {
         RNP_LOG("failed to load key");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    size_t skip = 0;
+    size_t                skip = 0;
+    botan_pk_op_decrypt_t decrypt_op = NULL;
+    rnp_result_t          ret = RNP_ERROR_GENERIC;
     if (botan_pk_op_decrypt_create(&decrypt_op, rsa_key, "PKCS1v15", 0)) {
         goto done;
     }
