@@ -4622,7 +4622,7 @@ class Encryption(unittest.TestCase):
             remove_files(dst, dec)
 
 
-    def verify_pqc_algo_ui_nb_to_algo_ui_str(self, stdout: str, algo_ui_exp_strs: list[str]) -> None:
+    def verify_pqc_algo_ui_nb_to_algo_ui_str(self, stdout: str, algo_ui_exp_strs) -> None:
         stdout_lines = stdout.split('\n')
         for expected_line in algo_ui_exp_strs:
             found_this_entry : bool = False
