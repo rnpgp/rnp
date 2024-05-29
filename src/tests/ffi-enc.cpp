@@ -835,13 +835,22 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
 
     assert_true(import_all_keys(ffi, "data/test_v6_valid_data/transferable_seckey_v6.asc"));
 
-    std::vector<std::string> ciphers = {"AES128", "AES192", "AES256"};
+    // No other cipher can be used here: the only 128-bit block cipher in OpenPGP aside from
+    // AES is TwoFish.
+    std::vector<std::string> ciphers = {"AES128", "AES192", "AES256", "TwoFish"};
     std::vector<std::string> aead_modes = {"None", "EAX", "OCB"};
     std::vector<bool>        enable_pkeskv6_modes = {true, false};
 
     for (auto enable_pkeskv6 : enable_pkeskv6_modes)
         for (auto aead : aead_modes)
             for (auto cipher : ciphers) {
+                bool expect_success = true;
+                if (!enable_pkeskv6 && cipher == "TwoFish") {
+                    // This combination is not supported, since the algorithm ID is fixed to
+                    // AES for v3 PKESK for the public key algorithm featured by the key used
+                    // here.
+                    expect_success = false;
+                }
                 // write out some data
                 FILE *fp = fopen("plaintext", "wb");
                 assert_non_null(fp);
@@ -879,7 +888,12 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
                 assert_rnp_success(rnp_op_encrypt_set_cipher(op, cipher.c_str()));
 
                 // execute the operation
-                assert_rnp_success(rnp_op_encrypt_execute(op));
+                if (expect_success) {
+                    assert_rnp_success(rnp_op_encrypt_execute(op));
+                } else {
+                    assert_rnp_failure(rnp_op_encrypt_execute(op));
+                    continue;
+                }
 
                 // make sure the output file was created
                 assert_true(rnp_file_exists("encrypted"));
