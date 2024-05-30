@@ -47,7 +47,7 @@ typedef struct pgp_key_pkt_t {
     uint8_t *hashed_data; /* key's hashed data used for signature calculation */
     size_t   hashed_len;
 
-    pgp_key_material_t material;
+    std::unique_ptr<pgp::KeyMaterial> material;
 
     /* secret key data, if available. sec_len == 0, sec_data == NULL for public key/subkey */
     pgp_key_protection_t sec_protection;
@@ -58,7 +58,7 @@ typedef struct pgp_key_pkt_t {
 
     pgp_key_pkt_t()
         : tag(PGP_PKT_RESERVED), version(PGP_VUNKNOWN), creation_time(0), alg(PGP_PKA_NOTHING),
-          v3_days(0), v5_pub_len(0), hashed_data(NULL), hashed_len(0), material({}),
+          v3_days(0), v5_pub_len(0), hashed_data(NULL), hashed_len(0), material(nullptr),
           sec_protection({}), sec_data(NULL), sec_len(0), v5_s2k_len(0), v5_sec_len(0){};
     pgp_key_pkt_t(const pgp_key_pkt_t &src, bool pubonly = false);
     pgp_key_pkt_t(pgp_key_pkt_t &&src);
