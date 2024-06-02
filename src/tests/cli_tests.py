@@ -4076,7 +4076,8 @@ class Misc(unittest.TestCase):
         self.assertRegex(out, r'(?s)^.*\[INVALID\].*$')
         ret, out, _ = run_proc(RNPK, ['--keyfile', data_path(PUBRING_7), '--notty', '--list-keys', '--allow-sha1-key-sigs'])
         self.assertEqual(ret, 0)
-        self.assertRegex(out, r'(?s)^.*pub.*2024-05-27.*EXPIRES 2026.*sub.*2024-05-27.*EXPIRES 2026.*$')
+        self.assertRegex(out, r'(?s)^.*pub.*2024-06-03.*sub.*2024-06-03.*$')
+        self.assertNotRegex(out, r'(?s)^.*\[INVALID\].*$')
 
         ret, _, err = run_proc(RNP, ['--keyfile', data_path(PUBRING_7), '--notty', '--password=', '-e', src, '--output', sig])
         self.assertNotEqual(ret, 0)
