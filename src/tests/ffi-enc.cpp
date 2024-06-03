@@ -835,9 +835,17 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
 
     assert_true(import_all_keys(ffi, "data/test_v6_valid_data/transferable_seckey_v6.asc"));
 
-    // No other cipher can be used here: the only 128-bit block cipher in OpenPGP aside from
-    // AES is TwoFish.
-    std::vector<std::string> ciphers = {"AES128", "AES192", "AES256", "TwoFish"};
+    // No other cipher can be used here: the only 128-bit block ciphers in OpenPGP aside from
+    // AES are Camellia and TwoFish.
+    std::vector<std::string> ciphers = {"AES128", "AES192", "AES256"};
+#ifdef ENABLE_TWOFISH
+    ciphers.push_back("TwoFish");
+#endif
+#if (defined BOTAN_HAS_CAMELLIA || !defined CRYPTO_BACKEND_BOTAN3)
+    // ENABLE_CAMELLIA does not exist, yet BOTAN might not support this algorithm.
+    std::vector<std::string> camellia({"Camellia128", "Camellia192", "Camellia256"});
+    ciphers.insert(ciphers.end(), camellia.begin(), camellia.end());
+#endif
     std::vector<std::string> aead_modes = {"None", "EAX", "OCB"};
     std::vector<bool>        enable_pkeskv6_modes = {true, false};
 
@@ -845,7 +853,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
         for (auto aead : aead_modes)
             for (auto cipher : ciphers) {
                 bool expect_success = true;
-                if (!enable_pkeskv6 && cipher == "TwoFish") {
+                if (!enable_pkeskv6 && (cipher == "TwoFish" || cipher.find("Camellia") != 0)) {
                     // This combination is not supported, since the algorithm ID is fixed to
                     // AES for v3 PKESK for the public key algorithm featured by the key used
                     // here.
