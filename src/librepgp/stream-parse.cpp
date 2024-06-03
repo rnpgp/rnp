@@ -1568,17 +1568,17 @@ do_enforce_aes_v3pkesk(pgp_pubkey_alg_t alg)
 
 static bool
 encrypted_try_key(pgp_source_encrypted_param_t *param,
-                  pgp_pk_sesskey_t *            sesskey,
-                  pgp_key_pkt_t *               seckey,
+                  pgp_pk_sesskey_t &            sesskey,
+                  pgp_key_t &                   seckey,
                   rnp::SecurityContext &        ctx)
 {
     pgp_encrypted_material_t encmaterial;
     try {
-        if (!sesskey->parse_material(encmaterial)) {
+        if (!sesskey.parse_material(encmaterial)) {
             return false;
         }
-        seckey->material.validate(ctx, false);
-        if (!seckey->material.valid()) {
+        seckey.material().validate(ctx, false);
+        if (!seckey.material().valid()) {
             RNP_LOG("Attempt to decrypt using the key with invalid material.");
             return false;
         }
@@ -1594,8 +1594,8 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         - The payload following any v6 PKESK or v6 SKESK packet MUST be a v2 SEIPD.
         - implementations MUST NOT precede a v2 SEIPD payload with either v3 PKESK or v4
        SKESK packets. */
-    if ((param->is_v2_seipd() && (sesskey->version != PGP_PKSK_V6)) ||
-        (param->auth_type == rnp::AuthType::MDC && (sesskey->version != PGP_PKSK_V3))) {
+    if ((param->is_v2_seipd() && (sesskey.version != PGP_PKSK_V6)) ||
+        (param->auth_type == rnp::AuthType::MDC && (sesskey.version != PGP_PKSK_V3))) {
         RNP_LOG("Attempt to mix SEIPD v1 with PKESK v6 or SEIPD v2 with PKESK v3");
         return false;
     }
@@ -1603,8 +1603,8 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
 
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
     /* check that AES is used when mandated by the standard */
-    if (do_enforce_aes_v3pkesk(sesskey->alg) && sesskey->version == PGP_PKSK_V3) {
-        switch (sesskey->salg) {
+    if (do_enforce_aes_v3pkesk(sesskey.alg) && sesskey.version == PGP_PKSK_V3) {
+        switch (sesskey.salg) {
         case PGP_SA_AES_128:
         case PGP_SA_AES_192:
         case PGP_SA_AES_256:
@@ -1619,15 +1619,15 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
 
     rnp::secure_array<uint8_t, PGP_MPINT_SIZE> decbuf;
     /* Decrypting session key value */
-    rnp_result_t        err;
-    bool                res = false;
-    pgp_key_material_t *keymaterial = &seckey->material;
-    size_t              declen = 0;
-    switch (sesskey->alg) {
+    rnp_result_t err;
+    bool         res = false;
+    auto &       keymaterial = seckey.material();
+    size_t       declen = 0;
+    switch (sesskey.alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
         err = rsa_decrypt_pkcs1(
-          &ctx.rng, decbuf.data(), &declen, &encmaterial.rsa, &keymaterial->rsa);
+          &ctx.rng, decbuf.data(), &declen, &encmaterial.rsa, &keymaterial.rsa);
         if (err) {
             RNP_LOG("RSA decryption failure");
             return false;
@@ -1636,7 +1636,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     case PGP_PKA_SM2:
 #if defined(ENABLE_SM2)
         declen = decbuf.size();
-        err = sm2_decrypt(decbuf.data(), &declen, &encmaterial.sm2, &keymaterial->ec);
+        err = sm2_decrypt(decbuf.data(), &declen, &encmaterial.sm2, &keymaterial.ec);
         if (err != RNP_SUCCESS) {
             RNP_LOG("SM2 decryption failure, error %x", (int) err);
             return false;
@@ -1649,7 +1649,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
         const rnp_result_t ret = elgamal_decrypt_pkcs1(
-          &ctx.rng, decbuf.data(), &declen, &encmaterial.eg, &keymaterial->eg);
+          &ctx.rng, decbuf.data(), &declen, &encmaterial.eg, &keymaterial.eg);
         if (ret) {
             RNP_LOG("ElGamal decryption failure [%X]", ret);
             return false;
@@ -1657,24 +1657,17 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         break;
     }
     case PGP_PKA_ECDH: {
-        if (!curve_supported(keymaterial->ec.curve)) {
-            RNP_LOG("ECDH decrypt: curve %d is not supported.", (int) keymaterial->ec.curve);
+        if (!curve_supported(keymaterial.ec.curve)) {
+            RNP_LOG("ECDH decrypt: curve %d is not supported.", (int) keymaterial.ec.curve);
             return false;
         }
-        pgp_fingerprint_t fingerprint;
-        if (pgp_fingerprint(fingerprint, *seckey)) {
-            /* LCOV_EXCL_START */
-            RNP_LOG("ECDH fingerprint calculation failed");
-            return false;
-            /* LCOV_EXCL_END */
-        }
-        if ((keymaterial->ec.curve == PGP_CURVE_25519) &&
-            !x25519_bits_tweaked(keymaterial->ec)) {
+        if ((keymaterial.ec.curve == PGP_CURVE_25519) &&
+            !x25519_bits_tweaked(keymaterial.ec)) {
             RNP_LOG("Warning: bits of 25519 secret key are not tweaked.");
         }
         declen = decbuf.size();
         err = ecdh_decrypt_pkcs5(
-          decbuf.data(), &declen, &encmaterial.ecdh, &keymaterial->ec, fingerprint);
+          decbuf.data(), &declen, &encmaterial.ecdh, &keymaterial.ec, seckey.fp());
         if (err) {
             RNP_LOG("ECDH decryption error %u", err);
             return false;
@@ -1685,8 +1678,8 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     case PGP_PKA_X25519:
         declen = decbuf.size();
         err = x25519_native_decrypt(
-          &ctx.rng, keymaterial->x25519, &encmaterial.x25519, decbuf.data(), &declen);
-        if (err != RNP_SUCCESS) {
+          &ctx.rng, keymaterial.x25519, &encmaterial.x25519, decbuf.data(), &declen);
+        if (err) {
             RNP_LOG("X25519 decryption error %u", err);
             return false;
         }
@@ -1703,11 +1696,10 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     case PGP_PKA_KYBER768_BP256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384: {
-        pgp_key_t key(*seckey, true); /* make public-key `pgp_key_t` object from seckey */
         declen = decbuf.size();
-        err = keymaterial->kyber_ecdh.priv.decrypt(
+        err = keymaterial.kyber_ecdh.priv.decrypt(
           &ctx.rng, decbuf.data(), &declen, &encmaterial.kyber_ecdh);
-        if (err != RNP_SUCCESS) {
+        if (err) {
             RNP_LOG("ML-KEM + ECC decryption failure");
             return false;
         }
@@ -1715,29 +1707,29 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     }
 #endif
     default:
-        RNP_LOG("unsupported public key algorithm %d\n", seckey->alg);
+        RNP_LOG("unsupported public key algorithm %d\n", seckey.alg());
         return false;
     }
 
     uint8_t *decbuf_sesskey = decbuf.data();
     size_t   decbuf_sesskey_len = declen;
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
-    if (do_encrypt_pkesk_v3_alg_id(sesskey->alg))
+    if (do_encrypt_pkesk_v3_alg_id(sesskey.alg))
 #endif
     {
-        sesskey->salg = static_cast<pgp_symm_alg_t>(decbuf[0]);
+        sesskey.salg = static_cast<pgp_symm_alg_t>(decbuf[0]);
     }
-    size_t keylen = pgp_key_size(sesskey->salg);
-    if (sesskey->version == PGP_PKSK_V3) {
+    size_t keylen = pgp_key_size(sesskey.salg);
+    if (sesskey.version == PGP_PKSK_V3) {
         /* Check algorithm and key length */
-        if (!pgp_is_sa_supported(sesskey->salg)) {
-            RNP_LOG("Unsupported symmetric algorithm %d", (int) sesskey->salg);
+        if (!pgp_is_sa_supported(sesskey.salg)) {
+            RNP_LOG("Unsupported symmetric algorithm %d", (int) sesskey.salg);
             return false;
         }
 
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
-        size_t alg_id_bytes = do_encrypt_pkesk_v3_alg_id(sesskey->alg) ? 1 : 0;
-        size_t checksum_bytes = have_pkesk_checksum(sesskey->alg) ? 2 : 0;
+        size_t alg_id_bytes = do_encrypt_pkesk_v3_alg_id(sesskey.alg) ? 1 : 0;
+        size_t checksum_bytes = have_pkesk_checksum(sesskey.alg) ? 2 : 0;
 #else
         size_t alg_id_bytes = 1;
         size_t checksum_bytes = 2;
@@ -1755,7 +1747,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     else { // V6 PKESK
         /* compute the expected key length from the decbuf_sesskey_len and check */
         keylen =
-          have_pkesk_checksum(sesskey->alg) ? decbuf_sesskey_len - 2 : decbuf_sesskey_len;
+          have_pkesk_checksum(sesskey.alg) ? decbuf_sesskey_len - 2 : decbuf_sesskey_len;
         if (pgp_key_size(param->aead_hdr.ealg) != keylen) {
             RNP_LOG("invalid symmetric key length");
             return false;
@@ -1769,7 +1761,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
 #endif
 
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
-    if (have_pkesk_checksum(sesskey->alg))
+    if (have_pkesk_checksum(sesskey.alg))
 #endif
     {
         /* Validate checksum */
@@ -1786,18 +1778,18 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     }
 
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
-    if (sesskey->version == PGP_PKSK_V3)
+    if (sesskey.version == PGP_PKSK_V3)
 #endif
     {
         if (param->use_cfb()) {
             /* Decrypt header */
-            res = encrypted_decrypt_cfb_header(param, sesskey->salg, decbuf_sesskey);
+            res = encrypted_decrypt_cfb_header(param, sesskey.salg, decbuf_sesskey);
         } else {
             /* Start AEAD decrypting, assuming we have correct key */
-            res = encrypted_start_aead(param, sesskey->salg, decbuf_sesskey);
+            res = encrypted_start_aead(param, sesskey.salg, decbuf_sesskey);
         }
         if (res) {
-            param->salg = sesskey->salg;
+            param->salg = sesskey.salg;
         }
         return res;
     }
@@ -2495,7 +2487,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
 
             /* Try to initialize the decryption */
             rnp::LogStop logstop(hidden);
-            if (encrypted_try_key(param, &pubenc, &seckey->pkt(), *handler->ctx->ctx)) {
+            if (encrypted_try_key(param, pubenc, *seckey, *handler->ctx->ctx)) {
                 have_key = true;
                 /* inform handler that we used this pubenc */
                 if (handler->on_decryption_start) {
