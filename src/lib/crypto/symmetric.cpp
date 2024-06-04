@@ -279,14 +279,13 @@ pgp_cipher_aead_start(pgp_crypt_t *crypt, const uint8_t *nonce, size_t len)
 bool
 pgp_cipher_aead_update(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t len)
 {
-    size_t outwr = 0;
-    size_t inread = 0;
-
     if (len % crypt->aead.granularity) {
         RNP_LOG("aead wrong update len");
         return false;
     }
 
+    size_t outwr = 0;
+    size_t inread = 0;
     if (botan_cipher_update(crypt->aead.obj, 0, out, len, &outwr, in, len, &inread) != 0) {
         RNP_LOG("aead update failed");
         return false;
