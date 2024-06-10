@@ -853,7 +853,8 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
         for (auto aead : aead_modes)
             for (auto cipher : ciphers) {
                 bool expect_success = true;
-                if (!enable_pkeskv6 && (cipher == "TwoFish" || cipher.find("Camellia") != 0)) {
+                if (!enable_pkeskv6 &&
+                    (cipher == "TwoFish" || cipher.find("Camellia") != std::string::npos)) {
                     // This combination is not supported, since the algorithm ID is fixed to
                     // AES for v3 PKESK for the public key algorithm featured by the key used
                     // here.

@@ -39,7 +39,7 @@ namespace rnp {
     fixedInfo = algID || domSeparation
 */
 std::vector<uint8_t>
-PQC_KEM_COMBINER::fixedInfo(pgp_pubkey_alg_t alg_id)
+PqcKemCombiner::fixedInfo(pgp_pubkey_alg_t alg_id)
 {
     std::vector<uint8_t> result;
     result.push_back(static_cast<uint8_t>(alg_id));
@@ -48,19 +48,16 @@ PQC_KEM_COMBINER::fixedInfo(pgp_pubkey_alg_t alg_id)
     return result;
 }
 
-std::vector<uint8_t>
-PQC_KEM_COMBINER::encData(const std::vector<uint8_t> &ecc_pub_key,
-                          const std::vector<uint8_t> &ecc_key_share,
-                          const std::vector<uint8_t> &ecc_ciphertext,
-                          const std::vector<uint8_t> &mlkem_pub_key,
-                          const std::vector<uint8_t> &mlkem_key_share,
-                          const std::vector<uint8_t> &mlkem_ciphertext,
-                          pgp_pubkey_alg_t            alg_id)
+void
+PqcKemCombiner::hashEncData(std::unique_ptr<rnp::Hash> &hash,
+                            const std::vector<uint8_t> &ecc_pub_key,
+                            const std::vector<uint8_t> &ecc_key_share,
+                            const std::vector<uint8_t> &ecc_ciphertext,
+                            const std::vector<uint8_t> &mlkem_pub_key,
+                            const std::vector<uint8_t> &mlkem_key_share,
+                            const std::vector<uint8_t> &mlkem_ciphertext,
+                            pgp_pubkey_alg_t            alg_id)
 {
-    std::vector<uint8_t> enc_data;
-    std::vector<uint8_t> counter_vec = counter();
-    std::vector<uint8_t> fixedInfo_vec = fixedInfo(alg_id);
-
     /*
         ecdhData = ecdhKeyShare || ecdhCipherText || ecdhPublicKey
         mlkemData = mlkemKeyShare || mlkemCipherText || mlkemPublicKey
@@ -68,47 +65,46 @@ PQC_KEM_COMBINER::encData(const std::vector<uint8_t> &ecc_pub_key,
     */
 #if defined(ENABLE_PQC_DBG_LOG)
     RNP_LOG_NO_POS_INFO("Key Combiner encData: ");
-    RNP_LOG_U8VEC(" - counter: %s", counter_vec);
+    RNP_LOG_U8VEC(" - counter: %s", counter());
     RNP_LOG_U8VEC(" - eccPublicKey: %s", ecc_pub_key);
     RNP_LOG_U8VEC(" - eccKeyShare: %s", ecc_key_share);
     RNP_LOG_U8VEC(" - eccCipherText: %s", ecc_ciphertext);
     RNP_LOG_U8VEC(" - mlkemPublicKey: %s", mlkem_pub_key);
     RNP_LOG_U8VEC(" - mlkemKeyShare: %s", mlkem_key_share);
     RNP_LOG_U8VEC(" - mlkemCipherText: %s", mlkem_ciphertext);
-    RNP_LOG_U8VEC(" - fixedInfo: %s", fixedInfo_vec);
+    RNP_LOG_U8VEC(" - fixedInfo: %s", fixedInfo(alg_id));
 #endif
 
-    enc_data.insert(enc_data.end(), counter_vec.begin(), counter_vec.end());
-    enc_data.insert(enc_data.end(), ecc_key_share.begin(), ecc_key_share.end());
-    enc_data.insert(enc_data.end(), ecc_ciphertext.begin(), ecc_ciphertext.end());
-    enc_data.insert(enc_data.end(), ecc_pub_key.begin(), ecc_pub_key.end());
-    enc_data.insert(enc_data.end(), mlkem_key_share.begin(), mlkem_key_share.end());
-    enc_data.insert(enc_data.end(), mlkem_ciphertext.begin(), mlkem_ciphertext.end());
-    enc_data.insert(enc_data.end(), mlkem_pub_key.begin(), mlkem_pub_key.end());
-    enc_data.insert(enc_data.end(), fixedInfo_vec.begin(), fixedInfo_vec.end());
-
-    return enc_data;
+    hash->add(counter());
+    hash->add(ecc_key_share);
+    hash->add(ecc_ciphertext);
+    hash->add(ecc_pub_key);
+    hash->add(mlkem_key_share);
+    hash->add(mlkem_ciphertext);
+    hash->add(mlkem_pub_key);
+    hash->add(fixedInfo(alg_id));
 }
 
 void
-PQC_KEM_COMBINER::compute(const std::vector<uint8_t> &ecc_pub_key,
-                          const std::vector<uint8_t> &ecc_key_share,
-                          const std::vector<uint8_t> &ecc_ciphertext,
-                          const std::vector<uint8_t> &mlkem_pub_key,
-                          const std::vector<uint8_t> &mlkem_key_share,
-                          const std::vector<uint8_t> &mlkem_ciphertext,
-                          const pgp_pubkey_alg_t      alg_id,
-                          std::vector<uint8_t> &      out)
+PqcKemCombiner::compute(const std::vector<uint8_t> &ecc_pub_key,
+                        const std::vector<uint8_t> &ecc_key_share,
+                        const std::vector<uint8_t> &ecc_ciphertext,
+                        const std::vector<uint8_t> &mlkem_pub_key,
+                        const std::vector<uint8_t> &mlkem_key_share,
+                        const std::vector<uint8_t> &mlkem_ciphertext,
+                        const pgp_pubkey_alg_t      alg_id,
+                        std::vector<uint8_t>       &out)
 {
     pgp_hash_alg_t hash_alg = PGP_HASH_SHA3_256;
     auto           hash = rnp::Hash::create(hash_alg);
-    hash->add(encData(ecc_pub_key,
-                      ecc_key_share,
-                      ecc_ciphertext,
-                      mlkem_pub_key,
-                      mlkem_key_share,
-                      mlkem_ciphertext,
-                      alg_id));
+    hashEncData(hash,
+                ecc_pub_key,
+                ecc_key_share,
+                ecc_ciphertext,
+                mlkem_pub_key,
+                mlkem_key_share,
+                mlkem_ciphertext,
+                alg_id);
     out.resize(rnp::Hash::size(hash_alg));
     hash->finish(out.data());
 

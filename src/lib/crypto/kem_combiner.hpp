@@ -33,7 +33,7 @@
 #include "pgp-key.h"
 
 namespace rnp {
-class PQC_KEM_COMBINER {
+class PqcKemCombiner {
     /* KDF for PQC key combiner according to
      * https://datatracker.ietf.org/doc/html/draft-ietf-openpgp-pqc */
 
@@ -62,13 +62,14 @@ class PQC_KEM_COMBINER {
     }
 
     static std::vector<uint8_t> fixedInfo(pgp_pubkey_alg_t alg_id);
-    static std::vector<uint8_t> encData(const std::vector<uint8_t> &ecc_pub_key,
-                                        const std::vector<uint8_t> &ecc_key_share,
-                                        const std::vector<uint8_t> &ecc_ciphertext,
-                                        const std::vector<uint8_t> &mlkem_pub_key,
-                                        const std::vector<uint8_t> &mlkem_key_share,
-                                        const std::vector<uint8_t> &mlkem_ciphertext,
-                                        pgp_pubkey_alg_t            alg_id);
+    static void                 hashEncData(std::unique_ptr<rnp::Hash> &hash,
+                                            const std::vector<uint8_t> &ecc_pub_key,
+                                            const std::vector<uint8_t> &ecc_key_share,
+                                            const std::vector<uint8_t> &ecc_ciphertext,
+                                            const std::vector<uint8_t> &mlkem_pub_key,
+                                            const std::vector<uint8_t> &mlkem_key_share,
+                                            const std::vector<uint8_t> &mlkem_ciphertext,
+                                            pgp_pubkey_alg_t            alg_id);
 
   public:
     /* PQC KEM Combiner interface for OpenPGP PQC composite algorithms */

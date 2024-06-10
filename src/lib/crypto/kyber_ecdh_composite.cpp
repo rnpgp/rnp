@@ -382,7 +382,7 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(
     // Compute KEK := multiKeyCombine(eccKeyShare, kyberKeyShare, fixedInfo) as defined in
     // Section 4.2.2
     std::vector<uint8_t> kek_vec;
-    rnp::PQC_KEM_COMBINER::compute(ecdh_key_->get_pubkey_encoded(rng),
+    rnp::PqcKemCombiner::compute(ecdh_key_->get_pubkey_encoded(rng),
                                    hashed_ecdh_keyshare,
                                    ecdh_encapsulated_keyshare,
                                    ecdh_kyber_pub_key.get_encoded_kyber_key(),
@@ -527,7 +527,7 @@ pgp_kyber_ecdh_composite_public_key_t::encrypt(rnp::RNG *                  rng,
     // Compute KEK := multiKeyCombine(eccKeyShare, kyberKeyShare, fixedInfo) as defined in
     // Section 4.2.2
     std::vector<uint8_t> kek_vec;
-    rnp::PQC_KEM_COMBINER::compute(ecdh_key_.get_encoded(),
+    rnp::PqcKemCombiner::compute(ecdh_key_.get_encoded(),
                                    ecdh_hashed_symmetric_key,
                                    ecdh_ciphertext,
                                    kyber_key_.get_encoded(),
