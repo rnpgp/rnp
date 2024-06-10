@@ -93,7 +93,7 @@ PqcKemCombiner::compute(const std::vector<uint8_t> &ecc_pub_key,
                         const std::vector<uint8_t> &mlkem_key_share,
                         const std::vector<uint8_t> &mlkem_ciphertext,
                         const pgp_pubkey_alg_t      alg_id,
-                        std::vector<uint8_t>       &out)
+                        std::vector<uint8_t> &      out)
 {
     pgp_hash_alg_t hash_alg = PGP_HASH_SHA3_256;
     auto           hash = rnp::Hash::create(hash_alg);

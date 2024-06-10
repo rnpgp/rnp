@@ -383,13 +383,13 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(
     // Section 4.2.2
     std::vector<uint8_t> kek_vec;
     rnp::PqcKemCombiner::compute(ecdh_key_->get_pubkey_encoded(rng),
-                                   hashed_ecdh_keyshare,
-                                   ecdh_encapsulated_keyshare,
-                                   ecdh_kyber_pub_key.get_encoded_kyber_key(),
-                                   kyber_keyshare,
-                                   kyber_encapsulated_keyshare,
-                                   pk_alg(),
-                                   kek_vec);
+                                 hashed_ecdh_keyshare,
+                                 ecdh_encapsulated_keyshare,
+                                 ecdh_kyber_pub_key.get_encoded_kyber_key(),
+                                 kyber_keyshare,
+                                 kyber_encapsulated_keyshare,
+                                 pk_alg(),
+                                 kek_vec);
     Botan::SymmetricKey kek(kek_vec);
 
     // Compute sessionKey := AESKeyUnwrap(KEK, C) with AES-256 as per [RFC3394], aborting if
@@ -528,13 +528,13 @@ pgp_kyber_ecdh_composite_public_key_t::encrypt(rnp::RNG *                  rng,
     // Section 4.2.2
     std::vector<uint8_t> kek_vec;
     rnp::PqcKemCombiner::compute(ecdh_key_.get_encoded(),
-                                   ecdh_hashed_symmetric_key,
-                                   ecdh_ciphertext,
-                                   kyber_key_.get_encoded(),
-                                   kyber_encap.symmetric_key,
-                                   kyber_encap.ciphertext,
-                                   pk_alg(),
-                                   kek_vec);
+                                 ecdh_hashed_symmetric_key,
+                                 ecdh_ciphertext,
+                                 kyber_key_.get_encoded(),
+                                 kyber_encap.symmetric_key,
+                                 kyber_encap.ciphertext,
+                                 pk_alg(),
+                                 kek_vec);
     Botan::SymmetricKey kek(kek_vec);
 
     // Compute C := AESKeyWrap(KEK, sessionKey) with AES-256 as per [RFC3394] that includes a
