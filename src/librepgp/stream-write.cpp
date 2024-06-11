@@ -988,8 +988,12 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     bool                        singlepass = true;
     unsigned                    pkeycount = 0;
     unsigned                    skeycount = 0;
-    unsigned                    keylen;
-    rnp_result_t                ret = RNP_ERROR_GENERIC;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    bool use_v6_pkesk = false;
+    bool use_v6_skesk = false;
+#endif
+    unsigned     keylen;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
 
     keylen = pgp_key_size(handler->ctx->ealg);
     if (!keylen) {
@@ -1039,16 +1043,15 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     skeycount = handler->ctx->passwords.size();
 
 #if defined(ENABLE_CRYPTO_REFRESH)
-    /* in the case of PKESK (pkeycount > 0) and all keys are PKESKv6/SEIPDv2 capable, upgrade
-     * to AEADv2 */
-    if (handler->ctx->enable_pkesk_v6 && handler->ctx->pkeskv6_capable() && pkeycount > 0) {
-        param->auth_type = rnp::AuthType::AEADv2;
-    }
+    /* We use v6 PKESK/SKESK with v2 SEIPD if all recipients support it
+       and the variables enable_pkesk_v6 and enable_skesk_v6 are set. */
+    if (handler->ctx->aalg != PGP_AEAD_NONE) {
+        use_v6_pkesk = handler->ctx->enable_pkesk_v6 && handler->ctx->pkeskv6_capable();
+        use_v6_skesk = handler->ctx->enable_skesk_v6;
 
-    /* Use SEIPDv2 for SKESK if enabled and preconditions are met */
-    if (handler->ctx->enable_skesk_v6 && handler->ctx->aalg != PGP_AEAD_NONE &&
-        skeycount > 0) {
-        param->auth_type = rnp::AuthType::AEADv2;
+        if ((use_v6_pkesk || !pkeycount) && (use_v6_skesk || !skeycount)) {
+            param->auth_type = rnp::AuthType::AEADv2;
+        }
     }
 #endif
     param->aalg = handler->ctx->aalg;
