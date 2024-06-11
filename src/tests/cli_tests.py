@@ -4654,6 +4654,22 @@ class Encryption(unittest.TestCase):
         self.assertEqual(file_text(dec), file_text(src))
         clear_workfiles()
 
+    def test_aead_eax_botan35_decryption(self):
+        # Artifact which was obtained from tests used EAX + Twofish
+        if not RNP_AEAD_EAX or not RNP_TWOFISH:
+            self.skipTest('AEAD-EAX is not supported')
+        # See issue #2245 for the details
+        [dec] = reg_workfiles('cleartext', '.txt')
+        EAXSRC = data_path('test_messages/cleartext.rnp-aead-eax')
+        # Decrypt and verify AEAD-EAX encrypted message by RNP
+        ret, _, _ = run_proc(RNP, ['--keyfile', data_path('test_messages/seckey-aead-eax.gpg'), '--password', 'encsign1pass', '-d', EAXSRC, '--output', dec])
+        self.assertEqual(ret, 0)
+        remove_files(dec)
+        # Decrypt it using the password
+        ret, _, _ = run_proc(RNP, ['--keyfile', data_path('test_messages/pubkey-aead-eax.gpg'), '--password', 'password1', '-d', EAXSRC, '--output', dec])
+        self.assertEqual(ret, 0)
+        clear_workfiles()
+
 class Compression(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
