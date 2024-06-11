@@ -100,6 +100,7 @@ SECRING = 'secring.gpg'
 PUBRING_1 = 'keyrings/1/pubring.gpg'
 SECRING_1 = 'keyrings/1/secring.gpg'
 KEYRING_DIR_1 = 'keyrings/1'
+KEYRING_DIR_2 = 'keyrings/2'
 KEYRING_DIR_3 = 'keyrings/3'
 SECRING_G10 = 'test_stream_key_load/g10'
 KEY_ALICE_PUB = 'test_key_validity/alice-pub.asc'
@@ -521,7 +522,7 @@ def gpg_encrypt_file(src, dst, cipher=None, z=None, armor=False):
     if armor: params[2:2] = ['--armor']
     if GPG_NO_OLD: params[2:2] = ['--allow-old-cipher-algos']
 
-    ret, out, err = run_proc(GPG, params)
+    ret, _, err = run_proc(GPG, params)
     if ret != 0:
         raise_err('gpg encryption failed for cipher ' + cipher, err)
 
@@ -541,7 +542,7 @@ def gpg_symencrypt_file(src, dst, cipher=None, z=None, armor=False, aead=None):
             params[3:3] = ['--chunk-size', str(aead[1] + 6)]
         params[3:3] = ['--rfc4880bis', '--force-aead']
 
-    ret, out, err = run_proc(GPG, params)
+    ret, _, err = run_proc(GPG, params)
     if ret != 0:
         raise_err('gpg symmetric encryption failed for cipher ' + cipher, err)
 
@@ -549,7 +550,7 @@ def gpg_symencrypt_file(src, dst, cipher=None, z=None, armor=False, aead=None):
 def gpg_decrypt_file(src, dst, keypass):
     src = path_for_gpg(src)
     dst = path_for_gpg(dst)
-    ret, out, err = run_proc(GPG, ['--display-charset', CONSOLE_ENCODING, '--homedir', GPGHOME, GPG_LOOPBACK, '--batch',
+    ret, _, err = run_proc(GPG, ['--display-charset', CONSOLE_ENCODING, '--homedir', GPGHOME, GPG_LOOPBACK, '--batch',
                                    '--yes', '--passphrase', keypass, '--trust-model',
                                    'always', '-o', dst, '-d', src])
     if ret != 0:
@@ -559,7 +560,7 @@ def gpg_decrypt_file(src, dst, keypass):
 def gpg_verify_file(src, dst, signer=None):
     src = path_for_gpg(src)
     dst = path_for_gpg(dst)
-    ret, out, err = run_proc(GPG, ['--display-charset', CONSOLE_ENCODING, '--homedir', GPGHOME, '--batch',
+    ret, _, err = run_proc(GPG, ['--display-charset', CONSOLE_ENCODING, '--homedir', GPGHOME, '--batch',
                                    '--yes', '--trust-model', 'always', '-o', dst, '--verify', src])
     if ret != 0:
         raise_err('gpg verification failed', err)
@@ -1182,15 +1183,15 @@ class Keystore(unittest.TestCase):
         pipe = pswd_pipe(PASSWORD)
         kbx_userid_tracker = 'kbx_userid_tracker@rnp'
         # Run key generation
-        ret, out, err = run_proc(RNPK, ['--gen-key', '--keystore-format', 'GPG21',
+        ret, out, _ = run_proc(RNPK, ['--gen-key', '--keystore-format', 'GPG21',
                                         '--userid', kbx_userid_tracker, '--homedir',
                                         RNPDIR, '--pass-fd', str(pipe)])
         os.close(pipe)
         self.assertEqual(ret, 0, KEY_GEN_FAILED)
         # Read KBX with GPG
-        ret, out, err = run_proc(GPG, ['--homedir', path_for_gpg(RNPDIR), '--list-keys'])
+        ret, out, _ = run_proc(GPG, ['--homedir', path_for_gpg(RNPDIR), '--list-keys'])
         self.assertEqual(ret, 0, 'gpg : failed to read KBX')
-        self.assertTrue(kbx_userid_tracker in out, 'gpg : failed to read expected key from KBX')
+        self.assertIn(kbx_userid_tracker, out, 'gpg : failed to read expected key from KBX')
         clear_keyrings()
 
     def test_generate_protection_pass_fd(self):
@@ -1438,46 +1439,47 @@ class Keystore(unittest.TestCase):
 
     def test_import_keys(self):
         clear_keyrings()
+        KEY_BOTH=data_path('test_stream_key_merge/key-both.asc')
         # try to import non-existing file
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', data_path('thiskeyfiledoesnotexist')])
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', data_path('thiskeyfiledoesnotexist')])
         self.assertEqual(ret, 1)
         self.assertRegex(err, r'(?s)^.*Failed to create input for .*thiskeyfiledoesnotexist.*')
         # try malformed file
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', data_path('test_key_validity/alice-sigs-malf.pgp')])
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', data_path('test_key_validity/alice-sigs-malf.pgp')])
         self.assertEqual(ret, 1)
         self.assertRegex(err, r'(?s)^.*failed to import key\(s\) from .*test_key_validity/alice-sigs-malf.pgp, stopping\..*')
         self.assertRegex(err, r'(?s)^.*Import finished: 0 keys processed, 0 new public keys, 0 new secret keys, 0 updated, 0 unchanged\..*')
         # try --import
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path(KEY_ALICE_SUB_PUB)])
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path(KEY_ALICE_SUB_PUB)])
         self.assertEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 2 new public keys, 0 new secret keys, 0 updated, 0 unchanged\..*')
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path(KEY_ALICE_SUB_PUB)])
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path(KEY_ALICE_SUB_PUB)])
         self.assertEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 0 new public keys, 0 new secret keys, 0 updated, 2 unchanged\..*')
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_stream_key_merge/key-both.asc')])
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', KEY_BOTH])
         self.assertEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*Import finished: 6 keys processed, 3 new public keys, 3 new secret keys, 0 updated, 0 unchanged\..*')
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_stream_key_merge/key-both.asc')])
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', KEY_BOTH])
         self.assertEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*Import finished: 6 keys processed, 0 new public keys, 0 new secret keys, 0 updated, 6 unchanged\..*')
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-sign-sub-exp-pub.asc')])
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-sign-sub-exp-pub.asc')])
         self.assertEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 1 new public keys, 0 new secret keys, 1 updated, 0 unchanged\..*')
         clear_keyrings()
         # try --import-key
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', data_path(KEY_ALICE_SUB_PUB)])
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', data_path(KEY_ALICE_SUB_PUB)])
         self.assertEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 2 new public keys, 0 new secret keys, 0 updated, 0 unchanged\..*')
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', data_path(KEY_ALICE_SUB_PUB)])
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', data_path(KEY_ALICE_SUB_PUB)])
         self.assertEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 0 new public keys, 0 new secret keys, 0 updated, 2 unchanged\..*')
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', data_path('test_stream_key_merge/key-both.asc')])
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', KEY_BOTH])
         self.assertEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*Import finished: 6 keys processed, 3 new public keys, 3 new secret keys, 0 updated, 0 unchanged\..*')
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', data_path('test_stream_key_merge/key-both.asc')])
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', KEY_BOTH])
         self.assertEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*Import finished: 6 keys processed, 0 new public keys, 0 new secret keys, 0 updated, 6 unchanged\..*')
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', data_path('test_key_validity/alice-sign-sub-exp-pub.asc')])
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', data_path('test_key_validity/alice-sign-sub-exp-pub.asc')])
         self.assertEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 1 new public keys, 0 new secret keys, 1 updated, 0 unchanged\..*')
         clear_keyrings()
@@ -1700,13 +1702,13 @@ class Keystore(unittest.TestCase):
         for userid in USERS:
             rnp_genkey_rsa(userid, 1024)
         # Read with GPG
-        ret, out, err = run_proc(GPG, ['--homedir', path_for_gpg(RNPDIR), '--list-keys', '--charset', CONSOLE_ENCODING])
+        ret, out, _ = run_proc(GPG, ['--homedir', path_for_gpg(RNPDIR), '--list-keys', '--charset', CONSOLE_ENCODING])
         self.assertEqual(ret, 0, 'gpg : failed to read keystore')
         tracker_escaped = re.findall(r'' + userid_beginning + '.*' + userid_end + '', out)
         tracker_gpg = list(map(decode_string_escape, tracker_escaped))
         self.assertEqual(tracker_gpg, USERS, 'gpg : failed to find expected userids from keystore')
         # Read with rnpkeys
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
         self.assertEqual(ret, 0, 'rnpkeys : failed to read keystore')
         tracker_escaped = re.findall(r'' + userid_beginning + '.*' + userid_end + '', out)
         tracker_rnp = list(map(decode_string_escape, tracker_escaped))
@@ -1820,31 +1822,33 @@ class Keystore(unittest.TestCase):
         clear_keyrings()
 
     def test_expert_mode_no_endless_loop(self):
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', PASSWORD,
-                                      '--userid', 'noendlessloop@rnp', '--expert', '--generate-key'],
+        TOO_MANY=r'(?s)Too many attempts. Aborting.'
+        UID='noendlessloop@rnp'
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--password', PASSWORD,
+                                      '--userid', UID, '--expert', '--generate-key'],
                                       '\n\n\n\n\n')
         self.assertEqual(ret, 1)
-        self.assertRegex(out, r'(?s)Too many attempts. Aborting.')
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', PASSWORD,
-                                      '--userid', 'noendlessloop@rnp', '--expert', '--generate-key'],
+        self.assertRegex(out, TOO_MANY)
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--password', PASSWORD,
+                                      '--userid', UID, '--expert', '--generate-key'],
                                       '1\n1\n1\n1\n1\n1\n')
         self.assertEqual(ret, 1)
-        self.assertRegex(out, r'(?s)Too many attempts. Aborting.')
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', PASSWORD,
-                                      '--userid', 'noendlessloop@rnp', '--expert', '--generate-key'],
+        self.assertRegex(out, TOO_MANY)
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--password', PASSWORD,
+                                      '--userid', UID, '--expert', '--generate-key'],
                                       '16\n1\n1\n1\n1\n1\n')
         self.assertEqual(ret, 1)
-        self.assertRegex(out, r'(?s)Too many attempts. Aborting.')
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', PASSWORD,
-                                      '--userid', 'noendlessloop@rnp', '--expert', '--generate-key'],
+        self.assertRegex(out, TOO_MANY)
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--password', PASSWORD,
+                                      '--userid', UID, '--expert', '--generate-key'],
                                       '17\n1\n1\n1\n1\n1\n')
         self.assertEqual(ret, 1)
-        self.assertRegex(out, r'(?s)Too many attempts. Aborting.')
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', PASSWORD,
-                                      '--userid', 'noendlessloop@rnp', '--expert', '--generate-key'],
+        self.assertRegex(out, TOO_MANY)
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--password', PASSWORD,
+                                      '--userid', UID, '--expert', '--generate-key'],
                                       '19\n\n\n\n\n\n')
         self.assertEqual(ret, 1)
-        self.assertRegex(out, r'(?s)Too many attempts. Aborting.')
+        self.assertRegex(out, TOO_MANY)
 
         clear_keyrings()
 
@@ -2239,7 +2243,7 @@ class Misc(unittest.TestCase):
 
     def test_rnpkeys_lists(self):
         KEYRING_1 = data_path(KEYRING_DIR_1)
-        KEYRING_2 = data_path('keyrings/2')
+        KEYRING_2 = data_path(KEYRING_DIR_2)
         KEYRING_3 = data_path(KEYRING_DIR_3)
         KEYRING_5 = data_path('keyrings/5')
         path = data_path('test_cli_rnpkeys') + '/'
@@ -2337,7 +2341,7 @@ class Misc(unittest.TestCase):
             self.assertEqual(file_text(data_path('test_cli_rnpkeys/g10_list_keys_sec_no_bp')), out, 'g10 secret key listing failed')
 
     def test_rnpkeys_list_from_keyfile(self):
-        KEYRING_2 = data_path('keyrings/2')
+        KEYRING_2 = data_path(KEYRING_DIR_2)
         ret, out, err = run_proc(RNPK, ['--homedir', KEYRING_2, '--list-keys', '--keyfile', data_path(KEY_ALICE_PUB)])
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'1 key found.*')
@@ -2669,7 +2673,7 @@ class Misc(unittest.TestCase):
     def test_debug_log(self):
         if RNP_CAST5:
             run_proc(RNPK, ['--homedir', data_path(KEYRING_DIR_1), '--list-keys', '--debug', '--all'])
-        run_proc(RNPK, ['--homedir', data_path('keyrings/2'), '--list-keys', '--debug', '--all'])
+        run_proc(RNPK, ['--homedir', data_path(KEYRING_DIR_2), '--list-keys', '--debug', '--all'])
         run_proc(RNPK, ['--homedir', data_path(KEYRING_DIR_3), '--list-keys', '--debug', '--all'])
         run_proc(RNPK, ['--homedir', data_path(SECRING_G10),
                         '--list-keys', '--debug', '--all'])
@@ -2851,55 +2855,55 @@ class Misc(unittest.TestCase):
     def test_literal_filename(self):
         EMPTY_FNAME = r'(?s)^.*literal data packet.*mode b.*created 0, name="".*$'
         HELLO_FNAME = r'(?s)^.*literal data packet.*mode b.*created 0, name="hello".*$'
-        src, enc, dec = reg_workfiles('source', '.txt', EXT_PGP, '.dec')
+        src, enc = reg_workfiles('source', '.txt', EXT_PGP)
         with open(src, 'w+') as f:
             f.write('Literal filename check')
         # Encrypt file and make sure it's name is stored in literal data packet
         ret, out, _ = run_proc(RNP, ['-c', src, '--password', 'password'])
         self.assertEqual(ret, 0)
-        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        ret, out, _ = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'(?s)^.*literal data packet.*mode b.*created \d+.*name="source.txt".*$')
         remove_files(enc)
         # Encrypt file, overriding it's name
         ret, out, _ = run_proc(RNP, ['--set-filename', 'hello', '-c', src, '--password', 'password'])
         self.assertEqual(ret, 0)
-        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        ret, out, _ = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
         self.assertEqual(ret, 0)
         self.assertRegex(out, HELLO_FNAME)
         remove_files(enc)
         # Encrypt file, using empty name
         ret, out, _ = run_proc(RNP, ['--set-filename', '', '-c', src, '--password', 'password'])
         self.assertEqual(ret, 0)
-        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        ret, out, _ = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
         self.assertEqual(ret, 0)
         self.assertRegex(out, EMPTY_FNAME)
         remove_files(enc)
         # Encrypt stdin, making sure empty name is stored
         ret, out, _ = run_proc(RNP, ['-c', '--password', 'password', '--output', enc], 'Data from stdin')
         self.assertEqual(ret, 0)
-        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        ret, out, _ = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
         self.assertEqual(ret, 0)
         self.assertRegex(out, EMPTY_FNAME)
         remove_files(enc)
         # Encrypt stdin, setting the file name
         ret, out, _ = run_proc(RNP, ['--set-filename', 'hello', '-c', '--password', 'password', '--output', enc], 'Data from stdin')
         self.assertEqual(ret, 0)
-        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        ret, out, _ = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
         self.assertEqual(ret, 0)
         self.assertRegex(out, HELLO_FNAME)
         remove_files(enc)
         # Encrypt env, making sure empty name is stored
         ret, out, _ = run_proc(RNP, ['-c', 'env:HOME', '--password', 'password', '--output', enc])
         self.assertEqual(ret, 0)
-        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        ret, out, _ = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
         self.assertEqual(ret, 0)
         self.assertRegex(out, EMPTY_FNAME)
         remove_files(enc)
         # Encrypt env, setting the file name
         ret, out, _ = run_proc(RNP, ['--set-filename', 'hello', '-c', 'env:HOME', '--password', 'password', '--output', enc])
         self.assertEqual(ret, 0)
-        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        ret, out, _ = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
         self.assertEqual(ret, 0)
         self.assertRegex(out, HELLO_FNAME)
         remove_files(enc)
@@ -3692,15 +3696,15 @@ class Misc(unittest.TestCase):
     def test_interactive_password(self):
         # Reuse password for subkey, say "yes"
         stdinstr = 'password\npassword\ny\n'
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--notty', '--generate-key'], stdinstr)
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--notty', '--generate-key'], stdinstr)
         self.assertEqual(ret, 0)
         # Do not reuse same password for subkey, say "no"
         stdinstr = 'password\npassword\nN\nsubkeypassword\nsubkeypassword\n'
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--notty', '--generate-key'], stdinstr)
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--notty', '--generate-key'], stdinstr)
         self.assertEqual(ret, 0)
         # Set empty password and reuse it
         stdinstr = '\n\ny\ny\n'
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--notty', '--generate-key'], stdinstr)
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--notty', '--generate-key'], stdinstr)
         self.assertEqual(ret, 0)
 
     def test_set_current_time(self):
@@ -3779,7 +3783,7 @@ class Misc(unittest.TestCase):
 
     def test_no_twofish(self):
         if (RNP_TWOFISH):
-            return
+            self.skipTest('Twofish is available')
         src, dst, dec = reg_workfiles('cleartext', '.txt', '.pgp', '.dec')
         random_text(src, 100)
         # Attempt to encrypt to twofish
@@ -3809,7 +3813,7 @@ class Misc(unittest.TestCase):
 
     def test_no_idea(self):
         if (RNP_IDEA):
-            return
+            self.skipTest('IDEA is available')
         src, dst, dec = reg_workfiles('cleartext', '.txt', '.pgp', '.dec')
         random_text(src, 100)
         # Attempt to encrypt to twofish
@@ -4206,7 +4210,7 @@ class Encryption(unittest.TestCase):
             ret, out, _ = run_proc(RNP, ['--list-packets', enc])
             self.assertEqual(ret, 0)
             self.assertRegex(out, r'(?s)^.*s2k iterations: [0-9]+ \(encoded as [0-9]+\).*')
-            matches = re.findall(r'(?s)^.*s2k iterations: ([0-9]+) \(encoded as [0-9]+\).*', out)
+            matches = re.findall(r'(?s)^.*s2k iterations: (\d+) \(encoded as \d+\).*', out)
             remove_files(enc)
             return int(matches[0])
 
@@ -4250,8 +4254,7 @@ class Encryption(unittest.TestCase):
 
     def test_sym_encryption__rnp_aead(self):
         if not RNP_AEAD:
-            print('AEAD is not available for RNP - skipping.')
-            return
+            self.skipTest('AEAD is not available for RNP - skipping.')
         CIPHERS = rnp_supported_ciphers(True)
         AEADS = [None, 'eax', 'ocb']
         if not RNP_AEAD_EAX:
