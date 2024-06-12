@@ -54,28 +54,23 @@ jobs:
           - { CC: clang, CXX: clang++, BUILD_MODE: sanitize, SHARED_LIBS: on   }
 
 # All cotainers have gpg stable and lts installed
-# centos-8-amd64 has botan 2.18.2 installed
-# fedora-35-amd64 has botan 3.1.1  installed
+# centos-9-amd64 has botan 2.19.3 installed
+# fedora-39-amd64 has botan 2.19.4  installed
 # Any other version has to be built explicitly !
 # Pls refer to https://github.com/rnpgp/rnp-ci-containers#readme for more image details
         image:
           - { name: 'CentOS 7',  container: 'centos-7-amd64',  backend: 'Botan', botan_ver: 'system',             gpg_ver: 'stable' }
-          - { name: 'CentOS 8',  container: 'centos-8-amd64',  backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
-          - { name: 'CentOS 8',  container: 'centos-8-amd64',  backend: 'Botan', botan_ver: '2.18.2',   sm2: On,  gpg_ver: 'lts'    }
-          - { name: 'CentOS 8',  container: 'centos-8-amd64',  backend: 'Botan', botan_ver: '2.18.2',   sm2: Off, gpg_ver: 'stable' }
-          - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'Botan', botan_ver: 'system',             gpg_ver: 'stable' }
-          - { name: 'Fedora 35', container: 'fedora-35-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
-          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
-          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan', botan_ver: '3.1.1',              gpg_ver: 'system' }
-# Tests against gpg head fails
-#         - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'head'   }
-          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan', botan_ver: 'head',               gpg_ver: 'system'   }
-          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan', botan_ver: '3.3.0',    pqc: On,  gpg_ver: 'system'   }
-          - { name: 'CentOS 8',  container: 'centos-8-amd64',  backend: 'OpenSSL',           gpg_ver: 'lts'    }
-          - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'OpenSSL', idea: On, gpg_ver: 'stable' }
+          - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
+          - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'Botan', botan_ver: 'system',   sm2: Off, gpg_ver: 'lts'    }
+          - { name: 'Fedora 39', container: 'fedora-39-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
+          - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
+          - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'Botan', botan_ver: '3.1.1',              gpg_ver: 'system' }
+          - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'Botan', botan_ver: 'head',               gpg_ver: 'system' }
+          - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'Botan', botan_ver: '3.3.0',    pqc: On,  gpg_ver: 'system' }
+          - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'OpenSSL',           gpg_ver: 'lts'    }
           - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'OpenSSL', idea: Off,gpg_ver: 'stable' }
-          - { name: 'Fedora 35', container: 'fedora-35-amd64', backend: 'OpenSSL',           gpg_ver: 'system' }
-          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'OpenSSL',           gpg_ver: 'system' }
+          - { name: 'Fedora 39', container: 'fedora-39-amd64', backend: 'OpenSSL',           gpg_ver: 'system' }
+          - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'OpenSSL',           gpg_ver: 'system' }
 
 # There is some ABI incompatibility between llvm-7, bitan shared library from ribose repo and sanitizer
 # So we are enforving static lib for sanitizers on CentOS 7
@@ -86,32 +81,23 @@ jobs:
           - image: { name: 'CentOS 7', container: 'centos-7-amd64', gpg_ver: stable, backend: Botan, botan_ver: 'system'  }
             env:   { CC: clang, CXX: clang++, BUILD_MODE: sanitize,   SHARED_LIBS: off  }
           # Coverage report for Botan 2.x backend
-          - image: { name: 'CentOS 8', container: 'centos-8-amd64', gpg_ver: stable, backend: Botan, botan_ver: '2.18.2'  }
+          - image: { name: 'CentOS 9 Coverage', container: 'centos-9-amd64', gpg_ver: stable, backend: Botan, botan_ver: 'system'  }
             env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage,   SHARED_LIBS: on  }
           # Coverage report for Botan 3.x backend
-          - image: { name: 'Fedora 36', container: 'fedora-36-amd64', gpg_ver: stable, backend: Botan, botan_ver: '3.1.1' }
-            env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage,   SHARED_LIBS: on  }
-          # Coverage report for OpenSSL 1.1.1 backend
-          - image: { name: 'CentOS 8', container: 'centos-8-amd64', gpg_ver: stable, backend: OpenSSL  }
+          - image: { name: 'Fedora 40 Coverage', container: 'fedora-40-amd64', gpg_ver: stable, backend: Botan, botan_ver: '3.3.0' }
             env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage,   SHARED_LIBS: on  }
           # Coverage report for OpenSSL 3.0 backend
-          - image: { name: 'Fedora 36', container: 'fedora-36-amd64', gpg_ver: stable, backend: OpenSSL }
+          - image: { name: 'Fedora 40 Coverage', container: 'fedora-40-amd64', gpg_ver: stable, backend: OpenSSL }
             env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage,   SHARED_LIBS: on  }
           # Coverage report for OpenSSL 3.0 backend with disabled algos
-          - image: { name: 'Fedora 36', container: 'fedora-36-amd64', gpg_ver: stable, backend: OpenSSL, idea: Off, sm2: Off, two: Off, blow: Off, rmd: Off, bp: Off }
+          - image: { name: 'Fedora 40 Coverage', container: 'fedora-40-amd64', gpg_ver: stable, backend: OpenSSL, idea: Off, sm2: Off, two: Off, blow: Off, rmd: Off, bp: Off }
             env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage,   SHARED_LIBS: on  }
           # Coverage report for Botan backend with disabled algos
-          - image: { name: 'Fedora 36', container: 'fedora-36-amd64', gpg_ver: stable, backend: Botan, idea: Off, sm2: Off, two: Off, blow: Off, rmd: Off, bp: Off }
+          - image: { name: 'Fedora 40 Coverage', container: 'fedora-40-amd64', gpg_ver: stable, backend: Botan, idea: Off, sm2: Off, two: Off, blow: Off, rmd: Off, bp: Off }
             env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage,   SHARED_LIBS: on  }
-          # Coverage report for PQC
-          - image: { name: 'Fedora 36', container: 'fedora-36-amd64', gpg_ver: stable, backend: Botan, botan_ver: '3.3.0', pqc: On }
-            env:   { CC: clang, CXX: clang++, BUILD_MODE: sanitize,   SHARED_LIBS: off  }
-          # Fedora 38
-          - image: { name: 'Fedora 38', container: 'fedora-38-amd64', gpg_ver: system, backend: Botan, botan_ver: 'system' }
-            env:   { CC: gcc, CXX: g++, BUILD_MODE: normal,   SHARED_LIBS: on  }
-          # Fedora 39
-          - image: { name: 'Fedora 38', container: 'fedora-39-amd64', gpg_ver: system, backend: Botan, botan_ver: 'system' }
-            env:   { CC: gcc, CXX: g++, BUILD_MODE: normal,   SHARED_LIBS: on  }
+          # Coverage report for PQC - not running yet due to very low coverage
+          #- image: { name: 'Fedora 40 PQC Coverage', container: 'fedora-40-amd64', gpg_ver: stable, backend: Botan, botan_ver: '3.3.0', pqc: On }
+          #  env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage,   SHARED_LIBS: off }
 
     container: ghcr.io/rnpgp/ci-rnp-${{ matrix.image.container }}
 
@@ -242,10 +228,9 @@ jobs:
       matrix:
         image:
           - { name: 'CentOS 7',  container: 'centos-7-amd64'  }
-          - { name: 'CentOS 8',  container: 'centos-8-amd64'  }
           - { name: 'CentOS 9',  container: 'centos-9-amd64'  }
-          - { name: 'Fedora 35', container: 'fedora-35-amd64' }
-          - { name: 'Fedora 36', container: 'fedora-36-amd64' }
+          - { name: 'Fedora 39', container: 'fedora-39-amd64' }
+          - { name: 'Fedora 40', container: 'fedora-40-amd64' }
 
     name: Package ${{ matrix.image.name }} SRPM
 
@@ -313,10 +298,9 @@ jobs:
       matrix:
         image:
           - { name: 'CentOS 7',  container: 'centos-7-amd64'  }
-          - { name: 'CentOS 8',  container: 'centos-8-amd64'  }
           - { name: 'CentOS 9',  container: 'centos-9-amd64'  }
-          - { name: 'Fedora 35', container: 'fedora-35-amd64' }
-          - { name: 'Fedora 36', container: 'fedora-36-amd64' }
+          - { name: 'Fedora 39', container: 'fedora-39-amd64' }
+          - { name: 'Fedora 40', container: 'fedora-40-amd64' }
 
     name: Package ${{ matrix.image.name }} RPM
     steps:
@@ -381,23 +365,24 @@ jobs:
       matrix:
         image:
           - { name: 'CentOS 7',  container: 'centos:7'                      }
-          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8'         }
           - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9' }
-          - { name: 'Fedora 35', container: 'fedora:35'                     }
-          - { name: 'Fedora 36', container: 'fedora:36'                     }
+          # Fedora 39 is disabled since it has cmake issue which prevents man pages to be packaged.
+          # Please see package step for error message.
+          #- { name: 'Fedora 39', container: 'fedora:39'                     }
+          - { name: 'Fedora 40', container: 'fedora:40'                     }
     name: RPM test on ${{ matrix.image.name }}
 
     steps:
       - name: Install prerequisites
         run:  yum -y install sudo wget binutils
 
-#   CentOS 7/8 packages depend on botan.so.16 that gets installed from ribose repo
-#   Fedora 35/36 packages depend on botan.so.19 that comes Fedora package, that is available by default
+#   CentOS 7 packages depend on botan.so.16 that gets installed from ribose repo
+#   Fedora 39/40 packages depend on botan.so.19 that comes Fedora package, that is available by default
 #   CentOS 9 depend on botan.so.19 and needs EPEL9 repo that needs to be installed
 #   ribose repo is also a source of json-c (v12 aka json-c12) for CentOS 7
 
       - name: Install ribose-packages
-        if: matrix.image.container == 'centos:7' || matrix.image.container == 'tgagor/centos:stream8'
+        if: matrix.image.container == 'centos:7'
         run: |
            sudo rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages-next.pub
            sudo wget https://github.com/riboseinc/yum/raw/master/ribose.repo -O /etc/yum.repos.d/ribose.repo
@@ -410,7 +395,7 @@ jobs:
            sudo dnf -y install epel-release
 
       - name: Install xargs
-        if: matrix.image.container == 'fedora:35'
+        if: matrix.image.container == 'fedora:39'
         run:  sudo yum -y install findutils
 
       - name: Download rnp rpms v3
