@@ -78,8 +78,8 @@ jobs:
 # but uses just few of tehm
 # Pls refer to https://github.com/rnpgp/rnp-ci-containers#readme for image details
         image:
-          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan'   }
-          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'OpenSSL' }
+          - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'Botan'   }
+          - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'OpenSSL' }
 
     container: ghcr.io/rnpgp/ci-rnp-${{ matrix.image.container }}
 
@@ -138,8 +138,8 @@ jobs:
 
 # Pls refer to https://github.com/rnpgp/rnp-ci-containers#readme for image details
         image:
-          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan'   }
-          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'OpenSSL' }
+          - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'Botan'   }
+          - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'OpenSSL' }
 
         date-offset:
           - '+0y'
