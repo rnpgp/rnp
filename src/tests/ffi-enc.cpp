@@ -737,6 +737,75 @@ TEST_F(rnp_tests, test_ffi_decrypt_pk_unlocked)
 }
 
 #if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_PQC)
+/* generate keys and make sure they are usable and enc+sign */
+TEST_F(rnp_tests, test_ffi_pqc_gen_enc_sign)
+{
+    std::vector<std::pair<std::string, std::string>> primary_sub = {
+      {"ML-DSA-65+ED25519", "ML-KEM-768+X25519"},
+      {"ML-DSA-65+ECDSA-P256", "ML-KEM-768+ECDH-P256"},
+      {"ML-DSA-87+ECDSA-P384", "ML-KEM-1024+ECDH-P384"},
+      {"ML-DSA-65+ECDSA-BP256", "ML-KEM-768+ECDH-BP256"},
+      {"ML-DSA-87+ECDSA-BP384", "ML-KEM-1024+ECDH-BP384"},
+      {"SLH-DSA-SHAKE-128f", "ML-KEM-768+X25519"},
+      {"SLH-DSA-SHAKE-128s", "ML-KEM-768+X25519"},
+      {"SLH-DSA-SHAKE-256s", "ML-KEM-768+X25519"}};
+
+    for (auto pk_algs : primary_sub) {
+        rnp_ffi_t        ffi = NULL;
+        rnp_key_handle_t key = NULL;
+        rnp_input_t      input = NULL;
+        rnp_output_t     output = NULL;
+        rnp_op_encrypt_t op = NULL;
+        const char      *plaintext = "data1";
+
+        assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+        assert_rnp_success(rnp_generate_key_ex(ffi,
+                                               pk_algs.first.c_str(),
+                                               pk_algs.second.c_str(),
+                                               0,
+                                               0,
+                                               NULL,
+                                               NULL,
+                                               "Test UID",
+                                               NULL,
+                                               &key));
+
+        // encrypt+sign
+        str_to_file("plaintext", plaintext);
+        assert_rnp_success(rnp_input_from_path(&input, "plaintext"));
+        assert_non_null(input);
+        assert_rnp_success(rnp_output_to_path(&output, "encrypted"));
+        assert_non_null(output);
+        assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
+        assert_rnp_success(rnp_op_encrypt_add_recipient(op, key));
+        assert_rnp_success(rnp_op_encrypt_set_cipher(op, "AES256"));
+        assert_rnp_success(rnp_op_encrypt_add_signature(op, key, NULL));
+        assert_rnp_success(rnp_op_encrypt_execute(op));
+        assert_true(rnp_file_exists("encrypted"));
+        assert_rnp_success(rnp_input_destroy(input));
+        input = NULL;
+        assert_rnp_success(rnp_output_destroy(output));
+        output = NULL;
+
+        /* decrypt */
+        assert_rnp_success(rnp_input_from_path(&input, "encrypted"));
+        assert_non_null(input);
+        assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+        assert_non_null(output);
+        assert_rnp_success(rnp_decrypt(ffi, input, output));
+
+        // cleanup
+        assert_rnp_success(rnp_op_encrypt_destroy(op));
+        assert_rnp_success(rnp_input_destroy(input));
+        assert_rnp_success(rnp_output_destroy(output));
+        assert_rnp_success(rnp_key_handle_destroy(key));
+        assert_rnp_success(rnp_ffi_destroy(ffi));
+    }
+}
+#endif
+
 TEST_F(rnp_tests, test_ffi_decrypt_v6_pkesk_test_vector)
 {
     rnp_ffi_t    ffi = NULL;
@@ -877,7 +946,6 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
                 assert_rnp_success(rnp_locate_key(ffi, "keyid", "12c83f1e706f6308", &key));
                 assert_non_null(key);
 
-                assert_rnp_failure(rnp_op_encrypt_add_recipient(op, NULL)); // what for ?
                 assert_rnp_success(rnp_op_encrypt_add_recipient(op, key));
                 if (enable_pkeskv6) {
                     assert_rnp_success(rnp_op_encrypt_enable_pkesk_v6(op));
