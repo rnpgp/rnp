@@ -103,7 +103,11 @@ jobs:
           echo "CRYPTO_BACKEND=openssl" >> $GITHUB_ENV
 
       - name: Install dependencies
-        run: brew bundle
+        run: |
+          rm -f '/usr/local/bin/2to3'   'usr/local/bin/2to3-3.12'  '/usr/local/bin/idle3'   '/usr/local/bin/idle3.12'        \
+                '/usr/local/bin/pydoc3' '/usr/local/bin/pydoc3.12' '/usr/local/bin/python3' '/usr/local/bin/python3-config'  \
+                '/usr/local/bin/python3.12' '/usr/local/bin/python3.12-config'
+          brew bundle
 
       - name: Botan2 cache
         id: cache
