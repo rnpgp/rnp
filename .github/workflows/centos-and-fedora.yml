@@ -68,9 +68,10 @@ jobs:
           - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'Botan', botan_ver: 'head',               gpg_ver: 'system' }
           - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'Botan', botan_ver: '3.3.0',    pqc: On,  gpg_ver: 'system' }
           - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'OpenSSL',           gpg_ver: 'lts'    }
-          - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'OpenSSL', idea: Off,gpg_ver: 'stable' }
           - { name: 'Fedora 39', container: 'fedora-39-amd64', backend: 'OpenSSL',           gpg_ver: 'system' }
           - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'OpenSSL',           gpg_ver: 'system' }
+          - { name: 'RHEL 8',    container: 'redhat-8-ubi',    backend: 'OpenSSL',           gpg_ver: 'system' }
+          - { name: 'RHEL 9',    container: 'redhat-9-ubi',    backend: 'OpenSSL',           gpg_ver: 'system' }
 
 # There is some ABI incompatibility between llvm-7, bitan shared library from ribose repo and sanitizer
 # So we are enforving static lib for sanitizers on CentOS 7
@@ -94,6 +95,9 @@ jobs:
             env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage,   SHARED_LIBS: on  }
           # Coverage report for Botan backend with disabled algos
           - image: { name: 'Fedora 40 Coverage', container: 'fedora-40-amd64', gpg_ver: stable, backend: Botan, idea: Off, sm2: Off, two: Off, blow: Off, rmd: Off, bp: Off }
+            env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage,   SHARED_LIBS: on  }
+          # Coverage report for OpenSSL 1.1.1 backend within RHEL 8
+          - image: { name: 'RHEL 8 Coverage', container: 'redhat-8-ubi', gpg_ver: stable, backend: OpenSSL }
             env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage,   SHARED_LIBS: on  }
           # Coverage report for PQC - not running yet due to very low coverage
           #- image: { name: 'Fedora 40 PQC Coverage', container: 'fedora-40-amd64', gpg_ver: stable, backend: Botan, botan_ver: '3.3.0', pqc: On }
