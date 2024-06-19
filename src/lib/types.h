@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2023, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2024, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -71,9 +71,6 @@ class id_str_pair {
     static int         lookup(const id_str_pair           pair[],
                               const std::vector<uint8_t> &bytes,
                               int                         notfound = 0);
-    static int         lookup(const id_str_pair                 pair[],
-                              const std::basic_string<uint8_t> &bytes,
-                              int                               notfound = 0);
 };
 
 /** pgp_fingerprint_t */
