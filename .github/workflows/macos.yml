@@ -74,7 +74,7 @@ jobs:
         backend: [ 'botan' ]
         shared_libs: [ 'on' ]
         include:
-          - { os: 'macos-11', backend: 'openssl@1.1', shared_libs: 'on' }
+          - { os: 'macos-12', backend: 'openssl@1.1', shared_libs: 'on' }
           - { os: 'macos-14', backend: 'openssl@3', shared_libs: 'on' }
           - { os: 'macos-14', backend: 'botan', shared_libs: 'off' }
           - { os: 'macos-14', backend: 'botan3', shared_libs: 'on' }
