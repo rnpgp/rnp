@@ -100,17 +100,9 @@ signature_init(const pgp_key_pkt_t &key, const pgp_signature_t &sig)
     }
 #endif
 
-    if (key.material.alg == PGP_PKA_SM2) {
-#if defined(ENABLE_SM2)
-        rnp_result_t r = sm2_compute_za(key.material.ec, *hash);
-        if (r != RNP_SUCCESS) {
-            RNP_LOG("failed to compute SM2 ZA field");
-            throw rnp::rnp_exception(r);
-        }
-#else
-        RNP_LOG("SM2 ZA computation not available");
-        throw rnp::rnp_exception(RNP_ERROR_NOT_IMPLEMENTED);
-#endif
+    if (key.material->alg() == PGP_PKA_SM2) {
+        auto &sm2 = dynamic_cast<pgp::SM2KeyMaterial &>(*key.material);
+        sm2.compute_za(*hash);
     }
     return hash;
 }
