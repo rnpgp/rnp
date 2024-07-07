@@ -5793,7 +5793,7 @@ TEST_F(rnp_tests, test_ffi_security_profile)
     assert_rnp_failure(
       rnp_get_security_rule(NULL, RNP_FEATURE_HASH_ALG, "SHA1", 0, &flags, &from, &level));
     assert_rnp_failure(rnp_get_security_rule(ffi, NULL, "SHA1", 0, &flags, &from, &level));
-    assert_rnp_failure(
+    assert_rnp_success(
       rnp_get_security_rule(ffi, RNP_FEATURE_SYMM_ALG, "AES256", 0, &flags, &from, &level));
     assert_rnp_failure(
       rnp_get_security_rule(ffi, RNP_FEATURE_HASH_ALG, "Unknown", 0, &flags, &from, &level));
@@ -5954,12 +5954,14 @@ TEST_F(rnp_tests, test_ffi_security_profile)
     removed = 0;
     assert_rnp_failure(rnp_remove_security_rule(ffi, NULL, NULL, 0, 0x17, 0, &removed));
     assert_rnp_success(rnp_remove_security_rule(ffi, NULL, NULL, 0, 0, 0, &removed));
-    assert_int_equal(removed, 3);
+    assert_int_equal(removed, 3 /*HASH*/ + 4 /*SYMM*/);
     rnp_ffi_destroy(ffi);
     rnp_ffi_create(&ffi, "GPG", "GPG");
     /* Remove all rules for hash */
-    assert_rnp_failure(
+    removed = 0;
+    assert_rnp_success(
       rnp_remove_security_rule(ffi, RNP_FEATURE_SYMM_ALG, NULL, 0, 0, 0, &removed));
+    assert_int_equal(removed, 4);
     removed = 0;
     assert_rnp_success(
       rnp_remove_security_rule(ffi, RNP_FEATURE_HASH_ALG, NULL, 0, 0, 0, &removed));
