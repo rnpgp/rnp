@@ -2912,6 +2912,36 @@ cli_rnp_check_weak_hash(cli_rnp_t *rnp)
 }
 
 bool
+cli_rnp_check_old_ciphers(cli_rnp_t *rnp)
+{
+    if (rnp->cfg().has(CFG_ALLOW_OLD_CIPHERS)) {
+        return true;
+    }
+
+    uint32_t security_level = 0;
+
+    if (rnp_get_security_rule(rnp->ffi,
+                              RNP_FEATURE_SYMM_ALG,
+                              rnp->cfg().get_cipher().c_str(),
+                              rnp->cfg().time(),
+                              NULL,
+                              NULL,
+                              &security_level)) {
+        ERR_MSG("Failed to get security rules for cipher algorithm \'%s\'!",
+                rnp->cfg().get_cipher().c_str());
+        return false;
+    }
+
+    if (security_level < RNP_SECURITY_DEFAULT) {
+        ERR_MSG("Cipher algorithm \'%s\' is cryptographically weak!",
+                rnp->cfg().get_cipher().c_str());
+        return false;
+    }
+    /* TODO: check other weak algorithms and key sizes */
+    return true;
+}
+
+bool
 cli_rnp_protect_file(cli_rnp_t *rnp)
 {
     rnp_input_t  input = NULL;

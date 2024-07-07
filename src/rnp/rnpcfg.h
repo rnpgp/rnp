@@ -96,8 +96,10 @@
 #define CFG_ADD_SUBKEY "add-subkey"           /* add subkey to existing primary */
 #define CFG_SET_KEY_EXPIRE "key-expire"       /* set/update key expiration time */
 #define CFG_SOURCE "source"                   /* source for the detached signature */
-#define CFG_NOWRAP "no-wrap"            /* do not wrap the output in a literal data packet */
-#define CFG_CURTIME "curtime"           /* date or timestamp to override the system's time */
+#define CFG_NOWRAP "no-wrap"  /* do not wrap the output in a literal data packet */
+#define CFG_CURTIME "curtime" /* date or timestamp to override the system's time */
+#define CFG_ALLOW_OLD_CIPHERS \
+    "allow-old-ciphers" /* Allow to use 64-bit ciphers (CAST5, 3DES, IDEA, BLOWFISH) */
 #define CFG_ALLOW_HIDDEN "allow-hidden" /* allow hidden recipients */
 
 /* rnp keyring setup variables */
@@ -196,6 +198,8 @@ class rnp_cfg {
     int get_pswdtries() const;
     /** @brief get hash algorithm */
     const std::string get_hashalg() const;
+    /** @brief get cipher algorithm */
+    const std::string get_cipher() const;
 
     /** @brief Get expiration time from the cfg variable, as value relative to the current
      * time. As per OpenPGP standard it should fit in 32 bit value, otherwise error is

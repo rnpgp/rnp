@@ -165,6 +165,7 @@ enum optdefs {
     OPT_SOURCE,
     OPT_NOWRAP,
     OPT_CURTIME,
+    OPT_ALLOW_OLD_CIPHERS,
     OPT_SETFNAME,
     OPT_ALLOW_HIDDEN,
     OPT_S2K_ITER,
@@ -235,6 +236,7 @@ static struct option options[] = {
   {"source", required_argument, NULL, OPT_SOURCE},
   {"no-wrap", no_argument, NULL, OPT_NOWRAP},
   {"current-time", required_argument, NULL, OPT_CURTIME},
+  {"allow-old-ciphers", no_argument, NULL, OPT_ALLOW_OLD_CIPHERS},
   {"set-filename", required_argument, NULL, OPT_SETFNAME},
   {"allow-hidden", no_argument, NULL, OPT_ALLOW_HIDDEN},
   {"s2k-iterations", required_argument, NULL, OPT_S2K_ITER},
@@ -529,6 +531,9 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
     case OPT_CURTIME:
         cfg.set_str(CFG_CURTIME, arg);
         return true;
+    case OPT_ALLOW_OLD_CIPHERS:
+        cfg.set_bool(CFG_ALLOW_OLD_CIPHERS, true);
+        return true;
     case OPT_SETFNAME:
         cfg.set_str(CFG_SETFNAME, arg);
         return true;
@@ -683,6 +688,12 @@ rnp_main(int argc, char **argv)
 
     if (!cli_rnp_check_weak_hash(&rnp)) {
         ERR_MSG("Weak hash algorithm detected. Pass --allow-weak-hash option if you really "
+                "want to use it.");
+        return EXIT_ERROR;
+    }
+
+    if (!cli_rnp_check_old_ciphers(&rnp)) {
+        ERR_MSG("Old cipher detected. Pass --allow-old-ciphers option if you really "
                 "want to use it.");
         return EXIT_ERROR;
     }

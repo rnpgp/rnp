@@ -1161,19 +1161,32 @@ get_feature_sec_value(
   rnp_ffi_t ffi, const char *stype, const char *sname, rnp::FeatureType &type, int &value)
 {
     /* check type */
-    if (!rnp::str_case_eq(stype, RNP_FEATURE_HASH_ALG)) {
-        FFI_LOG(ffi, "Unsupported feature type: %s", stype);
-        return false;
+    if (rnp::str_case_eq(stype, RNP_FEATURE_HASH_ALG)) {
+        type = rnp::FeatureType::Hash;
+        /* check feature name */
+        pgp_hash_alg_t alg = PGP_HASH_UNKNOWN;
+        if (sname && !str_to_hash_alg(sname, &alg)) {
+            FFI_LOG(ffi, "Unknown hash algorithm: %s", sname);
+            return false;
+        }
+        value = alg;
+        return true;
     }
-    type = rnp::FeatureType::Hash;
-    /* check feature name */
-    pgp_hash_alg_t alg = PGP_HASH_UNKNOWN;
-    if (sname && !str_to_hash_alg(sname, &alg)) {
-        FFI_LOG(ffi, "Unknown hash algorithm: %s", sname);
-        return false;
+
+    if (rnp::str_case_eq(stype, RNP_FEATURE_SYMM_ALG)) {
+        type = rnp::FeatureType::Cipher;
+        /* check feature name */
+        pgp_symm_alg_t alg = PGP_SA_UNKNOWN;
+        if (sname && !str_to_cipher(sname, &alg)) {
+            FFI_LOG(ffi, "Unknown cipher: %s", sname);
+            return false;
+        }
+        value = alg;
+        return true;
     }
-    value = alg;
-    return true;
+
+    FFI_LOG(ffi, "Unsupported feature type: %s", stype);
+    return false;
 }
 
 static bool
