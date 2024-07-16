@@ -370,6 +370,7 @@ add_library(librnp-obj OBJECT
   json-utils.cpp
   utils.cpp
   pass-provider.cpp
+  key_material.cpp
   pgp-key.cpp
   rnp.cpp
 )
