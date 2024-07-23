@@ -251,7 +251,10 @@ pgp_source_t::skip(size_t len)
 rnp_result_t
 pgp_source_t::finish()
 {
-    return raw_finish ? raw_finish(this) : RNP_SUCCESS;
+    if (raw_finish) {
+        return raw_finish(this);
+    }
+    return RNP_SUCCESS;
 }
 
 bool
