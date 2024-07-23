@@ -31,9 +31,6 @@
 #include "support.h"
 #include <fstream>
 
-bool rsa_sec_empty(const pgp::KeyMaterial &key);
-bool rsa_sec_filled(const pgp::KeyMaterial &key);
-
 TEST_F(rnp_tests, test_key_unlock_pgp)
 {
     cli_rnp_t               rnp = {};

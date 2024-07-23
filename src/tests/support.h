@@ -133,6 +133,10 @@ void test_ffi_init(rnp_ffi_t *ffi);
 
 bool mpi_empty(const pgp::mpi &val);
 
+bool rsa_sec_empty(const pgp::KeyMaterial &key);
+
+bool rsa_sec_filled(const pgp::KeyMaterial &key);
+
 bool write_pass_to_pipe(int fd, size_t count);
 /* Setup readable pipe with default password inside */
 bool setupPasswordfd(int *pipefd);
