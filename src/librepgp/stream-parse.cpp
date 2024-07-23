@@ -1132,7 +1132,9 @@ signed_read_signatures(pgp_source_t *src)
         /* we have more onepasses then signatures */
         if (ret == RNP_ERROR_READ) {
             RNP_LOG("Warning: premature end of signatures");
-            return param->siginfos.size() ? RNP_SUCCESS : ret;
+            if (!param->siginfos.empty()) {
+                return RNP_SUCCESS;
+            }
         }
         if (ret) {
             return ret;
