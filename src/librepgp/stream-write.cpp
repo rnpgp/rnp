@@ -2129,13 +2129,11 @@ done:
 rnp_result_t
 rnp_wrap_src(pgp_source_t &src, pgp_dest_t &dst, const std::string &filename, uint32_t modtime)
 {
-    pgp_write_handler_t handler = {};
-    rnp_ctx_t           ctx;
+    rnp_ctx_t ctx{};
     ctx.filename = filename;
     ctx.filemtime = modtime;
-    handler.ctx = &ctx;
 
-    pgp_dest_t        literal = {};
+    pgp_dest_t        literal{};
     pgp_literal_hdr_t hdr{};
     build_literal_hdr(ctx, hdr);
 
