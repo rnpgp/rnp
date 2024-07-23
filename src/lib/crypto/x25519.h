@@ -38,7 +38,6 @@ rnp_result_t generate_x25519_native(rnp::RNG *            rng,
                                     std::vector<uint8_t> &privkey,
                                     std::vector<uint8_t> &pubkey);
 
-#if defined(ENABLE_CRYPTO_REFRESH)
 rnp_result_t x25519_native_encrypt(rnp::RNG *                  rng,
                                    const std::vector<uint8_t> &pubkey,
                                    const uint8_t *             in,
@@ -61,5 +60,4 @@ rnp_result_t generate_x448_native(rnp::RNG *            rng,
                                     std::vector<uint8_t> &pubkey);
 #endif
 
-#endif
 #endif
