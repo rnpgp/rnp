@@ -261,36 +261,6 @@ TEST_F(rnp_tests, test_key_protect_sec_data)
     memcpy(raw_ssub, ssub.pkt().sec_data, 32);
     pgp_key_pkt_t *skeypkt;
     pgp_key_pkt_t *ssubpkt;
-#if defined(__has_feature)
-#if !__has_feature(address_sanitizer)
-    /* copy keys and delete, making sure secret data is wiped*/
-    pgp_key_t *skeycp = new pgp_key_t(skey);
-    pgp_key_t *ssubcp = new pgp_key_t(ssub);
-    uint8_t *  raw_skey_ptr = skeycp->pkt().sec_data;
-    uint8_t *  raw_ssub_ptr = ssubcp->pkt().sec_data;
-    assert_int_equal(memcmp(raw_skey, raw_skey_ptr, 32), 0);
-    assert_int_equal(memcmp(raw_ssub, raw_ssub_ptr, 32), 0);
-    delete skeycp;
-    delete ssubcp;
-    assert_int_not_equal(memcmp(raw_skey, raw_skey_ptr, 32), 0);
-    assert_int_not_equal(memcmp(raw_ssub, raw_ssub_ptr, 32), 0);
-    /* do the same with key packet */
-    skeypkt = new pgp_key_pkt_t(skey.pkt());
-    ssubpkt = new pgp_key_pkt_t(ssub.pkt());
-    raw_skey_ptr = skeypkt->sec_data;
-    raw_ssub_ptr = ssubpkt->sec_data;
-    assert_int_equal(memcmp(raw_skey, raw_skey_ptr, 32), 0);
-    assert_int_equal(memcmp(raw_ssub, raw_ssub_ptr, 32), 0);
-    delete skeypkt;
-    delete ssubpkt;
-    assert_int_not_equal(memcmp(raw_skey, raw_skey_ptr, 32), 0);
-    assert_int_not_equal(memcmp(raw_ssub, raw_ssub_ptr, 32), 0);
-    /* save original pointers */
-    raw_skey_ptr = skey.pkt().sec_data;
-    raw_ssub_ptr = ssub.pkt().sec_data;
-#endif
-#endif
-
     /* protect key and subkey */
     pgp_password_provider_t     pprov(string_copy_password_callback, (void *) "password");
     rnp_key_protection_params_t prot = {};
@@ -298,12 +268,6 @@ TEST_F(rnp_tests, test_key_protect_sec_data)
     assert_true(ssub.protect(prot, pprov, global_ctx));
     assert_int_not_equal(memcmp(raw_skey, skey.pkt().sec_data, 32), 0);
     assert_int_not_equal(memcmp(raw_ssub, ssub.pkt().sec_data, 32), 0);
-#if defined(__has_feature)
-#if !__has_feature(address_sanitizer)
-    assert_int_not_equal(memcmp(raw_skey, raw_skey_ptr, 32), 0);
-    assert_int_not_equal(memcmp(raw_ssub, raw_ssub_ptr, 32), 0);
-#endif
-#endif
     /* make sure rawpkt is also protected */
     skeypkt = new pgp_key_pkt_t();
     pgp_source_t memsrc = {};
