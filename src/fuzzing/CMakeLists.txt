@@ -1,4 +1,4 @@
-# Copyright (c) 2020 Ribose Inc.
+# Copyright (c) 2020, 2024 Ribose Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -22,6 +22,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+find_package(Botan 2.14.0 REQUIRED)
 
 if(NOT DEFINED ENV{LIB_FUZZING_ENGINE})
   add_compile_options(-fsanitize=fuzzer-no-link)
@@ -127,6 +128,8 @@ target_link_libraries(fuzz_keyring_kbx
 
 add_executable(fuzz_keyring_g10 keyring_g10.cpp)
 
+set_target_properties(fuzz_keyring_g10 PROPERTIES CXX_STANDARD 20)
+
 target_include_directories(fuzz_keyring_g10
   PRIVATE
     "${PROJECT_SOURCE_DIR}/src"
@@ -136,6 +139,7 @@ target_include_directories(fuzz_keyring_g10
 target_link_libraries(fuzz_keyring_g10
   PRIVATE
     librnp-static
+    Botan::Botan
 )
 
 if (ENABLE_SANITIZERS)
