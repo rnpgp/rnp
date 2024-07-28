@@ -1138,10 +1138,10 @@ pgp_source_t::is_armored()
     char   buf[ARMORED_PEEK_BUF_SIZE] = {0};
     size_t read = 0;
 
-    if (!peek(buf, sizeof(buf), &read) || (read < strlen(ST_ARMOR_BEGIN) + 1)) {
+    if (!peek(buf, sizeof(buf) - 1, &read) || (read < strlen(ST_ARMOR_BEGIN) + 1)) {
         return false;
     }
-    buf[read - 1] = 0;
+    buf[read] = 0;
     if (!!strstr(buf, ST_CLEAR_BEGIN)) {
         return false;
     }
