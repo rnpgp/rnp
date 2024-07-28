@@ -1154,10 +1154,10 @@ pgp_source_t::is_cleartext()
     char   buf[ARMORED_PEEK_BUF_SIZE] = {0};
     size_t read = 0;
 
-    if (!peek(buf, sizeof(buf), &read) || (read < strlen(ST_CLEAR_BEGIN))) {
+    if (!peek(buf, sizeof(buf) - 1, &read) || (read < strlen(ST_CLEAR_BEGIN))) {
         return false;
     }
-    buf[read - 1] = 0;
+    buf[read] = 0;
     return !!strstr(buf, ST_CLEAR_BEGIN);
 }
 
