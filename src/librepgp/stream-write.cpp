@@ -2048,7 +2048,7 @@ rnp_sign_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst)
        literal data stream, partial writing stream - if not detached or cleartext signature
     */
     pgp_dest_t   dests[4];
-    unsigned     destc = 0;
+    size_t       destc = 0;
     rnp_result_t ret = RNP_ERROR_GENERIC;
     rnp_ctx_t &  ctx = *handler->ctx;
     pgp_dest_t * wstream = NULL;
@@ -2111,8 +2111,8 @@ rnp_sign_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst)
     /* process source with streams stack */
     ret = process_stream_sequence(src, dests, destc, sstream, wstream);
 finish:
-    for (int i = destc - 1; i >= 0; i--) {
-        dst_close(&dests[i], ret);
+    for (auto i = destc; i > 0; i--) {
+        dst_close(&dests[i - 1], ret);
     }
     return ret;
 }
