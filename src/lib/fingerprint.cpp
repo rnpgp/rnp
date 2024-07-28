@@ -30,6 +30,7 @@
  */
 
 #include <string.h>
+#include <cassert>
 #include "fingerprint.h"
 #include "crypto/hash.hpp"
 #include <librepgp/stream-key.h>
@@ -106,8 +107,13 @@ pgp_keyid(pgp_key_id_t &keyid, const pgp_key_pkt_t &key)
         if (ret) {
             return ret;
         }
-        size_t inc = key.version == PGP_V4 ? fp.length - keyid.size() : 0;
-        (void) memcpy(keyid.data(), fp.fingerprint + inc, keyid.size());
+        if (key.version == PGP_V4) {
+            assert(fp.length == PGP_FINGERPRINT_V4_SIZE);
+            const size_t inc = PGP_FINGERPRINT_V4_SIZE - PGP_KEY_ID_SIZE;
+            memcpy(keyid.data(), fp.fingerprint + inc, keyid.size());
+        } else {
+            memcpy(keyid.data(), fp.fingerprint, keyid.size());
+        }
         return RNP_SUCCESS;
     }
     default:
