@@ -82,7 +82,7 @@ class pgp_kyber_public_key_t {
                            kyber_parameter_e mode);
     pgp_kyber_public_key_t(std::vector<uint8_t> const &key_encoded, kyber_parameter_e mode);
     pgp_kyber_public_key_t() = default;
-    kyber_encap_result_t encapsulate(rnp::RNG *rng);
+    kyber_encap_result_t encapsulate(rnp::RNG *rng) const;
 
     bool
     operator==(const pgp_kyber_public_key_t &rhs) const

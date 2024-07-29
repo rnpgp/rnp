@@ -58,27 +58,27 @@ class KeyMaterial {
     void                  set_validity(const pgp_validity_t &val);
     void                  reset_validity();
     bool                  valid() const;
-    virtual bool          equals(const KeyMaterial &value) noexcept;
+    virtual bool          equals(const KeyMaterial &value) const noexcept;
     virtual void          clear_secret();
     virtual bool          parse(pgp_packet_body_t &pkt) noexcept = 0;
     virtual bool          parse_secret(pgp_packet_body_t &pkt) noexcept = 0;
-    virtual void          write(pgp_packet_body_t &pkt) = 0;
-    virtual void          write_secret(pgp_packet_body_t &pkt) = 0;
+    virtual void          write(pgp_packet_body_t &pkt) const = 0;
+    virtual void          write_secret(pgp_packet_body_t &pkt) const = 0;
     virtual bool          generate(const rnp_keygen_crypto_params_t &params);
     virtual rnp_result_t  encrypt(rnp::SecurityContext &    ctx,
                                   pgp_encrypted_material_t &out,
                                   const uint8_t *           data,
-                                  size_t                    len);
+                                  size_t                    len) const;
     virtual rnp_result_t  decrypt(rnp::SecurityContext &          ctx,
                                   uint8_t *                       out,
                                   size_t &                        out_len,
-                                  const pgp_encrypted_material_t &in);
+                                  const pgp_encrypted_material_t &in) const;
     virtual rnp_result_t  verify(const rnp::SecurityContext &       ctx,
                                  const pgp_signature_material_t &   sig,
                                  const rnp::secure_vector<uint8_t> &hash) const;
     virtual rnp_result_t  sign(rnp::SecurityContext &             ctx,
                                pgp_signature_material_t &         sig,
-                               const rnp::secure_vector<uint8_t> &hash);
+                               const rnp::secure_vector<uint8_t> &hash) const;
 
     /* Pick up hash algorithm, used for signing, to be compatible with key material. */
     virtual pgp_hash_alg_t adjust_hash(pgp_hash_alg_t hash) const;
@@ -107,27 +107,27 @@ class RSAKeyMaterial : public KeyMaterial {
         : KeyMaterial(kalg, secret), key_(key){};
     std::unique_ptr<KeyMaterial> clone() override;
 
-    bool         equals(const KeyMaterial &value) noexcept override;
+    bool         equals(const KeyMaterial &value) const noexcept override;
     void         clear_secret() override;
     bool         parse(pgp_packet_body_t &pkt) noexcept override;
     bool         parse_secret(pgp_packet_body_t &pkt) noexcept override;
-    void         write(pgp_packet_body_t &pkt) override;
-    void         write_secret(pgp_packet_body_t &pkt) override;
+    void         write(pgp_packet_body_t &pkt) const override;
+    void         write_secret(pgp_packet_body_t &pkt) const override;
     bool         generate(const rnp_keygen_crypto_params_t &params) override;
     rnp_result_t encrypt(rnp::SecurityContext &    ctx,
                          pgp_encrypted_material_t &out,
                          const uint8_t *           data,
-                         size_t                    len) override;
+                         size_t                    len) const override;
     rnp_result_t decrypt(rnp::SecurityContext &          ctx,
                          uint8_t *                       out,
                          size_t &                        out_len,
-                         const pgp_encrypted_material_t &in) override;
+                         const pgp_encrypted_material_t &in) const override;
     rnp_result_t verify(const rnp::SecurityContext &       ctx,
                         const pgp_signature_material_t &   sig,
                         const rnp::secure_vector<uint8_t> &hash) const override;
     rnp_result_t sign(rnp::SecurityContext &             ctx,
                       pgp_signature_material_t &         sig,
-                      const rnp::secure_vector<uint8_t> &hash) override;
+                      const rnp::secure_vector<uint8_t> &hash) const override;
 
     void   set_secret(const mpi &d, const mpi &p, const mpi &q, const mpi &u);
     size_t bits() const noexcept override;
@@ -153,19 +153,19 @@ class DSAKeyMaterial : public KeyMaterial {
         : KeyMaterial(PGP_PKA_DSA, secret), key_(key){};
     std::unique_ptr<KeyMaterial> clone() override;
 
-    bool           equals(const KeyMaterial &value) noexcept override;
+    bool           equals(const KeyMaterial &value) const noexcept override;
     void           clear_secret() override;
     bool           parse(pgp_packet_body_t &pkt) noexcept override;
     bool           parse_secret(pgp_packet_body_t &pkt) noexcept override;
-    void           write(pgp_packet_body_t &pkt) override;
-    void           write_secret(pgp_packet_body_t &pkt) override;
+    void           write(pgp_packet_body_t &pkt) const override;
+    void           write_secret(pgp_packet_body_t &pkt) const override;
     bool           generate(const rnp_keygen_crypto_params_t &params) override;
     rnp_result_t   verify(const rnp::SecurityContext &       ctx,
                           const pgp_signature_material_t &   sig,
                           const rnp::secure_vector<uint8_t> &hash) const override;
     rnp_result_t   sign(rnp::SecurityContext &             ctx,
                         pgp_signature_material_t &         sig,
-                        const rnp::secure_vector<uint8_t> &hash) override;
+                        const rnp::secure_vector<uint8_t> &hash) const override;
     pgp_hash_alg_t adjust_hash(pgp_hash_alg_t hash) const override;
     void           set_secret(const mpi &x);
     size_t         bits() const noexcept override;
@@ -191,21 +191,21 @@ class EGKeyMaterial : public KeyMaterial {
         : KeyMaterial(kalg, secret), key_(key){};
     std::unique_ptr<KeyMaterial> clone() override;
 
-    bool         equals(const KeyMaterial &value) noexcept override;
+    bool         equals(const KeyMaterial &value) const noexcept override;
     void         clear_secret() override;
     bool         parse(pgp_packet_body_t &pkt) noexcept override;
     bool         parse_secret(pgp_packet_body_t &pkt) noexcept override;
-    void         write(pgp_packet_body_t &pkt) override;
-    void         write_secret(pgp_packet_body_t &pkt) override;
+    void         write(pgp_packet_body_t &pkt) const override;
+    void         write_secret(pgp_packet_body_t &pkt) const override;
     bool         generate(const rnp_keygen_crypto_params_t &params) override;
     rnp_result_t encrypt(rnp::SecurityContext &    ctx,
                          pgp_encrypted_material_t &out,
                          const uint8_t *           data,
-                         size_t                    len) override;
+                         size_t                    len) const override;
     rnp_result_t decrypt(rnp::SecurityContext &          ctx,
                          uint8_t *                       out,
                          size_t &                        out_len,
-                         const pgp_encrypted_material_t &in) override;
+                         const pgp_encrypted_material_t &in) const override;
     rnp_result_t verify(const rnp::SecurityContext &       ctx,
                         const pgp_signature_material_t &   sig,
                         const rnp::secure_vector<uint8_t> &hash) const override;
@@ -224,19 +224,19 @@ class ECKeyMaterial : public KeyMaterial {
     pgp_ec_key_t key_;
 
     void         grip_update(rnp::Hash &hash) const override;
-    rnp_result_t check_curve(size_t hash_len);
+    rnp_result_t check_curve(size_t hash_len) const;
 
   public:
     ECKeyMaterial(pgp_pubkey_alg_t kalg) : KeyMaterial(kalg), key_{} {};
     ECKeyMaterial(pgp_pubkey_alg_t kalg, const pgp_ec_key_t &key, bool secret = false)
         : KeyMaterial(kalg, secret), key_(key){};
 
-    bool        equals(const KeyMaterial &value) noexcept override;
+    bool        equals(const KeyMaterial &value) const noexcept override;
     void        clear_secret() override;
     bool        parse(pgp_packet_body_t &pkt) noexcept override;
     bool        parse_secret(pgp_packet_body_t &pkt) noexcept override;
-    void        write(pgp_packet_body_t &pkt) override;
-    void        write_secret(pgp_packet_body_t &pkt) override;
+    void        write(pgp_packet_body_t &pkt) const override;
+    void        write_secret(pgp_packet_body_t &pkt) const override;
     bool        generate(const rnp_keygen_crypto_params_t &params) override;
     void        set_secret(const mpi &x);
     size_t      bits() const noexcept override;
@@ -261,7 +261,7 @@ class ECDSAKeyMaterial : public ECKeyMaterial {
                           const rnp::secure_vector<uint8_t> &hash) const override;
     rnp_result_t   sign(rnp::SecurityContext &             ctx,
                         pgp_signature_material_t &         sig,
-                        const rnp::secure_vector<uint8_t> &hash) override;
+                        const rnp::secure_vector<uint8_t> &hash) const override;
     pgp_hash_alg_t adjust_hash(pgp_hash_alg_t hash) const override;
 };
 
@@ -276,16 +276,16 @@ class ECDHKeyMaterial : public ECKeyMaterial {
     std::unique_ptr<KeyMaterial> clone() override;
 
     bool         parse(pgp_packet_body_t &pkt) noexcept override;
-    void         write(pgp_packet_body_t &pkt) override;
+    void         write(pgp_packet_body_t &pkt) const override;
     bool         generate(const rnp_keygen_crypto_params_t &params) override;
     rnp_result_t encrypt(rnp::SecurityContext &    ctx,
                          pgp_encrypted_material_t &out,
                          const uint8_t *           data,
-                         size_t                    len) override;
+                         size_t                    len) const override;
     rnp_result_t decrypt(rnp::SecurityContext &          ctx,
                          uint8_t *                       out,
                          size_t &                        out_len,
-                         const pgp_encrypted_material_t &in) override;
+                         const pgp_encrypted_material_t &in) const override;
 
     pgp_hash_alg_t kdf_hash_alg() const noexcept;
     pgp_symm_alg_t key_wrap_alg() const noexcept;
@@ -309,7 +309,7 @@ class EDDSAKeyMaterial : public ECKeyMaterial {
                         const rnp::secure_vector<uint8_t> &hash) const override;
     rnp_result_t sign(rnp::SecurityContext &             ctx,
                       pgp_signature_material_t &         sig,
-                      const rnp::secure_vector<uint8_t> &hash) override;
+                      const rnp::secure_vector<uint8_t> &hash) const override;
 };
 
 class SM2KeyMaterial : public ECKeyMaterial {
@@ -325,17 +325,17 @@ class SM2KeyMaterial : public ECKeyMaterial {
     rnp_result_t encrypt(rnp::SecurityContext &    ctx,
                          pgp_encrypted_material_t &out,
                          const uint8_t *           data,
-                         size_t                    len) override;
+                         size_t                    len) const override;
     rnp_result_t decrypt(rnp::SecurityContext &          ctx,
                          uint8_t *                       out,
                          size_t &                        out_len,
-                         const pgp_encrypted_material_t &in) override;
+                         const pgp_encrypted_material_t &in) const override;
     rnp_result_t verify(const rnp::SecurityContext &       ctx,
                         const pgp_signature_material_t &   sig,
                         const rnp::secure_vector<uint8_t> &hash) const override;
     rnp_result_t sign(rnp::SecurityContext &             ctx,
                       pgp_signature_material_t &         sig,
-                      const rnp::secure_vector<uint8_t> &hash) override;
+                      const rnp::secure_vector<uint8_t> &hash) const override;
     void         compute_za(rnp::Hash &hash) const;
 };
 
@@ -351,19 +351,19 @@ class Ed25519KeyMaterial : public KeyMaterial {
     Ed25519KeyMaterial() : KeyMaterial(PGP_PKA_ED25519), key_{} {};
     std::unique_ptr<KeyMaterial> clone() override;
 
-    bool         equals(const KeyMaterial &value) noexcept override;
+    bool         equals(const KeyMaterial &value) const noexcept override;
     void         clear_secret() override;
     bool         parse(pgp_packet_body_t &pkt) noexcept override;
     bool         parse_secret(pgp_packet_body_t &pkt) noexcept override;
-    void         write(pgp_packet_body_t &pkt) override;
-    void         write_secret(pgp_packet_body_t &pkt) override;
+    void         write(pgp_packet_body_t &pkt) const override;
+    void         write_secret(pgp_packet_body_t &pkt) const override;
     bool         generate(const rnp_keygen_crypto_params_t &params) override;
     rnp_result_t verify(const rnp::SecurityContext &       ctx,
                         const pgp_signature_material_t &   sig,
                         const rnp::secure_vector<uint8_t> &hash) const override;
     rnp_result_t sign(rnp::SecurityContext &             ctx,
                       pgp_signature_material_t &         sig,
-                      const rnp::secure_vector<uint8_t> &hash) override;
+                      const rnp::secure_vector<uint8_t> &hash) const override;
     size_t       bits() const noexcept override;
     pgp_curve_t  curve() const noexcept override;
 
@@ -382,21 +382,21 @@ class X25519KeyMaterial : public KeyMaterial {
     X25519KeyMaterial() : KeyMaterial(PGP_PKA_X25519), key_{} {};
     std::unique_ptr<KeyMaterial> clone() override;
 
-    bool         equals(const KeyMaterial &value) noexcept override;
+    bool         equals(const KeyMaterial &value) const noexcept override;
     void         clear_secret() override;
     bool         parse(pgp_packet_body_t &pkt) noexcept override;
     bool         parse_secret(pgp_packet_body_t &pkt) noexcept override;
-    void         write(pgp_packet_body_t &pkt) override;
-    void         write_secret(pgp_packet_body_t &pkt) override;
+    void         write(pgp_packet_body_t &pkt) const override;
+    void         write_secret(pgp_packet_body_t &pkt) const override;
     bool         generate(const rnp_keygen_crypto_params_t &params) override;
     rnp_result_t encrypt(rnp::SecurityContext &    ctx,
                          pgp_encrypted_material_t &out,
                          const uint8_t *           data,
-                         size_t                    len) override;
+                         size_t                    len) const override;
     rnp_result_t decrypt(rnp::SecurityContext &          ctx,
                          uint8_t *                       out,
                          size_t &                        out_len,
-                         const pgp_encrypted_material_t &in) override;
+                         const pgp_encrypted_material_t &in) const override;
     size_t       bits() const noexcept override;
     pgp_curve_t  curve() const noexcept override;
 
@@ -417,21 +417,21 @@ class KyberKeyMaterial : public KeyMaterial {
     KyberKeyMaterial(pgp_pubkey_alg_t kalg) : KeyMaterial(kalg), key_{} {};
     std::unique_ptr<KeyMaterial> clone() override;
 
-    bool         equals(const KeyMaterial &value) noexcept override;
+    bool         equals(const KeyMaterial &value) const noexcept override;
     void         clear_secret() override;
     bool         parse(pgp_packet_body_t &pkt) noexcept override;
     bool         parse_secret(pgp_packet_body_t &pkt) noexcept override;
-    void         write(pgp_packet_body_t &pkt) override;
-    void         write_secret(pgp_packet_body_t &pkt) override;
+    void         write(pgp_packet_body_t &pkt) const override;
+    void         write_secret(pgp_packet_body_t &pkt) const override;
     bool         generate(const rnp_keygen_crypto_params_t &params) override;
     rnp_result_t encrypt(rnp::SecurityContext &    ctx,
                          pgp_encrypted_material_t &out,
                          const uint8_t *           data,
-                         size_t                    len) override;
+                         size_t                    len) const override;
     rnp_result_t decrypt(rnp::SecurityContext &          ctx,
                          uint8_t *                       out,
                          size_t &                        out_len,
-                         const pgp_encrypted_material_t &in) override;
+                         const pgp_encrypted_material_t &in) const override;
     size_t       bits() const noexcept override;
 
     const pgp_kyber_ecdh_composite_public_key_t & pub() const noexcept;
@@ -451,19 +451,19 @@ class DilithiumKeyMaterial : public KeyMaterial {
 
     /** @brief Check two key material for equality. Only public part is checked, so this may be
      * called on public/secret key material */
-    bool           equals(const KeyMaterial &value) noexcept override;
+    bool           equals(const KeyMaterial &value) const noexcept override;
     void           clear_secret() override;
     bool           parse(pgp_packet_body_t &pkt) noexcept override;
     bool           parse_secret(pgp_packet_body_t &pkt) noexcept override;
-    void           write(pgp_packet_body_t &pkt) override;
-    void           write_secret(pgp_packet_body_t &pkt) override;
+    void           write(pgp_packet_body_t &pkt) const override;
+    void           write_secret(pgp_packet_body_t &pkt) const override;
     bool           generate(const rnp_keygen_crypto_params_t &params) override;
     rnp_result_t   verify(const rnp::SecurityContext &       ctx,
                           const pgp_signature_material_t &   sig,
                           const rnp::secure_vector<uint8_t> &hash) const override;
     rnp_result_t   sign(rnp::SecurityContext &             ctx,
                         pgp_signature_material_t &         sig,
-                        const rnp::secure_vector<uint8_t> &hash) override;
+                        const rnp::secure_vector<uint8_t> &hash) const override;
     pgp_hash_alg_t adjust_hash(pgp_hash_alg_t hash) const override;
     size_t         bits() const noexcept override;
 
@@ -482,19 +482,19 @@ class SphincsPlusKeyMaterial : public KeyMaterial {
     SphincsPlusKeyMaterial(pgp_pubkey_alg_t kalg) : KeyMaterial(kalg), key_{} {};
     std::unique_ptr<KeyMaterial> clone() override;
 
-    bool           equals(const KeyMaterial &value) noexcept override;
+    bool           equals(const KeyMaterial &value) const noexcept override;
     void           clear_secret() override;
     bool           parse(pgp_packet_body_t &pkt) noexcept override;
     bool           parse_secret(pgp_packet_body_t &pkt) noexcept override;
-    void           write(pgp_packet_body_t &pkt) override;
-    void           write_secret(pgp_packet_body_t &pkt) override;
+    void           write(pgp_packet_body_t &pkt) const override;
+    void           write_secret(pgp_packet_body_t &pkt) const override;
     bool           generate(const rnp_keygen_crypto_params_t &params) override;
     rnp_result_t   verify(const rnp::SecurityContext &       ctx,
                           const pgp_signature_material_t &   sig,
                           const rnp::secure_vector<uint8_t> &hash) const override;
     rnp_result_t   sign(rnp::SecurityContext &             ctx,
                         pgp_signature_material_t &         sig,
-                        const rnp::secure_vector<uint8_t> &hash) override;
+                        const rnp::secure_vector<uint8_t> &hash) const override;
     pgp_hash_alg_t adjust_hash(pgp_hash_alg_t hash) const override;
     bool           sig_hash_allowed(pgp_hash_alg_t hash) const override;
     size_t         bits() const noexcept override;
