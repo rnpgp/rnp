@@ -150,7 +150,7 @@ KeyMaterial::valid() const
 }
 
 bool
-KeyMaterial::equals(const KeyMaterial &value) noexcept
+KeyMaterial::equals(const KeyMaterial &value) const noexcept
 {
     return alg_ == value.alg_;
 }
@@ -214,7 +214,7 @@ rnp_result_t
 KeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                      pgp_encrypted_material_t &out,
                      const uint8_t *           data,
-                     size_t                    len)
+                     size_t                    len) const
 {
     return RNP_ERROR_NOT_SUPPORTED;
 }
@@ -223,7 +223,7 @@ rnp_result_t
 KeyMaterial::decrypt(rnp::SecurityContext &          ctx,
                      uint8_t *                       out,
                      size_t &                        out_len,
-                     const pgp_encrypted_material_t &in)
+                     const pgp_encrypted_material_t &in) const
 {
     return RNP_ERROR_NOT_SUPPORTED;
 }
@@ -239,7 +239,7 @@ KeyMaterial::verify(const rnp::SecurityContext &       ctx,
 rnp_result_t
 KeyMaterial::sign(rnp::SecurityContext &             ctx,
                   pgp_signature_material_t &         sig,
-                  const rnp::secure_vector<uint8_t> &hash)
+                  const rnp::secure_vector<uint8_t> &hash) const
 {
     return RNP_ERROR_NOT_SUPPORTED;
 }
@@ -387,7 +387,7 @@ RSAKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 }
 
 bool
-RSAKeyMaterial::equals(const KeyMaterial &value) noexcept
+RSAKeyMaterial::equals(const KeyMaterial &value) const noexcept
 {
     auto key = dynamic_cast<const RSAKeyMaterial *>(&value);
     if (!key || !KeyMaterial::equals(value)) {
@@ -422,14 +422,14 @@ RSAKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 }
 
 void
-RSAKeyMaterial::write(pgp_packet_body_t &pkt)
+RSAKeyMaterial::write(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.n);
     pkt.add(key_.e);
 }
 
 void
-RSAKeyMaterial::write_secret(pgp_packet_body_t &pkt)
+RSAKeyMaterial::write_secret(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.d);
     pkt.add(key_.p);
@@ -456,7 +456,7 @@ rnp_result_t
 RSAKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                         pgp_encrypted_material_t &out,
                         const uint8_t *           data,
-                        size_t                    len)
+                        size_t                    len) const
 {
     return rsa_encrypt_pkcs1(&ctx.rng, &out.rsa, data, len, &key_);
 }
@@ -465,7 +465,7 @@ rnp_result_t
 RSAKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
                         uint8_t *                       out,
                         size_t &                        out_len,
-                        const pgp_encrypted_material_t &in)
+                        const pgp_encrypted_material_t &in) const
 {
     if ((alg() != PGP_PKA_RSA) && (alg() != PGP_PKA_RSA_ENCRYPT_ONLY)) {
         RNP_LOG("Non-encrypting RSA algorithm: %d\n", alg());
@@ -489,7 +489,7 @@ RSAKeyMaterial::verify(const rnp::SecurityContext &       ctx,
 rnp_result_t
 RSAKeyMaterial::sign(rnp::SecurityContext &             ctx,
                      pgp_signature_material_t &         sig,
-                     const rnp::secure_vector<uint8_t> &hash)
+                     const rnp::secure_vector<uint8_t> &hash) const
 {
     return rsa_sign_pkcs1(&ctx.rng, &sig.rsa, sig.halg, hash.data(), hash.size(), &key_);
 }
@@ -568,7 +568,7 @@ DSAKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 }
 
 bool
-DSAKeyMaterial::equals(const KeyMaterial &value) noexcept
+DSAKeyMaterial::equals(const KeyMaterial &value) const noexcept
 {
     auto key = dynamic_cast<const DSAKeyMaterial *>(&value);
     if (!key || !KeyMaterial::equals(value)) {
@@ -604,7 +604,7 @@ DSAKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 }
 
 void
-DSAKeyMaterial::write(pgp_packet_body_t &pkt)
+DSAKeyMaterial::write(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.p);
     pkt.add(key_.q);
@@ -613,7 +613,7 @@ DSAKeyMaterial::write(pgp_packet_body_t &pkt)
 }
 
 void
-DSAKeyMaterial::write_secret(pgp_packet_body_t &pkt)
+DSAKeyMaterial::write_secret(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.x);
 }
@@ -639,7 +639,7 @@ DSAKeyMaterial::verify(const rnp::SecurityContext &       ctx,
 rnp_result_t
 DSAKeyMaterial::sign(rnp::SecurityContext &             ctx,
                      pgp_signature_material_t &         sig,
-                     const rnp::secure_vector<uint8_t> &hash)
+                     const rnp::secure_vector<uint8_t> &hash) const
 {
     return dsa_sign(&ctx.rng, &sig.dsa, hash.data(), hash.size(), &key_);
 }
@@ -724,7 +724,7 @@ EGKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 }
 
 bool
-EGKeyMaterial::equals(const KeyMaterial &value) noexcept
+EGKeyMaterial::equals(const KeyMaterial &value) const noexcept
 {
     auto key = dynamic_cast<const EGKeyMaterial *>(&value);
     if (!key || !KeyMaterial::equals(value)) {
@@ -759,7 +759,7 @@ EGKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 }
 
 void
-EGKeyMaterial::write(pgp_packet_body_t &pkt)
+EGKeyMaterial::write(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.p);
     pkt.add(key_.g);
@@ -767,7 +767,7 @@ EGKeyMaterial::write(pgp_packet_body_t &pkt)
 }
 
 void
-EGKeyMaterial::write_secret(pgp_packet_body_t &pkt)
+EGKeyMaterial::write_secret(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.x);
 }
@@ -791,7 +791,7 @@ rnp_result_t
 EGKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                        pgp_encrypted_material_t &out,
                        const uint8_t *           data,
-                       size_t                    len)
+                       size_t                    len) const
 {
     return elgamal_encrypt_pkcs1(&ctx.rng, &out.eg, data, len, &key_);
 }
@@ -800,7 +800,7 @@ rnp_result_t
 EGKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
                        uint8_t *                       out,
                        size_t &                        out_len,
-                       const pgp_encrypted_material_t &in)
+                       const pgp_encrypted_material_t &in) const
 {
     return elgamal_decrypt_pkcs1(&ctx.rng, out, &out_len, &in.eg, &key_);
 }
@@ -858,7 +858,7 @@ ECKeyMaterial::grip_update(rnp::Hash &hash) const
 }
 
 bool
-ECKeyMaterial::equals(const KeyMaterial &value) noexcept
+ECKeyMaterial::equals(const KeyMaterial &value) const noexcept
 {
     auto key = dynamic_cast<const ECKeyMaterial *>(&value);
     if (!key || !KeyMaterial::equals(value)) {
@@ -875,7 +875,7 @@ ECKeyMaterial::clear_secret()
 }
 
 rnp_result_t
-ECKeyMaterial::check_curve(size_t hash_len)
+ECKeyMaterial::check_curve(size_t hash_len) const
 {
     const ec_curve_desc_t *curve = get_curve_desc(key_.curve);
     if (!curve) {
@@ -916,14 +916,14 @@ ECKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 }
 
 void
-ECKeyMaterial::write(pgp_packet_body_t &pkt)
+ECKeyMaterial::write(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.curve);
     pkt.add(key_.p);
 }
 
 void
-ECKeyMaterial::write_secret(pgp_packet_body_t &pkt)
+ECKeyMaterial::write_secret(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.x);
 }
@@ -1007,7 +1007,7 @@ ECDSAKeyMaterial::verify(const rnp::SecurityContext &       ctx,
 rnp_result_t
 ECDSAKeyMaterial::sign(rnp::SecurityContext &             ctx,
                        pgp_signature_material_t &         sig,
-                       const rnp::secure_vector<uint8_t> &hash)
+                       const rnp::secure_vector<uint8_t> &hash) const
 {
     auto ret = check_curve(hash.size());
     if (ret) {
@@ -1067,7 +1067,7 @@ ECDHKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 }
 
 void
-ECDHKeyMaterial::write(pgp_packet_body_t &pkt)
+ECDHKeyMaterial::write(pgp_packet_body_t &pkt) const
 {
     ECKeyMaterial::write(pkt);
     pkt.add_byte(3);
@@ -1101,7 +1101,7 @@ rnp_result_t
 ECDHKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                          pgp_encrypted_material_t &out,
                          const uint8_t *           data,
-                         size_t                    len)
+                         size_t                    len) const
 {
     if (!curve_supported(key_.curve)) {
         RNP_LOG("ECDH encrypt: curve %d is not supported.", key_.curve);
@@ -1115,7 +1115,7 @@ rnp_result_t
 ECDHKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
                          uint8_t *                       out,
                          size_t &                        out_len,
-                         const pgp_encrypted_material_t &in)
+                         const pgp_encrypted_material_t &in) const
 {
     if (!curve_supported(key_.curve)) {
         RNP_LOG("ECDH decrypt: curve %d is not supported.", key_.curve);
@@ -1184,7 +1184,7 @@ EDDSAKeyMaterial::verify(const rnp::SecurityContext &       ctx,
 rnp_result_t
 EDDSAKeyMaterial::sign(rnp::SecurityContext &             ctx,
                        pgp_signature_material_t &         sig,
-                       const rnp::secure_vector<uint8_t> &hash)
+                       const rnp::secure_vector<uint8_t> &hash) const
 {
     return eddsa_sign(&ctx.rng, &sig.ecc, hash.data(), hash.size(), &key_);
 }
@@ -1210,7 +1210,7 @@ rnp_result_t
 SM2KeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                         pgp_encrypted_material_t &out,
                         const uint8_t *           data,
-                        size_t                    len)
+                        size_t                    len) const
 {
 #if defined(ENABLE_SM2)
     return sm2_encrypt(&ctx.rng, &out.sm2, data, len, PGP_HASH_SM3, &key_);
@@ -1224,7 +1224,7 @@ rnp_result_t
 SM2KeyMaterial::decrypt(rnp::SecurityContext &          ctx,
                         uint8_t *                       out,
                         size_t &                        out_len,
-                        const pgp_encrypted_material_t &in)
+                        const pgp_encrypted_material_t &in) const
 {
 #if defined(ENABLE_SM2)
     return sm2_decrypt(out, &out_len, &in.sm2, &key_);
@@ -1250,7 +1250,7 @@ SM2KeyMaterial::verify(const rnp::SecurityContext &       ctx,
 rnp_result_t
 SM2KeyMaterial::sign(rnp::SecurityContext &             ctx,
                      pgp_signature_material_t &         sig,
-                     const rnp::secure_vector<uint8_t> &hash)
+                     const rnp::secure_vector<uint8_t> &hash) const
 {
 #if defined(ENABLE_SM2)
     auto ret = check_curve(hash.size());
@@ -1300,7 +1300,7 @@ Ed25519KeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 }
 
 bool
-Ed25519KeyMaterial::equals(const KeyMaterial &value) noexcept
+Ed25519KeyMaterial::equals(const KeyMaterial &value) const noexcept
 {
     auto key = dynamic_cast<const Ed25519KeyMaterial *>(&value);
     if (!key || !KeyMaterial::equals(value)) {
@@ -1345,13 +1345,13 @@ Ed25519KeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 }
 
 void
-Ed25519KeyMaterial::write(pgp_packet_body_t &pkt)
+Ed25519KeyMaterial::write(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.pub);
 }
 
 void
-Ed25519KeyMaterial::write_secret(pgp_packet_body_t &pkt)
+Ed25519KeyMaterial::write_secret(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.priv);
 }
@@ -1377,7 +1377,7 @@ Ed25519KeyMaterial::verify(const rnp::SecurityContext &       ctx,
 rnp_result_t
 Ed25519KeyMaterial::sign(rnp::SecurityContext &             ctx,
                          pgp_signature_material_t &         sig,
-                         const rnp::secure_vector<uint8_t> &hash)
+                         const rnp::secure_vector<uint8_t> &hash) const
 {
     return ed25519_sign_native(&ctx.rng, sig.ed25519.sig, key_.priv, hash.data(), hash.size());
 }
@@ -1426,7 +1426,7 @@ X25519KeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 }
 
 bool
-X25519KeyMaterial::equals(const KeyMaterial &value) noexcept
+X25519KeyMaterial::equals(const KeyMaterial &value) const noexcept
 {
     auto key = dynamic_cast<const X25519KeyMaterial *>(&value);
     if (!key || !KeyMaterial::equals(value)) {
@@ -1471,13 +1471,13 @@ X25519KeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 }
 
 void
-X25519KeyMaterial::write(pgp_packet_body_t &pkt)
+X25519KeyMaterial::write(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.pub);
 }
 
 void
-X25519KeyMaterial::write_secret(pgp_packet_body_t &pkt)
+X25519KeyMaterial::write_secret(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.priv);
 }
@@ -1496,7 +1496,7 @@ rnp_result_t
 X25519KeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                            pgp_encrypted_material_t &out,
                            const uint8_t *           data,
-                           size_t                    len)
+                           size_t                    len) const
 {
     return x25519_native_encrypt(&ctx.rng, key_.pub, data, len, &out.x25519);
 }
@@ -1505,7 +1505,7 @@ rnp_result_t
 X25519KeyMaterial::decrypt(rnp::SecurityContext &          ctx,
                            uint8_t *                       out,
                            size_t &                        out_len,
-                           const pgp_encrypted_material_t &in)
+                           const pgp_encrypted_material_t &in) const
 {
     return x25519_native_decrypt(&ctx.rng, key_, &in.x25519, out, &out_len);
 }
@@ -1555,7 +1555,7 @@ KyberKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 }
 
 bool
-KyberKeyMaterial::equals(const KeyMaterial &value) noexcept
+KyberKeyMaterial::equals(const KeyMaterial &value) const noexcept
 {
     auto key = dynamic_cast<const KyberKeyMaterial *>(&value);
     if (!key || !KeyMaterial::equals(value)) {
@@ -1598,13 +1598,13 @@ KyberKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 }
 
 void
-KyberKeyMaterial::write(pgp_packet_body_t &pkt)
+KyberKeyMaterial::write(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.pub.get_encoded());
 }
 
 void
-KyberKeyMaterial::write_secret(pgp_packet_body_t &pkt)
+KyberKeyMaterial::write_secret(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.priv.get_encoded());
 }
@@ -1623,7 +1623,7 @@ rnp_result_t
 KyberKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                           pgp_encrypted_material_t &out,
                           const uint8_t *           data,
-                          size_t                    len)
+                          size_t                    len) const
 {
     return key_.pub.encrypt(&ctx.rng, &out.kyber_ecdh, data, len);
 }
@@ -1632,7 +1632,7 @@ rnp_result_t
 KyberKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
                           uint8_t *                       out,
                           size_t &                        out_len,
-                          const pgp_encrypted_material_t &in)
+                          const pgp_encrypted_material_t &in) const
 {
     return key_.priv.decrypt(&ctx.rng, out, &out_len, &in.kyber_ecdh);
 }
@@ -1674,7 +1674,7 @@ DilithiumKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 }
 
 bool
-DilithiumKeyMaterial::equals(const KeyMaterial &value) noexcept
+DilithiumKeyMaterial::equals(const KeyMaterial &value) const noexcept
 {
     auto key = dynamic_cast<const DilithiumKeyMaterial *>(&value);
     if (!key || !KeyMaterial::equals(value)) {
@@ -1717,13 +1717,13 @@ DilithiumKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 }
 
 void
-DilithiumKeyMaterial::write(pgp_packet_body_t &pkt)
+DilithiumKeyMaterial::write(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.pub.get_encoded());
 }
 
 void
-DilithiumKeyMaterial::write_secret(pgp_packet_body_t &pkt)
+DilithiumKeyMaterial::write_secret(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.priv.get_encoded());
 }
@@ -1749,7 +1749,7 @@ DilithiumKeyMaterial::verify(const rnp::SecurityContext &       ctx,
 rnp_result_t
 DilithiumKeyMaterial::sign(rnp::SecurityContext &             ctx,
                            pgp_signature_material_t &         sig,
-                           const rnp::secure_vector<uint8_t> &hash)
+                           const rnp::secure_vector<uint8_t> &hash) const
 {
     return key_.priv.sign(&ctx.rng, &sig.dilithium_exdsa, sig.halg, hash.data(), hash.size());
 }
@@ -1797,7 +1797,7 @@ SphincsPlusKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 }
 
 bool
-SphincsPlusKeyMaterial::equals(const KeyMaterial &value) noexcept
+SphincsPlusKeyMaterial::equals(const KeyMaterial &value) const noexcept
 {
     auto key = dynamic_cast<const SphincsPlusKeyMaterial *>(&value);
     if (!key || !KeyMaterial::equals(value)) {
@@ -1852,14 +1852,14 @@ SphincsPlusKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 }
 
 void
-SphincsPlusKeyMaterial::write(pgp_packet_body_t &pkt)
+SphincsPlusKeyMaterial::write(pgp_packet_body_t &pkt) const
 {
     pkt.add_byte((uint8_t) key_.pub.param());
     pkt.add(key_.pub.get_encoded());
 }
 
 void
-SphincsPlusKeyMaterial::write_secret(pgp_packet_body_t &pkt)
+SphincsPlusKeyMaterial::write_secret(pgp_packet_body_t &pkt) const
 {
     pkt.add_byte((uint8_t) key_.priv.param());
     pkt.add(key_.priv.get_encoded());
@@ -1886,7 +1886,7 @@ SphincsPlusKeyMaterial::verify(const rnp::SecurityContext &       ctx,
 rnp_result_t
 SphincsPlusKeyMaterial::sign(rnp::SecurityContext &             ctx,
                              pgp_signature_material_t &         sig,
-                             const rnp::secure_vector<uint8_t> &hash)
+                             const rnp::secure_vector<uint8_t> &hash) const
 {
     return key_.priv.sign(&ctx.rng, &sig.sphincsplus, hash.data(), hash.size());
 }
