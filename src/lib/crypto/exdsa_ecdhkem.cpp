@@ -116,7 +116,7 @@ ecdh_kem_private_key_t::get_pubkey_encoded(rnp::RNG *rng) const
 rnp_result_t
 ecdh_kem_public_key_t::encapsulate(rnp::RNG *            rng,
                                    std::vector<uint8_t> &ciphertext,
-                                   std::vector<uint8_t> &symmetric_key)
+                                   std::vector<uint8_t> &symmetric_key) const
 {
     if (curve_ == PGP_CURVE_25519) {
         Botan::Curve25519_PrivateKey eph_prv_key(*(rng->obj()));
