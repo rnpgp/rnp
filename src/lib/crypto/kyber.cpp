@@ -89,7 +89,7 @@ pgp_kyber_private_key_t::botan_key() const
 }
 
 kyber_encap_result_t
-pgp_kyber_public_key_t::encapsulate(rnp::RNG *rng)
+pgp_kyber_public_key_t::encapsulate(rnp::RNG *rng) const
 {
     assert(is_initialized_);
     auto decoded_kyber_pub = botan_key();

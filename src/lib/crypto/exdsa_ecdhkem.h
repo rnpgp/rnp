@@ -88,7 +88,7 @@ class ecdh_kem_public_key_t : public ec_key_t {
 
     rnp_result_t encapsulate(rnp::RNG *            rng,
                              std::vector<uint8_t> &ciphertext,
-                             std::vector<uint8_t> &symmetric_key);
+                             std::vector<uint8_t> &symmetric_key) const;
 
   private:
     Botan::ECDH_PublicKey       botan_key_ecdh(rnp::RNG *rng) const;
