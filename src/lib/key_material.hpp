@@ -406,7 +406,7 @@ class X25519KeyMaterial : public KeyMaterial {
 #endif
 
 #if defined(ENABLE_PQC)
-class KyberKeyMaterial : public KeyMaterial {
+class MlkemEcdhKeyMaterial : public KeyMaterial {
     pgp_kyber_ecdh_key_t key_;
 
   protected:
@@ -414,7 +414,7 @@ class KyberKeyMaterial : public KeyMaterial {
     bool validate_material(rnp::SecurityContext &ctx, bool reset) override;
 
   public:
-    KyberKeyMaterial(pgp_pubkey_alg_t kalg) : KeyMaterial(kalg), key_{} {};
+    MlkemEcdhKeyMaterial(pgp_pubkey_alg_t kalg) : KeyMaterial(kalg), key_{} {};
     std::unique_ptr<KeyMaterial> clone() override;
 
     bool         equals(const KeyMaterial &value) const noexcept override;
@@ -438,7 +438,7 @@ class KyberKeyMaterial : public KeyMaterial {
     const pgp_kyber_ecdh_composite_private_key_t &priv() const noexcept;
 };
 
-class DilithiumKeyMaterial : public KeyMaterial {
+class DilithiumEccKeyMaterial : public KeyMaterial {
     pgp_dilithium_exdsa_key_t key_;
 
   protected:
@@ -446,7 +446,7 @@ class DilithiumKeyMaterial : public KeyMaterial {
     bool validate_material(rnp::SecurityContext &ctx, bool reset) override;
 
   public:
-    DilithiumKeyMaterial(pgp_pubkey_alg_t kalg) : KeyMaterial(kalg), key_{} {};
+    DilithiumEccKeyMaterial(pgp_pubkey_alg_t kalg) : KeyMaterial(kalg), key_{} {};
     std::unique_ptr<KeyMaterial> clone() override;
 
     /** @brief Check two key material for equality. Only public part is checked, so this may be
@@ -471,7 +471,7 @@ class DilithiumKeyMaterial : public KeyMaterial {
     const pgp_dilithium_exdsa_composite_private_key_t &priv() const noexcept;
 };
 
-class SphincsPlusKeyMaterial : public KeyMaterial {
+class SlhdsaKeyMaterial : public KeyMaterial {
     pgp_sphincsplus_key_t key_;
 
   protected:
@@ -479,7 +479,7 @@ class SphincsPlusKeyMaterial : public KeyMaterial {
     bool validate_material(rnp::SecurityContext &ctx, bool reset) override;
 
   public:
-    SphincsPlusKeyMaterial(pgp_pubkey_alg_t kalg) : KeyMaterial(kalg), key_{} {};
+    SlhdsaKeyMaterial(pgp_pubkey_alg_t kalg) : KeyMaterial(kalg), key_{} {};
     std::unique_ptr<KeyMaterial> clone() override;
 
     bool           equals(const KeyMaterial &value) const noexcept override;

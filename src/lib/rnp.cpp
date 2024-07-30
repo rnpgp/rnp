@@ -6848,7 +6848,7 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    auto &material = dynamic_cast<const pgp::SphincsPlusKeyMaterial &>(key->material());
+    auto &material = dynamic_cast<const pgp::SlhdsaKeyMaterial &>(key->material());
     return get_map_value(sphincsplus_params_map, material.pub().param(), param);
 }
 FFI_GUARD
