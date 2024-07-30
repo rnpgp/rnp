@@ -310,7 +310,7 @@ KeyMaterial::create(pgp_pubkey_alg_t alg)
     case PGP_PKA_KYBER768_BP256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
-        return std::unique_ptr<KeyMaterial>(new KyberKeyMaterial(alg));
+        return std::unique_ptr<KeyMaterial>(new MlkemEcdhKeyMaterial(alg));
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
     // TODO: add case PGP_PKA_DILITHIUM5_ED448
@@ -321,11 +321,11 @@ KeyMaterial::create(pgp_pubkey_alg_t alg)
     case PGP_PKA_DILITHIUM3_BP256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
-        return std::unique_ptr<KeyMaterial>(new DilithiumKeyMaterial(alg));
+        return std::unique_ptr<KeyMaterial>(new DilithiumEccKeyMaterial(alg));
     case PGP_PKA_SPHINCSPLUS_SHA2:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE:
-        return std::unique_ptr<KeyMaterial>(new SphincsPlusKeyMaterial(alg));
+        return std::unique_ptr<KeyMaterial>(new SlhdsaKeyMaterial(alg));
 #endif
     default:
         return nullptr;
@@ -1537,27 +1537,27 @@ X25519KeyMaterial::priv() const noexcept
 
 #if defined(ENABLE_PQC)
 std::unique_ptr<KeyMaterial>
-KyberKeyMaterial::clone()
+MlkemEcdhKeyMaterial::clone()
 {
-    return std::unique_ptr<KeyMaterial>(new KyberKeyMaterial(*this));
+    return std::unique_ptr<KeyMaterial>(new MlkemEcdhKeyMaterial(*this));
 }
 
 void
-KyberKeyMaterial::grip_update(rnp::Hash &hash) const
+MlkemEcdhKeyMaterial::grip_update(rnp::Hash &hash) const
 {
     hash.add(pub().get_encoded());
 }
 
 bool
-KyberKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
+MlkemEcdhKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 {
     return !kyber_ecdh_validate_key(&ctx.rng, &key_, secret_);
 }
 
 bool
-KyberKeyMaterial::equals(const KeyMaterial &value) const noexcept
+MlkemEcdhKeyMaterial::equals(const KeyMaterial &value) const noexcept
 {
-    auto key = dynamic_cast<const KyberKeyMaterial *>(&value);
+    auto key = dynamic_cast<const MlkemEcdhKeyMaterial *>(&value);
     if (!key || !KeyMaterial::equals(value)) {
         return false;
     }
@@ -1565,14 +1565,14 @@ KyberKeyMaterial::equals(const KeyMaterial &value) const noexcept
 }
 
 void
-KyberKeyMaterial::clear_secret()
+MlkemEcdhKeyMaterial::clear_secret()
 {
     key_.priv.secure_clear();
     KeyMaterial::clear_secret();
 }
 
 bool
-KyberKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
+MlkemEcdhKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 {
     secret_ = false;
     std::vector<uint8_t> buf(pgp_kyber_ecdh_composite_public_key_t::encoded_size(alg()));
@@ -1585,7 +1585,7 @@ KyberKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 }
 
 bool
-KyberKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
+MlkemEcdhKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 {
     std::vector<uint8_t> buf(pgp_kyber_ecdh_composite_private_key_t::encoded_size(alg()));
     if (!pkt.get(buf.data(), buf.size())) {
@@ -1598,19 +1598,19 @@ KyberKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 }
 
 void
-KyberKeyMaterial::write(pgp_packet_body_t &pkt) const
+MlkemEcdhKeyMaterial::write(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.pub.get_encoded());
 }
 
 void
-KyberKeyMaterial::write_secret(pgp_packet_body_t &pkt) const
+MlkemEcdhKeyMaterial::write_secret(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.priv.get_encoded());
 }
 
 bool
-KyberKeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
+MlkemEcdhKeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
 {
     if (pgp_kyber_ecdh_composite_key_t::gen_keypair(&params.ctx->rng, &key_, alg_)) {
         RNP_LOG("failed to generate MLKEM-ECDH-composite key for PK alg %d", alg_);
@@ -1620,63 +1620,63 @@ KyberKeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
 }
 
 rnp_result_t
-KyberKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
-                          pgp_encrypted_material_t &out,
-                          const uint8_t *           data,
-                          size_t                    len) const
+MlkemEcdhKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
+                              pgp_encrypted_material_t &out,
+                              const uint8_t *           data,
+                              size_t                    len) const
 {
     return key_.pub.encrypt(&ctx.rng, &out.kyber_ecdh, data, len);
 }
 
 rnp_result_t
-KyberKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
-                          uint8_t *                       out,
-                          size_t &                        out_len,
-                          const pgp_encrypted_material_t &in) const
+MlkemEcdhKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
+                              uint8_t *                       out,
+                              size_t &                        out_len,
+                              const pgp_encrypted_material_t &in) const
 {
     return key_.priv.decrypt(&ctx.rng, out, &out_len, &in.kyber_ecdh);
 }
 
 size_t
-KyberKeyMaterial::bits() const noexcept
+MlkemEcdhKeyMaterial::bits() const noexcept
 {
     return 8 * pub().get_encoded().size(); /* public key length */
 }
 
 const pgp_kyber_ecdh_composite_public_key_t &
-KyberKeyMaterial::pub() const noexcept
+MlkemEcdhKeyMaterial::pub() const noexcept
 {
     return key_.pub;
 }
 
 const pgp_kyber_ecdh_composite_private_key_t &
-KyberKeyMaterial::priv() const noexcept
+MlkemEcdhKeyMaterial::priv() const noexcept
 {
     return key_.priv;
 }
 
 std::unique_ptr<KeyMaterial>
-DilithiumKeyMaterial::clone()
+DilithiumEccKeyMaterial::clone()
 {
-    return std::unique_ptr<KeyMaterial>(new DilithiumKeyMaterial(*this));
+    return std::unique_ptr<KeyMaterial>(new DilithiumEccKeyMaterial(*this));
 }
 
 void
-DilithiumKeyMaterial::grip_update(rnp::Hash &hash) const
+DilithiumEccKeyMaterial::grip_update(rnp::Hash &hash) const
 {
     hash.add(pub().get_encoded());
 }
 
 bool
-DilithiumKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
+DilithiumEccKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 {
     return !dilithium_exdsa_validate_key(&ctx.rng, &key_, secret_);
 }
 
 bool
-DilithiumKeyMaterial::equals(const KeyMaterial &value) const noexcept
+DilithiumEccKeyMaterial::equals(const KeyMaterial &value) const noexcept
 {
-    auto key = dynamic_cast<const DilithiumKeyMaterial *>(&value);
+    auto key = dynamic_cast<const DilithiumEccKeyMaterial *>(&value);
     if (!key || !KeyMaterial::equals(value)) {
         return false;
     }
@@ -1684,14 +1684,14 @@ DilithiumKeyMaterial::equals(const KeyMaterial &value) const noexcept
 }
 
 void
-DilithiumKeyMaterial::clear_secret()
+DilithiumEccKeyMaterial::clear_secret()
 {
     key_.priv.secure_clear();
     KeyMaterial::clear_secret();
 }
 
 bool
-DilithiumKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
+DilithiumEccKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 {
     secret_ = false;
     std::vector<uint8_t> buf(pgp_dilithium_exdsa_composite_public_key_t::encoded_size(alg()));
@@ -1704,7 +1704,7 @@ DilithiumKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 }
 
 bool
-DilithiumKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
+DilithiumEccKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 {
     std::vector<uint8_t> buf(pgp_dilithium_exdsa_composite_private_key_t::encoded_size(alg()));
     if (!pkt.get(buf.data(), buf.size())) {
@@ -1717,19 +1717,19 @@ DilithiumKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 }
 
 void
-DilithiumKeyMaterial::write(pgp_packet_body_t &pkt) const
+DilithiumEccKeyMaterial::write(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.pub.get_encoded());
 }
 
 void
-DilithiumKeyMaterial::write_secret(pgp_packet_body_t &pkt) const
+DilithiumEccKeyMaterial::write_secret(pgp_packet_body_t &pkt) const
 {
     pkt.add(key_.priv.get_encoded());
 }
 
 bool
-DilithiumKeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
+DilithiumEccKeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
 {
     if (pgp_dilithium_exdsa_composite_key_t::gen_keypair(&params.ctx->rng, &key_, alg_)) {
         RNP_LOG("failed to generate mldsa-ecdsa/eddsa-composite key for PK alg %d", alg_);
@@ -1739,67 +1739,67 @@ DilithiumKeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
 }
 
 rnp_result_t
-DilithiumKeyMaterial::verify(const rnp::SecurityContext &       ctx,
-                             const pgp_signature_material_t &   sig,
-                             const rnp::secure_vector<uint8_t> &hash) const
+DilithiumEccKeyMaterial::verify(const rnp::SecurityContext &       ctx,
+                                const pgp_signature_material_t &   sig,
+                                const rnp::secure_vector<uint8_t> &hash) const
 {
     return key_.pub.verify(&sig.dilithium_exdsa, sig.halg, hash.data(), hash.size());
 }
 
 rnp_result_t
-DilithiumKeyMaterial::sign(rnp::SecurityContext &             ctx,
-                           pgp_signature_material_t &         sig,
-                           const rnp::secure_vector<uint8_t> &hash) const
+DilithiumEccKeyMaterial::sign(rnp::SecurityContext &             ctx,
+                              pgp_signature_material_t &         sig,
+                              const rnp::secure_vector<uint8_t> &hash) const
 {
     return key_.priv.sign(&ctx.rng, &sig.dilithium_exdsa, sig.halg, hash.data(), hash.size());
 }
 
 pgp_hash_alg_t
-DilithiumKeyMaterial::adjust_hash(pgp_hash_alg_t hash) const
+DilithiumEccKeyMaterial::adjust_hash(pgp_hash_alg_t hash) const
 {
     return dilithium_default_hash_alg();
 }
 
 size_t
-DilithiumKeyMaterial::bits() const noexcept
+DilithiumEccKeyMaterial::bits() const noexcept
 {
     return 8 * pub().get_encoded().size(); /* public key length*/
 }
 
 const pgp_dilithium_exdsa_composite_public_key_t &
-DilithiumKeyMaterial::pub() const noexcept
+DilithiumEccKeyMaterial::pub() const noexcept
 {
     return key_.pub;
 }
 
 const pgp_dilithium_exdsa_composite_private_key_t &
-DilithiumKeyMaterial::priv() const noexcept
+DilithiumEccKeyMaterial::priv() const noexcept
 {
     return key_.priv;
 }
 
 std::unique_ptr<KeyMaterial>
-SphincsPlusKeyMaterial::clone()
+SlhdsaKeyMaterial::clone()
 {
-    return std::unique_ptr<KeyMaterial>(new SphincsPlusKeyMaterial(*this));
+    return std::unique_ptr<KeyMaterial>(new SlhdsaKeyMaterial(*this));
 }
 
 void
-SphincsPlusKeyMaterial::grip_update(rnp::Hash &hash) const
+SlhdsaKeyMaterial::grip_update(rnp::Hash &hash) const
 {
     hash.add(pub().get_encoded());
 }
 
 bool
-SphincsPlusKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
+SlhdsaKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 {
     return !sphincsplus_validate_key(&ctx.rng, &key_, secret_);
 }
 
 bool
-SphincsPlusKeyMaterial::equals(const KeyMaterial &value) const noexcept
+SlhdsaKeyMaterial::equals(const KeyMaterial &value) const noexcept
 {
-    auto key = dynamic_cast<const SphincsPlusKeyMaterial *>(&value);
+    auto key = dynamic_cast<const SlhdsaKeyMaterial *>(&value);
     if (!key || !KeyMaterial::equals(value)) {
         return false;
     }
@@ -1807,14 +1807,14 @@ SphincsPlusKeyMaterial::equals(const KeyMaterial &value) const noexcept
 }
 
 void
-SphincsPlusKeyMaterial::clear_secret()
+SlhdsaKeyMaterial::clear_secret()
 {
     key_.priv.secure_clear();
     KeyMaterial::clear_secret();
 }
 
 bool
-SphincsPlusKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
+SlhdsaKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 {
     secret_ = false;
     uint8_t bt = 0;
@@ -1833,7 +1833,7 @@ SphincsPlusKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 }
 
 bool
-SphincsPlusKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
+SlhdsaKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 {
     uint8_t bt = 0;
     if (!pkt.get(bt)) {
@@ -1852,21 +1852,21 @@ SphincsPlusKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 }
 
 void
-SphincsPlusKeyMaterial::write(pgp_packet_body_t &pkt) const
+SlhdsaKeyMaterial::write(pgp_packet_body_t &pkt) const
 {
     pkt.add_byte((uint8_t) key_.pub.param());
     pkt.add(key_.pub.get_encoded());
 }
 
 void
-SphincsPlusKeyMaterial::write_secret(pgp_packet_body_t &pkt) const
+SlhdsaKeyMaterial::write_secret(pgp_packet_body_t &pkt) const
 {
     pkt.add_byte((uint8_t) key_.priv.param());
     pkt.add(key_.priv.get_encoded());
 }
 
 bool
-SphincsPlusKeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
+SlhdsaKeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
 {
     if (pgp_sphincsplus_generate(&params.ctx->rng, &key_, params.sphincsplus.param, alg_)) {
         RNP_LOG("failed to generate SLH-DSA key for PK alg %d", alg_);
@@ -1876,47 +1876,47 @@ SphincsPlusKeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
 }
 
 rnp_result_t
-SphincsPlusKeyMaterial::verify(const rnp::SecurityContext &       ctx,
-                               const pgp_signature_material_t &   sig,
-                               const rnp::secure_vector<uint8_t> &hash) const
+SlhdsaKeyMaterial::verify(const rnp::SecurityContext &       ctx,
+                          const pgp_signature_material_t &   sig,
+                          const rnp::secure_vector<uint8_t> &hash) const
 {
     return key_.pub.verify(&sig.sphincsplus, hash.data(), hash.size());
 }
 
 rnp_result_t
-SphincsPlusKeyMaterial::sign(rnp::SecurityContext &             ctx,
-                             pgp_signature_material_t &         sig,
-                             const rnp::secure_vector<uint8_t> &hash) const
+SlhdsaKeyMaterial::sign(rnp::SecurityContext &             ctx,
+                        pgp_signature_material_t &         sig,
+                        const rnp::secure_vector<uint8_t> &hash) const
 {
     return key_.priv.sign(&ctx.rng, &sig.sphincsplus, hash.data(), hash.size());
 }
 
 pgp_hash_alg_t
-SphincsPlusKeyMaterial::adjust_hash(pgp_hash_alg_t hash) const
+SlhdsaKeyMaterial::adjust_hash(pgp_hash_alg_t hash) const
 {
     return sphincsplus_default_hash_alg(alg_, key_.pub.param());
 }
 
 bool
-SphincsPlusKeyMaterial::sig_hash_allowed(pgp_hash_alg_t hash) const
+SlhdsaKeyMaterial::sig_hash_allowed(pgp_hash_alg_t hash) const
 {
     return key_.pub.validate_signature_hash_requirements(hash);
 }
 
 size_t
-SphincsPlusKeyMaterial::bits() const noexcept
+SlhdsaKeyMaterial::bits() const noexcept
 {
     return 8 * pub().get_encoded().size(); /* public key length */
 }
 
 const pgp_sphincsplus_public_key_t &
-SphincsPlusKeyMaterial::pub() const noexcept
+SlhdsaKeyMaterial::pub() const noexcept
 {
     return key_.pub;
 }
 
 const pgp_sphincsplus_private_key_t &
-SphincsPlusKeyMaterial::priv() const noexcept
+SlhdsaKeyMaterial::priv() const noexcept
 {
     return key_.priv;
 }
