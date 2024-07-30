@@ -411,6 +411,11 @@ exdsa_gen_keypair_native(rnp::RNG *            rng,
     case PGP_CURVE_ED25519:
         alg = PGP_PKA_EDDSA;
         break;
+#if defined(ENABLE_ED448)
+    case PGP_CURVE_ED448:
+        alg = PGP_PKA_EDDSA;
+        break;
+#endif
     case PGP_CURVE_NIST_P_256:
         FALLTHROUGH_STATEMENT;
     case PGP_CURVE_NIST_P_384:

@@ -88,7 +88,10 @@ TEST_F(rnp_tests, test_sphincsplus_key_function)
 TEST_F(rnp_tests, test_dilithium_exdsa_direct)
 {
     pgp_pubkey_alg_t algs[] = {PGP_PKA_DILITHIUM3_ED25519,
-                               /* PGP_PKA_DILITHIUM5_ED448,*/ PGP_PKA_DILITHIUM3_P256,
+#if defined(ENABLE_ED448)
+                               PGP_PKA_DILITHIUM5_ED448,
+#endif
+                               PGP_PKA_DILITHIUM3_P256,
                                PGP_PKA_DILITHIUM5_P384,
                                PGP_PKA_DILITHIUM3_BP256,
                                PGP_PKA_DILITHIUM5_BP384};

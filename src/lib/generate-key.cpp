@@ -69,7 +69,9 @@ static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_KYBER768_BP256, "ML-KEM-768_BP256"},
   {PGP_PKA_KYBER1024_BP384, "ML-KEM-1024_BP384"},
   {PGP_PKA_DILITHIUM3_ED25519, "ML-DSA-65_ED25519"},
-  //{PGP_PKA_DILITHIUM5_ED448, "Dilithium-ED448"},
+#if defined(ENABLE_ED448)
+  {PGP_PKA_DILITHIUM5_ED448, "Dilithium-ED448"},
+#endif
   {PGP_PKA_DILITHIUM3_P256, "ML-DSA-65_P256"},
   {PGP_PKA_DILITHIUM5_P384, "ML-DSA-87_P384"},
   {PGP_PKA_DILITHIUM3_BP256, "ML-DSA-65_BP256"},
@@ -412,7 +414,10 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
         return pgp_kyber_ecdh_composite_public_key_t::encoded_size(crypto->key_alg) * 8;
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:

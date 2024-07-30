@@ -648,7 +648,10 @@ TEST_F(rnp_tests, dilithium_exdsa_signverify_success)
     const pgp_hash_alg_t hash_alg = PGP_HASH_SHA512;
 
     pgp_pubkey_alg_t algs[] = {PGP_PKA_DILITHIUM3_ED25519,
-                               /* PGP_PKA_DILITHIUM5_ED448,*/ PGP_PKA_DILITHIUM3_P256,
+#if defined(ENABLE_ED448)
+                               PGP_PKA_DILITHIUM5_ED448,
+#endif
+                               PGP_PKA_DILITHIUM3_P256,
                                PGP_PKA_DILITHIUM5_P384,
                                PGP_PKA_DILITHIUM3_BP256,
                                PGP_PKA_DILITHIUM5_BP384};

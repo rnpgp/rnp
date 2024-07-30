@@ -3096,6 +3096,12 @@ TEST_F(rnp_tests, test_ffi_supported_features)
 #endif
 #if defined(ENABLE_PQC)
     pqc_opt = 13; // kyber+ecc and dilithium+ecc and sphincs+ variants
+#if defined(ENABLE_ED448)
+    pqc_opt++;
+#endif
+#if defined(ENABLE_X448)
+    pqc_opt++;
+#endif
 #endif
     assert_true(check_features(
       RNP_FEATURE_PK_ALG, features, 6 + has_sm2 + pqc_opt + crypto_refresh_opt));
@@ -3198,7 +3204,14 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     /* elliptic curve */
     assert_rnp_success(rnp_supported_features(RNP_FEATURE_CURVE, &features));
     assert_non_null(features);
-    assert_true(check_features(RNP_FEATURE_CURVE, features, 6 + has_sm2 + 3 * has_brainpool));
+    size_t opt_has_curve448 = 0;
+#if defined(ENABLE_ED448)
+    opt_has_curve448++;
+#endif
+#if defined(ENABLE_X448)
+    opt_has_curve448++;
+#endif
+    assert_true(check_features(RNP_FEATURE_CURVE, features, 6 + has_sm2 + 3 * has_brainpool + opt_has_curve448));
     rnp_buffer_destroy(features);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_CURVE, "NIST P-256", &supported));
     assert_true(supported);

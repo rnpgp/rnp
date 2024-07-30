@@ -190,7 +190,10 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t &crypto,
         break;
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -277,7 +280,10 @@ key_material_equal(const pgp_key_material_t *key1, const pgp_key_material_t *key
         return (key1->kyber_ecdh.pub == key2->kyber_ecdh.pub);
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -360,7 +366,10 @@ validate_pgp_key_material(const pgp_key_material_t *material, rnp::RNG *rng)
         return kyber_ecdh_validate_key(rng, &material->kyber_ecdh, material->secret);
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:

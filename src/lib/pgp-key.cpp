@@ -187,7 +187,10 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
 
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -506,6 +509,10 @@ pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey)
         return sphincsplus_default_hash_alg(pubkey->alg);
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -3070,7 +3077,10 @@ pgp_key_material_t::bits() const
         return 8 * kyber_ecdh.pub.get_encoded().size(); /* public key length */
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -3266,7 +3276,10 @@ pgp_key_material_t::get_grip(pgp_key_grip_t &grip) const
             break;
         case PGP_PKA_DILITHIUM3_ED25519:
             FALLTHROUGH_STATEMENT;
-        // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_ED448)
+        case PGP_PKA_DILITHIUM5_ED448:
+            FALLTHROUGH_STATEMENT;
+#endif
         case PGP_PKA_DILITHIUM3_P256:
             FALLTHROUGH_STATEMENT;
         case PGP_PKA_DILITHIUM5_P384:

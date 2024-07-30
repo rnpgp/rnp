@@ -236,14 +236,18 @@ typedef enum : uint8_t {
 #if defined(ENABLE_PQC)
     /* PQC-ECC composite */
     PGP_PKA_KYBER768_X25519 = 105,
-    // PGP_PKA_KYBER1024_X448 = 106,
+#if defined(ENABLE_X448)
+    PGP_PKA_KYBER1024_X448 = 106,
+#endif
     PGP_PKA_KYBER768_P256 = 111,
     PGP_PKA_KYBER1024_P384 = 112,
     PGP_PKA_KYBER768_BP256 = 113,
     PGP_PKA_KYBER1024_BP384 = 114,
 
     PGP_PKA_DILITHIUM3_ED25519 = 107,
-    // PGP_PKA_DILITHIUM5_ED448 = 108,
+#if defined(ENABLE_ED448)
+    PGP_PKA_DILITHIUM5_ED448 = 108,
+#endif
     PGP_PKA_DILITHIUM3_P256 = 115,
     PGP_PKA_DILITHIUM5_P384 = 116,
     PGP_PKA_DILITHIUM3_BP256 = 117,
@@ -296,6 +300,17 @@ typedef enum {
     PGP_CURVE_P256K1,
 
     PGP_CURVE_SM2_P_256,
+
+#if defined(ENABLE_PQC)
+    // currently only used for PQC
+    // TODO implement PGP_PKA_ED448 and PGP_PKA_X448
+#if defined(ENABLE_ED448)
+    PGP_CURVE_ED448,
+#endif
+#if defined(ENABLE_X448)
+    PGP_CURVE_448,
+#endif
+#endif
 
     // Keep always last one
     PGP_CURVE_MAX

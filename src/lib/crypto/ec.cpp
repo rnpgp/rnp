@@ -258,11 +258,20 @@ ec_generate_native(rnp::RNG *            rng,
                    pgp_curve_t           curve,
                    pgp_pubkey_alg_t      alg)
 {
-    if (curve == PGP_CURVE_25519) {
-        return generate_x25519_native(rng, privkey, pubkey);
-    } else if (curve == PGP_CURVE_ED25519) {
-        return generate_ed25519_native(rng, privkey, pubkey);
-    } else if (is_generic_prime_curve(curve)) {
+    switch(curve) {
+        case PGP_CURVE_25519:
+            return generate_x25519_native(rng, privkey, pubkey);
+        case PGP_CURVE_ED25519:
+            return generate_ed25519_native(rng, privkey, pubkey);
+#if defined(ENABLE_ED448)
+        case PGP_CURVE_ED448:
+            return generate_ed448_native(rng, privkey, pubkey);
+#endif
+        //case PGP_CURVE_X448:
+        default:
+            break;
+    }
+    if (is_generic_prime_curve(curve)) {
         if (alg != PGP_PKA_ECDH && alg != PGP_PKA_ECDSA) {
             RNP_LOG("alg and curve mismatch");
             return RNP_ERROR_BAD_PARAMETERS;

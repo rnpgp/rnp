@@ -155,7 +155,9 @@ static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_KYBER768_BP256, "ML-KEM-768 + Brainpool256"},
   {PGP_PKA_KYBER1024_BP384, "ML-KEM-1024 + Brainpool384"},
   {PGP_PKA_DILITHIUM3_ED25519, "ML-DSA-65 + ED25519"},
-  //{PGP_PKA_DILITHIUM5_ED448, "Dilithium + X448"},
+#if defined(ENABLE_ED448)
+  {PGP_PKA_DILITHIUM5_ED448, "Dilithium + X448"},
+#endif
   {PGP_PKA_DILITHIUM3_P256, "ML-DSA-65 + NIST P-256"},
   {PGP_PKA_DILITHIUM5_P384, "ML-DSA-87 + NIST P-384"},
   {PGP_PKA_DILITHIUM3_BP256, "ML-DSA-65 + Brainpool256"},
@@ -830,7 +832,10 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
 #if defined(ENABLE_PQC)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -972,7 +977,10 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         break;
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -2003,7 +2011,10 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
 #if defined(ENABLE_PQC)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -2159,7 +2170,10 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
         break;
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:

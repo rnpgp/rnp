@@ -81,6 +81,10 @@ tristate_feature_auto(ENABLE_RIPEMD160 "Enable RIPEMD-160 hash support.")
 
 option(ENABLE_CRYPTO_REFRESH "Enable crypto-refresh support (v6)")
 option(ENABLE_PQC "Enable PQC support")
+set(ENABLE_ED448 Auto CACHE STRING "Enable ED448 support.")
+set_property(CACHE ENABLE_ED448 PROPERTY STRINGS ${TRISTATE_VALUES})
+set(ENABLE_X448 Auto CACHE STRING "Enable X448 ciphers support.")
+set_property(CACHE ENABLE_X448 PROPERTY STRINGS ${TRISTATE_VALUES})
 
 # Note: The following two flags are only temporary and will be removed once POC is in a stable state
 if (DEFINED ENABLE_PQC_MLKEM_IPD)

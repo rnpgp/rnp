@@ -74,9 +74,10 @@ pgp_dilithium_exdsa_composite_key_t::exdsa_curve_privkey_size(pgp_curve_t curve)
     switch (curve) {
     case PGP_CURVE_ED25519:
         return 32;
-    /* TODO */
-    // case PGP_CURVE_ED448:
-    //   return 56;
+#if defined(ENABLE_ED448)
+    case PGP_CURVE_ED448:
+        return 57;
+#endif
     case PGP_CURVE_NIST_P_256:
         return 32;
     case PGP_CURVE_NIST_P_384:
@@ -97,9 +98,10 @@ pgp_dilithium_exdsa_composite_key_t::exdsa_curve_pubkey_size(pgp_curve_t curve)
     switch (curve) {
     case PGP_CURVE_ED25519:
         return 32;
-    /* TODO */
-    //  case PGP_CURVE_ED448:
-    //    return 56;
+#if defined(ENABLE_ED448)
+    case PGP_CURVE_ED448:
+        return 57;
+#endif
     case PGP_CURVE_NIST_P_256:
         return 65;
     case PGP_CURVE_NIST_P_384:
@@ -120,9 +122,10 @@ pgp_dilithium_exdsa_composite_key_t::exdsa_curve_signature_size(pgp_curve_t curv
     switch (curve) {
     case PGP_CURVE_ED25519:
         return 64;
-    /* TODO */
-    //  case PGP_CURVE_ED448:
-    //    return 114;
+#if defined(ENABLE_ED448)
+    case PGP_CURVE_ED448:
+        return 114;
+#endif
     case PGP_CURVE_NIST_P_256:
         return 64;
     case PGP_CURVE_NIST_P_384:
@@ -149,6 +152,10 @@ pgp_dilithium_exdsa_composite_key_t::pk_alg_to_dilithium_id(pgp_pubkey_alg_t pk_
         return dilithium_L3;
     case PGP_PKA_DILITHIUM5_BP384:
         FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_DILITHIUM5_P384:
         return dilithium_L5;
     default:
@@ -163,6 +170,10 @@ pgp_dilithium_exdsa_composite_key_t::pk_alg_to_curve_id(pgp_pubkey_alg_t pk_alg)
     switch (pk_alg) {
     case PGP_PKA_DILITHIUM3_ED25519:
         return PGP_CURVE_ED25519;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_DILITHIUM5_ED448:
+        return PGP_CURVE_ED448;
+#endif
     case PGP_PKA_DILITHIUM3_P256:
         return PGP_CURVE_NIST_P_256;
     case PGP_PKA_DILITHIUM3_BP256:
@@ -171,8 +182,6 @@ pgp_dilithium_exdsa_composite_key_t::pk_alg_to_curve_id(pgp_pubkey_alg_t pk_alg)
         return PGP_CURVE_BP384;
     case PGP_PKA_DILITHIUM5_P384:
         return PGP_CURVE_NIST_P_384;
-    /*case PGP_PKA_DILITHIUM5_ED448:
-      throw rnp::rnp_exception(RNP_ERROR_NOT_IMPLEMENTED);*/
     default:
         RNP_LOG("invalid PK alg given");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);

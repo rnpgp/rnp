@@ -100,6 +100,11 @@ typedef struct pgp_ed25519_signature_t {
     std::vector<uint8_t> sig; // native encoding
 } pgp_ed25519_signature_t;
 
+#if defined(ENABLE_ED448)
+typedef pgp_ed25519_key_t pgp_ed448_key_t;
+#endif
+
+
 typedef struct pgp_x25519_key_t {
     std::vector<uint8_t> pub;  // \  native encoding
     std::vector<uint8_t> priv; // /
