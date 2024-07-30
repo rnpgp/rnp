@@ -39,9 +39,9 @@ rnp_kyber_param_to_botan_kyber_mode(kyber_parameter_e mode)
         result = Botan::KyberMode::ML_KEM_768_ipd;
     }
 #else
-    Botan::KyberMode result = Botan::KyberMode::Kyber1024;
+    Botan::KyberMode result = Botan::KyberMode::Kyber1024_R3;
     if (mode == kyber_768) {
-        result = Botan::KyberMode::Kyber768;
+        result = Botan::KyberMode::Kyber768_R3;
     }
 #endif
     return result;
