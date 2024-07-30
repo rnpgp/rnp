@@ -956,7 +956,7 @@ stream_dump_key_material(rnp_dump_ctx_t &        ctx,
     case PGP_PKA_KYBER768_BP256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384: {
-        auto &kyber = dynamic_cast<const pgp::KyberKeyMaterial &>(*material);
+        auto &kyber = dynamic_cast<const pgp::MlkemEcdhKeyMaterial &>(*material);
         dst_print_vec(
           dst, "mlkem-ecdh encoded pubkey", kyber.pub().get_encoded(), ctx.dump_mpi);
         return;
@@ -971,7 +971,7 @@ stream_dump_key_material(rnp_dump_ctx_t &        ctx,
     case PGP_PKA_DILITHIUM3_BP256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384: {
-        auto &dilithium = dynamic_cast<const pgp::DilithiumKeyMaterial &>(*material);
+        auto &dilithium = dynamic_cast<const pgp::DilithiumEccKeyMaterial &>(*material);
         dst_print_vec(dst,
                       "mldsa-ecdsa/eddsa encodced pubkey",
                       dilithium.pub().get_encoded(),
@@ -981,7 +981,7 @@ stream_dump_key_material(rnp_dump_ctx_t &        ctx,
     case PGP_PKA_SPHINCSPLUS_SHA2:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE: {
-        auto &sphincs = dynamic_cast<const pgp::SphincsPlusKeyMaterial &>(*material);
+        auto &sphincs = dynamic_cast<const pgp::SlhdsaKeyMaterial &>(*material);
         dst_print_vec(dst, "slhdsa encoded pubkey", sphincs.pub().get_encoded(), ctx.dump_mpi);
         return;
     }
