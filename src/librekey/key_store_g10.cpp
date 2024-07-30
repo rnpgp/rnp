@@ -347,9 +347,9 @@ gnupg_sexp_t::add_mpi(const std::string &name, const pgp::mpi &mpi)
 }
 
 void
-gnupg_sexp_t::add_curve(const std::string &name, const pgp_ec_key_t &key)
+gnupg_sexp_t::add_curve(const std::string &name, pgp_curve_t kcurve)
 {
-    const char *curve = id_str_pair::lookup(g10_curve_names, key.curve, NULL);
+    const char *curve = id_str_pair::lookup(g10_curve_names, kcurve, NULL);
     if (!curve) {
         RNP_LOG("unknown curve");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -359,13 +359,13 @@ gnupg_sexp_t::add_curve(const std::string &name, const pgp_ec_key_t &key)
     psub_s_exp->add(name);
     psub_s_exp->add(curve);
 
-    if ((key.curve != PGP_CURVE_ED25519) && (key.curve != PGP_CURVE_25519)) {
+    if ((kcurve != PGP_CURVE_ED25519) && (kcurve != PGP_CURVE_25519)) {
         return;
     }
 
     psub_s_exp = add_sub();
     psub_s_exp->add("flags");
-    psub_s_exp->add((key.curve == PGP_CURVE_ED25519) ? "eddsa" : "djb-tweak");
+    psub_s_exp->add((kcurve == PGP_CURVE_ED25519) ? "eddsa" : "djb-tweak");
 }
 
 static bool
@@ -373,47 +373,50 @@ parse_pubkey(pgp_key_pkt_t &pubkey, const sexp_list_t *s_exp, pgp_pubkey_alg_t a
 {
     pubkey.version = PGP_V4;
     pubkey.alg = alg;
-    pubkey.material.alg = alg;
     switch (alg) {
-    case PGP_PKA_DSA:
-        if (!read_mpi(s_exp, "p", pubkey.material.dsa.p) ||
-            !read_mpi(s_exp, "q", pubkey.material.dsa.q) ||
-            !read_mpi(s_exp, "g", pubkey.material.dsa.g) ||
-            !read_mpi(s_exp, "y", pubkey.material.dsa.y)) {
+    case PGP_PKA_DSA: {
+        pgp_dsa_key_t dsa{};
+        if (!read_mpi(s_exp, "p", dsa.p) || !read_mpi(s_exp, "q", dsa.q) ||
+            !read_mpi(s_exp, "g", dsa.g) || !read_mpi(s_exp, "y", dsa.y)) {
             return false;
         }
+        pubkey.material = pgp::KeyMaterial::create(dsa);
         break;
-
+    }
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        if (!read_mpi(s_exp, "n", pubkey.material.rsa.n) ||
-            !read_mpi(s_exp, "e", pubkey.material.rsa.e)) {
+    case PGP_PKA_RSA_SIGN_ONLY: {
+        pgp_rsa_key_t rsa{};
+        if (!read_mpi(s_exp, "n", rsa.n) || !read_mpi(s_exp, "e", rsa.e)) {
             return false;
         }
+        pubkey.material = pgp::KeyMaterial::create(alg, rsa);
         break;
-
+    }
     case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!read_mpi(s_exp, "p", pubkey.material.eg.p) ||
-            !read_mpi(s_exp, "g", pubkey.material.eg.g) ||
-            !read_mpi(s_exp, "y", pubkey.material.eg.y)) {
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
+        pgp_eg_key_t eg{};
+        if (!read_mpi(s_exp, "p", eg.p) || !read_mpi(s_exp, "g", eg.g) ||
+            !read_mpi(s_exp, "y", eg.y)) {
             return false;
         }
+        pubkey.material = pgp::KeyMaterial::create(alg, eg);
         break;
+    }
     case PGP_PKA_ECDSA:
     case PGP_PKA_ECDH:
-    case PGP_PKA_EDDSA:
-        if (!read_curve(s_exp, "curve", pubkey.material.ec) ||
-            !read_mpi(s_exp, "q", pubkey.material.ec.p)) {
+    case PGP_PKA_EDDSA: {
+        pgp_ec_key_t ec{};
+        if (!read_curve(s_exp, "curve", ec) || !read_mpi(s_exp, "q", ec.p)) {
             return false;
         }
-        if (pubkey.material.ec.curve == PGP_CURVE_ED25519) {
+        if (ec.curve == PGP_CURVE_ED25519) {
             /* need to adjust it here since 'ecc' key type defaults to ECDSA */
             pubkey.alg = PGP_PKA_EDDSA;
-            pubkey.material.alg = PGP_PKA_EDDSA;
         }
+        pubkey.material = pgp::KeyMaterial::create(pubkey.alg, ec);
         break;
+    }
     default:
         RNP_LOG("Unsupported public key algorithm: %d", (int) alg);
         return false;
@@ -423,44 +426,62 @@ parse_pubkey(pgp_key_pkt_t &pubkey, const sexp_list_t *s_exp, pgp_pubkey_alg_t a
 }
 
 static bool
-parse_seckey(pgp_key_pkt_t &seckey, const sexp_list_t *s_exp, pgp_pubkey_alg_t alg)
+parse_seckey(pgp_key_pkt_t &seckey, const sexp_list_t *s_exp)
 {
-    switch (alg) {
-    case PGP_PKA_DSA:
-        if (!read_mpi(s_exp, "x", seckey.material.dsa.x)) {
+    switch (seckey.alg) {
+    case PGP_PKA_DSA: {
+        pgp::mpi x;
+        auto     key = dynamic_cast<pgp::DSAKeyMaterial *>(seckey.material.get());
+        if (!key || !read_mpi(s_exp, "x", x)) {
             return false;
         }
-        break;
+        key->set_secret(x);
+        x.forget();
+        return true;
+    }
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        if (!read_mpi(s_exp, "d", seckey.material.rsa.d) ||
-            !read_mpi(s_exp, "p", seckey.material.rsa.p) ||
-            !read_mpi(s_exp, "q", seckey.material.rsa.q) ||
-            !read_mpi(s_exp, "u", seckey.material.rsa.u)) {
+    case PGP_PKA_RSA_SIGN_ONLY: {
+        pgp::mpi d, p, q, u;
+        auto     key = dynamic_cast<pgp::RSAKeyMaterial *>(seckey.material.get());
+        if (!key || !read_mpi(s_exp, "d", d) || !read_mpi(s_exp, "p", p) ||
+            !read_mpi(s_exp, "q", q) || !read_mpi(s_exp, "u", u)) {
             return false;
         }
-        break;
+        key->set_secret(d, p, q, u);
+        d.forget();
+        p.forget();
+        q.forget();
+        u.forget();
+        return true;
+    }
     case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!read_mpi(s_exp, "x", seckey.material.eg.x)) {
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
+        pgp::mpi x;
+        auto     key = dynamic_cast<pgp::EGKeyMaterial *>(seckey.material.get());
+        if (!key || !read_mpi(s_exp, "x", x)) {
             return false;
         }
-        break;
+        key->set_secret(x);
+        x.forget();
+        return true;
+    }
     case PGP_PKA_ECDSA:
     case PGP_PKA_ECDH:
-    case PGP_PKA_EDDSA:
-        if (!read_mpi(s_exp, "d", seckey.material.ec.x)) {
+    case PGP_PKA_EDDSA: {
+        pgp::mpi x;
+        auto     key = dynamic_cast<pgp::ECKeyMaterial *>(seckey.material.get());
+        if (!key || !read_mpi(s_exp, "d", x)) {
             return false;
         }
-        break;
+        key->set_secret(x);
+        x.forget();
+        return true;
+    }
     default:
-        RNP_LOG("Unsupported public key algorithm: %d", (int) alg);
+        RNP_LOG("Unsupported public key algorithm: %d", (int) seckey.alg);
         return false;
     }
-
-    seckey.material.secret = true;
-    return true;
 }
 
 static bool
@@ -654,7 +675,7 @@ parse_protected_seckey(pgp_key_pkt_t &seckey, const sexp_list_t *list, const cha
 
     // we're all done if no password was provided (decryption not requested)
     if (!password) {
-        seckey.material.secret = false;
+        seckey.material->clear_secret();
         return true;
     }
 
@@ -705,7 +726,7 @@ parse_protected_seckey(pgp_key_pkt_t &seckey, const sexp_list_t *list, const cha
                protected_at_data->get_string().size());
     }
     // parse MPIs
-    if (!parse_seckey(seckey, decrypted_s_exp.sexp_list_at(0), seckey.alg)) {
+    if (!parse_seckey(seckey, decrypted_s_exp.sexp_list_at(0))) {
         RNP_LOG("failed to parse seckey");
         return false;
     }
@@ -744,15 +765,15 @@ parse_protected_seckey(pgp_key_pkt_t &seckey, const sexp_list_t *list, const cha
             return false;
         }
     }
-    seckey.material.secret = true;
     return true;
 }
 
 static bool
-g23_parse_seckey(pgp_key_pkt_t &seckey,
-                 const uint8_t *data,
-                 size_t         data_len,
-                 const char *   password)
+g23_parse_seckey(pgp_key_pkt_t &  seckey,
+                 const uint8_t *  data,
+                 size_t           data_len,
+                 const char *     password,
+                 pgp_pubkey_alg_t pubalg = PGP_PKA_NOTHING)
 {
     gnupg_extended_private_key_t g23_extended_key;
 
@@ -805,19 +826,22 @@ g23_parse_seckey(pgp_key_pkt_t &seckey,
         return false;
     }
 
-    auto &           alg_bt = alg_s_exp->sexp_string_at(0)->get_string();
-    pgp_pubkey_alg_t alg = static_cast<pgp_pubkey_alg_t>(
-      id_str_pair::lookup(g10_alg_aliases, (const char *) alg_bt.data(), PGP_PKA_NOTHING));
-    if (alg == PGP_PKA_NOTHING) {
-        RNP_LOG(
-          "Unsupported algorithm: '%.*s'", (int) alg_bt.size(), (const char *) alg_bt.data());
-        return false;
-    }
-
     bool ret = false;
-    if (!parse_pubkey(seckey, alg_s_exp, alg)) {
-        RNP_LOG("failed to parse pubkey");
-        goto done;
+    auto alg = pubalg;
+    if (alg == PGP_PKA_NOTHING) {
+        auto &alg_bt = alg_s_exp->sexp_string_at(0)->get_string();
+        auto  alg_st = (const char *) alg_bt.data();
+        alg = static_cast<pgp_pubkey_alg_t>(
+          id_str_pair::lookup(g10_alg_aliases, alg_st, PGP_PKA_NOTHING));
+        if (alg == PGP_PKA_NOTHING) {
+            RNP_LOG("Unsupported algorithm: '%.*s'", (int) alg_bt.size(), alg_st);
+            return false;
+        }
+        /* Parse pubkey only if it was not parsed before */
+        if (!parse_pubkey(seckey, alg_s_exp, alg)) {
+            RNP_LOG("failed to parse pubkey");
+            goto done;
+        }
     }
 
     if (is_protected) {
@@ -828,7 +852,7 @@ g23_parse_seckey(pgp_key_pkt_t &seckey,
         seckey.sec_protection.s2k.usage = PGP_S2KU_NONE;
         seckey.sec_protection.symm_alg = PGP_SA_PLAINTEXT;
         seckey.sec_protection.s2k.hash_alg = PGP_HASH_UNKNOWN;
-        if (!parse_seckey(seckey, alg_s_exp, alg)) {
+        if (!parse_seckey(seckey, alg_s_exp)) {
             RNP_LOG("failed to parse seckey");
             goto done;
         }
@@ -850,13 +874,9 @@ g10_decrypt_seckey(const pgp_rawpacket_t &raw,
         return NULL;
     }
     auto seckey = std::unique_ptr<pgp_key_pkt_t>(new pgp_key_pkt_t(pubkey, false));
-    if (!g23_parse_seckey(*seckey, raw.raw.data(), raw.raw.size(), password)) {
-        return NULL;
+    if (!g23_parse_seckey(*seckey, raw.raw.data(), raw.raw.size(), password, pubkey.alg)) {
+        return nullptr;
     }
-    /* g10 has the same 'ecc' algo for ECDSA/ECDH/EDDSA. Probably should be better place to fix
-     * this. */
-    seckey->alg = pubkey.alg;
-    seckey->material.alg = pubkey.material.alg;
     return seckey.release();
 }
 
@@ -865,31 +885,43 @@ copy_secret_fields(pgp_key_pkt_t &dst, const pgp_key_pkt_t &src)
 {
     switch (src.alg) {
     case PGP_PKA_DSA:
-        dst.material.dsa.x = src.material.dsa.x;
+        if (src.material->secret()) {
+            auto &dsasrc = dynamic_cast<pgp::DSAKeyMaterial &>(*src.material);
+            auto &dsadst = dynamic_cast<pgp::DSAKeyMaterial &>(*dst.material);
+            dsadst.set_secret(dsasrc.x());
+        }
         break;
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        dst.material.rsa.d = src.material.rsa.d;
-        dst.material.rsa.p = src.material.rsa.p;
-        dst.material.rsa.q = src.material.rsa.q;
-        dst.material.rsa.u = src.material.rsa.u;
+        if (src.material->secret()) {
+            auto &rsasrc = dynamic_cast<pgp::RSAKeyMaterial &>(*src.material);
+            auto &rsadst = dynamic_cast<pgp::RSAKeyMaterial &>(*dst.material);
+            rsadst.set_secret(rsasrc.d(), rsasrc.p(), rsasrc.q(), rsasrc.u());
+        }
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        dst.material.eg.x = src.material.eg.x;
+        if (src.material->secret()) {
+            auto &egsrc = dynamic_cast<pgp::EGKeyMaterial &>(*src.material);
+            auto &egdst = dynamic_cast<pgp::EGKeyMaterial &>(*dst.material);
+            egdst.set_secret(egsrc.x());
+        }
         break;
     case PGP_PKA_ECDSA:
     case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA:
-        dst.material.ec.x = src.material.ec.x;
+        if (src.material->secret()) {
+            auto &ecsrc = dynamic_cast<pgp::ECKeyMaterial &>(*src.material);
+            auto &ecdst = dynamic_cast<pgp::ECKeyMaterial &>(*dst.material);
+            ecdst.set_secret(ecsrc.x());
+        }
         break;
     default:
         RNP_LOG("Unsupported public key algorithm: %d", (int) src.alg);
         return false;
     }
 
-    dst.material.secret = src.material.secret;
     dst.sec_protection = src.sec_protection;
     dst.tag = is_subkey_pkt(dst.tag) ? PGP_PKT_SECRET_SUBKEY : PGP_PKT_SECRET_KEY;
     return true;
@@ -910,11 +942,8 @@ KeyStore::load_g10(pgp_source_t &src, const KeyProvider *key_provider)
         /* copy public key fields if any */
         pgp_key_t key;
         if (key_provider) {
-            pgp_key_grip_t grip{};
-            if (!seckey.material.get_grip(grip)) {
-                return false;
-            }
-            auto pubkey =
+            pgp_key_grip_t grip = seckey.material->grip();
+            auto           pubkey =
               key_provider->request_key(*rnp::KeySearch::create(grip), PGP_OP_MERGE_INFO);
             if (!pubkey) {
                 return false;
@@ -973,33 +1002,41 @@ void
 gnupg_sexp_t::add_pubkey(const pgp_key_pkt_t &key)
 {
     switch (key.alg) {
-    case PGP_PKA_DSA:
+    case PGP_PKA_DSA: {
+        auto &dsa = dynamic_cast<const pgp::DSAKeyMaterial &>(*key.material);
         add("dsa");
-        add_mpi("p", key.material.dsa.p);
-        add_mpi("q", key.material.dsa.q);
-        add_mpi("g", key.material.dsa.g);
-        add_mpi("y", key.material.dsa.y);
+        add_mpi("p", dsa.p());
+        add_mpi("q", dsa.q());
+        add_mpi("g", dsa.g());
+        add_mpi("y", dsa.y());
         break;
+    }
     case PGP_PKA_RSA_SIGN_ONLY:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA:
+    case PGP_PKA_RSA: {
+        auto &rsa = dynamic_cast<const pgp::RSAKeyMaterial &>(*key.material);
         add("rsa");
-        add_mpi("n", key.material.rsa.n);
-        add_mpi("e", key.material.rsa.e);
+        add_mpi("n", rsa.n());
+        add_mpi("e", rsa.e());
         break;
-    case PGP_PKA_ELGAMAL:
+    }
+    case PGP_PKA_ELGAMAL: {
+        auto &eg = dynamic_cast<const pgp::EGKeyMaterial &>(*key.material);
         add("elg");
-        add_mpi("p", key.material.eg.p);
-        add_mpi("g", key.material.eg.g);
-        add_mpi("y", key.material.eg.y);
+        add_mpi("p", eg.p());
+        add_mpi("g", eg.g());
+        add_mpi("y", eg.y());
         break;
+    }
     case PGP_PKA_ECDSA:
     case PGP_PKA_ECDH:
-    case PGP_PKA_EDDSA:
+    case PGP_PKA_EDDSA: {
+        auto &ec = dynamic_cast<const pgp::ECKeyMaterial &>(*key.material);
         add("ecc");
-        add_curve("curve", key.material.ec);
-        add_mpi("q", key.material.ec.p);
+        add_curve("curve", ec.curve());
+        add_mpi("q", ec.p());
         break;
+    }
     default:
         RNP_LOG("Unsupported public key algorithm: %d", (int) key.alg);
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -1010,24 +1047,31 @@ void
 gnupg_sexp_t::add_seckey(const pgp_key_pkt_t &key)
 {
     switch (key.alg) {
-    case PGP_PKA_DSA:
-        add_mpi("x", key.material.dsa.x);
+    case PGP_PKA_DSA: {
+        auto &dsa = dynamic_cast<const pgp::DSAKeyMaterial &>(*key.material);
+        add_mpi("x", dsa.x());
         break;
+    }
     case PGP_PKA_RSA_SIGN_ONLY:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA:
-        add_mpi("d", key.material.rsa.d);
-        add_mpi("p", key.material.rsa.p);
-        add_mpi("q", key.material.rsa.q);
-        add_mpi("u", key.material.rsa.u);
+    case PGP_PKA_RSA: {
+        auto &rsa = dynamic_cast<const pgp::RSAKeyMaterial &>(*key.material);
+        add_mpi("d", rsa.d());
+        add_mpi("p", rsa.p());
+        add_mpi("q", rsa.q());
+        add_mpi("u", rsa.u());
         break;
-    case PGP_PKA_ELGAMAL:
-        add_mpi("x", key.material.eg.x);
+    }
+    case PGP_PKA_ELGAMAL: {
+        auto &eg = dynamic_cast<const pgp::EGKeyMaterial &>(*key.material);
+        add_mpi("x", eg.x());
         break;
+    }
     case PGP_PKA_ECDSA:
     case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA: {
-        add_mpi("d", key.material.ec.x);
+        auto &ec = dynamic_cast<const pgp::ECKeyMaterial &>(*key.material);
+        add_mpi("d", ec.x());
         break;
     }
     default:

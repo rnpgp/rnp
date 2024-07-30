@@ -58,9 +58,9 @@ if(ENABLE_PQC)
 endif()
 
 # check that AEAD is enabled and not turned off for ENABLE_CRYPTO_REFRESH
-  if(ENABLE_CRYPTO_REFRESH AND (NOT ENABLE_AEAD))
-    message(FATAL_ERROR "ENABLE_CRYPTO_REFRESH requires ENABLE_AEAD, but it's either Off or Auto and got turned off")
-  endif()
+if(ENABLE_CRYPTO_REFRESH AND (NOT ENABLE_AEAD))
+  message(FATAL_ERROR "ENABLE_CRYPTO_REFRESH requires ENABLE_AEAD, but it's either Off or Auto and got turned off")
+endif()
 
 # generate a config.h
 include(CheckIncludeFileCXX)
@@ -370,6 +370,7 @@ add_library(librnp-obj OBJECT
   json-utils.cpp
   utils.cpp
   pass-provider.cpp
+  key_material.cpp
   pgp-key.cpp
   rnp.cpp
 )

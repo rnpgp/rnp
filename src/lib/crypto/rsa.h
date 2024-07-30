@@ -44,6 +44,20 @@ typedef struct pgp_rsa_key_t {
     pgp::mpi p;
     pgp::mpi q;
     pgp::mpi u;
+
+    void
+    clear_secret()
+    {
+        d.forget();
+        p.forget();
+        q.forget();
+        u.forget();
+    }
+
+    ~pgp_rsa_key_t()
+    {
+        clear_secret();
+    }
 } pgp_rsa_key_t;
 
 typedef struct pgp_rsa_signature_t {

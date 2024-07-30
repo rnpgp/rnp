@@ -339,7 +339,7 @@ rnp_result_t
 pgp_kyber_ecdh_composite_private_key_t::decrypt(rnp::RNG *                        rng,
                                                 uint8_t *                         out,
                                                 size_t *                          out_len,
-                                                const pgp_kyber_ecdh_encrypted_t *enc)
+                                                const pgp_kyber_ecdh_encrypted_t *enc) const
 {
     initialized_or_throw();
     rnp_result_t         res;
@@ -495,7 +495,7 @@ rnp_result_t
 pgp_kyber_ecdh_composite_public_key_t::encrypt(rnp::RNG *                  rng,
                                                pgp_kyber_ecdh_encrypted_t *out,
                                                const uint8_t *             session_key,
-                                               size_t                      session_key_len)
+                                               size_t session_key_len) const
 {
     initialized_or_throw();
 

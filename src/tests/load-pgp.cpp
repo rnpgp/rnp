@@ -705,7 +705,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_int_equal(keycp.rawpkt().tag, PGP_PKT_PUBLIC_KEY);
     assert_null(keycp.pkt().sec_data);
     assert_int_equal(keycp.pkt().sec_len, 0);
-    assert_false(keycp.pkt().material.secret);
+    assert_false(keycp.pkt().material->secret());
     pubstore->add_key(keycp);
     /* subkey 1 */
     keycp = pgp_key_t(*skey1, true);
@@ -717,7 +717,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_int_equal(keycp.rawpkt().tag, PGP_PKT_PUBLIC_SUBKEY);
     assert_null(keycp.pkt().sec_data);
     assert_int_equal(keycp.pkt().sec_len, 0);
-    assert_false(keycp.pkt().material.secret);
+    assert_false(keycp.pkt().material->secret());
     pubstore->add_key(keycp);
     /* subkey 2 */
     keycp = pgp_key_t(*skey2, true);
@@ -729,7 +729,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_int_equal(keycp.rawpkt().tag, PGP_PKT_PUBLIC_SUBKEY);
     assert_null(keycp.pkt().sec_data);
     assert_int_equal(keycp.pkt().sec_len, 0);
-    assert_false(keycp.pkt().material.secret);
+    assert_false(keycp.pkt().material->secret());
     pubstore->add_key(keycp);
     /* save pubring */
     assert_true(pubstore->write());

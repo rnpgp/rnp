@@ -549,7 +549,7 @@ ffi_key_callback(rnp_ffi_t   ffi,
 }
 
 #ifdef _WIN32
-void
+static void
 rnpffiInvalidParameterHandler(const wchar_t *expression,
                               const wchar_t *function,
                               const wchar_t *file,
