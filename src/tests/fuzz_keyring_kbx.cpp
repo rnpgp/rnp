@@ -49,4 +49,8 @@ TEST_F(rnp_tests, test_fuzz_keyring_kbx)
     /* Leak found during CI run */
     data = file_to_vec(DATA_PATH "leak-b02cd1c6b70c10a8a673a34ba3770b39468b7ddf");
     assert_int_equal(keyring_kbx_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
+
+    /* Issue 68648 in oss-fuzz: rnp:fuzz_keyring_kbx: Timeout in fuzz_keyring_kbx */
+    data = file_to_vec(DATA_PATH "timeout-5101021410951168");
+    assert_int_equal(keyring_kbx_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
 }
