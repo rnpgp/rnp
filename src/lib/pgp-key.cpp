@@ -66,7 +66,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <assert.h>
+#include <cassert>
 #include <time.h>
 #include <algorithm>
 #include <stdexcept>
@@ -1037,6 +1037,17 @@ pgp_key_t::get_uid(size_t idx) const
         throw std::out_of_range("idx");
     }
     return uids_[idx];
+}
+
+size_t
+pgp_key_t::get_uid_idx(const pgp_userid_pkt_t &uid) const
+{
+    for (size_t idx = 0; idx < uids_.size(); idx++) {
+        if (uids_[idx].pkt == uid) {
+            return idx;
+        }
+    }
+    return PGP_UID_NONE;
 }
 
 bool
@@ -2788,117 +2799,85 @@ pgp_key_t::merge_validity(const pgp_validity_t &src)
 bool
 pgp_key_t::merge(const pgp_key_t &src)
 {
-    if (is_subkey() || src.is_subkey()) {
-        RNP_LOG("wrong key merge call");
-        return false;
-    }
-
-    pgp_transferable_key_t dstkey;
-    if (transferable_key_from_key(dstkey, *this)) {
-        RNP_LOG("failed to get transferable key from dstkey");
-        return false;
-    }
-
-    pgp_transferable_key_t srckey;
-    if (transferable_key_from_key(srckey, src)) {
-        RNP_LOG("failed to get transferable key from srckey");
-        return false;
-    }
+    assert(!is_subkey());
+    assert(!src.is_subkey());
 
     /* if src is secret key then merged key will become secret as well. */
-    if (is_secret_key_pkt(srckey.key.tag) && !is_secret_key_pkt(dstkey.key.tag)) {
-        pgp_key_pkt_t tmp = dstkey.key;
-        dstkey.key = srckey.key;
-        srckey.key = std::move(tmp);
+    if (src.is_secret() && !is_secret()) {
+        pkt_ = src.pkt();
+        rawpkt_ = src.rawpkt();
         /* no subkey processing here - they are separated from the main key */
     }
 
-    if (transferable_key_merge(dstkey, srckey)) {
-        RNP_LOG("failed to merge transferable keys");
-        return false;
+    /* merge direct-key signatures */
+    for (auto &sigid : src.keysigs_) {
+        if (has_sig(sigid)) {
+            continue;
+        }
+        add_sig(src.get_sig(sigid).sig);
     }
 
-    pgp_key_t tmpkey;
-    try {
-        tmpkey = std::move(dstkey);
-        for (auto &fp : subkey_fps()) {
-            tmpkey.add_subkey_fp(fp);
+    /* merge user ids and their signatures */
+    for (auto &srcuid : src.uids_) {
+        /* check whether we have this uid and add if needed */
+        size_t uididx = get_uid_idx(srcuid.pkt);
+        if (uididx == PGP_UID_NONE) {
+            uididx = uid_count();
+            uids_.emplace_back(srcuid.pkt);
         }
-        for (auto &fp : src.subkey_fps()) {
-            tmpkey.add_subkey_fp(fp);
+        /* add uid signatures */
+        for (size_t idx = 0; idx < srcuid.sig_count(); idx++) {
+            auto sigid = srcuid.get_sig(idx);
+            if (has_sig(sigid)) {
+                continue;
+            }
+            add_sig(src.get_sig(sigid).sig, uididx);
         }
-    } catch (const std::exception &e) {
-        RNP_LOG("failed to process key/add subkey fps: %s", e.what());
-        return false;
     }
+
+    /* Update subkey fingerprints */
+    for (auto &fp : src.subkey_fps()) {
+        add_subkey_fp(fp);
+    }
+
     /* check whether key was unlocked and assign secret key data */
-    if (is_secret() && !is_locked()) {
-        /* we may do thing below only because key material is opaque structure without
-         * pointers! */
-        tmpkey.pkt().material = pkt().material->clone();
-    } else if (src.is_secret() && !src.is_locked()) {
-        tmpkey.pkt().material = src.pkt().material->clone();
+    if (src.is_secret() && !src.is_locked() && (!is_secret() || is_locked())) {
+        pkt().material = src.pkt().material->clone();
     }
     /* copy validity status */
-    tmpkey.validity_ = validity_;
-    tmpkey.merge_validity(src.validity_);
-
-    *this = std::move(tmpkey);
+    merge_validity(src.validity_);
     return true;
 }
 
 bool
 pgp_key_t::merge(const pgp_key_t &src, pgp_key_t *primary)
 {
-    if (!is_subkey() || !src.is_subkey()) {
-        RNP_LOG("wrong subkey merge call");
-        return false;
-    }
-
-    pgp_transferable_subkey_t dstkey;
-    if (transferable_subkey_from_key(dstkey, *this)) {
-        RNP_LOG("failed to get transferable key from dstkey");
-        return false;
-    }
-
-    pgp_transferable_subkey_t srckey;
-    if (transferable_subkey_from_key(srckey, src)) {
-        RNP_LOG("failed to get transferable key from srckey");
-        return false;
-    }
+    assert(is_subkey());
+    assert(src.is_subkey());
 
     /* if src is secret key then merged key will become secret as well. */
-    if (is_secret_key_pkt(srckey.subkey.tag) && !is_secret_key_pkt(dstkey.subkey.tag)) {
-        pgp_key_pkt_t tmp = dstkey.subkey;
-        dstkey.subkey = srckey.subkey;
-        srckey.subkey = std::move(tmp);
+    if (src.is_secret() && !is_secret()) {
+        pkt_ = src.pkt();
+        rawpkt_ = src.rawpkt();
     }
 
-    if (transferable_subkey_merge(dstkey, srckey)) {
-        RNP_LOG("failed to merge transferable subkeys");
-        return false;
-    }
-
-    pgp_key_t tmpkey;
-    try {
-        tmpkey = pgp_key_t(dstkey, primary);
-    } catch (const std::exception &e) {
-        RNP_LOG("failed to process subkey: %s", e.what());
-        return false;
+    /* add subkey binding signatures */
+    for (auto &sigid : src.keysigs_) {
+        if (has_sig(sigid)) {
+            continue;
+        }
+        add_sig(src.get_sig(sigid).sig);
     }
 
     /* check whether key was unlocked and assign secret key data */
-    if (is_secret() && !is_locked()) {
-        /* we may do thing below only because key material is opaque structure without
-         * pointers! */
-        tmpkey.pkt().material = pkt().material->clone();
-    } else if (src.is_secret() && !src.is_locked()) {
-        tmpkey.pkt().material = src.pkt().material->clone();
+    if (src.is_secret() && !src.is_locked() && (!is_secret() || is_locked())) {
+        pkt().material = src.pkt().material->clone();
     }
     /* copy validity status */
-    tmpkey.validity_ = validity_;
-    tmpkey.merge_validity(src.validity_);
-
-    *this = std::move(tmpkey);
+    merge_validity(src.validity_);
+    /* link subkey fps */
+    if (primary) {
+        primary->link_subkey_fp(*this);
+    }
     return true;
 }
