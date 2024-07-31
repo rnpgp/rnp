@@ -4897,7 +4897,9 @@ TEST_F(rnp_tests, test_ffi_designated_revokers)
     rnp_buffer_destroy(revoker);
     /* Check key validity */
     assert_true(check_key_valid(key, true));
-    assert_true(check_key_revoked(key, false));
+    /* key is revoked since designated revocation is already in the keyring and was checked
+     * with ecc-p384 key */
+    assert_true(check_key_revoked(key, true));
     rnp_key_handle_destroy(key);
     assert_true(load_keys_gpg(ffi, path_for("ecc-p384-pub.asc")));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
