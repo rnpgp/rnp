@@ -174,7 +174,10 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t &crypto,
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_X448)
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -269,7 +272,10 @@ key_material_equal(const pgp_key_material_t *key1, const pgp_key_material_t *key
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_X448)
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -355,7 +361,10 @@ validate_pgp_key_material(const pgp_key_material_t *material, rnp::RNG *rng)
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_X448)
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:

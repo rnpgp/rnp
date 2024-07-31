@@ -63,7 +63,9 @@ static const id_str_pair pubkey_alg_map[] = {
 #endif
 #if defined(ENABLE_PQC)
   {PGP_PKA_KYBER768_X25519, "ML-KEM-768_X25519"},
-  //{PGP_PKA_KYBER1024_X448, "Kyber-X448"},
+#if defined(ENABLE_X448)
+  {PGP_PKA_KYBER1024_X448, "ML-KEM-1024_X448"},
+#endif
   {PGP_PKA_KYBER768_P256, "ML-KEM-768_P256"},
   {PGP_PKA_KYBER1024_P384, "ML-KEM-1024_P384"},
   {PGP_PKA_KYBER768_BP256, "ML-KEM-768_BP256"},
@@ -403,7 +405,10 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_X448)
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:

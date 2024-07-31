@@ -735,7 +735,10 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_X448)
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:

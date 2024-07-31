@@ -263,11 +263,14 @@ ec_generate_native(rnp::RNG *            rng,
             return generate_x25519_native(rng, privkey, pubkey);
         case PGP_CURVE_ED25519:
             return generate_ed25519_native(rng, privkey, pubkey);
+#if defined(ENABLE_X448)
+        case PGP_CURVE_448:
+            return generate_x448_native(rng, privkey, pubkey);
+#endif
 #if defined(ENABLE_ED448)
         case PGP_CURVE_ED448:
             return generate_ed448_native(rng, privkey, pubkey);
 #endif
-        //case PGP_CURVE_X448:
         default:
             break;
     }

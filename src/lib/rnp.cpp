@@ -343,7 +343,7 @@ pub_alg_supported(int alg)
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
-#if defined(ENABLE_ED448)
+#if defined(ENABLE_X448)
     case PGP_PKA_KYBER1024_X448:
 #endif
     case PGP_PKA_KYBER768_P256:
@@ -5143,7 +5143,10 @@ default_key_flags(pgp_pubkey_alg_t alg, bool subkey)
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_X448)
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -7632,7 +7635,10 @@ add_json_public_mpis(json_object *jso, pgp_key_t *key)
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_X448)
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -7696,7 +7702,10 @@ add_json_secret_mpis(json_object *jso, pgp_key_t *key)
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_X448)
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -7987,7 +7996,10 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_X448)
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:

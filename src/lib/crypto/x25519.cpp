@@ -183,3 +183,18 @@ generate_x25519_native(rnp::RNG *            rng,
 
     return RNP_SUCCESS;
 }
+
+#if defined(ENABLE_X448)
+rnp_result_t
+generate_x448_native(rnp::RNG             *rng,
+                     std::vector<uint8_t> &privkey,
+                     std::vector<uint8_t> &pubkey)
+{
+    Botan::X448_PrivateKey priv_key(*(rng->obj()));
+    pubkey = priv_key.public_value();
+    privkey = Botan::unlock(priv_key.raw_private_key_bits());
+
+    return RNP_SUCCESS;
+}
+
+#endif

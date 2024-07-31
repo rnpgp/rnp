@@ -175,7 +175,10 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_X448)
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -3066,7 +3069,10 @@ pgp_key_material_t::bits() const
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_X448)
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
+#endif
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -3264,7 +3270,10 @@ pgp_key_material_t::get_grip(pgp_key_grip_t &grip) const
 #if defined(ENABLE_PQC)
         case PGP_PKA_KYBER768_X25519:
             FALLTHROUGH_STATEMENT;
-        // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_X448)
+        case PGP_PKA_KYBER1024_X448:
+            FALLTHROUGH_STATEMENT;
+#endif
         case PGP_PKA_KYBER768_P256:
             FALLTHROUGH_STATEMENT;
         case PGP_PKA_KYBER1024_P384:

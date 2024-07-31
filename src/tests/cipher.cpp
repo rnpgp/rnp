@@ -604,7 +604,9 @@ TEST_F(rnp_tests, test_dsa_verify_negative)
 TEST_F(rnp_tests, kyber_ecdh_roundtrip)
 {
     pgp_pubkey_alg_t algs[] = {PGP_PKA_KYBER768_X25519,
-                               /* PGP_PKA_KYBER1024_X448,  */ // X448 not yet implemented
+#if defined(ENABLE_X448)
+                               PGP_PKA_KYBER1024_X448,
+#endif
                                PGP_PKA_KYBER1024_P384,
                                PGP_PKA_KYBER768_BP256,
                                PGP_PKA_KYBER1024_BP384};
