@@ -921,6 +921,7 @@ pgp_key_pkt_t::~pgp_key_pkt_t()
     free(sec_data);
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
 uint8_t
 pgp_key_pkt_t::s2k_specifier_len(pgp_s2k_specifier_t specifier)
 {
@@ -936,6 +937,7 @@ pgp_key_pkt_t::s2k_specifier_len(pgp_s2k_specifier_t specifier)
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 }
+#endif
 
 void
 pgp_key_pkt_t::make_s2k_params(pgp_packet_body_t &hbody)
