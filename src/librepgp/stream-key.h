@@ -74,8 +74,11 @@ typedef struct pgp_key_pkt_t {
     void fill_hashed_data();
 
   private:
-    void    make_s2k_params(pgp_packet_body_t &hbody);
+    /* create the contents of the algorithm specific public key fields in a separate packet */
+    void make_s2k_params(pgp_packet_body_t &hbody);
+#if defined(ENABLE_CRYPTO_REFRESH)
     uint8_t s2k_specifier_len(pgp_s2k_specifier_t specifier);
+#endif
 } pgp_key_pkt_t;
 
 /* userid/userattr with all the corresponding signatures */
