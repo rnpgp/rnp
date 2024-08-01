@@ -72,7 +72,6 @@ typedef struct pgp_key_pkt_t {
     /** @brief Fills the hashed (signed) data part of the key packet. Must be called before
      *         pgp_key_pkt_t::write() on the newly generated key */
     void fill_hashed_data();
-    bool equals(const pgp_key_pkt_t &key, bool pubonly = false) const noexcept;
 
   private:
     void    make_s2k_params(pgp_packet_body_t &hbody);
@@ -111,17 +110,6 @@ typedef struct pgp_transferable_key_t {
 typedef struct pgp_key_sequence_t {
     std::vector<pgp_transferable_key_t> keys;
 } pgp_key_sequence_t;
-
-rnp_result_t transferable_key_from_key(pgp_transferable_key_t &dst, const pgp_key_t &key);
-
-rnp_result_t transferable_key_merge(pgp_transferable_key_t &      dst,
-                                    const pgp_transferable_key_t &src);
-
-rnp_result_t transferable_subkey_from_key(pgp_transferable_subkey_t &dst,
-                                          const pgp_key_t &          key);
-
-rnp_result_t transferable_subkey_merge(pgp_transferable_subkey_t &      dst,
-                                       const pgp_transferable_subkey_t &src);
 
 /* Process single primary key or subkey, skipping all key-related packets on error.
    If key.key.tag is zero, then (on success) result is subkey and it is stored in
