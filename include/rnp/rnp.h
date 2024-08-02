@@ -2633,7 +2633,8 @@ RNP_API rnp_result_t rnp_op_sign_destroy(rnp_op_sign_t op);
  *         signatures, cleartext signed data and encrypted (and possibly signed) data.
  *         For the detached signature verification the function rnp_op_verify_detached_create()
  *         should be used.
- *  @param op pointer to opaque verification context
+ *  @param op pointer to opaque verification context. When no longer needed must be destroyed
+ *            via the rnp_op_verify_destroy() call.
  *  @param ffi
  *  @param input stream with signed data. Could not be NULL.
  *  @param output stream to write results to. Could not be NULL, but may be null output stream
@@ -2646,7 +2647,8 @@ RNP_API rnp_result_t rnp_op_verify_create(rnp_op_verify_t *op,
                                           rnp_output_t     output);
 
 /** @brief Create verification operation context for detached signature.
- *  @param op pointer to opaque verification context
+ *  @param op pointer to opaque verification context. When no longer needed must be destroyed
+ *            via the rnp_op_verify_destroy() call.
  *  @param ffi
  *  @param input stream with raw data. Could not be NULL.
  *  @param signature stream with detached signature data
@@ -2700,7 +2702,9 @@ RNP_API rnp_result_t rnp_op_verify_get_signature_count(rnp_op_verify_t op, size_
 
 /** @brief Get single signature information based on its index.
  *  @param op opaque verification context. Must be initialized and have execute() called on it.
- *  @param sig opaque signature context data will be stored here on success.
+ *  @param sig opaque signature context data will be stored here on success. It is not needed
+ *             to deallocate this structure manually, it will be destroyed together with op in
+ *             rnp_op_verify_destroy() call.
  *  @return RNP_SUCCESS if call succeeded.
  */
 RNP_API rnp_result_t rnp_op_verify_get_signature_at(rnp_op_verify_t            op,
