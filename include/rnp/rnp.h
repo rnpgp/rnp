@@ -1543,11 +1543,36 @@ RNP_API rnp_result_t rnp_key_get_signature_at(rnp_key_handle_t        key,
  *
  * @param sig on success signature handle will be stored here. It is initialized with current
  *            creation time, default hash algorithm and version. Cannot be NULL.
- * @return RNP_SUCCESS or error code if failued.
+ * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_key_direct_signature_create(rnp_key_handle_t        signer,
                                                      rnp_key_handle_t        target,
                                                      rnp_signature_handle_t *sig);
+
+/**
+ * @brief Create new certification signature, issued by the signer. This could be
+ *        self-certification (if uid belongs to the signer key) or certification of the other
+ *        key. This signature could be customized by rnp_signature_set_* calls and finalized
+ *        via the rnp_signature_sign() call.
+ *
+ * @param signer signing key, must be secret, and must exist in the keyring up to the
+ *               rnp_signature_sign() call. Cannot be NULL.
+ * @param uid user id which should be certified, i.e. bound to the key with signature.
+ *            Cannot be NULL.
+ * @param type certification type. May be one of the RNP_CERTIFICATION_* values, or NULL
+ *             for the default one. Default would be POSITIVE for self-certification or GENERIC
+ *             for the certification of another key.
+ *             Note: it is common to use RNP_CERTIFICATION_POSITIVE for self-certifications,
+ *             and RNP_CERTIFICATION_GENERIC while certifying other keys. However it's up to
+ *             the caller to pick the type according to OpenPGP specification.
+ * @param sig on success signature handle will be stored here. It is initialized with current
+ *            creation time, default hash algorithm and version. Cannot be NULL.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_certification_create(rnp_key_handle_t        signer,
+                                                  rnp_uid_handle_t        uid,
+                                                  const char *            type,
+                                                  rnp_signature_handle_t *sig);
 
 /**
  * @brief Create new key or subkey revocation signature. It may be
@@ -3582,6 +3607,14 @@ RNP_API const char *rnp_backend_version();
 #define RNP_FEATURE_CURVE "elliptic curve"
 
 #endif
+
+/**
+ * Certification signature type strings.
+ */
+#define RNP_CERTIFICATION_GENERIC "generic"
+#define RNP_CERTIFICATION_PERSONA "persona"
+#define RNP_CERTIFICATION_CASUAL "casual"
+#define RNP_CERTIFICATION_POSITIVE "positive"
 
 /** Algorithm Strings
  */

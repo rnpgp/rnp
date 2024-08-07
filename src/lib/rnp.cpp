@@ -147,6 +147,12 @@ static const id_str_pair sig_type_map[] = {{PGP_SIG_BINARY, "binary"},
                                            {PGP_SIG_3RD_PARTY, "third-party"},
                                            {0, NULL}};
 
+static const id_str_pair cert_type_map[] = {{PGP_CERT_GENERIC, RNP_CERTIFICATION_GENERIC},
+                                            {PGP_CERT_PERSONA, RNP_CERTIFICATION_PERSONA},
+                                            {PGP_CERT_CASUAL, RNP_CERTIFICATION_CASUAL},
+                                            {PGP_CERT_POSITIVE, RNP_CERTIFICATION_POSITIVE},
+                                            {0, NULL}};
+
 static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_RSA, RNP_ALGNAME_RSA},
   {PGP_PKA_RSA_ENCRYPT_ONLY, RNP_ALGNAME_RSA},
@@ -5884,8 +5890,9 @@ FFI_GUARD
 rnp_result_t
 rnp_key_get_uid_at(rnp_key_handle_t handle, size_t idx, char **uid)
 try {
-    if (handle == NULL || uid == NULL)
+    if (!handle || !uid) {
         return RNP_ERROR_NULL_POINTER;
+    }
 
     pgp_key_t *key = get_key_prefer_public(handle);
     return key_get_uid_at(key, idx, uid);
@@ -6049,6 +6056,64 @@ try {
 FFI_GUARD
 
 static rnp_result_t
+create_key_signature(rnp_ffi_t               ffi,
+                     pgp_key_t &             sigkey,
+                     pgp_key_t &             tgkey,
+                     uint32_t                uid,
+                     rnp_signature_handle_t &sig,
+                     pgp_sig_type_t          type)
+{
+    switch (type) {
+    case PGP_CERT_GENERIC:
+    case PGP_CERT_PERSONA:
+    case PGP_CERT_CASUAL:
+    case PGP_CERT_POSITIVE:
+        assert(uid != PGP_UID_NONE);
+        if (!sigkey.is_primary() || !tgkey.is_primary()) {
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        break;
+    case PGP_SIG_DIRECT:
+        assert(uid == PGP_UID_NONE);
+        if (!tgkey.is_primary()) {
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        break;
+    case PGP_SIG_REV_KEY:
+        assert(uid == PGP_UID_NONE);
+        if (!tgkey.is_primary()) {
+            type = PGP_SIG_REV_SUBKEY;
+        }
+        break;
+    default:
+        return RNP_ERROR_NOT_IMPLEMENTED;
+    }
+    sig = (rnp_signature_handle_t) calloc(1, sizeof(*sig));
+    if (!sig) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    try {
+        pgp_signature_t sigpkt;
+        sigkey.sign_init(
+          ffi->rng(), sigpkt, DEFAULT_PGP_HASH_ALG, ffi->context.time(), sigkey.version());
+        sigpkt.set_type(type);
+        sig->sig = new pgp_subsig_t(sigpkt);
+        sig->ffi = ffi;
+        sig->key = &tgkey;
+        sig->sig->uid = uid;
+        sig->own_sig = true;
+        sig->new_sig = true;
+    } catch (const std::exception &e) {
+        FFI_LOG(ffi, "%s", e.what());
+        free(sig);
+        sig = NULL;
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
 create_key_signature(rnp_key_handle_t        signer,
                      rnp_key_handle_t        target,
                      rnp_signature_handle_t *sig,
@@ -6065,45 +6130,7 @@ create_key_signature(rnp_key_handle_t        signer,
     if (!sigkey || !tgkey) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    switch (type) {
-    case PGP_SIG_DIRECT:
-        if (!tgkey->is_primary()) {
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
-        break;
-    case PGP_SIG_REV_KEY:
-        if (!tgkey->is_primary()) {
-            type = PGP_SIG_REV_SUBKEY;
-        }
-        break;
-    default:
-        return RNP_ERROR_NOT_IMPLEMENTED;
-    }
-    *sig = (rnp_signature_handle_t) calloc(1, sizeof(**sig));
-    if (!*sig) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    try {
-        pgp_signature_t sigpkt;
-        sigkey->sign_init(signer->ffi->rng(),
-                          sigpkt,
-                          DEFAULT_PGP_HASH_ALG,
-                          signer->ffi->context.time(),
-                          sigkey->version());
-        sigpkt.set_type(type);
-        (*sig)->sig = new pgp_subsig_t(sigpkt);
-        (*sig)->ffi = signer->ffi;
-        (*sig)->key = tgkey;
-        (*sig)->own_sig = true;
-        (*sig)->new_sig = true;
-    } catch (const std::exception &e) {
-        FFI_LOG(signer->ffi, "%s", e.what());
-        free(*sig);
-        *sig = NULL;
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
-    return RNP_SUCCESS;
+    return create_key_signature(signer->ffi, *sigkey, *tgkey, PGP_UID_NONE, *sig, type);
 }
 
 rnp_result_t
@@ -6112,6 +6139,33 @@ rnp_key_direct_signature_create(rnp_key_handle_t        signer,
                                 rnp_signature_handle_t *sig)
 try {
     return create_key_signature(signer, target, sig, PGP_SIG_DIRECT);
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_certification_create(rnp_key_handle_t        signer,
+                             rnp_uid_handle_t        uid,
+                             const char *            type,
+                             rnp_signature_handle_t *sig)
+try {
+    if (!signer || !uid || !sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *sigkey = get_key_require_secret(signer);
+    pgp_key_t *tgkey = uid->key;
+    if (!sigkey || !tgkey) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!type) {
+        type =
+          sigkey->fp() == tgkey->fp() ? RNP_CERTIFICATION_POSITIVE : RNP_CERTIFICATION_GENERIC;
+    }
+    auto sigtype = static_cast<pgp_sig_type_t>(id_str_pair::lookup(cert_type_map, type));
+    if (!sigtype) {
+        FFI_LOG(signer->ffi, "Invalid certification type: %s", type);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return create_key_signature(signer->ffi, *sigkey, *tgkey, uid->idx, *sig, sigtype);
 }
 FFI_GUARD
 
@@ -6205,23 +6259,42 @@ try {
         return RNP_ERROR_BAD_PASSWORD;
     }
     /* Sign */
+    const pgp_userid_pkt_t *uidptr = nullptr;
+    bool                    front = false;
     switch (sigpkt.type()) {
+    case PGP_CERT_GENERIC:
+    case PGP_CERT_PERSONA:
+    case PGP_CERT_CASUAL:
+    case PGP_CERT_POSITIVE: {
+        assert(sig->sig->uid != PGP_UID_NONE);
+        assert(sig->sig->uid < sig->key->uid_count());
+        if (sig->sig->uid >= sig->key->uid_count()) {
+            return RNP_ERROR_BAD_STATE;
+        }
+        auto &uidpkt = sig->key->get_uid(sig->sig->uid).pkt;
+        signer->sign_cert(sig->key->pkt(), uidpkt, sigpkt, sig->ffi->context);
+        uidptr = &uidpkt;
+        break;
+    }
     case PGP_SIG_DIRECT:
         signer->sign_direct(sig->key->pkt(), sigpkt, sig->ffi->context);
+        front = true;
         break;
     case PGP_SIG_REV_KEY:
         signer->sign_direct(sig->key->pkt(), sigpkt, sig->ffi->context);
+        front = true;
         break;
     case PGP_SIG_REV_SUBKEY:
         signer->sign_binding(sig->key->pkt(), sigpkt, sig->ffi->context);
+        front = true;
         break;
     default:
         FFI_LOG(sig->ffi, "Not yet supported signature type.");
         return RNP_ERROR_BAD_STATE;
     }
     /* Add to the keyring(s) */
-    pgp_subsig_t *secsig = sig->ffi->secring->add_key_sig(sig->key->fp(), sigpkt, true);
-    pgp_subsig_t *pubsig = sig->ffi->pubring->add_key_sig(sig->key->fp(), sigpkt, true);
+    auto secsig = sig->ffi->secring->add_key_sig(sig->key->fp(), sigpkt, uidptr, front);
+    auto pubsig = sig->ffi->pubring->add_key_sig(sig->key->fp(), sigpkt, uidptr, front);
     /* Should not happen but let's check */
     if (!secsig && !pubsig) {
         return RNP_ERROR_BAD_STATE;

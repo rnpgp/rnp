@@ -387,11 +387,14 @@ KeyStore::add_key(pgp_key_t &srckey)
 }
 
 pgp_subsig_t *
-KeyStore::add_key_sig(const pgp_fingerprint_t &keyfp, const pgp_signature_t &sig, bool front)
+KeyStore::add_key_sig(const pgp_fingerprint_t &keyfp,
+                      const pgp_signature_t &  sig,
+                      const pgp_userid_pkt_t * uid,
+                      bool                     front)
 {
     pgp_key_t *key = get_key(keyfp);
     if (!key) {
-        return NULL;
+        return nullptr;
     }
 
     bool       desig_rev = false;
@@ -407,7 +410,15 @@ KeyStore::add_key_sig(const pgp_fingerprint_t &keyfp, const pgp_signature_t &sig
         break;
     }
     /* Add to the keyring(s) */
-    pgp_subsig_t &newsig = key->add_sig(sig, PGP_UID_NONE, front);
+    uint32_t uididx = PGP_UID_NONE;
+    if (uid) {
+        uididx = key->uid_idx(*uid);
+        if (uididx == PGP_UID_NONE) {
+            RNP_LOG("Attempt to add signature on non-existing userid.");
+            return nullptr;
+        }
+    }
+    pgp_subsig_t &newsig = key->add_sig(sig, uididx, front);
     if (desig_rev) {
         key->validate_desig_revokes(*this);
     }
