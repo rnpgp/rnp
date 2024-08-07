@@ -201,6 +201,7 @@ struct pgp_key_t {
     size_t              get_uid_idx(const pgp_userid_pkt_t &uid) const;
     pgp_userid_t &      add_uid(const pgp_transferable_userid_t &uid);
     bool                has_uid(const std::string &uid) const;
+    uint32_t            uid_idx(const pgp_userid_pkt_t &uid) const;
     void                del_uid(size_t idx);
     bool                has_primary_uid() const;
     uint32_t            get_primary_uid() const;

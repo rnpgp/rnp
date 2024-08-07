@@ -179,16 +179,20 @@ class KeyStore {
 
     /**
      * @brief Add signature of the specific key to the keystore, revalidating and refresing
-     *        key's data. Currently supports only direct-key or subkey binding signature.
+     *        key's data.
      *
      * @param keyfp key's fingerprint.
      * @param sig signature packet.
+     * @param uid userid to which signature should be attached. If NULL then signature will be
+     *            attached directly to the key.
      * @param front set to true if signature should be added to the beginning of the signature
      *              list.
-     * @return pointer to the newly added signature or NULL if failed.
+     * @return pointer to the newly added signature or nullptr if error occurred (key not
+     *         found, whatever else).
      */
     pgp_subsig_t *add_key_sig(const pgp_fingerprint_t &keyfp,
                               const pgp_signature_t &  sig,
+                              const pgp_userid_pkt_t * uid,
                               bool                     front);
 
     /**

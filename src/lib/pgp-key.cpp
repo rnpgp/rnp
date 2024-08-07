@@ -1064,6 +1064,17 @@ pgp_key_t::has_uid(const std::string &uidstr) const
     return false;
 }
 
+uint32_t
+pgp_key_t::uid_idx(const pgp_userid_pkt_t &uid) const
+{
+    for (uint32_t idx = 0; idx < uids_.size(); idx++) {
+        if (uids_[idx].pkt == uid) {
+            return idx;
+        }
+    }
+    return PGP_UID_NONE;
+}
+
 void
 pgp_key_t::del_uid(size_t idx)
 {
