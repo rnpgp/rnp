@@ -123,6 +123,15 @@ jobs:
           echo "VCPKG_DIR_U=$dir_u" >> $GITHUB_ENV
           vcpkg install --triplet ${{ matrix.arch.triplet }} bzip2 zlib json-c getopt dirent ${{ matrix.backend }}
 
+      - name: Upload vcpkg logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vcpkg-error-logs
+          path: |
+            C:\vcpkg\buildtrees\*\*.log
+            C:\vcpkg\installed\vcpkg\issue_body.md
+
       - name: Set OPENSSL_ROOT_DIR
         # Ensure consistent access to openssl installation for test_backend_version test
         # There is another one instance of ssl at /mingw and /mingw/bin is always at the first position at PATH
