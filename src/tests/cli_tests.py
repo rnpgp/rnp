@@ -875,7 +875,7 @@ def gpg_check_features():
     print('GPG_BRAINPOOL: ' + str(GPG_BRAINPOOL))
 
 def rnp_check_features():
-    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_AEAD_EAX, RNP_AEAD_OCB, RNP_AEAD_OCB_AES, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160, RNP_PQC
+    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_AEAD_EAX, RNP_AEAD_OCB, RNP_AEAD_OCB_AES, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160, RNP_PQC, RNP_X448, RNP_ED448
     global RNP_BOTAN_OCB_AV
     ret, out, _ = run_proc(RNP, ['--version'])
     if ret != 0:
@@ -905,6 +905,8 @@ def rnp_check_features():
     # Determine PQC support in general. If present, assume that all PQC schemes are supported.
     pqc_strs = ['ML-KEM', 'ML-DSA']
     RNP_PQC = any([re.match('(?s)^.*Public key:.*' + scheme + '.*', out) is not None for scheme in pqc_strs])
+    RNP_X448 = re.match(r'(?s)^.*Public Key:.*X448.*', out) is not None
+    RNP_ED448 = re.match(r'(?s)^.*Public Key.*ED448.*', out) is not None
     print('RNP_TWOFISH: ' + str(RNP_TWOFISH))
     print('RNP_BLOWFISH: ' + str(RNP_BLOWFISH))
     print('RNP_IDEA: ' + str(RNP_IDEA))
@@ -916,6 +918,8 @@ def rnp_check_features():
     print('RNP_AEAD_OCB_AES: ' + str(RNP_AEAD_OCB_AES))
     print('RNP_BOTAN_OCB_AV: ' + str(RNP_BOTAN_OCB_AV))
     print('RNP_PQC: ' + str(RNP_PQC))
+    print('RNP_X448: ' + str(RNP_X448))
+    print('RNP_ED448: ' + str(RNP_ED448))
 
 def setup(loglvl):
     # Setting up directories.
@@ -4501,6 +4505,7 @@ class Encryption(unittest.TestCase):
             return
         algo_ui_exp_strs = [ "(24) Ed25519Legacy + Curve25519Legacy + (ML-KEM-768 + X25519)",
                              "(25) (ML-DSA-65 + Ed25519) + (ML-KEM-768 + X25519)",
+#                             "(26) (ML-DSA-87 + Ed448) + (ML-KEM-1024 + X448)"
                              "(27) (ML-DSA-65 + ECDSA-NIST-P-256) + (ML-KEM-768 + ECDH-NIST-P-256)",
                              "(28) (ML-DSA-87 + ECDSA-NIST-P-384) + (ML-KEM-1024 + ECDH-NIST-P-384)",
                              "(29) (ML-DSA-65 + ECDSA-brainpoolP256r1) + (ML-KEM-768 + ECDH-brainpoolP256r1)",
@@ -4509,14 +4514,22 @@ class Encryption(unittest.TestCase):
                              "(32) SLH-DSA-SHAKE-128s + (ML-KEM-768 + X25519)",
                              "(33) SLH-DSA-SHAKE-256s + (ML-KEM-1024 + ECDH-NIST-P-384)",
                                ]
-        USERIDS = ['enc-sign25@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign32a@rnp','enc-sign32b@rnp','enc-sign32c@rnp','enc-sign24-v4-key@rnp']
+
+        USERIDS = ['enc-sign25@rnp',  'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign32a@rnp','enc-sign32b@rnp','enc-sign32c@rnp','enc-sign24-v4-key@rnp']
 
         # '24' in the below array creates a v4 primary signature key with a v4 pqc subkey without a Features Subpacket. This way we test PQC encryption to a v4 subkey. RNP prefers the PQC subkey in case of a certificate having a PQC and a
         # non-PQC subkey.
-        ALGO       = [25,   27,   28,   29,   30,   31, 32, 33, 24, ]
+        ALGO       = [25,  27,   28,   29,   30,   31, 32, 33, 24, ]
         ALGO_PARAM = [None, None, None, None, None, None,  None,  None,  None,  ]
         aead_list = []
         passwds = [ ]
+        
+        if(RNP_X448 and RNP_ED448):
+            algo_ui_exp_strs.insert(2, "(26) (ML-DSA-87 + Ed448) + (ML-KEM-1024 + X448)")
+            USERIDS.insert(2, "enc-sign25@rnp")
+            ALGO.insert(2, 26)
+            ALGO_PARAM.append(None)
+            
         for x in range(len(ALGO)): passwds.append('testpw' if x % 1 == 0 else '')
         for x in range(len(ALGO)): aead_list.append(None if x % 3 == 0 else ('ocb' if x % 3 == 1 else 'eax' ))
         if any(len(USERIDS) != len(x) for x in [ALGO, ALGO_PARAM]):

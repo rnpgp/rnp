@@ -250,10 +250,10 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
 #if defined(ENABLE_PQC)
           "\t(24) Ed25519Legacy + Curve25519Legacy + (ML-KEM-768 + X25519)\n"
 #if defined(ENABLE_CRYPTO_REFRESH) // PQC primary keys only for v6
-#if defined(ENABLE_X448) && defined(ENABLE_ED448)
           "\t(25) (ML-DSA-65 + Ed25519) + (ML-KEM-768 + X25519)\n"
-#endif
+#if defined(ENABLE_X448) && defined(ENABLE_ED448)
           "\t(26) (ML-DSA-87 + Ed448) + (ML-KEM-1024 + X448)\n"
+#endif
           "\t(27) (ML-DSA-65 + ECDSA-NIST-P-256) + (ML-KEM-768 + ECDH-NIST-P-256)\n"
           "\t(28) (ML-DSA-87 + ECDSA-NIST-P-384) + (ML-KEM-1024 + ECDH-NIST-P-384)\n"
           "\t(29) (ML-DSA-65 + ECDSA-brainpoolP256r1) + (ML-KEM-768 + ECDH-brainpoolP256r1)\n"
