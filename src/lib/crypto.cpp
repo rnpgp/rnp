@@ -170,6 +170,26 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t &crypto,
             return false;
         }
         break;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+        if (generate_ed448_native(&crypto.ctx->rng,
+                                  seckey.material.ed448.priv,
+                                  seckey.material.ed448.pub) != RNP_SUCCESS) {
+            RNP_LOG("failed to generate ED448 key");
+            return false;
+        }
+        break;
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+        if (generate_x448_native(&crypto.ctx->rng,
+                                 seckey.material.x448.priv,
+                                 seckey.material.x448.pub) != RNP_SUCCESS) {
+            RNP_LOG("failed to generate X448 key");
+            return false;
+        }
+        break;
+#endif
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
@@ -268,6 +288,14 @@ key_material_equal(const pgp_key_material_t *key1, const pgp_key_material_t *key
         return (key1->ed25519.pub == key2->ed25519.pub);
     case PGP_PKA_X25519:
         return (key1->x25519.pub == key2->x25519.pub);
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+        return (key1->ed448.pub == key2->ed448.pub);
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+        return (key1->x448.pub == key2->x448.pub);
+#endif
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
@@ -357,6 +385,14 @@ validate_pgp_key_material(const pgp_key_material_t *material, rnp::RNG *rng)
         return ed25519_validate_key_native(rng, &material->ed25519, material->secret);
     case PGP_PKA_X25519:
         return x25519_validate_key_native(rng, &material->x25519, material->secret);
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+        return ed448_validate_key_native(rng, &material->ed448, material->secret);
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+        return x448_validate_key_native(rng, &material->x448, material->secret);
+#endif
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:

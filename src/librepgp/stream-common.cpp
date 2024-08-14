@@ -1193,6 +1193,9 @@ have_pkesk_checksum(pgp_pubkey_alg_t alg)
     switch (alg) {
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_X25519:
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+#endif
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:

@@ -1257,6 +1257,38 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material)
         }
         break;
     }
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448: {
+        /* TODO unify with above case */
+        uint8_t                bt = 0;
+        const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_448);
+        material.x448.eph_key.resize(BITS_TO_BYTES(ec_desc->bitlen));
+        if (!pkt.get(material.x448.eph_key.data(), material.x448.eph_key.size())) {
+            RNP_LOG("failed to parse X448 PKESK (eph. pubkey)");
+            return false;
+        }
+        uint8_t enc_sesskey_len;
+        if (!pkt.get(enc_sesskey_len)) {
+            RNP_LOG("failed to parse X448 PKESK (enc sesskey length)");
+            return false;
+        }
+        /* get plaintext salg if PKESKv3 */
+        if ((version == PGP_PKSK_V3) && !do_encrypt_pkesk_v3_alg_id(alg)) {
+            if (!pkt.get(bt)) {
+                RNP_LOG("failed to get salg");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            enc_sesskey_len -= 1;
+            salg = (pgp_symm_alg_t) bt;
+        }
+        material.x448.enc_sess_key.resize(enc_sesskey_len);
+        if (!pkt.get(material.x448.enc_sess_key.data(), enc_sesskey_len)) {
+            RNP_LOG("failed to parse X448 PKESK (enc sesskey)");
+            return false;
+        }
+        break;
+    }
+#endif
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
@@ -1349,6 +1381,20 @@ pgp_pk_sesskey_t::write_material(const pgp_encrypted_material_t &material)
         pktbody.add(material.x25519.enc_sess_key);
         break;
     }
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448: {
+        /* TODO unify with above case*/
+        uint8_t enc_sesskey_length_offset = ((version == PGP_PKSK_V3) ? 1 : 0);
+        pktbody.add(material.x448.eph_key);
+        pktbody.add_byte(static_cast<uint8_t>(material.x448.enc_sess_key.size() +
+                                              enc_sesskey_length_offset));
+        if (version == PGP_PKSK_V3) {
+            pktbody.add_byte(salg); /* added as plaintext */
+        }
+        pktbody.add(material.x448.enc_sess_key);
+        break;
+    }
+#endif
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:

@@ -1660,6 +1660,17 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
             return false;
         }
         break;
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+        declen = decbuf.size();
+        err = x448_native_decrypt(
+          &ctx.rng, keymaterial->x448, &encmaterial.x448, decbuf.data(), &declen);
+        if (err) {
+            RNP_LOG("X448 decryption error %u", err);
+            return false;
+        }
+        break;
+#endif
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:

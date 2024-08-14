@@ -102,6 +102,7 @@ typedef struct pgp_ed25519_signature_t {
 
 #if defined(ENABLE_ED448)
 typedef pgp_ed25519_key_t pgp_ed448_key_t;
+typedef pgp_ed25519_signature_t pgp_ed448_signature_t;
 #endif
 
 
@@ -116,6 +117,10 @@ typedef struct pgp_x25519_encrypted_t {
 } pgp_x25519_encrypted_t;
 #endif
 
+#if defined(ENABLE_X448)
+typedef pgp_x25519_key_t pgp_x448_key_t;
+typedef pgp_x25519_encrypted_t pgp_x448_encrypted_t;
+#endif
 /*
  * @brief   Finds curve ID by hex representation of OID
  *

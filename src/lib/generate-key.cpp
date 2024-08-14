@@ -60,6 +60,12 @@ static const id_str_pair pubkey_alg_map[] = {
 #if defined(ENABLE_CRYPTO_REFRESH)
   {PGP_PKA_ED25519, "ED25519"},
   {PGP_PKA_X25519, "X25519"},
+#if defined(ENABLE_ED448)
+  {PGP_PKA_ED448, "ED448"},
+#endif
+#if defined(ENABLE_X448)
+  {PGP_PKA_X448, "X448"},
+#endif
 #endif
 #if defined(ENABLE_PQC)
   {PGP_PKA_KYBER768_X25519, "ML-KEM-768_X25519"},
@@ -396,6 +402,14 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
         return 255;
     case PGP_PKA_X25519:
         return 255;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+        return 57 * 8; // TODO: sensible?
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+        return 56 * 8; // TODO: sensible?
+#endif
 #endif
     case PGP_PKA_DSA:
         return crypto->dsa.p_bitlen;

@@ -228,7 +228,13 @@ typedef enum : uint8_t {
 
 #if defined(ENABLE_CRYPTO_REFRESH)
     PGP_PKA_X25519 = 25,  /* v6 / Crypto Refresh */
+#if defined(ENABLE_X448)
+    PGP_PKA_X448 = 26, /* v6 / Crypto Refresh */
+#endif
     PGP_PKA_ED25519 = 27, /* v6 / Crypto Refresh */
+#if defined(ENABLE_ED448)
+    PGP_PKA_ED448 = 28, /* v6 / Crypto Refresh */
+#endif
 #endif
 
     PGP_PKA_SM2 = 99, /* SM2 encryption/signature schemes */

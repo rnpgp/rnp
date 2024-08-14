@@ -654,6 +654,30 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
             key.material.x25519.priv = tmpbuf;
             break;
         }
+#if defined(ENABLE_ED448)
+        case PGP_PKA_ED448: {
+            const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_ED448);
+            tmpbuf.resize(BITS_TO_BYTES(ec_desc->bitlen));
+            if (!body.get(tmpbuf.data(), tmpbuf.size())) {
+                RNP_LOG("failed to parse Ed448 secret key data");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            key.material.ed448.priv = tmpbuf;
+            break;
+        }
+#endif
+#if defined(ENABLE_X448)
+        case PGP_PKA_X448: {
+            const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_448);
+            tmpbuf.resize(BITS_TO_BYTES(ec_desc->bitlen));
+            if (!body.get(tmpbuf.data(), tmpbuf.size())) {
+                RNP_LOG("failed to parse X448 secret key data");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            key.material.x448.priv = tmpbuf;
+            break;
+        }
+#endif
 #endif
 #if defined(ENABLE_PQC)
         case PGP_PKA_KYBER768_X25519:
@@ -847,6 +871,16 @@ write_secret_key_mpis(pgp_packet_body_t &body, pgp_key_pkt_t &key)
     case PGP_PKA_X25519:
         body.add(key.material.x25519.priv);
         break;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+        body.add(key.material.ed448.priv);
+        break;
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+        body.add(key.material.x448.priv);
+        break;
+#endif
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
@@ -1039,6 +1073,18 @@ forget_secret_key_fields(pgp_key_material_t *key)
         secure_clear(key->x25519.priv.data(), key->x25519.priv.size());
         key->x25519.priv.clear();
         break;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+        secure_clear(key->ed448.priv.data(), key->ed448.priv.size());
+        key->ed448.priv.clear();
+        break;
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+        secure_clear(key->x448.priv.data(), key->x448.priv.size());
+        key->x448.priv.clear();
+        break;
+#endif
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
@@ -1600,6 +1646,30 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         material.x25519.pub = tmpbuf;
         break;
     }
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448: {
+        const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_ED448);
+        tmpbuf.resize(BITS_TO_BYTES(ec_desc->bitlen));
+        if (!pkt.get(tmpbuf.data(), tmpbuf.size())) {
+            RNP_LOG("failed to parse Ed448 public key data");
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        material.ed448.pub = tmpbuf;
+        break;
+    }
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448: {
+        const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_448);
+        tmpbuf.resize(BITS_TO_BYTES(ec_desc->bitlen));
+        if (!pkt.get(tmpbuf.data(), tmpbuf.size())) {
+            RNP_LOG("failed to parse X448 public key data");
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        material.x448.pub = tmpbuf;
+        break;
+    }
+#endif
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
@@ -1825,6 +1895,16 @@ pgp_key_pkt_t::make_alg_spec_fields_for_public_key(pgp_packet_body_t &hbody)
     case PGP_PKA_X25519:
         hbody.add(material.x25519.pub);
         break;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+        hbody.add(material.ed448.pub);
+        break;
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+        hbody.add(material.x448.pub);
+        break;
+#endif
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:

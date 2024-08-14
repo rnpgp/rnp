@@ -55,9 +55,23 @@ rnp_result_t x25519_validate_key_native(rnp::RNG *              rng,
                                         bool                    secret);
 
 #if defined(ENABLE_X448)
-rnp_result_t generate_x448_native(rnp::RNG *            rng,
-                                    std::vector<uint8_t> &privkey,
-                                    std::vector<uint8_t> &pubkey);
+rnp_result_t generate_x448_native(rnp::RNG             *rng,
+                                  std::vector<uint8_t> &privkey,
+                                  std::vector<uint8_t> &pubkey);
+
+rnp_result_t x448_native_encrypt(rnp::RNG                   *rng,
+                                 const std::vector<uint8_t> &pubkey,
+                                 const uint8_t              *in,
+                                 size_t                      in_len,
+                                 pgp_x448_encrypted_t       *encrypted);
+
+rnp_result_t x448_native_decrypt(rnp::RNG                   *rng,
+                                 const pgp_x448_key_t       &keypair,
+                                 const pgp_x448_encrypted_t *encrypted,
+                                 uint8_t                    *decbuf,
+                                 size_t                     *decbuf_len);
+
+rnp_result_t x448_validate_key_native(rnp::RNG *rng, const pgp_x448_key_t *key, bool secret);
 #endif
 
 #endif

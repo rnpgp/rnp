@@ -266,8 +266,8 @@ static const ec_curve_desc_t ec_curves[] = {
 #if defined(ENABLE_PQC)
 /* TODO: correct values */
 #if defined(ENABLE_ED448)
-{PGP_CURVE_ED448,
-   0,
+  {PGP_CURVE_ED448,
+   57 * 8,
    {},
    0,
    "Ed25519",
@@ -283,7 +283,7 @@ static const ec_curve_desc_t ec_curves[] = {
 #endif
 #if defined(ENABLE_X448)
   {PGP_CURVE_448,
-   0,
+   56 * 8,
    {},
    0x00,
    "curve25519",

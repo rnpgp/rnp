@@ -3093,14 +3093,20 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     size_t crypto_refresh_opt = 0;
 #if defined(ENABLE_CRYPTO_REFRESH)
     crypto_refresh_opt = 2; // X25519 + ED25519
+#if defined(ENABLE_ED448)
+    crypto_refresh_opt++; // PGP_PKA_ED448
+#endif
+#if defined(ENABLE_X448)
+    crypto_refresh_opt++; // PGP_PKA_X448
+#endif
 #endif
 #if defined(ENABLE_PQC)
     pqc_opt = 13; // kyber+ecc and dilithium+ecc and sphincs+ variants
 #if defined(ENABLE_ED448)
-    pqc_opt++;
+    pqc_opt++; // PGP_PKA_DILITHIUM5_ED448
 #endif
 #if defined(ENABLE_X448)
-    pqc_opt++;
+    pqc_opt++; // PGP_PKA_KYBER1024_X448
 #endif
 #endif
     assert_true(check_features(

@@ -731,6 +731,19 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
             return ret;
         }
         break;
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+        ret = x448_native_encrypt(&handler->ctx->ctx->rng,
+                                  userkey->material().x448.pub,
+                                  enckey.data(),
+                                  enckey_len,
+                                  &material.x448);
+        if (ret) {
+            RNP_LOG("x448 encryption failed");
+            return ret;
+        }
+        break;
+#endif
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:

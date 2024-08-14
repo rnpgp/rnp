@@ -146,6 +146,12 @@ static const id_str_pair pubkey_alg_map[] = {
 #if defined(ENABLE_CRYPTO_REFRESH)
   {PGP_PKA_ED25519, "Ed25519"},
   {PGP_PKA_X25519, "X25519"},
+#if defined(ENABLE_ED448)
+    {PGP_PKA_ED448, "Ed448"},
+#endif
+#if defined(ENABLE_X448)
+    {PGP_PKA_X448, "X448"},
+#endif
 #endif
 #if defined(ENABLE_PQC)
   {PGP_PKA_KYBER768_X25519, "ML-KEM-768 + X25519"},
@@ -830,6 +836,11 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
     case PGP_PKA_ED25519:
         dst_print_vec(dst, "ed25519 sig", material.ed25519.sig, ctx->dump_mpi);
         break;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+        dst_print_vec(dst, "ed448 sig", material.ed448.sig, ctx->dump_mpi);
+        break;
+#endif
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_DILITHIUM3_ED25519:
@@ -960,6 +971,16 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     case PGP_PKA_X25519:
         dst_print_vec(dst, "x25519", key.material.x25519.pub, ctx->dump_mpi);
         break;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+        dst_print_vec(dst, "ed448", key.material.ed448.pub, ctx->dump_mpi);
+        break;
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+        dst_print_vec(dst, "x448", key.material.x448.pub, ctx->dump_mpi);
+        break;
+#endif
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
@@ -2013,6 +2034,9 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+#endif
         /* TODO */
         break;
 #endif
@@ -2160,6 +2184,12 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
     case PGP_PKA_X25519:
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+#endif
         /* TODO */
         break;
 #endif
@@ -2342,6 +2372,12 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
     case PGP_PKA_X25519:
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+#endif
         /* TODO */
         break;
 #endif

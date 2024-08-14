@@ -3562,6 +3562,12 @@ RNP_API const char *rnp_backend_version();
 #if defined(RNP_EXPERIMENTAL_CRYPTO_REFRESH) || defined(RNP_EXPERIMENTAL_PQC)
 #define RNP_ALGNAME_ED25519 "ED25519"
 #define RNP_ALGNAME_X25519 "X25519"
+#if defined(ENABLE_ED448)
+#define RNP_ALGNAME_ED448 "ED448"
+#endif
+#if defined(ENABLE_X448)
+#define RNP_ALGNAME_X448 "X448"
+#endif
 #endif
 #if defined(RNP_EXPERIMENTAL_PQC)
 #define RNP_ALGNAME_KYBER768_X25519 "ML-KEM-768+X25519"

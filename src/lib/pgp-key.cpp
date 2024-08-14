@@ -163,6 +163,14 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
         return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
     case PGP_PKA_X25519:
         return PGP_KF_ENCRYPT;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+        return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+        return PGP_KF_ENCRYPT;
+#endif
 #endif
 
     case PGP_PKA_SM2:
@@ -1286,6 +1294,14 @@ pgp_key_t::curve() const
         return PGP_CURVE_ED25519;
     case PGP_PKA_X25519:
         return PGP_CURVE_25519;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+        return PGP_CURVE_ED448;
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+        return PGP_CURVE_448;
+#endif
 #endif
     default:
         return PGP_CURVE_UNKNOWN;
@@ -3030,6 +3046,14 @@ pgp_key_material_t::curve() const
         return PGP_CURVE_ED25519;
     case PGP_PKA_X25519:
         return PGP_CURVE_25519;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+        return PGP_CURVE_ED448;
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+        return PGP_CURVE_448;
+#endif
 #endif
     default:
         return PGP_CURVE_UNKNOWN;
@@ -3060,6 +3084,14 @@ pgp_key_material_t::bits() const
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_X25519:
         FALLTHROUGH_STATEMENT;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+        FALLTHROUGH_STATEMENT;
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+        FALLTHROUGH_STATEMENT;
+#endif
 #endif
     case PGP_PKA_SM2: {
         /* handle ecc cases */
@@ -3266,6 +3298,16 @@ pgp_key_material_t::get_grip(pgp_key_grip_t &grip) const
         case PGP_PKA_X25519:
             hash->add(x25519.pub);
             break;
+#if defined(ENABLE_ED448)
+        case PGP_PKA_ED448:
+            hash->add(ed448.pub);
+            break;
+#endif
+#if defined(ENABLE_X448)
+        case PGP_PKA_X448:
+            hash->add(x448.pub);
+            break;
+#endif
 #endif
 #if defined(ENABLE_PQC)
         case PGP_PKA_KYBER768_X25519:

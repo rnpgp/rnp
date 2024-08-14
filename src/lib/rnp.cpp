@@ -161,6 +161,12 @@ static const id_str_pair pubkey_alg_map[] = {
 #if defined(ENABLE_CRYPTO_REFRESH)
   {PGP_PKA_ED25519, RNP_ALGNAME_ED25519},
   {PGP_PKA_X25519, RNP_ALGNAME_X25519},
+#if defined(ENABLE_ED448)
+    {PGP_PKA_ED448, RNP_ALGNAME_ED448},
+#endif
+#if defined(ENABLE_X448)
+    {PGP_PKA_X448, RNP_ALGNAME_X448},
+#endif
 #endif
 #if defined(ENABLE_PQC)
   {PGP_PKA_KYBER768_X25519, RNP_ALGNAME_KYBER768_X25519},
@@ -340,6 +346,12 @@ pub_alg_supported(int alg)
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_X25519:
     case PGP_PKA_ED25519:
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+#endif
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
@@ -5139,6 +5151,14 @@ default_key_flags(pgp_pubkey_alg_t alg, bool subkey)
         return subkey ? PGP_KF_SIGN : pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY);
     case PGP_PKA_X25519:
         return PGP_KF_ENCRYPT;
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+        return subkey ? PGP_KF_SIGN : pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY);
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+        return PGP_KF_ENCRYPT;
+#endif
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
@@ -7630,6 +7650,12 @@ add_json_public_mpis(json_object *jso, pgp_key_t *key)
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
     case PGP_PKA_X25519:
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+#endif
         return RNP_SUCCESS; /* TODO */
 #endif
 #if defined(ENABLE_PQC)
@@ -7697,6 +7723,12 @@ add_json_secret_mpis(json_object *jso, pgp_key_t *key)
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
     case PGP_PKA_X25519:
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+#endif
         return RNP_SUCCESS; /* TODO */
 #endif
 #if defined(ENABLE_PQC)
@@ -7750,6 +7782,12 @@ add_json_sig_mpis(json_object *jso, const pgp_signature_t *sig)
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
     case PGP_PKA_X25519:
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+#endif
         return RNP_SUCCESS; /* TODO */
 #endif
 #if defined(ENABLE_PQC)
@@ -7991,6 +8029,12 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
     case PGP_PKA_X25519:
+#if defined(ENABLE_ED448)
+    case PGP_PKA_ED448:
+#endif
+#if defined(ENABLE_X448)
+    case PGP_PKA_X448:
+#endif
         return RNP_SUCCESS; /* TODO */
 #endif
 #if defined(ENABLE_PQC)
