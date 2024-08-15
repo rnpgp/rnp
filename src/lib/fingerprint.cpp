@@ -61,7 +61,7 @@ try {
     {
         auto halg = key.version == PGP_V4 ? PGP_HASH_SHA1 : PGP_HASH_SHA256;
         auto hash = rnp::Hash::create(halg);
-        signature_hash_key(key, *hash);
+        fingerprint_hash_key(key, *hash);
         fp.length = hash->finish(fp.fingerprint);
         return RNP_SUCCESS;
     }

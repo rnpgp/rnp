@@ -448,12 +448,22 @@ typedef struct pgp_signature_info_t {
 } pgp_signature_info_t;
 
 /**
- * @brief Hash key packet. Used in signatures and v4 fingerprint calculation.
+ * @brief Hash key packet. Used in fingerprint calculation.
  *        Throws exception on error.
  * @param key key packet, must be populated
  * @param hash initialized hash context
  */
-void signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash);
+void fingerprint_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash);
+
+/**
+ * @brief Hash key packet. Used in signature calculation.
+ *        Throws exception on error.
+ * @param key key packet, must be populated
+ * @param hash initialized hash context
+ * @param sig signature packet
+ */
+void signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash, const pgp_signature_t &sig);
+
 
 void signature_hash_userid(const pgp_userid_pkt_t &uid, rnp::Hash &hash, pgp_version_t sigver);
 

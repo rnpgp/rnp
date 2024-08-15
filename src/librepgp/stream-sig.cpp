@@ -45,18 +45,50 @@
 
 #include <time.h>
 
-void
-signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash)
+/* computes the hash according to the key version (for fingerprint calculation) or signature version */
+static void
+hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash, pgp_version_t key_or_sig_version)
 {
     if (!key.hashed_data) {
         /* call self recursively if hashed data is not filled, to overcome const restriction */
         pgp_key_pkt_t keycp(key, true);
         keycp.fill_hashed_data();
-        signature_hash_key(keycp, hash);
+        hash_key(keycp, hash, key_or_sig_version);
         return;
     }
 
-    switch (key.version) {
+    /* first check that we can actually fit the hashed length in the 2 or 4 byte fields */
+    switch (key_or_sig_version) {
+    case PGP_V2:
+        FALLTHROUGH_STATEMENT;
+    case PGP_V3:
+        FALLTHROUGH_STATEMENT;
+    case PGP_V4:
+        if (key.hashed_len > ((size_t) 1 << 16) - 1) {
+            // we need more than the available two bytes for the hashed length
+            RNP_LOG("key's hashed length %zu is too large for two length bytes",
+                    key.hashed_len);
+            throw rnp::rnp_exception(RNP_ERROR_GENERIC);
+        }
+        break;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_V6:
+        FALLTHROUGH_STATEMENT;
+#endif
+    case PGP_V5:
+        if (key.hashed_len > ((size_t) 1 << 32) - 1) {
+            // we need more than the available four bytes for the hashed length
+            RNP_LOG("key's hashed length %zu is too large for four length bytes",
+                    key.hashed_len);
+            throw rnp::rnp_exception(RNP_ERROR_GENERIC);
+        }
+        break;
+    default:
+        RNP_LOG("unknown key/sig version: %d", (int) key_or_sig_version);
+        throw rnp::rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
+    }
+
+    switch (key_or_sig_version) {
     case PGP_V2:
         FALLTHROUGH_STATEMENT;
     case PGP_V3:
@@ -85,9 +117,21 @@ signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash)
     }
 #endif
     default:
-        RNP_LOG("unknown key version: %d", (int) key.version);
+        RNP_LOG("unknown key/sig version: %d", (int) key_or_sig_version);
         throw rnp::rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
     }
+}
+
+void
+fingerprint_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash)
+{
+    hash_key(key, hash, key.version);
+}
+
+void
+signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash, const pgp_signature_t &sig)
+{
+    hash_key(key, hash, sig.version);
 }
 
 void
@@ -121,7 +165,7 @@ signature_hash_certification(const pgp_signature_t & sig,
                              const pgp_userid_pkt_t &userid)
 {
     auto hash = signature_init(key, sig);
-    signature_hash_key(key, *hash);
+    signature_hash_key(key, *hash, sig);
     signature_hash_userid(userid, *hash, sig.version);
     return hash;
 }
@@ -132,8 +176,8 @@ signature_hash_binding(const pgp_signature_t &sig,
                        const pgp_key_pkt_t &  subkey)
 {
     auto hash = signature_init(key, sig);
-    signature_hash_key(key, *hash);
-    signature_hash_key(subkey, *hash);
+    signature_hash_key(key, *hash, sig);
+    signature_hash_key(subkey, *hash, sig);
     return hash;
 }
 
@@ -141,7 +185,7 @@ std::unique_ptr<rnp::Hash>
 signature_hash_direct(const pgp_signature_t &sig, const pgp_key_pkt_t &key)
 {
     auto hash = signature_init(key, sig);
-    signature_hash_key(key, *hash);
+    signature_hash_key(key, *hash, sig);
     return hash;
 }
 
