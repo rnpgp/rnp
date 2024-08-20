@@ -2129,3 +2129,301 @@ TEST_F(rnp_tests, test_ffi_create_key_certification_signature)
 
     rnp_ffi_destroy(ffi);
 }
+
+TEST_F(rnp_tests, test_ffi_key_self_certification_features)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password");
+
+    assert_true(import_all_keys(ffi, "data/test_stream_key_load/ecc-p256-sec.asc"));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    uint32_t sig_creation = 0;
+    assert_rnp_success(rnp_key_get_creation(key, &sig_creation));
+    const uint32_t sig_diff = 1000;
+    sig_creation += sig_diff;
+    rnp_uid_handle_t uid = NULL;
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    /* Create key certification with default fields to check later */
+    rnp_signature_handle_t newsig = NULL;
+    assert_rnp_success(rnp_key_certification_create(key, uid, NULL, &newsig));
+    assert_rnp_success(rnp_key_signature_sign(newsig));
+    rnp_signature_handle_destroy(newsig);
+    /* Create key certification and set different fields to check later */
+    assert_rnp_success(rnp_key_certification_create(key, uid, NULL, &newsig));
+    /* Signature creation time */
+    assert_rnp_failure(rnp_key_signature_set_creation(NULL, 0));
+    assert_rnp_success(rnp_key_signature_set_creation(newsig, sig_creation));
+    /* Signature hash algorithm */
+    const char *hash = "SHA384";
+    assert_rnp_success(rnp_key_signature_set_hash(newsig, hash));
+    /* Key flags */
+    assert_rnp_failure(rnp_key_signature_set_key_flags(NULL, RNP_KEY_USAGE_CERTIFY));
+    assert_rnp_failure(rnp_key_signature_set_key_flags(newsig, 0x100 | RNP_KEY_USAGE_CERTIFY));
+    assert_rnp_success(rnp_key_signature_set_key_flags(newsig, RNP_KEY_USAGE_CERTIFY));
+    /* Key expiration */
+    uint32_t expiry = 50 * 365 * 24 * 60 * 60;
+    assert_rnp_failure(rnp_key_signature_set_key_expiration(NULL, expiry));
+    assert_rnp_success(rnp_key_signature_set_key_expiration(newsig, 100000));
+    assert_rnp_success(rnp_key_signature_set_key_expiration(newsig, expiry));
+    /* Primary user id */
+    assert_rnp_failure(rnp_key_signature_set_primary_uid(NULL, true));
+    assert_rnp_success(rnp_key_signature_set_primary_uid(newsig, false));
+    assert_rnp_success(rnp_key_signature_set_primary_uid(newsig, true));
+    /* Key server */
+    const char *key_serv = "https://key-server/";
+    assert_rnp_failure(rnp_key_signature_set_key_server(NULL, key_serv));
+    assert_rnp_success(rnp_key_signature_set_key_server(newsig, "wrong"));
+    assert_rnp_success(rnp_key_signature_set_key_server(newsig, NULL));
+    assert_rnp_success(rnp_key_signature_set_key_server(newsig, "wrong2"));
+    assert_rnp_success(rnp_key_signature_set_key_server(newsig, key_serv));
+    /* Key server prefs */
+    assert_rnp_failure(rnp_key_signature_set_key_server_prefs(NULL, RNP_KEY_SERVER_NO_MODIFY));
+    assert_rnp_failure(
+      rnp_key_signature_set_key_server_prefs(newsig, 0x101 | RNP_KEY_SERVER_NO_MODIFY));
+    assert_rnp_success(rnp_key_signature_set_key_server_prefs(newsig, 0));
+    assert_rnp_success(
+      rnp_key_signature_set_key_server_prefs(newsig, RNP_KEY_SERVER_NO_MODIFY));
+    /* Key features */
+    uint32_t features = RNP_KEY_FEATURE_MDC | RNP_KEY_FEATURE_AEAD | RNP_KEY_FEATURE_V5;
+    assert_rnp_failure(rnp_key_signature_set_features(NULL, features));
+    assert_rnp_failure(rnp_key_signature_set_features(newsig, 0x123));
+    assert_rnp_success(rnp_key_signature_set_features(newsig, RNP_KEY_FEATURE_MDC));
+    assert_rnp_success(rnp_key_signature_set_features(newsig, features));
+    /* Preferred symmetric algorithms */
+    assert_rnp_failure(rnp_key_signature_add_preferred_alg(newsig, NULL));
+    assert_rnp_failure(rnp_key_signature_add_preferred_alg(NULL, RNP_ALGNAME_AES_256));
+    assert_rnp_failure(rnp_key_signature_add_preferred_alg(newsig, RNP_ALGNAME_SHA256));
+    assert_rnp_failure(rnp_key_signature_add_preferred_alg(newsig, RNP_ALGNAME_SHA256));
+    assert_rnp_success(rnp_key_signature_add_preferred_alg(newsig, RNP_ALGNAME_AES_256));
+    assert_rnp_success(rnp_key_signature_add_preferred_alg(newsig, RNP_ALGNAME_CAMELLIA_192));
+    assert_rnp_success(rnp_key_signature_add_preferred_alg(newsig, RNP_ALGNAME_IDEA));
+    /* Preferred hash algorithms */
+    assert_rnp_failure(rnp_key_signature_add_preferred_hash(newsig, NULL));
+    assert_rnp_failure(rnp_key_signature_add_preferred_hash(NULL, RNP_ALGNAME_SHA256));
+    assert_rnp_failure(rnp_key_signature_add_preferred_hash(newsig, RNP_ALGNAME_AES_256));
+    assert_rnp_success(rnp_key_signature_add_preferred_hash(newsig, RNP_ALGNAME_SHA256));
+    assert_rnp_success(rnp_key_signature_add_preferred_hash(newsig, RNP_ALGNAME_SHA3_512));
+    assert_rnp_success(rnp_key_signature_add_preferred_hash(newsig, RNP_ALGNAME_SM3));
+    /* Preferred compression algorithms */
+    assert_rnp_failure(rnp_key_signature_add_preferred_zalg(newsig, NULL));
+    assert_rnp_failure(rnp_key_signature_add_preferred_zalg(NULL, RNP_ALGNAME_BZIP2));
+    assert_rnp_failure(rnp_key_signature_add_preferred_zalg(newsig, RNP_ALGNAME_SHA256));
+    assert_rnp_success(rnp_key_signature_add_preferred_zalg(newsig, RNP_ALGNAME_ZLIB));
+    assert_rnp_success(rnp_key_signature_add_preferred_zalg(newsig, RNP_ALGNAME_BZIP2));
+    /* Sign */
+    assert_rnp_success(rnp_key_signature_sign(newsig));
+    rnp_signature_handle_destroy(newsig);
+    /* Check certification parameters */
+    size_t sigs = 0;
+    assert_rnp_success(rnp_uid_get_signature_count(uid, &sigs));
+    assert_int_equal(sigs, 3);
+    /* First signature, available after the load */
+    uint32_t check = 0;
+    bool     primary = false;
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 0, &newsig));
+    assert_rnp_success(rnp_signature_is_valid(newsig, 0));
+    assert_true(check_sig_hash(newsig, RNP_ALGNAME_SHA256));
+    assert_true(check_sig_type(newsig, "certification (positive)"));
+    assert_rnp_success(rnp_signature_get_creation(newsig, &check));
+    assert_int_equal(check, 1549119463);
+    assert_rnp_success(rnp_signature_get_key_expiration(newsig, &check));
+    assert_int_equal(check, 0);
+    assert_rnp_success(rnp_signature_get_primary_uid(newsig, &primary));
+    assert_false(primary);
+    assert_rnp_success(rnp_signature_get_features(newsig, &check));
+    assert_int_equal(check, 3);
+    assert_rnp_success(rnp_signature_get_key_flags(newsig, &check));
+    assert_int_equal(check, RNP_KEY_USAGE_CERTIFY | RNP_KEY_USAGE_SIGN);
+    assert_rnp_success(rnp_signature_get_key_server_prefs(newsig, &check));
+    assert_int_equal(check, RNP_KEY_SERVER_NO_MODIFY);
+    size_t count = 0;
+    assert_rnp_success(rnp_signature_get_preferred_alg_count(newsig, &count));
+    assert_int_equal(count, 4);
+    char *alg = NULL;
+    assert_rnp_success(rnp_signature_get_preferred_alg(newsig, 0, &alg));
+    assert_string_equal(alg, "AES256");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_preferred_alg(newsig, 1, &alg));
+    assert_string_equal(alg, "AES192");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_preferred_alg(newsig, 2, &alg));
+    assert_string_equal(alg, "AES128");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_preferred_alg(newsig, 3, &alg));
+    assert_string_equal(alg, "TRIPLEDES");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_preferred_hash_count(newsig, &count));
+    assert_int_equal(count, 5);
+    assert_rnp_success(rnp_signature_get_preferred_hash(newsig, 0, &alg));
+    assert_string_equal(alg, "SHA512");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_preferred_hash(newsig, 1, &alg));
+    assert_string_equal(alg, "SHA384");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_preferred_hash(newsig, 2, &alg));
+    assert_string_equal(alg, "SHA256");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_preferred_hash(newsig, 3, &alg));
+    assert_string_equal(alg, "SHA224");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_preferred_hash(newsig, 4, &alg));
+    assert_string_equal(alg, "SHA1");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_preferred_zalg_count(newsig, &count));
+    assert_int_equal(count, 3);
+    assert_rnp_success(rnp_signature_get_preferred_zalg(newsig, 0, &alg));
+    assert_string_equal(alg, "ZLIB");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_preferred_zalg(newsig, 1, &alg));
+    assert_string_equal(alg, "BZip2");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_preferred_zalg(newsig, 2, &alg));
+    assert_string_equal(alg, "ZIP");
+    rnp_buffer_destroy(alg);
+    rnp_signature_handle_destroy(newsig);
+    /* First newly added signature with defaults */
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 1, &newsig));
+    assert_rnp_success(rnp_signature_is_valid(newsig, 0));
+    assert_true(check_sig_hash(newsig, DEFAULT_HASH_ALG));
+    assert_true(check_sig_type(newsig, "certification (positive)"));
+    uint32_t now = ::time(NULL);
+    assert_rnp_failure(rnp_signature_get_creation(NULL, &check));
+    assert_rnp_failure(rnp_signature_get_creation(newsig, NULL));
+    assert_rnp_success(rnp_signature_get_creation(newsig, &check));
+    assert_true(check >= now - 10);
+    assert_rnp_failure(rnp_signature_get_key_expiration(NULL, &check));
+    assert_rnp_failure(rnp_signature_get_key_expiration(newsig, NULL));
+    assert_rnp_success(rnp_signature_get_key_expiration(newsig, &check));
+    assert_int_equal(check, 0);
+    assert_rnp_failure(rnp_signature_get_primary_uid(NULL, &primary));
+    assert_rnp_failure(rnp_signature_get_primary_uid(newsig, NULL));
+    assert_rnp_success(rnp_signature_get_primary_uid(newsig, &primary));
+    assert_false(primary);
+    char *strcheck = NULL;
+    assert_rnp_failure(rnp_signature_get_key_server(NULL, &strcheck));
+    assert_rnp_failure(rnp_signature_get_key_server(newsig, NULL));
+    assert_rnp_success(rnp_signature_get_key_server(newsig, &strcheck));
+    assert_string_equal(strcheck, "");
+    rnp_buffer_destroy(strcheck);
+    assert_rnp_failure(rnp_signature_get_features(NULL, &check));
+    assert_rnp_failure(rnp_signature_get_features(newsig, NULL));
+    assert_rnp_success(rnp_signature_get_features(newsig, &check));
+    assert_int_equal(check, 0);
+    assert_rnp_failure(rnp_signature_get_key_flags(NULL, &check));
+    assert_rnp_failure(rnp_signature_get_key_flags(newsig, NULL));
+    assert_rnp_success(rnp_signature_get_features(newsig, &check));
+    assert_int_equal(check, 0);
+    assert_rnp_failure(rnp_signature_get_key_server_prefs(NULL, &check));
+    assert_rnp_failure(rnp_signature_get_key_server_prefs(newsig, NULL));
+    assert_rnp_success(rnp_signature_get_key_server_prefs(newsig, &check));
+    assert_int_equal(check, 0);
+    assert_rnp_failure(rnp_signature_get_preferred_alg_count(NULL, &count));
+    assert_rnp_failure(rnp_signature_get_preferred_alg_count(newsig, NULL));
+    assert_rnp_success(rnp_signature_get_preferred_alg_count(newsig, &count));
+    assert_int_equal(count, 0);
+    assert_rnp_failure(rnp_signature_get_preferred_alg(NULL, 0, &alg));
+    assert_rnp_failure(rnp_signature_get_preferred_alg(newsig, 0, NULL));
+    assert_rnp_failure(rnp_signature_get_preferred_alg(newsig, 0, &alg));
+    assert_rnp_failure(rnp_signature_get_preferred_hash_count(NULL, &count));
+    assert_rnp_failure(rnp_signature_get_preferred_hash_count(newsig, NULL));
+    assert_rnp_success(rnp_signature_get_preferred_hash_count(newsig, &count));
+    assert_int_equal(count, 0);
+    assert_rnp_failure(rnp_signature_get_preferred_hash(NULL, 0, &alg));
+    assert_rnp_failure(rnp_signature_get_preferred_hash(newsig, 0, NULL));
+    assert_rnp_failure(rnp_signature_get_preferred_hash(newsig, 0, &alg));
+    assert_rnp_failure(rnp_signature_get_preferred_zalg_count(NULL, &count));
+    assert_rnp_failure(rnp_signature_get_preferred_zalg_count(newsig, NULL));
+    assert_rnp_success(rnp_signature_get_preferred_zalg_count(newsig, &count));
+    assert_int_equal(count, 0);
+    assert_rnp_failure(rnp_signature_get_preferred_zalg(NULL, 0, &alg));
+    assert_rnp_failure(rnp_signature_get_preferred_zalg(newsig, 0, NULL));
+    assert_rnp_failure(rnp_signature_get_preferred_zalg(newsig, 0, &alg));
+    rnp_signature_handle_destroy(newsig);
+    /* Second newly added signature with customized parameters */
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 2, &newsig));
+    assert_rnp_success(rnp_signature_is_valid(newsig, 0));
+    assert_true(check_sig_type(newsig, "certification (positive)"));
+    assert_rnp_success(rnp_signature_get_creation(newsig, &check));
+    assert_int_equal(check, sig_creation);
+    assert_true(check_sig_hash(newsig, hash));
+    assert_rnp_success(rnp_signature_get_key_expiration(newsig, &check));
+    assert_int_equal(check, expiry);
+    assert_rnp_success(rnp_signature_get_primary_uid(newsig, &primary));
+    assert_true(primary);
+    assert_rnp_success(rnp_signature_get_key_server(newsig, &strcheck));
+    assert_string_equal(strcheck, key_serv);
+    rnp_buffer_destroy(strcheck);
+    assert_rnp_success(rnp_signature_get_key_server_prefs(newsig, &check));
+    assert_int_equal(check, RNP_KEY_SERVER_NO_MODIFY);
+    assert_rnp_success(rnp_signature_get_features(newsig, &check));
+    assert_int_equal(check, features);
+    assert_rnp_success(rnp_signature_get_key_flags(newsig, &check));
+    assert_int_equal(check, RNP_KEY_USAGE_CERTIFY);
+    assert_rnp_success(rnp_signature_get_preferred_alg_count(newsig, &count));
+    assert_int_equal(count, 3);
+    assert_rnp_success(rnp_signature_get_preferred_alg(newsig, 0, &alg));
+    assert_string_equal(alg, "AES256");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_preferred_alg(newsig, 1, &alg));
+    assert_string_equal(alg, "CAMELLIA192");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_preferred_alg(newsig, 2, &alg));
+    assert_string_equal(alg, "IDEA");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_preferred_hash_count(newsig, &count));
+    assert_int_equal(count, 3);
+    assert_rnp_success(rnp_signature_get_preferred_hash(newsig, 0, &alg));
+    assert_string_equal(alg, "SHA256");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_preferred_hash(newsig, 1, &alg));
+    assert_string_equal(alg, "SHA3-512");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_preferred_hash(newsig, 2, &alg));
+    assert_string_equal(alg, "SM3");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_preferred_zalg_count(newsig, &count));
+    assert_int_equal(count, 2);
+    assert_rnp_success(rnp_signature_get_preferred_zalg(newsig, 0, &alg));
+    assert_string_equal(alg, "ZLIB");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_preferred_zalg(newsig, 1, &alg));
+    assert_string_equal(alg, "BZip2");
+    rnp_buffer_destroy(alg);
+    rnp_signature_handle_destroy(newsig);
+    rnp_uid_handle_destroy(uid);
+    /* Export key and make sure data is saved */
+    auto keydata = export_key(key, true);
+    rnp_key_handle_destroy(key);
+    rnp_ffi_t newffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&newffi, "GPG", "GPG"));
+    assert_true(import_all_keys(newffi, keydata.data(), keydata.size()));
+    assert_rnp_success(rnp_locate_key(newffi, "userid", "ecc-p256", &key));
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    assert_rnp_success(rnp_uid_get_signature_count(uid, &sigs));
+    assert_int_equal(sigs, 3);
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 1, &newsig));
+    assert_rnp_success(rnp_signature_is_valid(newsig, 0));
+    assert_true(check_sig_hash(newsig, DEFAULT_HASH_ALG));
+    assert_true(check_sig_type(newsig, "certification (positive)"));
+    assert_rnp_success(rnp_signature_get_creation(newsig, &check));
+    assert_true(check >= now - 20);
+    rnp_signature_handle_destroy(newsig);
+
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 2, &newsig));
+    assert_rnp_success(rnp_signature_is_valid(newsig, 0));
+    assert_true(check_sig_hash(newsig, hash));
+    assert_true(check_sig_type(newsig, "certification (positive)"));
+    assert_rnp_success(rnp_signature_get_key_server(newsig, &strcheck));
+    assert_string_equal(strcheck, key_serv);
+    assert_rnp_success(rnp_signature_get_key_flags(newsig, &check));
+    assert_int_equal(check, RNP_KEY_USAGE_CERTIFY);
+    rnp_buffer_destroy(strcheck);
+    rnp_signature_handle_destroy(newsig);
+    rnp_uid_handle_destroy(uid);
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(newffi);
+
+    rnp_ffi_destroy(ffi);
+}

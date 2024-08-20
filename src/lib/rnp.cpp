@@ -6196,6 +6196,190 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_key_signature_set_creation(rnp_signature_handle_t sig, uint32_t ctime)
+try {
+    if (!sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->new_sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    sig->sig->sig.set_creation(ctime);
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_signature_set_key_flags(rnp_signature_handle_t sig, uint32_t flags)
+try {
+    if (!sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->new_sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    uint32_t check = flags;
+    extract_flag(check,
+                 PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_ENCRYPT_COMMS | PGP_KF_ENCRYPT_STORAGE |
+                   PGP_KF_SPLIT | PGP_KF_AUTH | PGP_KF_SHARED);
+    if (check) {
+        FFI_LOG(sig->ffi, "Unknown key flags: %#" PRIx32, check);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    sig->sig->sig.set_key_flags(flags & 0xff);
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_signature_set_key_expiration(rnp_signature_handle_t sig, uint32_t expiry)
+try {
+    if (!sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->new_sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    sig->sig->sig.set_key_expiration(expiry);
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_signature_set_features(rnp_signature_handle_t sig, uint32_t features)
+try {
+    if (!sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->new_sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    uint32_t flags = features;
+    extract_flag(flags, RNP_KEY_FEATURE_MDC | RNP_KEY_FEATURE_AEAD | RNP_KEY_FEATURE_V5);
+    if (flags) {
+        FFI_LOG(sig->ffi, "Unknown key features: %#" PRIx32, flags);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    sig->sig->sig.set_key_features(features & 0xff);
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_signature_add_preferred_alg(rnp_signature_handle_t sig, const char *alg)
+try {
+    if (!sig || !alg) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->new_sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    auto symm_alg = id_str_pair::lookup(symm_alg_map, alg, PGP_SA_UNKNOWN);
+    if (symm_alg == PGP_SA_UNKNOWN) {
+        FFI_LOG(sig->ffi, "Unknown symmetric algorithm: %s", alg);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    auto algs = sig->sig->sig.preferred_symm_algs();
+    algs.push_back(symm_alg);
+    sig->sig->sig.set_preferred_symm_algs(algs);
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_signature_add_preferred_hash(rnp_signature_handle_t sig, const char *hash)
+try {
+    if (!sig || !hash) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->new_sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    auto hash_alg = id_str_pair::lookup(hash_alg_map, hash, PGP_HASH_UNKNOWN);
+    if (hash_alg == PGP_HASH_UNKNOWN) {
+        FFI_LOG(sig->ffi, "Unknown hash algorithm: %s", hash);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    auto algs = sig->sig->sig.preferred_hash_algs();
+    algs.push_back(hash_alg);
+    sig->sig->sig.set_preferred_hash_algs(algs);
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_signature_add_preferred_zalg(rnp_signature_handle_t sig, const char *zalg)
+try {
+    if (!sig || !zalg) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->new_sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    auto z_alg = id_str_pair::lookup(compress_alg_map, zalg, PGP_C_UNKNOWN);
+    if (z_alg == PGP_C_UNKNOWN) {
+        FFI_LOG(sig->ffi, "Unknown compression algorithm: %s", zalg);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    auto algs = sig->sig->sig.preferred_z_algs();
+    algs.push_back(z_alg);
+    sig->sig->sig.set_preferred_z_algs(algs);
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_signature_set_primary_uid(rnp_signature_handle_t sig, bool primary)
+try {
+    if (!sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->new_sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    sig->sig->sig.set_primary_uid(primary);
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_signature_set_key_server(rnp_signature_handle_t sig, const char *keyserver)
+try {
+    if (!sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->new_sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!keyserver) {
+        keyserver = "";
+    }
+    sig->sig->sig.set_key_server(keyserver);
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_signature_set_key_server_prefs(rnp_signature_handle_t sig, uint32_t flags)
+try {
+    if (!sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->new_sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    uint32_t check = flags;
+    extract_flag(check, RNP_KEY_SERVER_NO_MODIFY);
+    if (check) {
+        FFI_LOG(sig->ffi, "Unknown key server prefs: %#" PRIx32, check);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    sig->sig->sig.set_key_server_prefs(flags & 0xff);
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_key_signature_set_revocation_reason(rnp_signature_handle_t sig,
                                         const char *           code,
                                         const char *           reason)

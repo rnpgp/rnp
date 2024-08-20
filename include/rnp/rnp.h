@@ -1617,6 +1617,126 @@ RNP_API rnp_result_t rnp_key_revocation_signature_create(rnp_key_handle_t       
 RNP_API rnp_result_t rnp_key_signature_set_hash(rnp_signature_handle_t sig, const char *hash);
 
 /**
+ * @brief Set the signature creation time. While it is set by default to the current time,
+ *        caller may override it in case of need.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param creation timestamp with the creation time.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_creation(rnp_signature_handle_t sig,
+                                                    uint32_t               ctime);
+
+/**
+ * @brief Set the key usage flags, i.e. whether it is usable for signing, encryption, whatever
+ *        else.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param flags key flags, which directly maps to the ones described in the OpenPGP
+ *              specification. See the RNP_KEY_USAGE_* constants.
+ *              Note: RNP will not check whether flags are applicable to the key itself (i.e.
+ *              signing flag for encryption-only key), so it's up to the caller to check this.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_key_flags(rnp_signature_handle_t sig,
+                                                     uint32_t               flags);
+
+/**
+ * @brief Set the key expiration time. Makes sense only for self-certification or direct-key
+ *        signatures.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param expiry number of seconds since key creation when it is considered as valid. Zero
+ *               value means that key never expires.
+ *               I.e. if you want key to last for 1 year from now (given that signature
+ *               creation time is set to now), you should calculate the following:
+ *               expiry = now() - rnp_key_get_creation() + 365*24*60*60
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_key_expiration(rnp_signature_handle_t sig,
+                                                          uint32_t               expiry);
+
+/**
+ * @brief Set the key features. Makes sense only for self-signature.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param features or'ed together feature flags (RNP_FEATURE_*). For the list of currently
+ *                 supported flags please see the description of rnp_signature_get_features().
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_features(rnp_signature_handle_t sig,
+                                                    uint32_t               features);
+
+/**
+ * @brief Add preferred symmetric algorithm to the signature. Should be subsequently called for
+ *        each algorithm, making first ones of higher priority.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param alg symmetric algorithm name, cannot be NULL. See
+ *            rnp_op_generate_set_protection_cipher() for the list of possible values.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_add_preferred_alg(rnp_signature_handle_t sig,
+                                                         const char *           alg);
+
+/**
+ * @brief Add preferred hash algorithm to the signature. Should be subsequently called for each
+ *        algorithm, making first ones of higher priority.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param alg hash algorithm name, cannot be NULL. See rnp_op_generate_set_hash() for the list
+ *            of possible values.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_add_preferred_hash(rnp_signature_handle_t sig,
+                                                          const char *           hash);
+
+/**
+ * @brief Add preferred compression algorithm to the signature. Should be subsequently called
+ *        for each algorithm, making first ones of higher priority.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param alg compression algorithm name, cannot be NULL. See
+ *            rnp_op_generate_add_pref_compression() for the list of possible values.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_add_preferred_zalg(rnp_signature_handle_t sig,
+                                                          const char *           zalg);
+
+/**
+ * @brief Set whether corresponding user id should be considered as primary. Makes sense only
+ *        for self-certification.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param primary true for primary or false for not.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_primary_uid(rnp_signature_handle_t sig,
+                                                       bool                   primary);
+
+/**
+ * @brief Set the key server url which is applicable for this key.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param keyserver key server url. If NULL or empty string then key server field in the
+ * signature will be removed.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_key_server(rnp_signature_handle_t sig,
+                                                      const char *           keyserver);
+
+/**
+ * @brief Set the key server preferences flags.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param flags or'ed together preferences flags. Currently only single flag is supported -
+ *              RNP_KEY_SERVER_NO_MODIFY.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_key_server_prefs(rnp_signature_handle_t sig,
+                                                            uint32_t               flags);
+
+/**
  * @brief Set revocation reason and code for the revocation signature.
  *        See `rnp_key_revoke()` for the details.
  * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
@@ -3839,6 +3959,9 @@ RNP_API const char *rnp_backend_version();
 #define RNP_ALGNAME_SHA3_512 "SHA3-512"
 #define RNP_ALGNAME_RIPEMD160 "RIPEMD160"
 #define RNP_ALGNAME_CRC24 "CRC24"
+#define RNP_ALGNAME_ZLIB "ZLib"
+#define RNP_ALGNAME_BZIP2 "BZip2"
+#define RNP_ALGNAME_ZIP "ZIP"
 
 /* SHA1 is not considered secured anymore and SHOULD NOT be used to create messages (as per
  * Appendix C of RFC 4880-bis-02). SHA2 MUST be implemented.
