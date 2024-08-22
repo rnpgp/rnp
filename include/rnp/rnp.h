@@ -151,6 +151,21 @@ typedef uint32_t rnp_result_t;
 #define RNP_KEY_FEATURE_V5 (1U << 2)
 
 /**
+ *  Key usage flags.
+ */
+
+#define RNP_KEY_USAGE_CERTIFY (1U << 0)
+#define RNP_KEY_USAGE_SIGN (1U << 1)
+#define RNP_KEY_USAGE_ENCRYPT_COMMS (1U << 2)
+#define RNP_KEY_USAGE_ENCRYPT_STORAGE (1U << 3)
+
+/**
+ *  Key server preferences flags.
+ */
+
+#define RNP_KEY_SERVER_NO_MODIFY (1U << 7)
+
+/**
  * Return a constant string describing the result code
  */
 RNP_API const char *rnp_result_to_string(rnp_result_t result);
@@ -1753,8 +1768,161 @@ RNP_API rnp_result_t rnp_signature_get_creation(rnp_signature_handle_t sig, uint
 RNP_API rnp_result_t rnp_signature_get_expiration(rnp_signature_handle_t sig,
                                                   uint32_t *             expires);
 
+/**
+ * @brief Get the key features if any as per RFC 4880 and later. Do not confuse with key flags.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param features on success result will be stored here as or'ed together flag bits.
+ *                 If corresponding value is not available then 0 will be stored.
+ *                 Currently known feature bit flags are (consult RFC for more details):
+ *                 RNP_KEY_FEATURE_MDC  - support for MDC packets (see RFC 4880)
+ *                 RNP_KEY_FEATURE_AEAD - support for OCB encrypted packet and v5 SKESK (please
+ *                   see LibrePGP standard)
+ *                 RNP_KEY_FEATURE_V5   - version 5 public-key format and corresponding
+ *                   fingerprint
+ * @return RNP_SUCCESS or error code if failed.
+ */
 RNP_API rnp_result_t rnp_signature_get_features(rnp_signature_handle_t sig,
                                                 uint32_t *             features);
+
+/**
+ * @brief Get number of the preferred symmetric algorithms, listed in the signature. Applies to
+ *        the self-signature (self-certification or direct-key signature).
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param count on success nunmber of available algorithms will be stored here. It may be 0 if
+ *              no such information is available within the signature.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_preferred_alg_count(rnp_signature_handle_t sig,
+                                                           size_t *               count);
+
+/**
+ * @brief Get preferred symmetric algorithm from the preferences, specified in the signature.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param idx index in the list. Number of available items could be obtained via the
+ *            rnp_signature_get_preferred_alg_count() call.
+ * @param alg on success algorithm name will be stored here. Caller must deallocate it using
+ *            the rnp_buffer_destroy() function.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_preferred_alg(rnp_signature_handle_t sig,
+                                                     size_t                 idx,
+                                                     char **                alg);
+
+/**
+ * @brief Get number of the preferred hash algorithms, listed in the signature. Applies to the
+ *        self-signature (self-certification or direct-key signature).
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param count on success nunmber of available algorithms will be stored here. It may be 0 if
+ *              no such information is available within the signature.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_preferred_hash_count(rnp_signature_handle_t sig,
+                                                            size_t *               count);
+
+/**
+ * @brief Get preferred hash algorithm from the preferences, specified in the signature.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param idx index in the list. Number of available items could be obtained via the
+ *            rnp_signature_get_preferred_hash_count() call.
+ * @param alg on success algorithm name will be stored here. Caller must deallocate it using
+ *            the rnp_buffer_destroy() function.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_preferred_hash(rnp_signature_handle_t sig,
+                                                      size_t                 idx,
+                                                      char **                alg);
+
+/**
+ * @brief Get number of the preferred compression algorithms, listed in the signature. Applies
+ * to the self-signature (self-certification or direct-key signature).
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param count on success nunmber of available algorithms will be stored here. It may be 0 if
+ *              no such information is available within the signature.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_preferred_zalg_count(rnp_signature_handle_t sig,
+                                                            size_t *               count);
+
+/**
+ * @brief Get preferred compression algorithm from the preferences, specified in the signature.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param idx index in the list. Number of available items could be obtained via the
+ *            rnp_signature_get_preferred_zalg_count() call.
+ * @param alg on success algorithm name will be stored here. Caller must deallocate it using
+ *            the rnp_buffer_destroy() function.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_preferred_zalg(rnp_signature_handle_t sig,
+                                                      size_t                 idx,
+                                                      char **                alg);
+
+/**
+ * @brief Get key usage flags from the signature, if any. Those are mapped directly to the
+ *        values described in the OpenPGP specification.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param flags on success result will be stored here as or'ed together flag bits.
+ *              If corresponding value is not available then 0 will be stored.
+ *              These flags would correspond to string values which are passed to the
+ *              rnp_op_generate_add_usage(). See the RNP_KEY_USAGE_* constants for possible
+ *              values.
+ *
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_key_flags(rnp_signature_handle_t sig, uint32_t *flags);
+
+/**
+ * @brief Get the key expiration time from the signature.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param expiry on success result will be stored here. It is number of seconds since key
+ *               creation (not the signature creation) when this key is considered to be valid.
+ *               Zero value means that key is valid forever.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_key_expiration(rnp_signature_handle_t sig,
+                                                      uint32_t *             expiry);
+
+/**
+ * @brief Check whether signature indicates that corresponding user id should be considered as
+ *        primary.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param primary on success result will be stored here. True for primary and false otherwise.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_primary_uid(rnp_signature_handle_t sig, bool *primary);
+
+/**
+ * @brief Get the key server associated with this key, if any.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param keyserver on success key server string, stored in the signature, will be stored here.
+ *                  If it isn't present in the signature, an empty value will be stored. In
+ *                  both cases, the buffer must be deallocated via the rnp_buffer_destroy()
+ *                  call.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_key_server(rnp_signature_handle_t sig,
+                                                  char **                keyserver);
+
+/**
+ * @brief Get the key server preferences flags, if any.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param flags on success flags will be stored here. Currently only one flag is supported:
+ *              RNP_KEY_SERVER_NO_MODIFY
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_key_server_prefs(rnp_signature_handle_t sig,
+                                                        uint32_t *             flags);
 
 /** Get signer's key id from the signature.
  *  Note: if key id is not available from the signature then NULL value will

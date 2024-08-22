@@ -6479,6 +6479,168 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_signature_get_preferred_alg_count(rnp_signature_handle_t sig, size_t *count)
+try {
+    if (!sig || !count) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *count = sig->sig->sig.preferred_symm_algs().size();
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_signature_get_preferred_alg(rnp_signature_handle_t sig, size_t idx, char **alg)
+try {
+    if (!sig || !alg) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    auto algs = sig->sig->sig.preferred_symm_algs();
+    if (idx >= algs.size()) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return get_map_value(symm_alg_map, algs[idx], alg);
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_signature_get_preferred_hash_count(rnp_signature_handle_t sig, size_t *count)
+try {
+    if (!sig || !count) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *count = sig->sig->sig.preferred_hash_algs().size();
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_signature_get_preferred_hash(rnp_signature_handle_t sig, size_t idx, char **alg)
+try {
+    if (!sig || !alg) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    auto algs = sig->sig->sig.preferred_hash_algs();
+    if (idx >= algs.size()) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return get_map_value(hash_alg_map, algs[idx], alg);
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_signature_get_preferred_zalg_count(rnp_signature_handle_t sig, size_t *count)
+try {
+    if (!sig || !count) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *count = sig->sig->sig.preferred_z_algs().size();
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_signature_get_preferred_zalg(rnp_signature_handle_t sig, size_t idx, char **alg)
+try {
+    if (!sig || !alg) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    auto algs = sig->sig->sig.preferred_z_algs();
+    if (idx >= algs.size()) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return get_map_value(compress_alg_map, algs[idx], alg);
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_signature_get_key_flags(rnp_signature_handle_t sig, uint32_t *flags)
+try {
+    if (!sig || !flags) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *flags = sig->sig->sig.key_flags();
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_signature_get_key_expiration(rnp_signature_handle_t sig, uint32_t *expiry)
+try {
+    if (!sig || !expiry) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *expiry = sig->sig->sig.key_expiration();
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_signature_get_primary_uid(rnp_signature_handle_t sig, bool *primary)
+try {
+    if (!sig || !primary) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *primary = sig->sig->sig.primary_uid();
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_signature_get_key_server(rnp_signature_handle_t sig, char **keyserver)
+try {
+    if (!sig || !keyserver) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return ret_str_value(sig->sig->sig.key_server().c_str(), keyserver);
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_signature_get_key_server_prefs(rnp_signature_handle_t sig, uint32_t *flags)
+try {
+    if (!sig || !flags) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *flags = sig->sig->sig.key_server_prefs();
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_signature_get_keyid(rnp_signature_handle_t handle, char **result)
 try {
     if (!handle || !result) {
