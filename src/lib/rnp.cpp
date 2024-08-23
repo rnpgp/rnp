@@ -525,21 +525,6 @@ hex_encode_value(const uint8_t *value, size_t len, char **res)
 }
 
 static rnp_result_t
-get_map_value(const id_str_pair *map, int val, char **res)
-{
-    const char *str = id_str_pair::lookup(map, val, NULL);
-    if (!str) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-    char *strcp = strdup(str);
-    if (!strcp) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
-    *res = strcp;
-    return RNP_SUCCESS;
-}
-
-static rnp_result_t
 ret_str_value(const char *str, char **res)
 {
     if (!str) {
@@ -547,10 +532,17 @@ ret_str_value(const char *str, char **res)
     }
     char *strcp = strdup(str);
     if (!strcp) {
+        *res = NULL;                    // LCOV_EXCL_LINE
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     *res = strcp;
     return RNP_SUCCESS;
+}
+
+static rnp_result_t
+get_map_value(const id_str_pair *map, int val, char **res)
+{
+    return ret_str_value(id_str_pair::lookup(map, val, NULL), res);
 }
 
 static rnp_result_t
@@ -939,11 +931,7 @@ try {
     if (home.empty()) {
         return RNP_ERROR_NOT_SUPPORTED;
     }
-    *homedir = strdup(home.c_str());
-    if (!*homedir) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
-    return RNP_SUCCESS;
+    return ret_str_value(home.c_str(), homedir);
 }
 FFI_GUARD
 
@@ -1018,30 +1006,21 @@ try {
         return RNP_ERROR_SHORT_BUFFER;
     }
 
-    *format = NULL;
     // ordered from most reliable detection to least
-    const char *guess = NULL;
     if (buf_len >= 12 && memcmp(buf + 8, "KBXf", 4) == 0) {
         // KBX has a magic KBXf marker
-        guess = "KBX";
+        return ret_str_value("KBX", format);
     } else if (buf_len >= 5 && memcmp(buf, "-----", 5) == 0) {
         // likely armored GPG
-        guess = "GPG";
+        return ret_str_value("GPG", format);
     } else if (buf[0] == '(') {
         // G10 is s-exprs and should start end end with parentheses
-        guess = "G10";
+        return ret_str_value("G10", format);
     } else if (buf[0] & PGP_PTAG_ALWAYS_SET) {
         // this is harder to reliably determine, but could likely be improved
-        guess = "GPG";
+        return ret_str_value("GPG", format);
     }
-    if (guess) {
-        *format = strdup(guess);
-        if (!*format) {
-            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-        }
-    }
-
-    // success
+    *format = NULL;
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -1155,16 +1134,8 @@ try {
     if (ret) {
         return ret;
     }
-
-    *result = (char *) json_object_to_json_string_ext(features, JSON_C_TO_STRING_PRETTY);
-    if (!*result) {
-        return RNP_ERROR_BAD_STATE; // LCOV_EXCL_LINE
-    }
-    *result = strdup(*result);
-    if (!*result) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
-    return RNP_SUCCESS;
+    return ret_str_value(json_object_to_json_string_ext(features, JSON_C_TO_STRING_PRETTY),
+                         result);
 }
 FFI_GUARD
 
@@ -1782,18 +1753,11 @@ try {
             return tmpret;
         }
     }
-
-    if (results) {
-        *results = (char *) json_object_to_json_string_ext(jsores, JSON_C_TO_STRING_PRETTY);
-        if (!*results) {
-            return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
-        }
-        *results = strdup(*results);
-        if (!*results) {
-            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-        }
+    if (!results) {
+        return RNP_SUCCESS;
     }
-    return RNP_SUCCESS;
+    return ret_str_value(json_object_to_json_string_ext(jsores, JSON_C_TO_STRING_PRETTY),
+                         results);
 }
 FFI_GUARD
 
@@ -1883,18 +1847,11 @@ try {
             return sigret; // LCOV_EXCL_LINE
         }
     }
-
-    if (results) {
-        *results = (char *) json_object_to_json_string_ext(jsores, JSON_C_TO_STRING_PRETTY);
-        if (!*results) {
-            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-        }
-        *results = strdup(*results);
-        if (!*results) {
-            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-        }
+    if (!results) {
+        return RNP_SUCCESS;
     }
-    return RNP_SUCCESS;
+    return ret_str_value(json_object_to_json_string_ext(jsores, JSON_C_TO_STRING_PRETTY),
+                         results);
 }
 FFI_GUARD
 
@@ -5830,11 +5787,7 @@ key_get_uid_at(pgp_key_t *key, size_t idx, char **uid)
     if (idx >= key->uid_count()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    *uid = strdup(key->get_uid(idx).str.c_str());
-    if (!*uid) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    return RNP_SUCCESS;
+    return ret_str_value(key->get_uid(idx).str.c_str(), uid);
 }
 
 rnp_result_t
@@ -6901,12 +6854,7 @@ try {
     if (!curve_type_to_str(_curve, &curvename)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    char *curvenamecp = strdup(curvename);
-    if (!curvenamecp) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    *curve = curvenamecp;
-    return RNP_SUCCESS;
+    return ret_str_value(curvename, curve);
 }
 FFI_GUARD
 
@@ -7205,12 +7153,7 @@ try {
     if (!key || !key->revoked()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-
-    *result = strdup(key->revocation().reason.c_str());
-    if (!*result) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    return RNP_SUCCESS;
+    return ret_str_value(key->revocation().reason.c_str(), result);
 }
 FFI_GUARD
 
@@ -8245,15 +8188,7 @@ try {
     if ((ret = key_to_json(jso, handle, flags))) {
         return ret;
     }
-    *result = (char *) json_object_to_json_string_ext(jso, JSON_C_TO_STRING_PRETTY);
-    if (!*result) {
-        return ret;
-    }
-    *result = strdup(*result);
-    if (!*result) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    return RNP_SUCCESS;
+    return ret_str_value(json_object_to_json_string_ext(jso, JSON_C_TO_STRING_PRETTY), result);
 }
 FFI_GUARD
 
@@ -8272,23 +8207,12 @@ rnp_dump_src_to_json(pgp_source_t *src, uint32_t flags, char **result)
     json_object *jso = NULL;
     rnp_result_t ret = stream_dump_packets_json(&dumpctx, src, &jso);
     if (ret) {
-        goto done;
+        json_object_put(jso);
+        return ret;
     }
 
-    *result = (char *) json_object_to_json_string_ext(jso, JSON_C_TO_STRING_PRETTY);
-    if (!*result) {
-        goto done;
-    }
-    *result = strdup(*result);
-    if (!*result) {
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
-    }
-
-    ret = RNP_SUCCESS;
-done:
-    json_object_put(jso);
-    return ret;
+    rnp::JSONObject jsowrap(jso);
+    return ret_str_value(json_object_to_json_string_ext(jso, JSON_C_TO_STRING_PRETTY), result);
 }
 
 rnp_result_t
@@ -8315,7 +8239,6 @@ try {
     if (!input || !result) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     return rnp_dump_src_to_json(&input->src, flags, result);
 }
 FFI_GUARD
