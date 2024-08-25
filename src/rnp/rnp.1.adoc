@@ -117,6 +117,12 @@ You may want to use *--hash* option to override default hash algorithm settings.
 +
 Compression options also apply here. Since the secret key is usually stored encrypted, you will be asked for the password to decrypt it via _stdin_/_tty_ unless *--password* or *--pass-fd* is specified.
 
+*--allow-weak-hash*:::
+Allow usage of a weak hash algorithm.
+
+*--allow-sha1-key-sigs*:::
+Allow usage of a SHA-1 key signatures.
+
 *--clearsign*::
 Digitally sign text data, producing human-readable output with the signature attached. +
 +
