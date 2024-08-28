@@ -4119,7 +4119,7 @@ try {
     }
     auto material = dynamic_cast<const pgp::ECDHKeyMaterial *>(seckey->material());
     if (!material) {
-        return RNP_ERROR_BAD_STATE;
+        return RNP_ERROR_BAD_STATE; // LCOV_EXCL_LINE
     }
     *result = material->x25519_bits_tweaked();
     return RNP_SUCCESS;
@@ -6821,7 +6821,7 @@ try {
     }
     pgp_key_t *key = get_key_prefer_public(handle);
     if (!key || !key->material()) {
-        return RNP_ERROR_BAD_PARAMETERS;
+        return RNP_ERROR_BAD_PARAMETERS; // LCOV_EXCL_LINE
     }
     size_t _bits = key->material()->bits();
     if (!_bits) {
@@ -7954,15 +7954,15 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
         return RNP_ERROR_BAD_PARAMETERS;
     }
     if (!json_add(jso, "type", str)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     // length
     auto km = key->material();
     if (!km) {
-        return RNP_ERROR_BAD_PARAMETERS;
+        return RNP_ERROR_BAD_PARAMETERS; // LCOV_EXCL_LINE
     }
     if (!json_add(jso, "length", (int) km->bits())) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     // curve / alg-specific items
     switch (key->alg()) {
@@ -7982,7 +7982,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
         }
         if (!json_add(jso, "kdf hash", hash_name) ||
             !json_add(jso, "key wrap cipher", cipher_name)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
     }
         FALLTHROUGH_STATEMENT;
@@ -7994,7 +7994,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
             return RNP_ERROR_BAD_PARAMETERS;
         }
         if (!json_add(jso, "curve", curve_name)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
     } break;
 #if defined(ENABLE_CRYPTO_REFRESH)
@@ -8040,7 +8040,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
         return RNP_ERROR_GENERIC;
     }
     if (!json_add(jso, "keyid", keyid)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     // fingerprint
     char fpr[PGP_FINGERPRINT_HEX_SIZE] = {0};
@@ -8048,7 +8048,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
         return RNP_ERROR_GENERIC;
     }
     if (!json_add(jso, "fingerprint", fpr)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     // grip
     char grip[PGP_KEY_GRIP_SIZE * 2 + 1];
@@ -8056,33 +8056,33 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
         return RNP_ERROR_GENERIC;
     }
     if (!json_add(jso, "grip", grip)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     // revoked
     if (!json_add(jso, "revoked", key->revoked())) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     // creation time
     if (!json_add(jso, "creation time", (uint64_t) key->creation())) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     // expiration
     if (!json_add(jso, "expiration", (uint64_t) key->expiration())) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     // key flags (usage)
     if (!add_json_key_usage(jso, key->flags())) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     // key flags (other)
     if (!add_json_key_flags(jso, key->flags())) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     // parent / subkeys
     if (key->is_primary()) {
         json_object *jsosubkeys_arr = json_object_new_array();
         if (!jsosubkeys_arr || !json_add(jso, "subkey grips", jsosubkeys_arr)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         for (auto &subfp : key->subkey_fps()) {
             const pgp_key_grip_t *subgrip = rnp_get_grip_by_fp(handle->ffi, subfp);
@@ -8093,7 +8093,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
                 return RNP_ERROR_GENERIC;
             }
             if (!json_array_add(jsosubkeys_arr, grip)) {
-                return RNP_ERROR_OUT_OF_MEMORY;
+                return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
             }
         }
     } else if (key->has_primary_fp()) {
@@ -8103,24 +8103,24 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
                 return RNP_ERROR_GENERIC;
             }
             if (!json_add(jso, "primary key grip", grip)) {
-                return RNP_ERROR_OUT_OF_MEMORY;
+                return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
             }
         }
     }
     // public
     json_object *jsopublic = json_object_new_object();
     if (!jsopublic || !json_add(jso, "public key", jsopublic)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     bool have_sec = handle->sec != NULL;
     bool have_pub = handle->pub != NULL;
     if (!json_add(jsopublic, "present", have_pub)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (flags & RNP_JSON_PUBLIC_MPIS) {
         json_object *jsompis = json_object_new_object();
         if (!jsompis || !json_add(jsopublic, "mpis", jsompis)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         rnp_result_t tmpret;
         if ((tmpret = add_json_mpis(jsompis, key))) {
@@ -8131,7 +8131,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     json_object *jsosecret = json_object_new_object();
     if (!jsosecret || !json_add(jso, "secret key", jsosecret) ||
         !json_add(jsosecret, "present", have_sec)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (have_sec) {
         bool locked = handle->sec->is_locked();
@@ -8141,7 +8141,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
             } else {
                 json_object *jsompis = json_object_new_object();
                 if (!jsompis || !json_add(jsosecret, "mpis", jsompis)) {
-                    return RNP_ERROR_OUT_OF_MEMORY;
+                    return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
                 }
                 rnp_result_t tmpret;
                 if ((tmpret = add_json_mpis(jsompis, handle->sec, true))) {
@@ -8151,18 +8151,18 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
         }
         if (!json_add(jsosecret, "locked", locked) ||
             !json_add(jsosecret, "protected", handle->sec->is_protected())) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
     }
     // userids
     if (key->is_primary()) {
         json_object *jsouids_arr = json_object_new_array();
         if (!jsouids_arr || !json_add(jso, "userids", jsouids_arr)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         for (size_t i = 0; i < key->uid_count(); i++) {
             if (!json_array_add(jsouids_arr, key->get_uid(i).str.c_str())) {
-                return RNP_ERROR_OUT_OF_MEMORY;
+                return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
             }
         }
     }
@@ -8170,13 +8170,13 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     if (flags & RNP_JSON_SIGNATURES) {
         json_object *jsosigs_arr = json_object_new_array();
         if (!jsosigs_arr || !json_add(jso, "signatures", jsosigs_arr)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         for (size_t i = 0; i < key->sig_count(); i++) {
             json_object *jsosig = json_object_new_object();
             if (!jsosig || json_object_array_add(jsosigs_arr, jsosig)) {
                 json_object_put(jsosig);
-                return RNP_ERROR_OUT_OF_MEMORY;
+                return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
             }
             rnp_result_t tmpret;
             if ((tmpret =
@@ -8197,7 +8197,7 @@ try {
     }
     json_object *jso = json_object_new_object();
     if (!jso) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     rnp::JSONObject jsowrap(jso);
     rnp_result_t    ret = RNP_ERROR_GENERIC;
