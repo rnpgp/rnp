@@ -2827,7 +2827,7 @@ pgp_key_t::merge(const pgp_key_t &src)
         }
         /* add uid signatures */
         for (size_t idx = 0; idx < srcuid.sig_count(); idx++) {
-            auto sigid = srcuid.get_sig(idx);
+            auto &sigid = srcuid.get_sig(idx);
             if (has_sig(sigid)) {
                 continue;
             }
