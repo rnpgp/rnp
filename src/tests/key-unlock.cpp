@@ -86,7 +86,7 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     rnp_buffer_destroy(alg);
 
     // confirm the secret MPIs are NULL
-    assert_true(rsa_sec_empty(key->sec->material()));
+    assert_true(rsa_sec_empty(*key->sec->material()));
 
     // try to unlock with a failing password provider
     provider.callback = failing_password_callback;
@@ -111,7 +111,7 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     assert_false(locked);
 
     // confirm the secret MPIs are now filled in
-    assert_true(rsa_sec_filled(key->sec->material()));
+    assert_true(rsa_sec_filled(*key->sec->material()));
 
     // now the signing key is unlocked, confirm that no password is required for signing
     assert_rnp_success(

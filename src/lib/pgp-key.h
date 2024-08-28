@@ -212,22 +212,22 @@ struct pgp_key_t {
     size_t              revoker_count() const;
     const pgp_fingerprint_t &get_revoker(size_t idx) const;
 
-    const pgp_key_pkt_t &   pkt() const;
-    pgp_key_pkt_t &         pkt();
+    const pgp_key_pkt_t &   pkt() const noexcept;
+    pgp_key_pkt_t &         pkt() noexcept;
     void                    set_pkt(const pgp_key_pkt_t &pkt);
-    const pgp::KeyMaterial &material() const;
-    pgp::KeyMaterial &      material();
+    const pgp::KeyMaterial *material() const noexcept;
+    pgp::KeyMaterial *      material() noexcept;
 
-    pgp_pubkey_alg_t alg() const;
+    pgp_pubkey_alg_t alg() const noexcept;
     pgp_curve_t      curve() const;
-    pgp_version_t    version() const;
-    pgp_pkt_type_t   type() const;
-    bool             encrypted() const;
-    uint8_t          flags() const;
-    bool             can_sign() const;
-    bool             can_certify() const;
-    bool             can_encrypt() const;
-    bool             has_secret() const;
+    pgp_version_t    version() const noexcept;
+    pgp_pkt_type_t   type() const noexcept;
+    bool             encrypted() const noexcept;
+    uint8_t          flags() const noexcept;
+    bool             can_sign() const noexcept;
+    bool             can_certify() const noexcept;
+    bool             can_encrypt() const noexcept;
+    bool             has_secret() const noexcept;
     /**
      * @brief Check whether key is usable for the specified operation.
      *
@@ -237,44 +237,43 @@ struct pgp_key_t {
      */
     bool usable_for(pgp_op_t op, bool if_secret = false) const;
     /** @brief Get key's expiration time in seconds. If 0 then it doesn't expire. */
-    uint32_t expiration() const;
+    uint32_t expiration() const noexcept;
     /** @brief Check whether key is expired. Must be validated before that. */
-    bool expired() const;
+    bool expired() const noexcept;
     /** @brief Get key's creation time in seconds since Jan, 1 1970. */
-    uint32_t creation() const;
-    bool     is_public() const;
-    bool     is_secret() const;
-    bool     is_primary() const;
-    bool     is_subkey() const;
-    bool     is_seipdv2_capable() const;
+    uint32_t creation() const noexcept;
+    bool     is_public() const noexcept;
+    bool     is_secret() const noexcept;
+    bool     is_primary() const noexcept;
+    bool     is_subkey() const noexcept;
     /** @brief check if a key is currently locked, i.e. secret fields are not decrypted.
      *  Note: Key locking does not apply to unprotected keys.
      */
-    bool is_locked() const;
+    bool is_locked() const noexcept;
     /** @brief check if a key is currently protected, i.e. its secret data is encrypted */
-    bool is_protected() const;
+    bool is_protected() const noexcept;
 
-    bool valid() const;
-    bool validated() const;
+    bool valid() const noexcept;
+    bool validated() const noexcept;
     /** @brief return time till which key is considered to be valid */
-    uint64_t valid_till() const;
+    uint64_t valid_till() const noexcept;
     /** @brief check whether key was/will be valid at the specified time */
-    bool valid_at(uint64_t timestamp) const;
+    bool valid_at(uint64_t timestamp) const noexcept;
 
     /** @brief Get key's id */
-    const pgp_key_id_t &keyid() const;
+    const pgp_key_id_t &keyid() const noexcept;
     /** @brief Get key's fingerprint */
-    const pgp_fingerprint_t &fp() const;
+    const pgp_fingerprint_t &fp() const noexcept;
     /** @brief Get key's grip */
-    const pgp_key_grip_t &grip() const;
+    const pgp_key_grip_t &grip() const noexcept;
     /** @brief Get primary key's fingerprint for the subkey, if it is available.
      *         Note: will throw if it is not available, use has_primary_fp() to check.
      */
     const pgp_fingerprint_t &primary_fp() const;
     /** @brief Check whether key has primary key's fingerprint */
-    bool has_primary_fp() const;
+    bool has_primary_fp() const noexcept;
     /** @brief Clean primary_fp */
-    void unset_primary_fp();
+    void unset_primary_fp() noexcept;
     /** @brief Link key with subkey via primary_fp and subkey_fps list */
     void link_subkey_fp(pgp_key_t &subkey);
     /**
@@ -283,7 +282,7 @@ struct pgp_key_t {
      */
     void add_subkey_fp(const pgp_fingerprint_t &fp);
     /** @brief Get the number of pgp key's subkeys. */
-    size_t subkey_count() const;
+    size_t subkey_count() const noexcept;
     /** @brief Remove subkey fingerprint from key's list. */
     void remove_subkey_fp(const pgp_fingerprint_t &fp);
     /**
@@ -317,7 +316,7 @@ struct pgp_key_t {
      *  @param key the key
      *  @return true if the key was locked, false otherwise
      **/
-    bool lock();
+    bool lock() noexcept;
     /** @brief Add protection to an unlocked key, i.e. encrypt its secret data with specified
      *         parameters. */
     bool protect(const rnp_key_protection_params_t &protection,

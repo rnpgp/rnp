@@ -1409,12 +1409,12 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
 {
     pgp_dest_signer_info_t sinfo = {};
 
-    if (!signer->key->pkt().material || !signer->key->is_secret()) {
+    if (!signer->key->material() || !signer->key->is_secret()) {
         RNP_LOG("secret key required for signing");
         return RNP_ERROR_BAD_PARAMETERS;
     }
     /* validate signing key material if didn't before */
-    signer->key->pkt().material->validate(*param->ctx->ctx, false);
+    signer->key->material()->validate(*param->ctx->ctx, false);
     if (!signer->key->pkt().material->valid()) {
         RNP_LOG("attempt to sign to the key with invalid material");
         return RNP_ERROR_NO_SUITABLE_KEY;
@@ -1426,7 +1426,7 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
     sinfo.sigexpire = signer->sigexpire;
 
     /* Add hash to the list */
-    sinfo.halg = signer->key->material().adjust_hash(signer->halg);
+    sinfo.halg = signer->key->material()->adjust_hash(signer->halg);
     try {
         param->hashes.add_alg(sinfo.halg);
     } catch (const std::exception &e) {

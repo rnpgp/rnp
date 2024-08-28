@@ -1186,13 +1186,13 @@ pgp_key_t::get_revoker(size_t idx) const
 }
 
 const pgp_key_pkt_t &
-pgp_key_t::pkt() const
+pgp_key_t::pkt() const noexcept
 {
     return pkt_;
 }
 
 pgp_key_pkt_t &
-pgp_key_t::pkt()
+pgp_key_t::pkt() noexcept
 {
     return pkt_;
 }
@@ -1203,26 +1203,20 @@ pgp_key_t::set_pkt(const pgp_key_pkt_t &pkt)
     pkt_ = pkt;
 }
 
-const pgp::KeyMaterial &
-pgp_key_t::material() const
+const pgp::KeyMaterial *
+pgp_key_t::material() const noexcept
 {
-    if (!pkt_.material) {
-        throw rnp::rnp_exception(RNP_ERROR_NULL_POINTER);
-    }
-    return *pkt_.material;
+    return pkt_.material.get();
 }
 
-pgp::KeyMaterial &
-pgp_key_t::material()
+pgp::KeyMaterial *
+pgp_key_t::material() noexcept
 {
-    if (!pkt_.material) {
-        throw rnp::rnp_exception(RNP_ERROR_NULL_POINTER);
-    }
-    return *pkt_.material;
+    return pkt_.material.get();
 }
 
 pgp_pubkey_alg_t
-pgp_key_t::alg() const
+pgp_key_t::alg() const noexcept
 {
     return pkt_.alg;
 }
@@ -1230,53 +1224,53 @@ pgp_key_t::alg() const
 pgp_curve_t
 pgp_key_t::curve() const
 {
-    return material().curve();
+    return material() ? material()->curve() : PGP_CURVE_UNKNOWN;
 }
 
 pgp_version_t
-pgp_key_t::version() const
+pgp_key_t::version() const noexcept
 {
     return pkt().version;
 }
 
 pgp_pkt_type_t
-pgp_key_t::type() const
+pgp_key_t::type() const noexcept
 {
     return pkt().tag;
 }
 
 bool
-pgp_key_t::encrypted() const
+pgp_key_t::encrypted() const noexcept
 {
-    return is_secret() && !material().secret();
+    return is_secret() && material() && !material()->secret();
 }
 
 uint8_t
-pgp_key_t::flags() const
+pgp_key_t::flags() const noexcept
 {
     return flags_;
 }
 
 bool
-pgp_key_t::can_sign() const
+pgp_key_t::can_sign() const noexcept
 {
     return flags_ & PGP_KF_SIGN;
 }
 
 bool
-pgp_key_t::can_certify() const
+pgp_key_t::can_certify() const noexcept
 {
     return flags_ & PGP_KF_CERTIFY;
 }
 
 bool
-pgp_key_t::can_encrypt() const
+pgp_key_t::can_encrypt() const noexcept
 {
     return flags_ & PGP_KF_ENCRYPT;
 }
 
 bool
-pgp_key_t::has_secret() const
+pgp_key_t::has_secret() const noexcept
 {
     if (!is_secret()) {
         return false;
@@ -1325,7 +1319,7 @@ pgp_key_t::usable_for(pgp_op_t op, bool if_secret) const
 }
 
 uint32_t
-pgp_key_t::expiration() const
+pgp_key_t::expiration() const noexcept
 {
     if (pkt_.version >= 4) {
         return expiration_;
@@ -1338,43 +1332,43 @@ pgp_key_t::expiration() const
 }
 
 bool
-pgp_key_t::expired() const
+pgp_key_t::expired() const noexcept
 {
     return validity_.expired;
 }
 
 uint32_t
-pgp_key_t::creation() const
+pgp_key_t::creation() const noexcept
 {
     return pkt_.creation_time;
 }
 
 bool
-pgp_key_t::is_public() const
+pgp_key_t::is_public() const noexcept
 {
     return is_public_key_pkt(pkt_.tag);
 }
 
 bool
-pgp_key_t::is_secret() const
+pgp_key_t::is_secret() const noexcept
 {
     return is_secret_key_pkt(pkt_.tag);
 }
 
 bool
-pgp_key_t::is_primary() const
+pgp_key_t::is_primary() const noexcept
 {
     return is_primary_key_pkt(pkt_.tag);
 }
 
 bool
-pgp_key_t::is_subkey() const
+pgp_key_t::is_subkey() const noexcept
 {
     return is_subkey_pkt(pkt_.tag);
 }
 
 bool
-pgp_key_t::is_locked() const
+pgp_key_t::is_locked() const noexcept
 {
     if (!is_secret()) {
         RNP_LOG("key is not a secret key");
@@ -1384,7 +1378,7 @@ pgp_key_t::is_locked() const
 }
 
 bool
-pgp_key_t::is_protected() const
+pgp_key_t::is_protected() const noexcept
 {
     // sanity check
     if (!is_secret()) {
@@ -1394,13 +1388,13 @@ pgp_key_t::is_protected() const
 }
 
 bool
-pgp_key_t::valid() const
+pgp_key_t::valid() const noexcept
 {
     return validity_.validated && validity_.valid && !validity_.expired;
 }
 
 bool
-pgp_key_t::validated() const
+pgp_key_t::validated() const noexcept
 {
     return validity_.validated;
 }
@@ -1432,13 +1426,13 @@ pgp_key_t::valid_till_common(bool expiry) const
 }
 
 uint64_t
-pgp_key_t::valid_till() const
+pgp_key_t::valid_till() const noexcept
 {
     return valid_till_;
 }
 
 bool
-pgp_key_t::valid_at(uint64_t timestamp) const
+pgp_key_t::valid_at(uint64_t timestamp) const noexcept
 {
     /* TODO: consider implementing more sophisticated checks, as key validity time could
      * possibly be non-continuous */
@@ -1446,19 +1440,19 @@ pgp_key_t::valid_at(uint64_t timestamp) const
 }
 
 const pgp_key_id_t &
-pgp_key_t::keyid() const
+pgp_key_t::keyid() const noexcept
 {
     return keyid_;
 }
 
 const pgp_fingerprint_t &
-pgp_key_t::fp() const
+pgp_key_t::fp() const noexcept
 {
     return fingerprint_;
 }
 
 const pgp_key_grip_t &
-pgp_key_t::grip() const
+pgp_key_t::grip() const noexcept
 {
     return grip_;
 }
@@ -1473,13 +1467,13 @@ pgp_key_t::primary_fp() const
 }
 
 bool
-pgp_key_t::has_primary_fp() const
+pgp_key_t::has_primary_fp() const noexcept
 {
     return primary_fp_set_;
 }
 
 void
-pgp_key_t::unset_primary_fp()
+pgp_key_t::unset_primary_fp() noexcept
 {
     primary_fp_set_ = false;
     primary_fp_ = {};
@@ -1505,7 +1499,7 @@ pgp_key_t::add_subkey_fp(const pgp_fingerprint_t &fp)
 }
 
 size_t
-pgp_key_t::subkey_count() const
+pgp_key_t::subkey_count() const noexcept
 {
     return subkey_fps_.size();
 }
@@ -1583,7 +1577,7 @@ pgp_key_t::unlock(const pgp_password_provider_t &provider, pgp_op_t op)
 }
 
 bool
-pgp_key_t::lock()
+pgp_key_t::lock() noexcept
 {
     // sanity checks
     if (!is_secret()) {
@@ -1596,7 +1590,10 @@ pgp_key_t::lock()
         return true;
     }
 
-    material().clear_secret();
+    assert(material());
+    if (material()) {
+        material()->clear_secret();
+    }
     return true;
 }
 
@@ -1687,7 +1684,10 @@ pgp_key_t::unprotect(const pgp_password_provider_t &password_provider,
     }
     pkt_ = std::move(*decrypted_seckey);
     /* current logic is that unprotected key should be additionally unlocked */
-    material().clear_secret();
+    assert(material());
+    if (material()) {
+        material()->clear_secret();
+    }
     delete decrypted_seckey;
     return true;
 }
