@@ -513,7 +513,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_set_cipher)
     rnp_ffi_destroy(ffi);
 }
 
-TEST_F(rnp_tests, test_ffi_encrypt_set_cipher_empty_buffer)
+TEST_F(rnp_tests, test_ffi_encrypt_empty_buffer)
 {
     /* setup FFI */
     rnp_ffi_t ffi = NULL;
@@ -521,8 +521,6 @@ TEST_F(rnp_tests, test_ffi_encrypt_set_cipher_empty_buffer)
     /* create input + output */
     rnp_input_t input = NULL;
     const char *plaintext = "";
-    assert_rnp_success(rnp_input_from_memory(&input, NULL, 0, false));
-    assert_rnp_success(rnp_input_destroy(input));
     assert_rnp_success(
       rnp_input_from_memory(&input, (const uint8_t *) plaintext, strlen(plaintext), false));
     rnp_output_t output = NULL;
@@ -546,6 +544,42 @@ TEST_F(rnp_tests, test_ffi_encrypt_set_cipher_empty_buffer)
     rnp_input_destroy(input);
     rnp_output_destroy(output);
     assert_string_equal(file_to_str("decrypted").c_str(), plaintext);
+    unlink("decrypted");
+    unlink("encrypted");
+
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_encrypt_null_buffer)
+{
+    /* setup FFI */
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    /* create input + output */
+    rnp_input_t input = NULL;
+    assert_rnp_failure(rnp_input_from_memory(&input, NULL, 10 /*not zero value*/, false));
+    assert_rnp_success(rnp_input_from_memory(&input, NULL, 0, false));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_path(&output, "encrypted"));
+    /* create encrypt operation */
+    rnp_op_encrypt_t op = NULL;
+    assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
+    assert_rnp_success(rnp_op_encrypt_add_password(op, "password1", NULL, 0, "AES192"));
+    /* execute the operation */
+    assert_rnp_success(rnp_op_encrypt_execute(op));
+    assert_true(rnp_file_exists("encrypted"));
+    /* cleanup */
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_op_encrypt_destroy(op));
+    /* decrypt with password1 */
+    assert_rnp_success(rnp_input_from_path(&input, "encrypted"));
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password1"));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    assert_string_equal(file_to_str("decrypted").c_str(), "");
     unlink("decrypted");
     unlink("encrypted");
 
