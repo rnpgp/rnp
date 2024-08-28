@@ -185,6 +185,15 @@ jobs:
           export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
           cmake --build build --parallel ${{ env.CORES }} --config Release
 
+      - name: Find Visual Studio root via vswhere
+        if: matrix.sanitizers == 'on'
+        shell: cmd
+        # Not sure why but vswhere.exe cannot be run via bash, so using cmd instead.
+        run: |
+          FOR /F "delims=" %%i in ('C:\ProgramData\Chocolatey\bin\vswhere.exe -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath') DO SET "VS_PATH=%%i"
+          echo "Detected Visual Studio path: %VS_PATH%"
+          echo VS_PATH=%VS_PATH%>> "%GITHUB_ENV%"
+          
       - name: Test
         shell: bash
         # Sometimes  running cli_tests in parallel causes instability [???]
@@ -194,8 +203,16 @@ jobs:
         run: |
           export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
           if [[ "${{ matrix.sanitizers }}" == "on" ]]; then
-            # Since VS 2022 we need to add path to sanitizers lib to PATH to load it. Currently it is hardcoded for toolset v143.
-            lib_dir=$(cygpath -u "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC\14.40.33807\bin\Hostx64\x64")
+            # Since VS 2022 we need to add path to sanitizers libs to PATH to load those.
+            # For this we need to detect VS_PATH on the previous step via the vswhere
+            vsp=$(cygpath -u "${VS_PATH}")
+            ts_ver=$(<"$vsp/VC/Auxiliary/Build/Microsoft.VCToolsVersion.${{matrix.toolset}}.default.txt")
+            lib_dir="${vsp}/VC/Tools/MSVC/${ts_ver}/bin/Hostx64/x64"
+            if [[ ! -d "$lib_dir" ]]; then
+              echo "Looks like directory with sanitizer libs changed from ${lib_dir}. Available ones:"
+              ls -la "${vsp}/VC/Tools/MSVC"
+              exit 1
+            fi
             export PATH=$lib_dir:$PATH
           fi
           mkdir -p "build/Testing/Temporary"
