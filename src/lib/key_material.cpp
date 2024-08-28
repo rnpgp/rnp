@@ -190,7 +190,7 @@ KeyMaterial::reset_validity()
 }
 
 void
-KeyMaterial::clear_secret()
+KeyMaterial::clear_secret() noexcept
 {
     secret_ = false;
 }
@@ -267,7 +267,7 @@ KeyMaterial::grip() const
 {
     auto hash = rnp::Hash::create(PGP_HASH_SHA1);
     grip_update(*hash);
-    pgp_key_grip_t res;
+    pgp_key_grip_t res{};
     hash->finish(res.data());
     return res;
 }
@@ -397,7 +397,7 @@ RSAKeyMaterial::equals(const KeyMaterial &value) const noexcept
 }
 
 void
-RSAKeyMaterial::clear_secret()
+RSAKeyMaterial::clear_secret() noexcept
 {
     key_.clear_secret();
     KeyMaterial::clear_secret();
@@ -579,7 +579,7 @@ DSAKeyMaterial::equals(const KeyMaterial &value) const noexcept
 }
 
 void
-DSAKeyMaterial::clear_secret()
+DSAKeyMaterial::clear_secret() noexcept
 {
     key_.clear_secret();
     KeyMaterial::clear_secret();
@@ -734,7 +734,7 @@ EGKeyMaterial::equals(const KeyMaterial &value) const noexcept
 }
 
 void
-EGKeyMaterial::clear_secret()
+EGKeyMaterial::clear_secret() noexcept
 {
     key_.clear_secret();
     KeyMaterial::clear_secret();
@@ -868,7 +868,7 @@ ECKeyMaterial::equals(const KeyMaterial &value) const noexcept
 }
 
 void
-ECKeyMaterial::clear_secret()
+ECKeyMaterial::clear_secret() noexcept
 {
     key_.clear_secret();
     KeyMaterial::clear_secret();
@@ -1310,7 +1310,7 @@ Ed25519KeyMaterial::equals(const KeyMaterial &value) const noexcept
 }
 
 void
-Ed25519KeyMaterial::clear_secret()
+Ed25519KeyMaterial::clear_secret() noexcept
 {
     key_.clear_secret();
     KeyMaterial::clear_secret();
@@ -1436,7 +1436,7 @@ X25519KeyMaterial::equals(const KeyMaterial &value) const noexcept
 }
 
 void
-X25519KeyMaterial::clear_secret()
+X25519KeyMaterial::clear_secret() noexcept
 {
     key_.clear_secret();
     KeyMaterial::clear_secret();
@@ -1565,7 +1565,7 @@ MlkemEcdhKeyMaterial::equals(const KeyMaterial &value) const noexcept
 }
 
 void
-MlkemEcdhKeyMaterial::clear_secret()
+MlkemEcdhKeyMaterial::clear_secret() noexcept
 {
     key_.priv.secure_clear();
     KeyMaterial::clear_secret();
@@ -1684,7 +1684,7 @@ DilithiumEccKeyMaterial::equals(const KeyMaterial &value) const noexcept
 }
 
 void
-DilithiumEccKeyMaterial::clear_secret()
+DilithiumEccKeyMaterial::clear_secret() noexcept
 {
     key_.priv.secure_clear();
     KeyMaterial::clear_secret();
@@ -1807,7 +1807,7 @@ SlhdsaKeyMaterial::equals(const KeyMaterial &value) const noexcept
 }
 
 void
-SlhdsaKeyMaterial::clear_secret()
+SlhdsaKeyMaterial::clear_secret() noexcept
 {
     key_.priv.secure_clear();
     KeyMaterial::clear_secret();
