@@ -1576,11 +1576,11 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
 {
     pgp_encrypted_material_t encmaterial;
     try {
-        if (!sesskey.parse_material(encmaterial)) {
+        if (!sesskey.parse_material(encmaterial) || !seckey.material()) {
             return false;
         }
-        seckey.material().validate(ctx, false);
-        if (!seckey.material().valid()) {
+        seckey.material()->validate(ctx, false);
+        if (!seckey.material()->valid()) {
             RNP_LOG("Attempt to decrypt using the key with invalid material.");
             return false;
         }

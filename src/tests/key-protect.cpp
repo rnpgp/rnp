@@ -93,7 +93,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     assert_int_equal(key->alg(), PGP_PKA_RSA);
 
     // confirm key material is currently all NULL (in other words, the key is locked)
-    assert_true(rsa_sec_empty(key->material()));
+    assert_true(rsa_sec_empty(*key->material()));
 
     // try to unprotect with a failing password provider
     pgp_password_provider_t pprov(failing_password_callback);
@@ -112,7 +112,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     assert_true(key->is_locked());
 
     // confirm secret key material is still NULL
-    assert_true(rsa_sec_empty(key->material()));
+    assert_true(rsa_sec_empty(*key->material()));
 
     // unlock (no password required since the key is not protected)
     pprov = {asserting_password_callback};
@@ -120,10 +120,10 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     assert_false(key->is_locked());
 
     // secret key material should be available
-    assert_true(rsa_sec_filled(key->material()));
+    assert_true(rsa_sec_filled(*key->material()));
 
     // save the secret MPIs for some later comparisons
-    auto &rsa = dynamic_cast<const pgp::RSAKeyMaterial &>(key->material());
+    auto &rsa = dynamic_cast<const pgp::RSAKeyMaterial &>(*key->material());
     auto  d = rsa.d();
     auto  p = rsa.p();
     auto  q = rsa.q();
@@ -148,7 +148,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
         assert_false(reloaded_key->is_locked());
         assert_false(reloaded_key->is_protected());
         // secret key material should not be NULL
-        auto &rsar = dynamic_cast<const pgp::RSAKeyMaterial &>(reloaded_key->material());
+        auto &rsar = dynamic_cast<const pgp::RSAKeyMaterial &>(*reloaded_key->material());
         assert_false(mpi_empty(rsar.d()));
         assert_false(mpi_empty(rsar.p()));
         assert_false(mpi_empty(rsar.q()));
@@ -166,13 +166,13 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
         assert_true(reloaded_key->lock());
         assert_true(reloaded_key->is_locked());
         // confirm that secret MPIs are NULL again
-        assert_true(rsa_sec_empty(reloaded_key->material()));
+        assert_true(rsa_sec_empty(*reloaded_key->material()));
         // unlock it (no password, since it's not protected)
         pgp_password_provider_t pprov(asserting_password_callback);
         assert_true(reloaded_key->unlock(pprov));
         assert_false(reloaded_key->is_locked());
         // compare MPIs of the reloaded key, with the unlocked key from earlier
-        auto &rsar2 = dynamic_cast<const pgp::RSAKeyMaterial &>(reloaded_key->material());
+        auto &rsar2 = dynamic_cast<const pgp::RSAKeyMaterial &>(*reloaded_key->material());
         assert_true(rsa.d() == rsar2.d());
         assert_true(rsa.p() == rsar2.p());
         assert_true(rsa.q() == rsar2.q());
@@ -219,7 +219,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     assert_false(key->is_locked());
 
     // compare secret MPIs with those from earlier
-    auto &rsa2 = dynamic_cast<const pgp::RSAKeyMaterial &>(key->material());
+    auto &rsa2 = dynamic_cast<const pgp::RSAKeyMaterial &>(*key->material());
     assert_true(rsa2.d() == d);
     assert_true(rsa2.p() == p);
     assert_true(rsa2.q() == q);

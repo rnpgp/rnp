@@ -359,10 +359,10 @@ TEST_F(rnp_tests, test_stream_signatures)
     /* validate signature and fields */
     auto hash = hash_orig->clone();
     assert_int_equal(sig.creation(), 1522241943);
-    assert_rnp_success(signature_validate(sig, key->material(), *hash, global_ctx));
+    assert_rnp_success(signature_validate(sig, *key->material(), *hash, global_ctx));
     /* check forged file */
     hash = hash_forged->clone();
-    assert_rnp_failure(signature_validate(sig, key->material(), *hash, global_ctx));
+    assert_rnp_failure(signature_validate(sig, *key->material(), *hash, global_ctx));
     /* now let's create signature and sign file */
 
     /* load secret key */
@@ -396,12 +396,12 @@ TEST_F(rnp_tests, test_stream_signatures)
     sig.fill_hashed_data();
     /* try to sign without decrypting of the secret key */
     hash = hash_orig->clone();
-    assert_throw(signature_calculate(sig, key->material(), *hash, global_ctx));
+    assert_throw(signature_calculate(sig, *key->material(), *hash, global_ctx));
     /* now unlock the key and sign */
     pgp_password_provider_t pswd_prov(rnp_password_provider_string, (void *) "password");
     assert_true(key->unlock(pswd_prov));
     hash = hash_orig->clone();
-    signature_calculate(sig, key->material(), *hash, global_ctx);
+    signature_calculate(sig, *key->material(), *hash, global_ctx);
     /* now verify signature */
     hash = hash_orig->clone();
     /* validate signature and fields */
@@ -409,7 +409,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     assert_int_equal(sig.expiration(), expire);
     assert_true(sig.has_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR));
     assert_true(sig.keyfp() == key->fp());
-    assert_rnp_success(signature_validate(sig, key->material(), *hash, global_ctx));
+    assert_rnp_success(signature_validate(sig, *key->material(), *hash, global_ctx));
     /* cleanup */
     delete pubring;
     delete secring;
@@ -1011,18 +1011,18 @@ TEST_F(rnp_tests, test_stream_key_signatures)
     /* check certification signature */
     auto hash = signature_hash_certification(sig, key.key, uid.uid);
     /* this signature uses MD5 hash after the allowed date */
-    assert_int_equal(signature_validate(sig, pkey->material(), *hash, global_ctx),
+    assert_int_equal(signature_validate(sig, *pkey->material(), *hash, global_ctx),
                      RNP_ERROR_SIGNATURE_INVALID);
     /* add rule which allows MD5 */
     rnp::SecurityRule allow_md5(
       rnp::FeatureType::Hash, PGP_HASH_MD5, rnp::SecurityLevel::Default);
     allow_md5.override = true;
     global_ctx.profile.add_rule(allow_md5);
-    assert_rnp_success(signature_validate(sig, pkey->material(), *hash, global_ctx));
+    assert_rnp_success(signature_validate(sig, *pkey->material(), *hash, global_ctx));
     /* modify userid and check signature */
     uid.uid.uid[2] = '?';
     hash = signature_hash_certification(sig, key.key, uid.uid);
-    assert_rnp_failure(signature_validate(sig, pkey->material(), *hash, global_ctx));
+    assert_rnp_failure(signature_validate(sig, *pkey->material(), *hash, global_ctx));
     /* remove MD5 rule */
     assert_true(global_ctx.profile.del_rule(allow_md5));
     delete pubring;
@@ -1047,14 +1047,14 @@ TEST_F(rnp_tests, test_stream_key_signatures)
                 /* low level check */
                 auto hash = signature_hash_certification(sig, keyref.key, uid.uid);
                 assert_rnp_success(
-                  signature_validate(sig, pkey->material(), *hash, global_ctx));
+                  signature_validate(sig, *pkey->material(), *hash, global_ctx));
                 /* modify userid and check signature */
                 uid.uid.uid[2] = '?';
                 pkey->validate_cert(sinfo, keyref.key, uid.uid, global_ctx);
                 assert_false(sinfo.valid);
                 hash = signature_hash_certification(sig, keyref.key, uid.uid);
                 assert_rnp_failure(
-                  signature_validate(sig, pkey->material(), *hash, global_ctx));
+                  signature_validate(sig, *pkey->material(), *hash, global_ctx));
             }
         }
 

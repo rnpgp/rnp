@@ -4117,8 +4117,11 @@ try {
         (seckey->curve() != PGP_CURVE_25519)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    auto &material = dynamic_cast<const pgp::ECDHKeyMaterial &>(seckey->material());
-    *result = material.x25519_bits_tweaked();
+    auto material = dynamic_cast<const pgp::ECDHKeyMaterial *>(seckey->material());
+    if (!material) {
+        return RNP_ERROR_BAD_STATE;
+    }
+    *result = material->x25519_bits_tweaked();
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -4134,8 +4137,8 @@ try {
         (seckey->curve() != PGP_CURVE_25519)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    auto &material = dynamic_cast<pgp::ECDHKeyMaterial &>(seckey->material());
-    if (!material.x25519_tweak_bits()) {
+    auto material = dynamic_cast<pgp::ECDHKeyMaterial *>(seckey->material());
+    if (!material || !material->x25519_tweak_bits()) {
         FFI_LOG(key->ffi, "Failed to tweak 25519 key bits.");
         return RNP_ERROR_BAD_STATE;
     }
@@ -6801,8 +6804,11 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    auto &material = dynamic_cast<const pgp::SlhdsaKeyMaterial &>(key->material());
-    return get_map_value(sphincsplus_params_map, material.pub().param(), param);
+    auto material = dynamic_cast<const pgp::SlhdsaKeyMaterial *>(key->material());
+    if (!material) {
+        return RNP_ERROR_BAD_STATE;
+    }
+    return get_map_value(sphincsplus_params_map, material->pub().param(), param);
 }
 FFI_GUARD
 #endif
@@ -6814,7 +6820,10 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
     pgp_key_t *key = get_key_prefer_public(handle);
-    size_t     _bits = key->material().bits();
+    if (!key || !key->material()) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    size_t _bits = key->material()->bits();
     if (!_bits) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -6830,7 +6839,7 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
     pgp_key_t *key = get_key_prefer_public(handle);
-    auto       material = dynamic_cast<const pgp::DSAKeyMaterial *>(&key->material());
+    auto       material = dynamic_cast<const pgp::DSAKeyMaterial *>(key->material());
     if (!material) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -7639,7 +7648,10 @@ done:
 static rnp_result_t
 add_json_mpis(json_object *jso, pgp_key_t *key, bool secret = false)
 {
-    auto &km = key->material();
+    if (!key->material()) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    auto &km = *key->material();
     switch (km.alg()) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
@@ -7945,13 +7957,17 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // length
-    if (!json_add(jso, "length", (int) key->material().bits())) {
+    auto km = key->material();
+    if (!km) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!json_add(jso, "length", (int) km->bits())) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // curve / alg-specific items
     switch (key->alg()) {
     case PGP_PKA_ECDH: {
-        auto ecdh = dynamic_cast<pgp::ECDHKeyMaterial *>(&key->material());
+        auto ecdh = dynamic_cast<pgp::ECDHKeyMaterial *>(km);
         if (!ecdh) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
@@ -7974,7 +7990,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2: {
         const char *curve_name = NULL;
-        if (!curve_type_to_str(key->material().curve(), &curve_name)) {
+        if (!curve_type_to_str(km->curve(), &curve_name)) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
         if (!json_add(jso, "curve", curve_name)) {

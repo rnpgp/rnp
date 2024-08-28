@@ -56,7 +56,7 @@ TEST_F(rnp_tests, test_issue_1171_key_import_and_remove)
 
     /* directly use rnp_tests_get_key_by_grip() which caused crash */
     pgp_key_t *subkey = rnp_tests_get_key_by_grip(ffi->pubring, key->pub->grip());
-    assert_int_equal(subkey->material().bits(), 256);
+    assert_int_equal(subkey->material()->bits(), 256);
     assert_rnp_success(rnp_key_handle_destroy(key));
 
     assert_true(import_pub_keys(ffi, "data/test_key_validity/alice-sub-pub.pgp"));
