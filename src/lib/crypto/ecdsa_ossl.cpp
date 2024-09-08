@@ -169,22 +169,3 @@ done:
     EVP_PKEY_free(evpkey);
     return ret;
 }
-
-pgp_hash_alg_t
-ecdsa_get_min_hash(pgp_curve_t curve)
-{
-    switch (curve) {
-    case PGP_CURVE_NIST_P_256:
-    case PGP_CURVE_BP256:
-    case PGP_CURVE_P256K1:
-        return PGP_HASH_SHA256;
-    case PGP_CURVE_NIST_P_384:
-    case PGP_CURVE_BP384:
-        return PGP_HASH_SHA384;
-    case PGP_CURVE_NIST_P_521:
-    case PGP_CURVE_BP512:
-        return PGP_HASH_SHA512;
-    default:
-        return PGP_HASH_UNKNOWN;
-    }
-}
