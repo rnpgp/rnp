@@ -2753,12 +2753,40 @@ try {
 }
 FFI_GUARD
 
+static bool
+rnp_check_old_ciphers(rnp_ffi_t ffi, const char *cipher)
+{
+    uint32_t security_level = 0;
+
+    if (rnp_get_security_rule(ffi,
+                              RNP_FEATURE_SYMM_ALG,
+                              cipher,
+                              ffi->context.time(),
+                              NULL,
+                              NULL,
+                              &security_level)) {
+        FFI_LOG(ffi, "Failed to get security rules for cipher algorithm \'%s\'!", cipher);
+        return false;
+    }
+
+    if (security_level < RNP_SECURITY_DEFAULT) {
+        FFI_LOG(ffi, "Cipher algorithm \'%s\' is cryptographically weak!", cipher);
+        return false;
+    }
+    /* TODO: check other weak algorithms and key sizes */
+    return true;
+}
+
 rnp_result_t
 rnp_op_encrypt_set_cipher(rnp_op_encrypt_t op, const char *cipher)
 try {
     // checks
     if (!op || !cipher) {
         return RNP_ERROR_NULL_POINTER;
+    }
+    if (!rnp_check_old_ciphers(op->ffi, cipher)) {
+        FFI_LOG(op->ffi, "Deprecated cipher: %s", cipher);
+        return RNP_ERROR_BAD_PARAMETERS;
     }
     if (!str_to_cipher(cipher, &op->rnpctx.ealg)) {
         FFI_LOG(op->ffi, "Invalid cipher: %s", cipher);
