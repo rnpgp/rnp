@@ -6090,7 +6090,7 @@ create_key_signature(rnp_ffi_t               ffi,
     }
     sig = (rnp_signature_handle_t) calloc(1, sizeof(*sig));
     if (!sig) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     try {
         pgp_signature_t sigpkt;
@@ -6104,10 +6104,12 @@ create_key_signature(rnp_ffi_t               ffi,
         sig->own_sig = true;
         sig->new_sig = true;
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         FFI_LOG(ffi, "%s", e.what());
         free(sig);
         sig = NULL;
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
 
     return RNP_SUCCESS;
