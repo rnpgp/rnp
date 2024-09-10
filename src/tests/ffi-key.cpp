@@ -735,6 +735,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_rsa)
     assert_int_equal(uids, 1);
     assert_rnp_failure(rnp_key_get_uid_at(key, 1, &uid));
     assert_null(uid);
+    assert_rnp_failure(rnp_key_get_uid_at(NULL, 0, &uid));
+    assert_rnp_failure(rnp_key_get_uid_at(key, 0, NULL));
     assert_rnp_success(rnp_key_get_uid_at(key, 0, &uid));
     assert_string_equal(uid, "rsa_1024");
     rnp_buffer_destroy(uid);
