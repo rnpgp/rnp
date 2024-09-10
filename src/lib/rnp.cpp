@@ -6422,6 +6422,20 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_key_signature_set_trust_level(rnp_signature_handle_t sig, uint8_t level, uint8_t amount)
+try {
+    if (!sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->new_sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    sig->sig->sig.set_trust(level, amount);
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_key_signature_sign(rnp_signature_handle_t sig)
 try {
     if (!sig) {

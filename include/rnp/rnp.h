@@ -1764,6 +1764,20 @@ RNP_API rnp_result_t rnp_key_signature_set_revoker(rnp_signature_handle_t sig,
                                                    uint32_t               flags);
 
 /**
+ * @brief Set the signature trust level and amount. See OpenPGP specification for the details
+ *        on their interpretation ('Trust Signature' signature subpacket). Makes sense only for
+ *        other key's certification.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param level trust level
+ * @param amount trust amount
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_trust_level(rnp_signature_handle_t sig,
+                                                       uint8_t                level,
+                                                       uint8_t                amount);
+
+/**
  * @brief Finalize populating and sign signature, created with one of the
  *        rnp_key_*_signature_create functions, and add it to the corresponding key.
  *
