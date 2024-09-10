@@ -6885,7 +6885,7 @@ FFI_GUARD
 
 rnp_result_t
 rnp_signature_get_revocation_reason(rnp_signature_handle_t sig, char **code, char **reason)
-{
+try {
     if (!sig) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -6913,6 +6913,7 @@ rnp_signature_get_revocation_reason(rnp_signature_handle_t sig, char **code, cha
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_signature_is_valid(rnp_signature_handle_t sig, uint32_t flags)
