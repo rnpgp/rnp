@@ -2102,6 +2102,21 @@ RNP_API rnp_result_t rnp_signature_get_revocation_reason(rnp_signature_handle_t 
                                                          char **                reason);
 
 /**
+ * @brief Get the signature trust level and amount. See OpenPGP specification for the details
+ *        on their interpretation ('Trust Signature' signature subpacket).
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param level trust level will be stored here if non-NULL. If corresponding value is not
+ *              available then 0 will be stored.
+ * @param amount trust amount will be stored here if non-NULL. If corresponding value is not
+ *               available then 0 will be stored.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_trust_level(rnp_signature_handle_t sig,
+                                                   uint8_t *              level,
+                                                   uint8_t *              amount);
+
+/**
  * @brief Get signature validity, revalidating it if didn't before.
  *
  * @param sig key/userid signature handle
