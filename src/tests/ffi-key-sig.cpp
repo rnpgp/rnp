@@ -2069,7 +2069,7 @@ TEST_F(rnp_tests, test_ffi_create_key_certification_signature)
     assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
     rnp_key_handle_t signer = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-25519", &signer));
-    /* Create other key certification with default type*/
+    /* Create other key certification with default type */
     rnp_signature_handle_t newsig = NULL;
     assert_rnp_success(rnp_key_certification_create(signer, uid, NULL, &newsig));
     const char *hash = "SHA384";
@@ -2083,6 +2083,8 @@ TEST_F(rnp_tests, test_ffi_create_key_certification_signature)
       rnp_key_certification_create(signer, uid, RNP_CERTIFICATION_CASUAL, &newsig));
     const char *hash2 = "SHA512";
     assert_rnp_success(rnp_key_signature_set_hash(newsig, hash2));
+    assert_rnp_failure(rnp_key_signature_set_trust_level(NULL, 1, 120));
+    assert_rnp_success(rnp_key_signature_set_trust_level(newsig, 1, 120));
     assert_rnp_success(rnp_key_signature_sign(newsig));
     rnp_signature_handle_destroy(newsig);
     /* Check certification parameters */
@@ -2093,11 +2095,26 @@ TEST_F(rnp_tests, test_ffi_create_key_certification_signature)
     assert_rnp_success(rnp_signature_is_valid(newsig, 0));
     assert_true(check_sig_hash(newsig, hash));
     assert_true(check_sig_type(newsig, "certification (generic)"));
+    uint8_t level = 255;
+    uint8_t amount = 255;
+    assert_rnp_failure(rnp_signature_get_trust_level(NULL, NULL, NULL));
+    assert_rnp_success(rnp_signature_get_trust_level(newsig, NULL, NULL));
+    assert_rnp_success(rnp_signature_get_trust_level(newsig, &level, NULL));
+    assert_int_equal(level, 0);
+    assert_rnp_success(rnp_signature_get_trust_level(newsig, NULL, &amount));
+    assert_int_equal(amount, 0);
+    level = amount = 255;
+    assert_rnp_success(rnp_signature_get_trust_level(newsig, &level, &amount));
+    assert_int_equal(level, 0);
+    assert_int_equal(amount, 0);
     rnp_signature_handle_destroy(newsig);
     assert_rnp_success(rnp_uid_get_signature_at(uid, 2, &newsig));
     assert_rnp_success(rnp_signature_is_valid(newsig, 0));
     assert_true(check_sig_hash(newsig, hash2));
     assert_true(check_sig_type(newsig, "certification (casual)"));
+    assert_rnp_success(rnp_signature_get_trust_level(newsig, &level, &amount));
+    assert_int_equal(level, 1);
+    assert_int_equal(amount, 120);
     rnp_signature_handle_destroy(newsig);
     rnp_uid_handle_destroy(uid);
     rnp_key_handle_destroy(signer);
