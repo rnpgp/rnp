@@ -2053,11 +2053,15 @@ FFI_GUARD
 rnp_result_t
 rnp_input_from_memory(rnp_input_t *input, const uint8_t buf[], size_t buf_len, bool do_copy)
 try {
-    if (!input || !buf) {
+    if (!input) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!buf && buf_len) {
         return RNP_ERROR_NULL_POINTER;
     }
     if (!buf_len) {
-        return RNP_ERROR_SHORT_BUFFER;
+        // prevent malloc(0)
+        do_copy = false;
     }
     *input = new rnp_input_st();
     uint8_t *data = (uint8_t *) buf;
