@@ -150,6 +150,12 @@ would take _NUMBER_ of milliseconds on the current system. +
 For example, setting it to _2000_ would mean that each secret key
 decryption operation would take around 2 seconds (on the current machine).
 
+*--allow-weak-hash*:::
+Allow usage of a weak hash algorithm.
+
+*--allow-sha1-key-sigs*:::
+Allow usage of a SHA-1 key signatures.
+
 
 === KEY/SIGNATURE IMPORT
 
