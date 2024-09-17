@@ -34,6 +34,7 @@ typedef enum {
     OPT_HOMEDIR,
     OPT_NUMBITS,
     OPT_ALLOW_WEAK_HASH,
+    OPT_ALLOW_SHA1,
     OPT_HASH_ALG,
     OPT_COREDUMPS,
     OPT_PASSWDFD,
