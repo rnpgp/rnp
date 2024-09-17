@@ -649,6 +649,19 @@ cli_rnp_t::init(const rnp_cfg &cfg)
         return false;
     }
 
+    if (cfg_.has(CFG_ALLOW_SHA1)) {
+        auto     now = time(NULL);
+        uint64_t from = 0;
+        uint32_t level = 0;
+        rnp_get_security_rule(ffi, RNP_FEATURE_HASH_ALG, "SHA1", now, NULL, &from, &level);
+        rnp_add_security_rule(ffi,
+                              RNP_FEATURE_HASH_ALG,
+                              "SHA1",
+                              RNP_SECURITY_OVERRIDE | RNP_SECURITY_VERIFY_KEY,
+                              from,
+                              RNP_SECURITY_DEFAULT);
+    }
+
     // by default use stdin password provider
     if (rnp_ffi_set_pass_provider(ffi, ffi_pass_callback_stdin, this)) {
         goto done;
