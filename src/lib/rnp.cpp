@@ -546,6 +546,18 @@ ret_str_value(const char *str, char **res)
 }
 
 static rnp_result_t
+ret_vec_value(const std::vector<uint8_t> &vec, uint8_t **buf, size_t *buf_len)
+{
+    *buf = (uint8_t *) calloc(1, vec.size());
+    if (!*buf) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    memcpy(*buf, vec.data(), vec.size());
+    *buf_len = vec.size();
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
 get_map_value(const id_str_pair *map, int val, char **res)
 {
     return ret_str_value(id_str_pair::lookup(map, val, NULL), res);
@@ -6651,6 +6663,92 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_signature_subpacket_count(rnp_signature_handle_t handle, size_t *count)
+try {
+    if (!handle || !count) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    *count = handle->sig->sig.subpkts.size();
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_signature_subpacket_at(rnp_signature_handle_t handle,
+                           size_t                 idx,
+                           rnp_sig_subpacket_t *  subpkt)
+try {
+    if (!handle || !subpkt) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (idx >= handle->sig->sig.subpkts.size()) {
+        return RNP_ERROR_NOT_FOUND;
+    }
+    *subpkt = new rnp_sig_subpacket_st(*handle->sig->sig.subpkts[idx]);
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_signature_subpacket_find(rnp_signature_handle_t handle,
+                             uint8_t                type,
+                             bool                   hashed,
+                             size_t                 skip,
+                             rnp_sig_subpacket_t *  subpkt)
+try {
+    if (!handle || !subpkt) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    auto idx = handle->sig->sig.find_subpkt(type, hashed, skip);
+    return rnp_signature_subpacket_at(handle, idx, subpkt);
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_signature_subpacket_info(rnp_sig_subpacket_t subpkt,
+                             uint8_t *           type,
+                             bool *              hashed,
+                             bool *              critical)
+try {
+    if (!subpkt) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (type) {
+        *type = subpkt->sub.raw_type();
+    }
+    if (hashed) {
+        *hashed = subpkt->sub.hashed();
+    }
+    if (critical) {
+        *critical = subpkt->sub.critical();
+    }
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_signature_subpacket_data(rnp_sig_subpacket_t subpkt, uint8_t **data, size_t *size)
+try {
+    if (!subpkt || !data || !size) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    auto &subdata = subpkt->sub.data();
+    if (!subdata.size()) {
+        return RNP_ERROR_BAD_STATE;
+    }
+    return ret_vec_value(subdata, data, size);
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_signature_subpacket_destroy(rnp_sig_subpacket_t subpkt)
+try {
+    delete subpkt;
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_signature_get_expiration(rnp_signature_handle_t handle, uint32_t *expires)
 try {
     if (!handle || !expires) {
@@ -8004,13 +8102,7 @@ static rnp_result_t
 key_to_bytes(pgp_key_t *key, uint8_t **buf, size_t *buf_len)
 {
     auto vec = key->write_vec();
-    *buf = (uint8_t *) calloc(1, vec.size());
-    if (!*buf) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    memcpy(*buf, vec.data(), vec.size());
-    *buf_len = vec.size();
-    return RNP_SUCCESS;
+    return ret_vec_value(vec, buf, buf_len);
 }
 
 rnp_result_t
