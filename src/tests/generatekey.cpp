@@ -952,7 +952,7 @@ TEST_F(rnp_tests, generatekey_multipleUserIds_ShouldFail)
     rnp.end();
 }
 
-TEST_F(rnp_tests, generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed)
+TEST_F(rnp_tests, generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSucceed)
 {
     cli_rnp_t rnp;
     rnp_cfg   ops;

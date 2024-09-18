@@ -289,7 +289,7 @@ if __name__ == '__main__':
                         action="store_true")
     args = parser.parse_args()
 
-    # get list of benchamrks to run
+    # get list of benchmarks to run
     bench_methods = [ x[0] for x in inspect.getmembers(Benchmark,
             predicate=lambda x: inspect.ismethod(x) or inspect.isfunction(x))]
     print(bench_methods)

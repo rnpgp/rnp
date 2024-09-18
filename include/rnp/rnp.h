@@ -960,7 +960,7 @@ RNP_API rnp_result_t rnp_generate_key_ex(rnp_ffi_t         ffi,
  * @param op pointer to opaque key generation context.
  * @param ffi
  * @param alg key algorithm as string. Must be able to sign. Currently the following algorithms
- *            are supported (case-insensetive) : 'rsa', 'dsa', 'ecdsa', 'eddsa', 'sm2'.
+ *            are supported (case-insensitive) : 'rsa', 'dsa', 'ecdsa', 'eddsa', 'sm2'.
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_op_generate_create(rnp_op_generate_t *op,
@@ -976,7 +976,7 @@ RNP_API rnp_result_t rnp_op_generate_create(rnp_op_generate_t *op,
  * @param ffi
  * @param primary primary key handle, must have secret part.
  * @param alg key algorithm as string. Currently the following algorithms are supported
- * (case-insensetive) : 'rsa', 'dsa', 'elgamal', 'ecdsa', 'eddsa', 'ecdh', 'sm2'.
+ *            (case-insensitive) : 'rsa', 'dsa', 'elgamal', 'ecdsa', 'eddsa', 'ecdh', 'sm2'.
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_op_generate_subkey_create(rnp_op_generate_t *op,
@@ -1190,7 +1190,7 @@ RNP_API rnp_result_t rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op,
 
 #if defined(RNP_EXPERIMENTAL_CRYPTO_REFRESH)
 /** Set the generated key version to v6.
- *  NOTE: This is an experimantal feature and this function can be replaced (or removed) at any
+ *  NOTE: This is an experimental feature and this function can be replaced (or removed) at any
  *        time.
  *
  * @param op pointer to opaque key generation context.
@@ -1201,7 +1201,7 @@ RNP_API rnp_result_t rnp_op_generate_set_v6_key(rnp_op_generate_t op);
 
 #if defined(RNP_EXPERIMENTAL_PQC)
 /** Set the SPHINCS+ parameter set
- *  NOTE: This is an experimantal feature and this function can be replaced (or removed) at any
+ *  NOTE: This is an experimental feature and this function can be replaced (or removed) at any
  *        time.
  *
  * @param op pointer to opaque key generation context.
@@ -1686,7 +1686,7 @@ RNP_API rnp_result_t rnp_uid_get_signature_at(rnp_uid_handle_t        uid,
  *             - 'certification revocation' : certification revocation signature
  *             - 'timestamp' : timestamp signature
  *             - 'third-party' : third party confirmation signature
- *             - 'uknown: 0..255' : unknown signature with its type specified as number
+ *             - 'unknown: 0..255' : unknown signature with its type specified as number
  *
  * @return RNP_SUCCESS or error code if failed.
  */
@@ -2685,7 +2685,7 @@ RNP_API rnp_result_t rnp_op_verify_set_flags(rnp_op_verify_t op, uint32_t flags)
  *  @return RNP_SUCCESS if data was processed successfully and output may be used. By default
  *          this means at least one valid signature for the signed data, or successfully
  *          decrypted data if no signatures are present.
- *          This behaviour may be overriden via rnp_op_verify_set_flags() call.
+ *          This behaviour may be overridden via rnp_op_verify_set_flags() call.
  *
  *          To check number of signatures and their verification status use functions
  *          rnp_op_verify_get_signature_count() and rnp_op_verify_get_signature_at().
@@ -3327,7 +3327,7 @@ RNP_API rnp_result_t rnp_op_encrypt_set_compression(rnp_op_encrypt_t op,
  *              RNP_ENCRYPT_NOWRAP - do not wrap the data in a literal data packet. This
  *              would allow to encrypt already signed data.
  *
- * @return RNP_SUCESS or error code if failed.
+ * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_op_encrypt_set_flags(rnp_op_encrypt_t op, uint32_t flags);
 
@@ -3462,7 +3462,7 @@ RNP_API rnp_result_t rnp_get_secret_key_data(rnp_key_handle_t handle,
  *               The format of the "mpis" object in the "signatures", "public key" and
  *               "secret key" members may vary and depends on the key algorithm.
  *               But generally they contain hexadecimal strings representing
- *               MPI-s (multi-presicion integers) of the key or signature.\n
+ *               MPI-s (multi-precision integers) of the key or signature.\n
  *               "mpis" objects are present if the flags argument contains
  *               RNP_JSON_SIGNATURE_MPIS,RNP_JSON_PUBLIC_MPIS and RNP_JSON_SECRET_MPIS
  *               flag respectively.\n
