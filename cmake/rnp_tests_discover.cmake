@@ -9,7 +9,7 @@ function(add_command NAME)
 endfunction()
 
 if(NOT EXISTS "${TEST_EXECUTABLE}")
-  message(FATAL_ERROR "Executable does not exist: ${TEST_EXECUTABE}")
+  message(FATAL_ERROR "Executable does not exist: ${TEST_EXECUTABLE}")
 endif()
 execute_process(
   COMMAND "${TEST_EXECUTABLE}" list-tests
@@ -18,7 +18,7 @@ execute_process(
   RESULT_VARIABLE result
 )
 if(NOT ${result} EQUAL 0)
-  message(FATAL_ERROR "Error running executable: ${TEST_EXECUTABE}")
+  message(FATAL_ERROR "Error running executable: ${TEST_EXECUTABLE}")
 endif()
 
 string(REPLACE "\n" ";" output "${output}")

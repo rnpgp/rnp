@@ -151,7 +151,7 @@ typedef struct pgp_source_signed_param_t {
     pgp_literal_hdr_t lhdr{};
     bool              has_lhdr = false;
 
-    std::vector<pgp_one_pass_sig_t>   onepasses;  /* list of one-pass singatures */
+    std::vector<pgp_one_pass_sig_t>   onepasses;  /* list of one-pass signatures */
     std::list<pgp_signature_t>        sigs;       /* list of signatures */
     std::vector<pgp_signature_info_t> siginfos;   /* signature validation info */
     rnp::HashList                     hashes;     /* hash contexts */

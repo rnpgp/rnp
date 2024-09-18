@@ -1556,7 +1556,7 @@ class Keystore(unittest.TestCase):
         # Re-import it, making sure file was correctly overwritten
         ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', kpub])
         self.assertEqual(ret, 0)
-        # Enter 'y' in ovewrite prompt
+        # Enter 'y' in overwrite prompt
         with open(kpub, 'w+') as f:
             f.truncate(10)
         ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', 'alice', '--output', kpub, '--notty'], 'y\n')
@@ -3682,7 +3682,7 @@ class Misc(unittest.TestCase):
         ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--enarmor=msg', src])
         self.assertEqual(ret, 0)
         self.assertTrue(os.path.isfile(asc))
-        # Dearmor asc - must be outputed to src
+        # Dearmor asc - must be outputted to src
         os.remove(src)
         ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--dearmor', asc])
         self.assertEqual(ret, 0)
@@ -4156,7 +4156,7 @@ class Encryption(unittest.TestCase):
         to wait until everything else gets
         tested before your failing BLOWFISH
     '''
-    # Ciphers list tro try during encryption. None will use default
+    # Ciphers list to try during encryption. None will use default
     CIPHERS = [None]
     SIZES = [20, 40, 120, 600, 1000, 5000, 20000, 250000]
     # Compression parameters to try during encryption(s)

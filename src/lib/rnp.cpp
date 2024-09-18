@@ -972,7 +972,7 @@ try {
         }
     }
 
-    // set pathes
+    // set paths
     *pub_path = strdup(pub.c_str());
     *sec_path = strdup(sec.c_str());
 
@@ -4746,7 +4746,7 @@ gen_json_primary_key(rnp_ffi_t                    ffi,
     rnp_keygen_primary_desc_t desc = {};
     // desc.crypto is a union
     // so at least Clang 12 on Windows zero-initializes the first union member only
-    // keeping the "larger" member partially unintialized
+    // keeping the "larger" member partially uninitialized
     desc.crypto.dsa.q_bitlen = 0;
 
     desc.cert.key_expiration = DEFAULT_KEY_EXPIRATION;

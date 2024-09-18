@@ -52,7 +52,7 @@ typedef struct pgp_write_handler_t {
  **/
 rnp_result_t rnp_sign_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst);
 
-/** @brief encrypt and sign the input data. Signatures will be enrypted together with data.
+/** @brief encrypt and sign the input data. Signatures will be encrypted together with data.
  *  @param handler handler handler to respond on stream processor callbacks, and additional
  *         processing parameters, including rnp_ctx_t
  *  @param src input source: file, stdin, memory, whatever else conforming to pgp_source_t

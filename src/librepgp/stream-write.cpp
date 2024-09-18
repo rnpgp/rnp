@@ -1007,7 +1007,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     skeycount = handler->ctx->passwords.size();
 
 #if defined(ENABLE_CRYPTO_REFRESH)
-    /* in the case of PKESK (pkeycount > 0) and all keys are PKESKv6/SEIPDv2 capable, ugprade
+    /* in the case of PKESK (pkeycount > 0) and all keys are PKESKv6/SEIPDv2 capable, upgrade
      * to AEADv2 */
     if (handler->ctx->enable_pkesk_v6 && handler->ctx->pkeskv6_capable() && pkeycount > 0) {
         param->auth_type = rnp::AuthType::AEADv2;

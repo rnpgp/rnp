@@ -687,7 +687,7 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_false(sub->pub->valid());
     assert_false(sub->sec->valid());
     creation = 0;
-    uint32_t validity = 2 * 30 * 24 * 60 * 60; // 2 monthes
+    uint32_t validity = 2 * 30 * 24 * 60 * 60; // 2 months
     assert_rnp_success(rnp_key_get_creation(key, &creation));
     uint32_t keytill = creation + validity;
     creation = time(NULL) - creation;

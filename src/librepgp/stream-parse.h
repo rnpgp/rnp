@@ -61,7 +61,7 @@ typedef struct pgp_parse_handler_t {
     pgp_password_provider_t *password_provider; /* if NULL then default will be used */
     rnp::KeyProvider *       key_provider; /* must be set when key is required, i.e. during
                                                 signing/verification/public key encryption and
-                                                deryption */
+                                                decryption */
     pgp_destination_func_t *dest_provider; /* called when destination stream is required */
     pgp_source_func_t *     src_provider;  /* required to provider source during the detached
                                               signature verification */

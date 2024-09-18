@@ -66,7 +66,7 @@ cmake -B "${RNP_BLD}" -DBUILD_SHARED_LIBS=ON -DBUILD_TESTING=OFF "${RNP_PATH}"
 cpack -B "${RNP_BLD}" -G TGZ --config "${RNP_BLD}/CPackSourceConfig.cmake"
 
 # Check whether tarball builds
-# cpack would use symantic versioning for file names, i.e. rnp-v0.17.1
+# cpack would use semantic versioning for file names, i.e. rnp-v0.17.1
 RNP_TGZ=$(find "${RNP_BLD}" -maxdepth 1 -type f -name '*.tar.gz' | head -n 1)
 RNP_CHK="/opt/rnp-check"
 rm -rf "${RNP_CHK}"

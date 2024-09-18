@@ -173,7 +173,7 @@ elgamal_encrypt_pkcs1(rnp::RNG *          rng,
     /*
      * Botan's ElGamal formats the g^k and msg*(y^k) together into a single byte string.
      * We have to parse out the two values after encryption, as rnp stores those values
-     * separatelly.
+     * separately.
      *
      * We don't trim zeros from octet string as it is done before final marshalling
      * (add_packet_body_mpi)
