@@ -178,7 +178,7 @@ rnp_tests.rnpkeys_generatekey_verifykeyHomeDirNoPermission 1 0.156128
 rnp_tests.rnpkeys_generatekey_testExpertMode 1 3.81493
 rnp_tests.generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted 1 0.0674681
 rnp_tests.generatekey_multipleUserIds_ShouldFail 1 0.0532007
-rnp_tests.generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed 1 0.0640942
+rnp_tests.generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSucceed 1 0.0640942
 rnp_tests.generatekeyECDSA_explicitlySetUnknownDigest_ShouldFail 1 0.0544535
 rnp_tests.test_generated_key_sigs 1 0.18236
 rnp_tests.test_kbx_nsigs 1 1.03666

@@ -249,7 +249,7 @@ lookup_var(const sexp_list_t *list, const std::string &name) noexcept
     // We are looking for a list element  (condition 1)
     // that:
     //  -- has at least two SEXP elements (condition 2)
-    //  -- has a SEXP string at 0 postion (condition 3)
+    //  -- has a SEXP string at 0 position (condition 3)
     //     matching given name            (condition 4)
     auto match = [name](const std::shared_ptr<sexp_object_t> &ptr) {
         bool r = false;
@@ -515,7 +515,7 @@ decrypt_protected_section(const sexp_simple_string_t &encrypted_data,
     // find the protection format in our table
     info = find_format(prot.symm_alg, prot.cipher_mode, prot.s2k.hash_alg);
     if (!info) {
-        RNP_LOG("Unsupported format, alg: %d, chiper_mode: %d, hash: %d",
+        RNP_LOG("Unsupported format, alg: %d, cipher_mode: %d, hash: %d",
                 prot.symm_alg,
                 prot.cipher_mode,
                 prot.s2k.hash_alg);

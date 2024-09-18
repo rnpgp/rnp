@@ -324,7 +324,7 @@ typedef struct pgp_signature_t {
     std::string signer_uid() const;
 
     /**
-     * @brief Set the signer's uid, responcible for the signature creation. See the RFC
+     * @brief Set the signer's uid, responsible for the signature creation. See the RFC
      *        4880bis, 5.2.3.23 for details.
      */
     void set_signer_uid(const std::string &uid);
