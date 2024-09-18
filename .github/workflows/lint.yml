@@ -40,6 +40,16 @@ jobs:
           scandir: './ci'
         env:
           SHELLCHECK_OPTS: -x
+  typos:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Actions Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+        submodules: true
+    - uses: crate-ci/typos@master
+    
   version-cmake-up-to-date:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
@@ -74,4 +84,3 @@ jobs:
           set -eux
           pwd
           [[ "$(cat ./rnp/version.txt)" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]];
-
