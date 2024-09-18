@@ -179,13 +179,13 @@ class KeyStore {
 
     /**
      * @brief Add signature of the specific key to the keystore, revalidating and refresing
-     * key's data. Currently supports only direct-key or subkey binding signature.
+     *        key's data. Currently supports only direct-key or subkey binding signature.
      *
      * @param keyfp key's fingerprint.
      * @param sig signature packet.
-     * @param front set to true if signature should be added to the beggining of the signature
-     * list.
-     * @return pgp_subsig_t*
+     * @param front set to true if signature should be added to the beginning of the signature
+     *              list.
+     * @return pointer to the newly added signature or NULL if failed.
      */
     pgp_subsig_t *add_key_sig(const pgp_fingerprint_t &keyfp,
                               const pgp_signature_t &  sig,
@@ -238,7 +238,7 @@ class KeyStore {
      *
      * @param key key to remove. Must be from this keystore.
      * @param subkeys remove subkeys or not.
-     * @return true if key was succesfully removed, or false if key was not found in keystore.
+     * @return true if key was successfully removed, or false if key was not found in keystore.
      */
     bool remove_key(const pgp_key_t &key, bool subkeys = false);
 

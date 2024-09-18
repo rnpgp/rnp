@@ -39,16 +39,16 @@
 
 static void
 check_key_properties(rnp_key_handle_t key,
-                     bool             primary_exptected,
+                     bool             primary_expected,
                      bool             have_public_expected,
                      bool             have_secret_expected)
 {
-    bool isprimary = !primary_exptected;
+    bool isprimary = !primary_expected;
     assert_rnp_success(rnp_key_is_primary(key, &isprimary));
-    assert_true(isprimary == primary_exptected);
-    bool issub = primary_exptected;
+    assert_true(isprimary == primary_expected);
+    bool issub = primary_expected;
     assert_rnp_success(rnp_key_is_sub(key, &issub));
-    assert_true(issub == !primary_exptected);
+    assert_true(issub == !primary_expected);
     bool have_public = !have_public_expected;
     assert_rnp_success(rnp_key_have_public(key, &have_public));
     assert_true(have_public == have_public_expected);

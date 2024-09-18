@@ -103,7 +103,7 @@ linux_prepare_ribose_yum_repo() {
 
 # Prepare the system by updating and optionally installing repos
 yum_prepare_repos() {
-  yum_install "${util_depedencies_yum[@]}"
+  yum_install "${util_dependencies_yum[@]}"
   linux_prepare_ribose_yum_repo
   "${SUDO}" "${YUM}" -y update
   if [[ $# -gt 0 ]]; then
@@ -141,7 +141,7 @@ linux_install_centos() {
   esac
 }
 
-declare util_depedencies_yum=(
+declare util_dependencies_yum=(
   sudo
   wget
   git
@@ -421,7 +421,7 @@ build_and_install_python() {
 
 # Make sure automake is at least $MINIMUM_AUTOMAKE_VERSION (1.16.3) as required by GnuPG 2.3
 # - We assume that on fedora/centos ribose rpm was used (see basic_build_dependencies_yum)
-# - If automake version is less then reuired automake build it from source
+# - If automake version is less then required automake build it from source
 ensure_automake() {
 
   local using_ribose_automake=
