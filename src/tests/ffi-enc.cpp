@@ -178,6 +178,17 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
     assert_rnp_failure(rnp_op_encrypt_add_password(op, "pass1", "WRONG", 0, NULL));
     assert_rnp_failure(rnp_op_encrypt_add_password(op, "pass1", NULL, 0, "WRONG"));
     assert_rnp_success(rnp_op_encrypt_add_password(op, "pass1", NULL, 0, NULL));
+
+    // Allow insecure ciphers
+    if (blowfish_enabled()) {
+        assert_rnp_success(rnp_remove_security_rule(
+          ffi, RNP_FEATURE_SYMM_ALG, "BLOWFISH", 0, RNP_SECURITY_REMOVE_ALL, 0, nullptr));
+    }
+    if (cast5_enabled()) {
+        assert_rnp_success(rnp_remove_security_rule(
+          ffi, RNP_FEATURE_SYMM_ALG, "CAST5", 0, RNP_SECURITY_REMOVE_ALL, 0, nullptr));
+    }
+
     // add password
     if (!sm2_enabled() && !twofish_enabled()) {
         assert_rnp_failure(rnp_op_encrypt_add_password(op, "pass2", "SM3", 12345, "TWOFISH"));
@@ -624,6 +635,10 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk)
     key = NULL;
     // set the data encryption cipher
     if (cast5_enabled()) {
+        if (cast5_enabled()) {
+            assert_rnp_success(rnp_remove_security_rule(
+              ffi, RNP_FEATURE_SYMM_ALG, "CAST5", 0, RNP_SECURITY_REMOVE_ALL, 0, nullptr));
+        }
         assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
     } else {
         assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "CAST5"));
@@ -712,15 +727,49 @@ TEST_F(rnp_tests, test_ffi_select_deprecated_ciphers)
     uint32_t flags = 0;
     uint64_t from = 0;
     uint32_t level = 0;
+    if (cast5_enabled()) {
+        assert_rnp_success(rnp_get_security_rule(ffi,
+                                                 RNP_FEATURE_SYMM_ALG,
+                                                 "CAST5",
+                                                 CAST5_3DES_IDEA_BLOWFISH_FROM + 1,
+                                                 &flags,
+                                                 &from,
+                                                 &level));
+        assert_int_equal(from, CAST5_3DES_IDEA_BLOWFISH_FROM);
+        assert_int_equal(level, RNP_SECURITY_INSECURE);
+    }
+
     assert_rnp_success(rnp_get_security_rule(ffi,
                                              RNP_FEATURE_SYMM_ALG,
-                                             "CAST5",
+                                             "TRIPLEDES",
                                              CAST5_3DES_IDEA_BLOWFISH_FROM + 1,
                                              &flags,
                                              &from,
                                              &level));
     assert_int_equal(from, CAST5_3DES_IDEA_BLOWFISH_FROM);
     assert_int_equal(level, RNP_SECURITY_INSECURE);
+    if (idea_enabled()) {
+        assert_rnp_success(rnp_get_security_rule(ffi,
+                                                 RNP_FEATURE_SYMM_ALG,
+                                                 "IDEA",
+                                                 CAST5_3DES_IDEA_BLOWFISH_FROM + 1,
+                                                 &flags,
+                                                 &from,
+                                                 &level));
+        assert_int_equal(from, CAST5_3DES_IDEA_BLOWFISH_FROM);
+        assert_int_equal(level, RNP_SECURITY_INSECURE);
+    }
+    if (blowfish_enabled()) {
+        assert_rnp_success(rnp_get_security_rule(ffi,
+                                                 RNP_FEATURE_SYMM_ALG,
+                                                 "BLOWFISH",
+                                                 CAST5_3DES_IDEA_BLOWFISH_FROM + 1,
+                                                 &flags,
+                                                 &from,
+                                                 &level));
+        assert_int_equal(from, CAST5_3DES_IDEA_BLOWFISH_FROM);
+        assert_int_equal(level, RNP_SECURITY_INSECURE);
+    }
 
     ffi->context.set_time(CAST5_3DES_IDEA_BLOWFISH_FROM + 1);
     // set the data encryption cipher
@@ -1249,6 +1298,10 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_key_provider)
     key = NULL;
     // set the data encryption cipher
     if (cast5_enabled()) {
+        if (cast5_enabled()) {
+            assert_rnp_success(rnp_remove_security_rule(
+              ffi, RNP_FEATURE_SYMM_ALG, "CAST5", 0, RNP_SECURITY_REMOVE_ALL, 0, NULL));
+        }
         assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
     } else {
         assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "CAST5"));
@@ -1358,6 +1411,10 @@ TEST_F(rnp_tests, test_ffi_encrypt_and_sign)
     key = NULL;
     // set the data encryption cipher
     if (cast5_enabled()) {
+        if (cast5_enabled()) {
+            assert_rnp_success(rnp_remove_security_rule(
+              ffi, RNP_FEATURE_SYMM_ALG, "CAST5", 0, RNP_SECURITY_REMOVE_ALL, 0, NULL));
+        }
         assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
     } else {
         assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "CAST5"));

@@ -662,6 +662,41 @@ cli_rnp_t::init(const rnp_cfg &cfg)
                               RNP_SECURITY_DEFAULT);
     }
 
+    if (cfg_.has(CFG_ALLOW_OLD_CIPHERS)) {
+        auto     now = time(NULL);
+        uint64_t from = 0;
+        uint32_t level = 0;
+        rnp_get_security_rule(ffi, RNP_FEATURE_SYMM_ALG, "CAST5", now, NULL, &from, &level);
+        rnp_add_security_rule(ffi,
+                              RNP_FEATURE_SYMM_ALG,
+                              "CAST5",
+                              RNP_SECURITY_OVERRIDE,
+                              from,
+                              RNP_SECURITY_DEFAULT);
+        rnp_get_security_rule(
+          ffi, RNP_FEATURE_SYMM_ALG, "TRIPLEDES", now, NULL, &from, &level);
+        rnp_add_security_rule(ffi,
+                              RNP_FEATURE_SYMM_ALG,
+                              "TRIPLEDES",
+                              RNP_SECURITY_OVERRIDE,
+                              from,
+                              RNP_SECURITY_DEFAULT);
+        rnp_get_security_rule(ffi, RNP_FEATURE_SYMM_ALG, "IDEA", now, NULL, &from, &level);
+        rnp_add_security_rule(ffi,
+                              RNP_FEATURE_SYMM_ALG,
+                              "IDEA",
+                              RNP_SECURITY_OVERRIDE,
+                              from,
+                              RNP_SECURITY_DEFAULT);
+        rnp_get_security_rule(ffi, RNP_FEATURE_SYMM_ALG, "BLOWFISH", now, NULL, &from, &level);
+        rnp_add_security_rule(ffi,
+                              RNP_FEATURE_SYMM_ALG,
+                              "BLOWFISH",
+                              RNP_SECURITY_OVERRIDE,
+                              from,
+                              RNP_SECURITY_DEFAULT);
+    }
+
     // by default use stdin password provider
     if (rnp_ffi_set_pass_provider(ffi, ffi_pass_callback_stdin, this)) {
         goto done;
