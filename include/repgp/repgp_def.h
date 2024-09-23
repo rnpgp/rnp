@@ -409,7 +409,7 @@ typedef enum : uint8_t {
  * \see RFC4880 5.2.3.1-5.2.3.26
  */
 
-typedef enum {
+typedef enum : uint8_t {
     PGP_SIG_SUBPKT_UNKNOWN = 0,
     PGP_SIG_SUBPKT_RESERVED_1 = 1,
     PGP_SIG_SUBPKT_CREATION_TIME = 2,   /* signature creation time */
