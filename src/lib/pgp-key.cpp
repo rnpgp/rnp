@@ -435,7 +435,11 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
 }
 
 pgp_key_t *
-find_suitable_key(pgp_op_t op, pgp_key_t *key, rnp::KeyProvider *key_provider, bool no_primary)
+find_suitable_key(pgp_op_t          op,
+                  pgp_key_t *       key,
+                  rnp::KeyProvider *key_provider,
+                  bool              no_primary,
+                  bool              pref_pqc_sub)
 {
     if (!key || !key_provider) {
         return NULL;
@@ -473,16 +477,18 @@ find_suitable_key(pgp_op_t op, pgp_key_t *key, rnp::KeyProvider *key_provider, b
             continue;
         }
 #if defined(ENABLE_PQC)
-        /* prefer PQC over non-PQC. Assume non-PQC key is only there for backwards
-         * compatibility. */
-        if (subkey && subkey->is_pqc_alg() && !cur->is_pqc_alg()) {
-            /* do not override already found PQC key with non-PQC key */
-            continue;
-        }
-        if (subkey && cur->is_pqc_alg() && !subkey->is_pqc_alg()) {
-            /* override non-PQC key with PQC key */
-            subkey = cur;
-            continue;
+        if (pref_pqc_sub && op == PGP_OP_ENCRYPT) {
+            /* prefer PQC encryption over non-PQC encryption. Assume non-PQC key is only there
+             * for backwards compatibility. */
+            if (subkey && subkey->is_pqc_alg() && !cur->is_pqc_alg()) {
+                /* do not override already found PQC key with non-PQC key */
+                continue;
+            }
+            if (subkey && cur->is_pqc_alg() && !subkey->is_pqc_alg()) {
+                /* override non-PQC key with PQC key */
+                subkey = cur;
+                continue;
+            }
         }
 #endif
         if (!subkey || (cur->creation() > subkey->creation())) {
