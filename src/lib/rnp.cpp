@@ -2594,8 +2594,16 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    pgp_key_t *key = find_suitable_key(
-      PGP_OP_ENCRYPT, get_key_prefer_public(handle), &handle->ffi->key_provider);
+#if defined(ENABLE_PQC)
+    bool prefer_pqc = op->rnpctx.pref_pqc_enc_subkey;
+#else
+    bool prefer_pqc = false;
+#endif
+    pgp_key_t *key = find_suitable_key(PGP_OP_ENCRYPT,
+                                       get_key_prefer_public(handle),
+                                       &handle->ffi->key_provider,
+                                       false,
+                                       prefer_pqc);
     if (!key) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
@@ -2613,6 +2621,20 @@ try {
     }
 
     op->rnpctx.enable_pkesk_v6 = true;
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+#endif
+
+#if defined(RNP_EXPERIMENTAL_PQC)
+rnp_result_t
+rnp_op_encrypt_prefer_pqc_enc_subkey(rnp_op_encrypt_t op)
+try {
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    op->rnpctx.pref_pqc_enc_subkey = true;
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -7296,6 +7318,11 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     bool no_primary = extract_flag(flags, RNP_KEY_SUBKEYS_ONLY);
+#if defined(ENABLE_PQC)
+    bool prefer_pqc_enc_subkey = extract_flag(flags, RNP_KEY_PREFER_PQC_ENC_SUBKEY);
+#else
+    bool prefer_pqc_enc_subkey = false;
+#endif
     if (flags) {
         FFI_LOG(primary_key->ffi, "Invalid flags: %" PRIu32, flags);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -7321,8 +7348,8 @@ try {
     if (!key) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    pgp_key_t *defkey =
-      find_suitable_key(op, key, &primary_key->ffi->key_provider, no_primary);
+    pgp_key_t *defkey = find_suitable_key(
+      op, key, &primary_key->ffi->key_provider, no_primary, prefer_pqc_enc_subkey);
     if (!defkey) {
         *default_key = NULL;
         return RNP_ERROR_NO_SUITABLE_KEY;
