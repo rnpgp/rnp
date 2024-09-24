@@ -691,6 +691,7 @@ bool pgp_subkey_set_expiration(pgp_key_t *                    sub,
 pgp_key_t *find_suitable_key(pgp_op_t          op,
                              pgp_key_t *       key,
                              rnp::KeyProvider *key_provider,
-                             bool              no_primary = false);
+                             bool              no_primary = false,
+                             bool              pref_pqc_sub = false);
 
 #endif // RNP_PACKET_KEY_H

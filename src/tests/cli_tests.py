@@ -409,7 +409,6 @@ def rnp_encrypt_and_sign_file(src, dst, recipients, encrpswd, signers, signpswd,
     if ret != 0:
         raise_err('rnp encrypt-and-sign failed', err)
 
-
 def rnp_decrypt_file(src, dst, password = PASSWORD):
     pipe = pswd_pipe(password)
     ret, out, err = run_proc(

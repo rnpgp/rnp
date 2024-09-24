@@ -70,8 +70,10 @@ typedef struct rnp_symmetric_pass_info_t {
  *  - halg : hash algorithm used during key derivation for password-based encryption
  *  - ealg, aalg, abits : symmetric encryption algorithm and AEAD parameters if used
  *  - recipients : list of key ids used to encrypt data to
- *  - enable_pkesk_v6 : if true and each recipient in the  list of recipients has the
- * capability, allows PKESKv5/SEIPDv2
+ *  - enable_pkesk_v6 (Only if defined: ENABLE_CRYPTO_REFRESH): if true and each recipient in
+ * the  list of recipients has the capability, allows PKESKv6/SEIPDv2
+ *  - pref_pqc_enc_subkey (Only if defined: ENABLE_PQC): if true, prefers PQC subkey over
+ * non-PQC subkey for encryption.
  *  - passwords : list of passwords used for password-based encryption
  *  - filename, filemtime, zalg, zlevel : see previous
  *  - pkeskv6_capable() : returns true if all keys support PKESKv6+SEIPDv2, false otherwise
@@ -108,6 +110,9 @@ typedef struct rnp_ctx_t {
     bool           no_wrap{};   /* do not wrap source in literal data packet */
 #if defined(ENABLE_CRYPTO_REFRESH)
     bool enable_pkesk_v6{}; /* allows pkesk v6 if list of recipients is suitable */
+#endif
+#if defined(ENABLE_CRYPTO_REFRESH)
+    bool pref_pqc_enc_subkey{}; /* prefer to encrypt to PQC subkey */
 #endif
     std::list<pgp_key_t *> recipients{};              /* recipients of the encrypted message */
     std::list<rnp_symmetric_pass_info_t> passwords{}; /* passwords to encrypt message */

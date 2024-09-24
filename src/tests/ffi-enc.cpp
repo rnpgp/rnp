@@ -912,6 +912,71 @@ TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
 
     rnp_ffi_destroy(ffi);
 }
+
+TEST_F(rnp_tests, test_ffi_pqc_default_enc_subkey)
+{
+    rnp_ffi_t         ffi = NULL;
+    rnp_key_handle_t  key1 = NULL;
+    rnp_key_handle_t  key2 = NULL;
+    rnp_key_handle_t  defkey1 = NULL;
+    rnp_key_handle_t  defkey2 = NULL;
+    rnp_op_generate_t op = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* generate key 1 */
+    assert_rnp_success(rnp_op_generate_create(&op, ffi, "ML-DSA-65+ED25519"));
+    assert_rnp_success(rnp_op_generate_set_hash(op, "SHA3-256"));
+    assert_rnp_success(rnp_op_generate_execute(op));
+
+    assert_rnp_success(rnp_op_generate_get_key(op, &key1));
+    assert_non_null(key1);
+    assert_rnp_success(rnp_op_generate_destroy(op));
+    op = NULL;
+    assert_rnp_success(rnp_op_generate_subkey_create(&op, ffi, key1, "ML-KEM-768+X25519"));
+    assert_rnp_success(rnp_op_generate_execute(op));
+    rnp_op_generate_destroy(op);
+    op = NULL;
+    assert_rnp_success(rnp_op_generate_subkey_create(&op, ffi, key1, "ECDH"));
+    assert_rnp_success(rnp_op_generate_set_curve(op, "NIST P-256"));
+    assert_rnp_success(rnp_op_generate_execute(op));
+    rnp_op_generate_destroy(op);
+    op = NULL;
+
+    /* generate key 2 */
+    assert_rnp_success(rnp_op_generate_create(&op, ffi, "ML-DSA-65+ED25519"));
+    assert_rnp_success(rnp_op_generate_set_hash(op, "SHA3-256"));
+    assert_rnp_success(rnp_op_generate_execute(op));
+    assert_rnp_success(rnp_op_generate_get_key(op, &key2));
+    assert_non_null(key2);
+    assert_rnp_success(rnp_op_generate_destroy(op));
+    op = NULL;
+    assert_rnp_success(rnp_op_generate_subkey_create(&op, ffi, key2, "ECDH"));
+    assert_rnp_success(rnp_op_generate_set_curve(op, "NIST P-256"));
+    assert_rnp_success(rnp_op_generate_execute(op));
+    rnp_op_generate_destroy(op);
+    op = NULL;
+    assert_rnp_success(rnp_op_generate_subkey_create(&op, ffi, key2, "ML-KEM-768+X25519"));
+    assert_rnp_success(rnp_op_generate_execute(op));
+    rnp_op_generate_destroy(op);
+    op = NULL;
+
+    /* check default key */
+    assert_rnp_success(
+      rnp_key_get_default_key(key1, "encrypt", RNP_KEY_PREFER_PQC_ENC_SUBKEY, &defkey1));
+    // PQC key is older but preferred
+    assert(defkey1->pub->alg() == PGP_PKA_KYBER768_X25519);
+    assert_rnp_success(
+      rnp_key_get_default_key(key2, "encrypt", RNP_KEY_PREFER_PQC_ENC_SUBKEY, &defkey2));
+    // PQC key is newer and preferred
+    assert(defkey2->pub->alg() == PGP_PKA_KYBER768_X25519);
+
+    /* cleanup */
+    rnp_key_handle_destroy(key1);
+    rnp_key_handle_destroy(key2);
+    rnp_key_handle_destroy(defkey1);
+    rnp_key_handle_destroy(defkey2);
+    rnp_ffi_destroy(ffi);
+}
 #endif
 
 TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
