@@ -413,29 +413,32 @@ dst_print_zalg(pgp_dest_t *dst, const char *name, pgp_compression_type_t zalg)
 }
 
 static void
-dst_print_raw(pgp_dest_t *dst, const char *name, const void *data, size_t len)
+dst_print_str(pgp_dest_t *dst, const char *name, const std::string &str)
 {
     dst_printf(dst, "%s: ", name);
-    dst_write(dst, data, len);
+    dst_write(dst, str.data(), str.size());
     dst_printf(dst, "\n");
 }
 
 static void
-dst_print_algs(
-  pgp_dest_t *dst, const char *name, uint8_t *algs, size_t algc, const id_str_pair map[])
+dst_print_algs(pgp_dest_t *                dst,
+               const char *                name,
+               const std::vector<uint8_t> &algs,
+               const id_str_pair           map[])
 {
     if (!name) {
         name = "algorithms";
     }
 
     dst_printf(dst, "%s: ", name);
-    for (size_t i = 0; i < algc; i++) {
-        dst_printf(
-          dst, "%s%s", id_str_pair::lookup(map, algs[i], "Unknown"), i + 1 < algc ? ", " : "");
+    for (size_t i = 0; i < algs.size(); i++) {
+        auto comma = i + 1 < algs.size() ? ", " : "";
+        dst_printf(dst, "%s%s", id_str_pair::lookup(map, algs[i], "Unknown"), comma);
     }
     dst_printf(dst, " (");
-    for (size_t i = 0; i < algc; i++) {
-        dst_printf(dst, "%d%s", (int) algs[i], i + 1 < algc ? ", " : "");
+    for (size_t i = 0; i < algs.size(); i++) {
+        auto comma = i + 1 < algs.size() ? ", " : "";
+        dst_printf(dst, "%" PRIu8 "%s", algs[i], comma);
     }
     dst_printf(dst, ")\n");
 }
@@ -471,7 +474,6 @@ dst_print_keyid(pgp_dest_t *dst, const char *name, const pgp_key_id_t &keyid)
     dst_print_hex(dst, name, keyid.data(), keyid.size(), false);
 }
 
-#if defined(ENABLE_CRYPTO_REFRESH)
 static void
 dst_print_fp(pgp_dest_t *dst, const char *name, const pgp_fingerprint_t &fp)
 {
@@ -480,7 +482,6 @@ dst_print_fp(pgp_dest_t *dst, const char *name, const pgp_fingerprint_t &fp)
     }
     dst_print_hex(dst, name, fp.fingerprint, fp.length, true);
 }
-#endif
 
 static void
 dst_print_s2k(pgp_dest_t *dst, pgp_s2k_t *s2k)
@@ -572,6 +573,12 @@ dst_hexdump(pgp_dest_t *dst, const uint8_t *src, size_t length)
     }
 }
 
+static void
+dst_hexdump(pgp_dest_t *dst, const std::vector<uint8_t> &data)
+{
+    dst_hexdump(dst, data.data(), data.size());
+}
+
 static rnp_result_t stream_dump_packets_raw(rnp_dump_ctx_t *ctx,
                                             pgp_source_t *  src,
                                             pgp_dest_t *    dst);
@@ -579,100 +586,117 @@ static void         stream_dump_signature_pkt(rnp_dump_ctx_t * ctx,
                                               pgp_signature_t *sig,
                                               pgp_dest_t *     dst);
 
-static void
-signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, const pgp_sig_subpkt_t &subpkt)
-{
-    const char *sname = id_str_pair::lookup(sig_subpkt_type_map, subpkt.type, "Unknown");
+/* Todo: move dumper to pgp::pkt or pgp namespace */
+using namespace pgp;
 
-    switch (subpkt.type) {
-    case PGP_SIG_SUBPKT_CREATION_TIME:
-        dst_print_time(dst, sname, subpkt.fields.create);
+static void
+signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, const pkt::sigsub::Raw &subpkt)
+{
+    const char *sname = id_str_pair::lookup(sig_subpkt_type_map, subpkt.raw_type(), "Unknown");
+
+    switch (subpkt.type()) {
+    case pkt::sigsub::Type::CreationTime: {
+        auto &sub = dynamic_cast<const pkt::sigsub::CreationTime &>(subpkt);
+        dst_print_time(dst, sname, sub.time());
         break;
-    case PGP_SIG_SUBPKT_EXPIRATION_TIME:
-        dst_print_expiration(dst, sname, subpkt.fields.expiry);
+    }
+    case pkt::sigsub::Type::ExpirationTime: {
+        auto &sub = dynamic_cast<const pkt::sigsub::ExpirationTime &>(subpkt);
+        dst_print_expiration(dst, sname, sub.time());
         break;
-    case PGP_SIG_SUBPKT_EXPORT_CERT:
-        dst_printf(dst, "%s: %d\n", sname, (int) subpkt.fields.exportable);
+    }
+    case pkt::sigsub::Type::ExportableCert: {
+        auto &sub = dynamic_cast<const pkt::sigsub::ExportableCert &>(subpkt);
+        dst_printf(dst, "%s: %d\n", sname, sub.exportable());
         break;
-    case PGP_SIG_SUBPKT_TRUST:
-        dst_printf(dst,
-                   "%s: amount %d, level %d\n",
-                   sname,
-                   (int) subpkt.fields.trust.amount,
-                   (int) subpkt.fields.trust.level);
+    }
+    case pkt::sigsub::Type::Trust: {
+        auto &sub = dynamic_cast<const pkt::sigsub::Trust &>(subpkt);
+        dst_printf(
+          dst, "%s: amount %" PRIu8 ", level %" PRIu8 "\n", sname, sub.amount(), sub.level());
         break;
-    case PGP_SIG_SUBPKT_REGEXP:
-        dst_print_raw(dst, sname, subpkt.fields.regexp.str, subpkt.fields.regexp.len);
+    }
+    case pkt::sigsub::Type::RegExp: {
+        auto &sub = dynamic_cast<const pkt::sigsub::RegExp &>(subpkt);
+        dst_print_str(dst, sname, sub.regexp());
         break;
-    case PGP_SIG_SUBPKT_REVOCABLE:
-        dst_printf(dst, "%s: %d\n", sname, (int) subpkt.fields.revocable);
+    }
+    case pkt::sigsub::Type::Revocable: {
+        auto &sub = dynamic_cast<const pkt::sigsub::Revocable &>(subpkt);
+        dst_printf(dst, "%s: %d\n", sname, sub.revocable());
         break;
-    case PGP_SIG_SUBPKT_KEY_EXPIRY:
-        dst_print_expiration(dst, sname, subpkt.fields.expiry);
+    }
+    case pkt::sigsub::Type::KeyExpirationTime: {
+        auto &sub = dynamic_cast<const pkt::sigsub::KeyExpirationTime &>(subpkt);
+        dst_print_expiration(dst, sname, sub.time());
         break;
-    case PGP_SIG_SUBPKT_PREFERRED_SKA:
-        dst_print_algs(dst,
-                       "preferred symmetric algorithms",
-                       subpkt.fields.preferred.arr,
-                       subpkt.fields.preferred.len,
-                       symm_alg_map);
+    }
+    case pkt::sigsub::Type::PreferredSymmetric: {
+        auto &sub = dynamic_cast<const pkt::sigsub::PreferredSymmetric &>(subpkt);
+        dst_print_algs(dst, "preferred symmetric algorithms", sub.algs(), symm_alg_map);
         break;
-    case PGP_SIG_SUBPKT_REVOCATION_KEY:
+    }
+    case pkt::sigsub::Type::RevocationKey: {
+        auto &sub = dynamic_cast<const pkt::sigsub::RevocationKey &>(subpkt);
         dst_printf(dst, "%s\n", sname);
-        dst_printf(dst, "class: %d\n", (int) subpkt.fields.revocation_key.revclass);
-        dst_print_palg(dst, NULL, subpkt.fields.revocation_key.pkalg);
-        dst_print_hex(
-          dst, "fingerprint", subpkt.fields.revocation_key.fp, PGP_FINGERPRINT_V4_SIZE, true);
+        dst_printf(dst, "class: %" PRIu8 "\n", sub.rev_class());
+        dst_print_palg(dst, NULL, sub.alg());
+        dst_print_fp(dst, "fingerprint", sub.fp());
         break;
-    case PGP_SIG_SUBPKT_ISSUER_KEY_ID:
-        dst_print_hex(dst, sname, subpkt.fields.issuer, PGP_KEY_ID_SIZE, false);
+    }
+    case pkt::sigsub::Type::IssuerKeyID: {
+        auto &sub = dynamic_cast<const pkt::sigsub::IssuerKeyID &>(subpkt);
+        dst_print_keyid(dst, sname, sub.keyid());
         break;
-    case PGP_SIG_SUBPKT_NOTATION_DATA: {
-        std::string          name(subpkt.fields.notation.name,
-                         subpkt.fields.notation.name + subpkt.fields.notation.nlen);
-        std::vector<uint8_t> value(subpkt.fields.notation.value,
-                                   subpkt.fields.notation.value + subpkt.fields.notation.vlen);
-        if (subpkt.fields.notation.human) {
-            dst_printf(dst, "%s: %s = ", sname, name.c_str());
-            dst_printf(dst, "%.*s\n", (int) value.size(), (char *) value.data());
+    }
+    case pkt::sigsub::Type::NotationData: {
+        auto &sub = dynamic_cast<const pkt::sigsub::NotationData &>(subpkt);
+        if (sub.human_readable()) {
+            dst_printf(dst, "%s: %s = ", sname, sub.name().c_str());
+            dst_printf(
+              dst, "%.*s\n", (int) sub.value().size(), (const char *) sub.value().data());
         } else {
             char hex[64];
-            vsnprinthex(hex, sizeof(hex), value.data(), value.size());
-            dst_printf(dst, "%s: %s = ", sname, name.c_str());
-            dst_printf(dst, "0x%s (%zu bytes)\n", hex, value.size());
+            vsnprinthex(hex, sizeof(hex), sub.value().data(), sub.value().size());
+            dst_printf(dst, "%s: %s = ", sname, sub.name().c_str());
+            dst_printf(dst, "0x%s (%zu bytes)\n", hex, sub.value().size());
         }
         break;
     }
-    case PGP_SIG_SUBPKT_PREFERRED_HASH:
-        dst_print_algs(dst,
-                       "preferred hash algorithms",
-                       subpkt.fields.preferred.arr,
-                       subpkt.fields.preferred.len,
-                       hash_alg_map);
+    case pkt::sigsub::Type::PreferredHash: {
+        auto &sub = dynamic_cast<const pkt::sigsub::PreferredHash &>(subpkt);
+        dst_print_algs(dst, "preferred hash algorithms", sub.algs(), hash_alg_map);
         break;
-    case PGP_SIG_SUBPKT_PREF_COMPRESS:
-        dst_print_algs(dst,
-                       "preferred compression algorithms",
-                       subpkt.fields.preferred.arr,
-                       subpkt.fields.preferred.len,
-                       z_alg_map);
+    }
+    case pkt::sigsub::Type::PreferredCompress: {
+        auto &sub = dynamic_cast<const pkt::sigsub::PreferredCompress &>(subpkt);
+        dst_print_algs(dst, "preferred compression algorithms", sub.algs(), z_alg_map);
         break;
-    case PGP_SIG_SUBPKT_KEYSERV_PREFS:
+    }
+    case pkt::sigsub::Type::KeyserverPrefs: {
+        auto &sub = dynamic_cast<const pkt::sigsub::KeyserverPrefs &>(subpkt);
         dst_printf(dst, "%s\n", sname);
-        dst_printf(dst, "no-modify: %d\n", (int) subpkt.fields.ks_prefs.no_modify);
+        dst_printf(dst, "no-modify: %d\n", sub.no_modify());
         break;
-    case PGP_SIG_SUBPKT_PREF_KEYSERV:
-        dst_print_raw(
-          dst, sname, subpkt.fields.preferred_ks.uri, subpkt.fields.preferred_ks.len);
+    }
+    case pkt::sigsub::Type::PreferredKeyserver: {
+        auto &sub = dynamic_cast<const pkt::sigsub::PreferredKeyserver &>(subpkt);
+        dst_print_str(dst, sname, sub.keyserver());
         break;
-    case PGP_SIG_SUBPKT_PRIMARY_USER_ID:
-        dst_printf(dst, "%s: %d\n", sname, (int) subpkt.fields.primary_uid);
+    }
+    case pkt::sigsub::Type::PrimaryUserID: {
+        auto &sub = dynamic_cast<const pkt::sigsub::PrimaryUserID &>(subpkt);
+        dst_printf(dst, "%s: %d\n", sname, sub.primary());
         break;
-    case PGP_SIG_SUBPKT_POLICY_URI:
-        dst_print_raw(dst, sname, subpkt.fields.policy.uri, subpkt.fields.policy.len);
+    }
+    case pkt::sigsub::Type::PolicyURI: {
+        auto &sub = dynamic_cast<const pkt::sigsub::PolicyURI &>(subpkt);
+        dst_print_str(dst, sname, sub.URI());
         break;
-    case PGP_SIG_SUBPKT_KEY_FLAGS: {
-        uint8_t flg = subpkt.fields.key_flags;
+    }
+    case pkt::sigsub::Type::KeyFlags: {
+        auto &  sub = dynamic_cast<const pkt::sigsub::KeyFlags &>(subpkt);
+        uint8_t flg = sub.flags();
         dst_printf(dst, "%s: 0x%02x ( ", sname, flg);
         dst_printf(dst, "%s", flg ? "" : "none");
         dst_printf(dst, "%s", flg & PGP_KF_CERTIFY ? "certify " : "");
@@ -685,49 +709,51 @@ signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, const pgp_sig_sub
         dst_printf(dst, ")\n");
         break;
     }
-    case PGP_SIG_SUBPKT_SIGNERS_USER_ID:
-        dst_print_raw(dst, sname, subpkt.fields.signer.uid, subpkt.fields.signer.len);
-        break;
-    case PGP_SIG_SUBPKT_REVOCATION_REASON: {
-        int         code = subpkt.fields.revocation_reason.code;
-        const char *reason = id_str_pair::lookup(revoc_reason_map, code, "Unknown");
-        dst_printf(dst, "%s: %d (%s)\n", sname, code, reason);
-        dst_print_raw(dst,
-                      "message",
-                      subpkt.fields.revocation_reason.str,
-                      subpkt.fields.revocation_reason.len);
+    case pkt::sigsub::Type::SignersUserID: {
+        auto &sub = dynamic_cast<const pkt::sigsub::SignersUserID &>(subpkt);
+        dst_print_str(dst, sname, sub.signer());
         break;
     }
-    case PGP_SIG_SUBPKT_FEATURES:
-        dst_printf(dst, "%s: 0x%02x ( ", sname, subpkt.data[0]);
-        dst_printf(dst, "%s", subpkt.fields.features & PGP_KEY_FEATURE_MDC ? "mdc " : "");
-        dst_printf(dst, "%s", subpkt.fields.features & PGP_KEY_FEATURE_AEAD ? "aead " : "");
-        dst_printf(dst, "%s", subpkt.fields.features & PGP_KEY_FEATURE_V5 ? "v5 keys " : "");
+    case pkt::sigsub::Type::RevocationReason: {
+        auto &sub = dynamic_cast<const pkt::sigsub::RevocationReason &>(subpkt);
+        auto  reason = id_str_pair::lookup(revoc_reason_map, sub.code(), "Unknown");
+        dst_printf(dst, "%s: %" PRIu8 " (%s)\n", sname, sub.code(), reason);
+        dst_print_str(dst, "message", sub.reason());
+        break;
+    }
+    case pkt::sigsub::Type::Features: {
+        auto &sub = dynamic_cast<const pkt::sigsub::Features &>(subpkt);
+        dst_printf(dst, "%s: 0x%02x ( ", sname, sub.features());
+        dst_printf(dst, "%s", sub.features() & PGP_KEY_FEATURE_MDC ? "mdc " : "");
+        dst_printf(dst, "%s", sub.features() & PGP_KEY_FEATURE_AEAD ? "aead " : "");
+        dst_printf(dst, "%s", sub.features() & PGP_KEY_FEATURE_V5 ? "v5 keys " : "");
 #if defined(ENABLE_CRYPTO_REFRESH)
-        dst_printf(
-          dst, "%s", subpkt.fields.features & PGP_KEY_FEATURE_SEIPDV2 ? "SEIPD v2 " : "");
+        dst_printf(dst, "%s", sub.features() & PGP_KEY_FEATURE_SEIPDV2 ? "SEIPD v2 " : "");
 #endif
         dst_printf(dst, ")\n");
         break;
-    case PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE:
+    }
+    case pkt::sigsub::Type::EmbeddedSignature: {
+        auto &sub = dynamic_cast<const pkt::sigsub::EmbeddedSignature &>(subpkt);
         dst_printf(dst, "%s:\n", sname);
-        stream_dump_signature_pkt(ctx, subpkt.fields.sig, dst);
+        pgp_signature_t sig(*sub.signature());
+        stream_dump_signature_pkt(ctx, &sig, dst);
         break;
-    case PGP_SIG_SUBPKT_ISSUER_FPR:
-        dst_print_hex(
-          dst, sname, subpkt.fields.issuer_fp.fp, subpkt.fields.issuer_fp.len, true);
+    }
+    case pkt::sigsub::Type::IssuerFingerprint: {
+        auto &sub = dynamic_cast<const pkt::sigsub::IssuerFingerprint &>(subpkt);
+        dst_print_fp(dst, sname, sub.fp());
         break;
-    case PGP_SIG_SUBPKT_PREFERRED_AEAD:
-        dst_print_algs(dst,
-                       "preferred aead algorithms",
-                       subpkt.fields.preferred.arr,
-                       subpkt.fields.preferred.len,
-                       aead_alg_map);
+    }
+    case pkt::sigsub::Type::PreferredAEAD: {
+        auto &sub = dynamic_cast<const pkt::sigsub::PreferredAEAD &>(subpkt);
+        dst_print_algs(dst, "preferred aead algorithms", sub.algs(), aead_alg_map);
         break;
+    }
     default:
         if (!ctx->dump_packets) {
             indent_dest_increase(dst);
-            dst_hexdump(dst, subpkt.data, subpkt.len);
+            dst_hexdump(dst, subpkt.data());
             indent_dest_decrease(dst);
         }
     }
@@ -742,19 +768,20 @@ signature_dump_subpackets(rnp_dump_ctx_t * ctx,
     bool empty = true;
 
     for (auto &subpkt : sig->subpkts) {
-        if (subpkt.hashed != hashed) {
+        if (subpkt->hashed() != hashed) {
             continue;
         }
         empty = false;
-        dst_printf(dst, ":type %d, len %d", (int) subpkt.type, (int) subpkt.len);
-        dst_printf(dst, "%s\n", subpkt.critical ? ", critical" : "");
+        dst_printf(
+          dst, ":type %" PRIu8 ", len %zu", subpkt->raw_type(), subpkt->data().size());
+        dst_printf(dst, "%s\n", subpkt->critical() ? ", critical" : "");
         if (ctx->dump_packets) {
             dst_printf(dst, ":subpacket contents:\n");
             indent_dest_increase(dst);
-            dst_hexdump(dst, subpkt.data, subpkt.len);
+            dst_hexdump(dst, subpkt->data());
             indent_dest_decrease(dst);
         }
-        signature_dump_subpacket(ctx, dst, subpkt);
+        signature_dump_subpacket(ctx, dst, *subpkt);
     }
 
     if (empty) {
@@ -1677,15 +1704,17 @@ obj_add_mpi_json(json_object *obj, const char *name, const pgp::mpi &mpi, bool c
 }
 
 static bool
-subpacket_obj_add_algs(
-  json_object *obj, const char *name, uint8_t *algs, size_t len, const id_str_pair map[])
+subpacket_obj_add_algs(json_object *               obj,
+                       const char *                name,
+                       const std::vector<uint8_t> &algs,
+                       const id_str_pair           map[])
 {
     json_object *jso_algs = json_object_new_array();
     if (!jso_algs || !json_add(obj, name, jso_algs)) {
         return false; // LCOV_EXCL_LINE
     }
-    for (size_t i = 0; i < len; i++) {
-        if (!json_array_add(jso_algs, json_object_new_int(algs[i]))) {
+    for (auto &alg : algs) {
+        if (!json_array_add(jso_algs, json_object_new_int(alg))) {
             return false; // LCOV_EXCL_LINE
         }
     }
@@ -1700,8 +1729,8 @@ subpacket_obj_add_algs(
     if (!jso_algs || !json_add(obj, strname, jso_algs)) {
         return false; // LCOV_EXCL_LINE
     }
-    for (size_t i = 0; i < len; i++) {
-        if (!json_array_add(jso_algs, id_str_pair::lookup(map, algs[i], "Unknown"))) {
+    for (auto &alg : algs) {
+        if (!json_array_add(jso_algs, id_str_pair::lookup(map, alg, "Unknown"))) {
             return false; // LCOV_EXCL_LINE
         }
     }
@@ -1730,8 +1759,7 @@ obj_add_s2k_json(json_object *obj, pgp_s2k_t *s2k)
         }
     }
     if (s2k->specifier == PGP_S2KS_EXPERIMENTAL) {
-        return json_add_hex(
-          s2k_obj, "unknown experimental", s2k->experimental.data(), s2k->experimental.size());
+        return json_add_hex(s2k_obj, "unknown experimental", s2k->experimental);
     }
     if (!obj_add_intstr_json(s2k_obj, "hash algorithm", s2k->hash_alg, hash_alg_map)) {
         return false; // LCOV_EXCL_LINE
@@ -1756,67 +1784,84 @@ static rnp_result_t stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
 
 static bool
 signature_dump_subpacket_json(rnp_dump_ctx_t *        ctx,
-                              const pgp_sig_subpkt_t &subpkt,
+                              const pkt::sigsub::Raw &subpkt,
                               json_object *           obj)
 {
-    switch (subpkt.type) {
-    case PGP_SIG_SUBPKT_CREATION_TIME:
-        return json_add(obj, "creation time", (uint64_t) subpkt.fields.create);
-    case PGP_SIG_SUBPKT_EXPIRATION_TIME:
-        return json_add(obj, "expiration time", (uint64_t) subpkt.fields.expiry);
-    case PGP_SIG_SUBPKT_EXPORT_CERT:
-        return json_add(obj, "exportable", subpkt.fields.exportable);
-    case PGP_SIG_SUBPKT_TRUST:
-        return json_add(obj, "amount", (int) subpkt.fields.trust.amount) &&
-               json_add(obj, "level", (int) subpkt.fields.trust.level);
-    case PGP_SIG_SUBPKT_REGEXP:
-        return json_add(obj, "regexp", subpkt.fields.regexp.str, subpkt.fields.regexp.len);
-    case PGP_SIG_SUBPKT_REVOCABLE:
-        return json_add(obj, "revocable", subpkt.fields.revocable);
-    case PGP_SIG_SUBPKT_KEY_EXPIRY:
-        return json_add(obj, "key expiration", (uint64_t) subpkt.fields.expiry);
-    case PGP_SIG_SUBPKT_PREFERRED_SKA:
-        return subpacket_obj_add_algs(obj,
-                                      "algorithms",
-                                      subpkt.fields.preferred.arr,
-                                      subpkt.fields.preferred.len,
-                                      symm_alg_map);
-    case PGP_SIG_SUBPKT_PREFERRED_HASH:
-        return subpacket_obj_add_algs(obj,
-                                      "algorithms",
-                                      subpkt.fields.preferred.arr,
-                                      subpkt.fields.preferred.len,
-                                      hash_alg_map);
-    case PGP_SIG_SUBPKT_PREF_COMPRESS:
-        return subpacket_obj_add_algs(obj,
-                                      "algorithms",
-                                      subpkt.fields.preferred.arr,
-                                      subpkt.fields.preferred.len,
-                                      z_alg_map);
-    case PGP_SIG_SUBPKT_PREFERRED_AEAD:
-        return subpacket_obj_add_algs(obj,
-                                      "algorithms",
-                                      subpkt.fields.preferred.arr,
-                                      subpkt.fields.preferred.len,
-                                      aead_alg_map);
-    case PGP_SIG_SUBPKT_REVOCATION_KEY:
-        return json_add(obj, "class", (int) subpkt.fields.revocation_key.revclass) &&
-               json_add(obj, "algorithm", (int) subpkt.fields.revocation_key.pkalg) &&
-               json_add_hex(
-                 obj, "fingerprint", subpkt.fields.revocation_key.fp, PGP_FINGERPRINT_V4_SIZE);
-    case PGP_SIG_SUBPKT_ISSUER_KEY_ID:
-        return json_add_hex(obj, "issuer keyid", subpkt.fields.issuer, PGP_KEY_ID_SIZE);
-    case PGP_SIG_SUBPKT_KEYSERV_PREFS:
-        return json_add(obj, "no-modify", subpkt.fields.ks_prefs.no_modify);
-    case PGP_SIG_SUBPKT_PREF_KEYSERV:
-        return json_add(
-          obj, "uri", subpkt.fields.preferred_ks.uri, subpkt.fields.preferred_ks.len);
-    case PGP_SIG_SUBPKT_PRIMARY_USER_ID:
-        return json_add(obj, "primary", subpkt.fields.primary_uid);
-    case PGP_SIG_SUBPKT_POLICY_URI:
-        return json_add(obj, "uri", subpkt.fields.policy.uri, subpkt.fields.policy.len);
-    case PGP_SIG_SUBPKT_KEY_FLAGS: {
-        uint8_t flg = subpkt.fields.key_flags;
+    switch (subpkt.type()) {
+    case pkt::sigsub::Type::CreationTime: {
+        auto &sub = dynamic_cast<const pkt::sigsub::CreationTime &>(subpkt);
+        return json_add(obj, "creation time", (uint64_t) sub.time());
+    }
+    case pkt::sigsub::Type::ExpirationTime: {
+        auto &sub = dynamic_cast<const pkt::sigsub::ExpirationTime &>(subpkt);
+        return json_add(obj, "expiration time", (uint64_t) sub.time());
+    }
+    case pkt::sigsub::Type::ExportableCert: {
+        auto &sub = dynamic_cast<const pkt::sigsub::ExportableCert &>(subpkt);
+        return json_add(obj, "exportable", sub.exportable());
+    }
+    case pkt::sigsub::Type::Trust: {
+        auto &sub = dynamic_cast<const pkt::sigsub::Trust &>(subpkt);
+        return json_add(obj, "amount", (int) sub.amount()) &&
+               json_add(obj, "level", (int) sub.level());
+    }
+    case pkt::sigsub::Type::RegExp: {
+        auto &sub = dynamic_cast<const pkt::sigsub::RegExp &>(subpkt);
+        return json_add(obj, "regexp", sub.regexp());
+    }
+    case pkt::sigsub::Type::Revocable: {
+        auto &sub = dynamic_cast<const pkt::sigsub::Revocable &>(subpkt);
+        return json_add(obj, "revocable", sub.revocable());
+    }
+    case pkt::sigsub::Type::KeyExpirationTime: {
+        auto &sub = dynamic_cast<const pkt::sigsub::KeyExpirationTime &>(subpkt);
+        return json_add(obj, "key expiration", (uint64_t) sub.time());
+    }
+    case pkt::sigsub::Type::PreferredSymmetric: {
+        auto &sub = dynamic_cast<const pkt::sigsub::PreferredSymmetric &>(subpkt);
+        return subpacket_obj_add_algs(obj, "algorithms", sub.algs(), symm_alg_map);
+    }
+    case pkt::sigsub::Type::PreferredHash: {
+        auto &sub = dynamic_cast<const pkt::sigsub::PreferredHash &>(subpkt);
+        return subpacket_obj_add_algs(obj, "algorithms", sub.algs(), hash_alg_map);
+    }
+    case pkt::sigsub::Type::PreferredCompress: {
+        auto &sub = dynamic_cast<const pkt::sigsub::PreferredCompress &>(subpkt);
+        return subpacket_obj_add_algs(obj, "algorithms", sub.algs(), z_alg_map);
+    }
+    case pkt::sigsub::Type::PreferredAEAD: {
+        auto &sub = dynamic_cast<const pkt::sigsub::PreferredAEAD &>(subpkt);
+        return subpacket_obj_add_algs(obj, "algorithms", sub.algs(), aead_alg_map);
+    }
+    case pkt::sigsub::Type::RevocationKey: {
+        auto &sub = dynamic_cast<const pkt::sigsub::RevocationKey &>(subpkt);
+        return json_add(obj, "class", (int) sub.rev_class()) &&
+               json_add(obj, "algorithm", (int) sub.alg()) &&
+               json_add(obj, "fingerprint", sub.fp());
+    }
+    case pkt::sigsub::Type::IssuerKeyID: {
+        auto &sub = dynamic_cast<const pkt::sigsub::IssuerKeyID &>(subpkt);
+        return json_add(obj, "issuer keyid", sub.keyid());
+    }
+    case pkt::sigsub::Type::KeyserverPrefs: {
+        auto &sub = dynamic_cast<const pkt::sigsub::KeyserverPrefs &>(subpkt);
+        return json_add(obj, "no-modify", sub.no_modify());
+    }
+    case pkt::sigsub::Type::PreferredKeyserver: {
+        auto &sub = dynamic_cast<const pkt::sigsub::PreferredKeyserver &>(subpkt);
+        return json_add(obj, "uri", sub.keyserver());
+    }
+    case pkt::sigsub::Type::PrimaryUserID: {
+        auto &sub = dynamic_cast<const pkt::sigsub::PrimaryUserID &>(subpkt);
+        return json_add(obj, "primary", sub.primary());
+    }
+    case pkt::sigsub::Type::PolicyURI: {
+        auto &sub = dynamic_cast<const pkt::sigsub::PolicyURI &>(subpkt);
+        return json_add(obj, "uri", sub.URI());
+    }
+    case pkt::sigsub::Type::KeyFlags: {
+        auto &  sub = dynamic_cast<const pkt::sigsub::KeyFlags &>(subpkt);
+        uint8_t flg = sub.flags();
         if (!json_add(obj, "flags", (int) flg)) {
             return false; // LCOV_EXCL_LINE
         }
@@ -1847,52 +1892,49 @@ signature_dump_subpacket_json(rnp_dump_ctx_t *        ctx,
         }
         return true;
     }
-    case PGP_SIG_SUBPKT_SIGNERS_USER_ID:
-        return json_add(obj, "uid", subpkt.fields.signer.uid, subpkt.fields.signer.len);
-    case PGP_SIG_SUBPKT_REVOCATION_REASON: {
-        if (!obj_add_intstr_json(
-              obj, "code", subpkt.fields.revocation_reason.code, revoc_reason_map)) {
+    case pkt::sigsub::Type::SignersUserID: {
+        auto &sub = dynamic_cast<const pkt::sigsub::SignersUserID &>(subpkt);
+        return json_add(obj, "uid", sub.signer());
+    }
+    case pkt::sigsub::Type::RevocationReason: {
+        auto &sub = dynamic_cast<const pkt::sigsub::RevocationReason &>(subpkt);
+        if (!obj_add_intstr_json(obj, "code", sub.code(), revoc_reason_map)) {
             return false;
         }
-        return json_add(obj,
-                        "message",
-                        subpkt.fields.revocation_reason.str,
-                        subpkt.fields.revocation_reason.len);
+        return json_add(obj, "message", sub.reason());
     }
-    case PGP_SIG_SUBPKT_FEATURES:
-        return json_add(obj, "mdc", (bool) (subpkt.fields.features & PGP_KEY_FEATURE_MDC)) &&
-               json_add(obj, "aead", (bool) (subpkt.fields.features & PGP_KEY_FEATURE_AEAD)) &&
-               json_add(obj, "v5 keys", (bool) (subpkt.fields.features & PGP_KEY_FEATURE_V5));
-    case PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE: {
+    case pkt::sigsub::Type::Features: {
+        auto &sub = dynamic_cast<const pkt::sigsub::Features &>(subpkt);
+        return json_add(obj, "mdc", (bool) (sub.features() & PGP_KEY_FEATURE_MDC)) &&
+               json_add(obj, "aead", (bool) (sub.features() & PGP_KEY_FEATURE_AEAD)) &&
+               json_add(obj, "v5 keys", (bool) (sub.features() & PGP_KEY_FEATURE_V5));
+    }
+    case pkt::sigsub::Type::EmbeddedSignature: {
+        auto &       sub = dynamic_cast<const pkt::sigsub::EmbeddedSignature &>(subpkt);
         json_object *sig = json_object_new_object();
         if (!sig || !json_add(obj, "signature", sig)) {
             return false; // LCOV_EXCL_LINE
         }
-        return !stream_dump_signature_pkt_json(ctx, subpkt.fields.sig, sig);
+        return !stream_dump_signature_pkt_json(ctx, sub.signature(), sig);
     }
-    case PGP_SIG_SUBPKT_ISSUER_FPR:
-        return json_add_hex(
-          obj, "fingerprint", subpkt.fields.issuer_fp.fp, subpkt.fields.issuer_fp.len);
-    case PGP_SIG_SUBPKT_NOTATION_DATA: {
-        bool human = subpkt.fields.notation.human;
-        if (!json_add(obj, "human", human) || !json_add(obj,
-                                                        "name",
-                                                        (char *) subpkt.fields.notation.name,
-                                                        subpkt.fields.notation.nlen)) {
+    case pkt::sigsub::Type::IssuerFingerprint: {
+        auto &sub = dynamic_cast<const pkt::sigsub::IssuerFingerprint &>(subpkt);
+        return json_add(obj, "fingerprint", sub.fp());
+    }
+    case pkt::sigsub::Type::NotationData: {
+        auto &sub = dynamic_cast<const pkt::sigsub::NotationData &>(subpkt);
+        if (!json_add(obj, "human", sub.human_readable()) ||
+            !json_add(obj, "name", sub.name())) {
             return false; // LCOV_EXCL_LINE
         }
-        if (human) {
-            return json_add(obj,
-                            "value",
-                            (char *) subpkt.fields.notation.value,
-                            subpkt.fields.notation.vlen);
+        if (sub.human_readable()) {
+            return json_add(obj, "value", (char *) sub.value().data(), sub.value().size());
         }
-        return json_add_hex(
-          obj, "value", subpkt.fields.notation.value, subpkt.fields.notation.vlen);
+        return json_add_hex(obj, "value", sub.value());
     }
     default:
         if (!ctx->dump_packets) {
-            return json_add_hex(obj, "raw", subpkt.data, subpkt.len);
+            return json_add_hex(obj, "raw", subpkt.data());
         }
         return true;
     }
@@ -1915,24 +1957,25 @@ signature_dump_subpackets_json(rnp_dump_ctx_t *ctx, const pgp_signature_t *sig)
             return NULL; // LCOV_EXCL_LINE
         }
 
-        if (!obj_add_intstr_json(jso_subpkt, "type", subpkt.type, sig_subpkt_type_map)) {
+        if (!obj_add_intstr_json(
+              jso_subpkt, "type", subpkt->raw_type(), sig_subpkt_type_map)) {
             return NULL; // LCOV_EXCL_LINE
         }
-        if (!json_add(jso_subpkt, "length", (int) subpkt.len)) {
+        if (!json_add(jso_subpkt, "length", (int) subpkt->data().size())) {
             return NULL; // LCOV_EXCL_LINE
         }
-        if (!json_add(jso_subpkt, "hashed", subpkt.hashed)) {
+        if (!json_add(jso_subpkt, "hashed", subpkt->hashed())) {
             return NULL; // LCOV_EXCL_LINE
         }
-        if (!json_add(jso_subpkt, "critical", subpkt.critical)) {
-            return NULL; // LCOV_EXCL_LINE
-        }
-
-        if (ctx->dump_packets && !json_add_hex(jso_subpkt, "raw", subpkt.data, subpkt.len)) {
+        if (!json_add(jso_subpkt, "critical", subpkt->critical())) {
             return NULL; // LCOV_EXCL_LINE
         }
 
-        if (!signature_dump_subpacket_json(ctx, subpkt, jso_subpkt)) {
+        if (ctx->dump_packets && !json_add_hex(jso_subpkt, "raw", subpkt->data())) {
+            return NULL; // LCOV_EXCL_LINE
+        }
+
+        if (!signature_dump_subpacket_json(ctx, *subpkt, jso_subpkt)) {
             return NULL;
         }
     }

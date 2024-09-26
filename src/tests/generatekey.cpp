@@ -1004,7 +1004,6 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         pgp_key_t                 pub;
         pgp_key_t                 sec;
         rnp_keygen_primary_desc_t desc;
-        pgp_sig_subpkt_t *        subpkt = NULL;
         pgp_signature_t *         psig = NULL;
         pgp_signature_t *         ssig = NULL;
         pgp_signature_info_t      psiginfo = {};
@@ -1054,18 +1053,18 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(psiginfo.valid);
         assert_true(psig->keyfp() == pub.fp());
         // check subpackets and their contents
-        subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
+        auto subpkt = psig->get_subpkt(pgp::pkt::sigsub::Type::IssuerFingerprint);
         assert_non_null(subpkt);
-        assert_true(subpkt->hashed);
-        subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_KEY_ID, false);
+        assert_true(subpkt->hashed());
+        subpkt = psig->get_subpkt(pgp::pkt::sigsub::Type::IssuerKeyID, false);
         assert_non_null(subpkt);
-        assert_false(subpkt->hashed);
-        assert_int_equal(0,
-                         memcmp(subpkt->fields.issuer, pub.keyid().data(), PGP_KEY_ID_SIZE));
-        subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_CREATION_TIME);
+        assert_false(subpkt->hashed());
+        assert_memory_equal(subpkt->data().data(), pub.keyid().data(), PGP_KEY_ID_SIZE);
+        subpkt = psig->get_subpkt(pgp::pkt::sigsub::Type::CreationTime);
         assert_non_null(subpkt);
-        assert_true(subpkt->hashed);
-        assert_true(subpkt->fields.create <= time(NULL));
+        assert_true(subpkt->hashed());
+        auto crtime = dynamic_cast<pgp::pkt::sigsub::CreationTime *>(subpkt);
+        assert_true(crtime->time() <= time(NULL));
 
         ssiginfo.sig = ssig;
         sec.validate_cert(ssiginfo, sec.pkt(), sec.get_uid(0).pkt, global_ctx);
@@ -1140,7 +1139,6 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         pgp_key_t                pub;
         pgp_key_t                sec;
         rnp_keygen_subkey_desc_t desc = {};
-        pgp_sig_subpkt_t *       subpkt = NULL;
         pgp_signature_t *        psig = NULL;
         pgp_signature_t *        ssig = NULL;
         pgp_signature_info_t     psiginfo = {};
@@ -1183,18 +1181,19 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(psiginfo.valid);
         assert_true(psig->keyfp() == primary_pub->fp());
         // check subpackets and their contents
-        subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
+        auto subpkt = psig->get_subpkt(pgp::pkt::sigsub::Type::IssuerFingerprint);
         assert_non_null(subpkt);
-        assert_true(subpkt->hashed);
-        subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_KEY_ID, false);
+        assert_true(subpkt->hashed());
+        subpkt = psig->get_subpkt(pgp::pkt::sigsub::Type::IssuerKeyID, false);
         assert_non_null(subpkt);
-        assert_false(subpkt->hashed);
-        assert_int_equal(
-          0, memcmp(subpkt->fields.issuer, primary_pub->keyid().data(), PGP_KEY_ID_SIZE));
-        subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_CREATION_TIME);
+        assert_false(subpkt->hashed());
+        assert_memory_equal(
+          subpkt->data().data(), primary_pub->keyid().data(), PGP_KEY_ID_SIZE);
+        subpkt = psig->get_subpkt(pgp::pkt::sigsub::Type::CreationTime);
         assert_non_null(subpkt);
-        assert_true(subpkt->hashed);
-        assert_true(subpkt->fields.create <= time(NULL));
+        assert_true(subpkt->hashed());
+        auto crtime = dynamic_cast<pgp::pkt::sigsub::CreationTime *>(subpkt);
+        assert_true(crtime->time() <= time(NULL));
 
         ssiginfo.sig = ssig;
         primary_pub->validate_binding(ssiginfo, sec, global_ctx);

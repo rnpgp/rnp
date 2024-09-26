@@ -3236,14 +3236,13 @@ TEST_F(rnp_tests, test_ffi_v6_cert_import)
 
     for (pgp_key_t key : ffi->pubring->keys) {
         /* get first sig and its issuer fpr subpacket */
-        pgp_subsig_t            subsig = key.get_sig(0);
-        const pgp_sig_subpkt_t *issuer_fpr =
-          subsig.sig.get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR, false);
+        pgp_subsig_t subsig = key.get_sig(0);
+        auto issuer_fpr = subsig.sig.get_subpkt(pgp::pkt::sigsub::Type::IssuerFingerprint);
         assert_non_null(issuer_fpr);
 
         /* check that fingerprints match */
         assert_int_equal(key.fp().length, PGP_FINGERPRINT_V6_SIZE);
-        assert_memory_equal(issuer_fpr->data + 1,
+        assert_memory_equal(issuer_fpr->data().data() + 1,
                             primary_fp.fingerprint,
                             primary_fp.length); // first byte in data is the version - skip
     }
