@@ -755,15 +755,15 @@ pgp_packet_body_t::add_subpackets(const pgp_signature_t &sig, bool hashed)
     pgp_packet_body_t spbody(PGP_PKT_RESERVED);
 
     for (auto &subpkt : sig.subpkts) {
-        if (subpkt.hashed != hashed) {
+        if (subpkt->hashed() != hashed) {
             continue;
         }
 
         uint8_t splen[6];
-        size_t  lenlen = write_packet_len(splen, subpkt.len + 1);
+        size_t  lenlen = write_packet_len(splen, subpkt->data().size() + 1);
         spbody.add(splen, lenlen);
-        spbody.add_byte(subpkt.type | (subpkt.critical << 7));
-        spbody.add(subpkt.data, subpkt.len);
+        spbody.add_byte(subpkt->raw_type() | (subpkt->critical() << 7));
+        spbody.add(subpkt->data().data(), subpkt->data().size());
     }
 
     if (spbody.data_.size() > 0xffff) {

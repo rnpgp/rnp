@@ -276,7 +276,8 @@ update_sig_expiration(pgp_signature_t *      dst,
     try {
         *dst = *src;
         if (!expiry) {
-            dst->remove_subpkt(dst->get_subpkt(PGP_SIG_SUBPKT_KEY_EXPIRY));
+            dst->remove_subpkt(dst->find_subpkt(pgp::pkt::sigsub::Type::KeyExpirationTime));
+            ;
         } else {
             dst->set_key_expiration(expiry);
         }
@@ -556,9 +557,7 @@ pgp_user_prefs_t::add_aead_prefs(pgp_symm_alg_t sym_alg, pgp_aead_alg_t aead_alg
 
 pgp_rawpacket_t::pgp_rawpacket_t(const pgp_signature_t &sig)
 {
-    rnp::MemoryDest dst;
-    sig.write(dst.dst());
-    raw = dst.to_vector();
+    raw = sig.write();
     tag = PGP_PKT_SIGNATURE;
 }
 
@@ -1822,9 +1821,9 @@ pgp_key_t::latest_selfsig(uint32_t uid)
             skip = (sig.uid != PGP_UID_NONE) || !is_direct_self(sig);
             break;
         case PGP_UID_PRIMARY: {
-            pgp_sig_subpkt_t *subpkt = sig.sig.get_subpkt(PGP_SIG_SUBPKT_PRIMARY_USER_ID);
-            skip = !is_self_cert(sig) || !subpkt || !subpkt->fields.primary_uid ||
-                   (sig.uid == PGP_UID_NONE);
+            skip = !is_self_cert(sig) ||
+                   !sig.sig.get_subpkt(pgp::pkt::sigsub::Type::PrimaryUserID) ||
+                   !sig.sig.primary_uid() || (sig.uid == PGP_UID_NONE);
             break;
         }
         case PGP_UID_ANY:
@@ -2095,12 +2094,11 @@ pgp_key_t::validate_sig(pgp_signature_info_t &      sinfo,
 
     /* Check for unknown critical notations */
     for (auto &subpkt : sinfo.sig->subpkts) {
-        if (!subpkt.critical || (subpkt.type != PGP_SIG_SUBPKT_NOTATION_DATA)) {
+        if (!subpkt->critical() || (subpkt->type() != pgp::pkt::sigsub::Type::NotationData)) {
             continue;
         }
-        std::string name(subpkt.fields.notation.name,
-                         subpkt.fields.notation.name + subpkt.fields.notation.nlen);
-        RNP_LOG("unknown critical notation: %s", name.c_str());
+        auto notation = dynamic_cast<pgp::pkt::sigsub::NotationData &>(*subpkt);
+        RNP_LOG("unknown critical notation: %s", notation.name().c_str());
         sinfo.valid = false;
     }
 }
@@ -2133,27 +2131,28 @@ pgp_key_t::validate_binding(pgp_signature_info_t &      sinfo,
 
     /* check primary key binding signature if any */
     sinfo.valid = false;
-    pgp_sig_subpkt_t *subpkt = sinfo.sig->get_subpkt(PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE, false);
-    if (!subpkt) {
+    auto sub = dynamic_cast<pgp::pkt::sigsub::EmbeddedSignature *>(
+      sinfo.sig->get_subpkt(pgp::pkt::sigsub::Type::EmbeddedSignature, false));
+    if (!sub) {
         RNP_LOG("error! no primary key binding signature");
         return;
     }
-    if (!subpkt->parsed) {
+    if (!sub->signature()) {
         RNP_LOG("invalid embedded signature subpacket");
         return;
     }
-    if (subpkt->fields.sig->type() != PGP_SIG_PRIMARY) {
+    if (sub->signature()->type() != PGP_SIG_PRIMARY) {
         RNP_LOG("invalid primary key binding signature");
         return;
     }
-    if (subpkt->fields.sig->version < PGP_V4) {
+    if (sub->signature()->version < PGP_V4) {
         RNP_LOG("invalid primary key binding signature version");
         return;
     }
 
-    hash = signature_hash_binding(*subpkt->fields.sig, pkt(), subkey.pkt());
+    hash = signature_hash_binding(*sub->signature(), pkt(), subkey.pkt());
     pgp_signature_info_t bindinfo = {};
-    bindinfo.sig = subpkt->fields.sig;
+    bindinfo.sig = sub->signature();
     bindinfo.signer_valid = true;
     bindinfo.ignore_expiry = true;
     subkey.validate_sig(bindinfo, *hash, ctx);
