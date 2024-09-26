@@ -3712,6 +3712,96 @@ class Misc(unittest.TestCase):
         RNP2 = RNPDIR + '2'
         os.mkdir(RNP2, 0o700)
 
+        # Too old date
+        is64bit = sys.maxsize > 2 ** 32
+        gparam = ['--homedir', RNP2, '--notty', '--password', PASSWORD, '--generate-key', '--numbits', '1024', '--current-time']
+        rparam = ['--homedir', RNP2, '--notty', '--remove-key']
+        ret, out, err = run_proc(RNPK, gparam + ['1950-01-02', '--userid', 'key-1950'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*invalid date: 1950-01-02.*$')
+        self.assertRegex(out, r'(?s)^.*Generating a new key\.\.\..*$')
+        ret, _, _ = run_proc(RNPK, rparam + ['key-1950'], 'y\n')
+        self.assertEqual(ret, 0)
+
+        # Old unix timestamp
+        ret, out, _ = run_proc(RNPK, gparam + ['1000', '--userid', 'key-ts-1000'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*Generating a new key\.\.\..*sec.*1970\-01\-0.*EXPIRES 1972\-.*ssb.*1970\-01\-0.*EXPIRES 1972\-.*$')
+        ret, _, _ = run_proc(RNPK, rparam + ['key-ts-1000'], 'y\n')
+        self.assertEqual(ret, 0)
+
+        # Modern timestamp
+        ret, out, _ = run_proc(RNPK, gparam + ['1727777777', '--userid', 'key-ts-modern'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*Generating a new key\.\.\..*sec.*2024\-10\-.*EXPIRES 2026\-.*ssb.*2024\-10\-0.*EXPIRES 2026\-.*$')
+        ret, _, _ = run_proc(RNPK, rparam + ['key-ts-modern'], 'y\n')
+        self.assertEqual(ret, 0)
+
+        # Try day 31 of the 30-day month
+        ret, out, err = run_proc(RNPK, gparam + ['2024-06-31', '--userid', 'key-31'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*invalid date: 2024-06-31.*$')
+        self.assertRegex(out, r'(?s)^.*Generating a new key\.\.\..*$')
+        ret, _, _ = run_proc(RNPK, rparam + ['key-31'], 'y\n')
+        self.assertEqual(ret, 0)
+
+        # Try day 32 of the 31-day month
+        ret, out, err = run_proc(RNPK, gparam + ['2024-05-32', '--userid', 'key-32'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*invalid date: 2024-05-32.*$')
+        self.assertRegex(out, r'(?s)^.*Generating a new key\.\.\..*$')
+        ret, _, _ = run_proc(RNPK, rparam + ['key-32'], 'y\n')
+        self.assertEqual(ret, 0)
+
+        # Try 29 of February for non-leap year
+        ret, out, err = run_proc(RNPK, gparam + ['2022-02-29', '--userid', 'key-2922'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*invalid date: 2022-02-29.*$')
+        self.assertRegex(out, r'(?s)^.*Generating a new key\.\.\..*$')
+        ret, _, _ = run_proc(RNPK, rparam + ['key-2922'], 'y\n')
+        self.assertEqual(ret, 0)
+
+        # Try 29 of February for leap year
+        ret, out, err = run_proc(RNPK, gparam + ['2024-02-29', '--userid', 'key-2924'])
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(err, r'(?s)^.*invalid date.*$')
+        self.assertRegex(out, r'(?s)^.*Generating a new key\.\.\..*sec.*2024\-02\-.*EXPIRES 2026\-.*ssb.*2024\-02\-.*EXPIRES 2026\-.*$')
+        ret, _, _ = run_proc(RNPK, rparam + ['key-2924'], 'y\n')
+        self.assertEqual(ret, 0)
+
+        # Try wrong month number
+        ret, out, err = run_proc(RNPK, gparam + ['2022-17-29', '--userid', 'key-17m'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*invalid date: 2022-17-29.*$')
+        self.assertRegex(out, r'(?s)^.*Generating a new key\.\.\..*$')
+        ret, _, _ = run_proc(RNPK, rparam + ['key-17m'], 'y\n')
+        self.assertEqual(ret, 0)
+
+        # Try too large expiration month value
+        ret, _, err = run_proc(RNPK, gparam + ['2024-02-29', '--expiration', '9999999999999m', '--userid', 'key-2924'])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*Invalid expiration \'9999999999999\'.*$')
+        self.assertRegex(err, r'(?s)^.*Failed to set primary key expiration..*$')
+
+        # Try too large expiration in years
+        ret, _, err = run_proc(RNPK, gparam + ['2024-02-29', '--expiration', '1000y', '--userid', 'key-2924'])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*Expiration value exceed 32 bit.*$')
+        self.assertRegex(err, r'(?s)^.*Failed to set primary key expiration..*$')
+
+        # Try too distant date for expiration
+        ret, out, err = run_proc(RNPK, gparam + ['2024-02-29', '--expiration', '3024-02-29', '--userid', 'key-2924'])
+        if is64bit:
+            self.assertEqual(ret, 1)
+            self.assertRegex(err, r'(?s)^.*Expiration time exceeds 32-bit value.*$')
+            self.assertRegex(err, r'(?s)^.*Failed to set primary key expiration..*$')
+        else:
+            self.assertEqual(ret, 0)
+            self.assertRegex(err, r'(?s)^.*Warning: date 3024-02-29 is beyond of 32-bit time_t, so timestamp was reduced to maximum supported value.*$')
+            self.assertRegex(out, r'(?s)^.*EXPIRES >=2038-01-19.*$')
+            ret, _, _ = run_proc(RNPK, rparam + ['key-2924'], 'y\n')
+            self.assertEqual(ret, 0)
+
         # Generate key back in the past
         ret, out, _ = run_proc(RNPK, ['--homedir', RNP2, '--notty', '--password', PASSWORD, '--generate-key', '--current-time', '2015-02-02', '--userid', 'key-2015'])
         self.assertEqual(ret, 0)
