@@ -42,26 +42,28 @@
 #include "stream-armor.h"
 #include "pgp-key.h"
 #include "crypto/signatures.h"
+#include <cassert>
 
 #include <time.h>
 
 void
-signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash)
+signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash, pgp_version_t pgpver)
 {
     if (!key.hashed_data) {
         /* call self recursively if hashed data is not filled, to overcome const restriction */
         pgp_key_pkt_t keycp(key, true);
         keycp.fill_hashed_data();
-        signature_hash_key(keycp, hash);
+        signature_hash_key(keycp, hash, pgpver);
         return;
     }
 
-    switch (key.version) {
+    switch (pgpver) {
     case PGP_V2:
         FALLTHROUGH_STATEMENT;
     case PGP_V3:
         FALLTHROUGH_STATEMENT;
     case PGP_V4: {
+        assert(key.hashed_len < ((size_t) 1 << 16));
         uint8_t hdr[3] = {0x99, 0x00, 0x00};
         write_uint16(hdr + 1, key.hashed_len);
         hash.add(hdr, 3);
@@ -69,6 +71,7 @@ signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash)
         break;
     }
     case PGP_V5: {
+        assert(key.hashed_len < ((size_t) 1 << 32));
         uint8_t hdr[5] = {0x9A, 0x00, 0x00, 0x00, 0x00};
         write_uint32(hdr + 1, key.hashed_len);
         hash.add(&hdr, 5);
@@ -77,6 +80,7 @@ signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash)
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_V6: {
+        assert(key.hashed_len < ((size_t) 1 << 32));
         uint8_t hdr[5] = {0x9b, 0x00, 0x00, 0x00, 0x00};
         write_uint32(hdr + 1, key.hashed_len);
         hash.add(hdr, sizeof(hdr));
@@ -85,7 +89,7 @@ signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash)
     }
 #endif
     default:
-        RNP_LOG("unknown key version: %d", (int) key.version);
+        RNP_LOG("unknown key/sig version: %d", (int) pgpver);
         throw rnp::rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
     }
 }
@@ -121,7 +125,7 @@ signature_hash_certification(const pgp_signature_t & sig,
                              const pgp_userid_pkt_t &userid)
 {
     auto hash = signature_init(key, sig);
-    signature_hash_key(key, *hash);
+    signature_hash_key(key, *hash, sig.version);
     signature_hash_userid(userid, *hash, sig.version);
     return hash;
 }
@@ -132,8 +136,8 @@ signature_hash_binding(const pgp_signature_t &sig,
                        const pgp_key_pkt_t &  subkey)
 {
     auto hash = signature_init(key, sig);
-    signature_hash_key(key, *hash);
-    signature_hash_key(subkey, *hash);
+    signature_hash_key(key, *hash, sig.version);
+    signature_hash_key(subkey, *hash, sig.version);
     return hash;
 }
 
@@ -141,7 +145,7 @@ std::unique_ptr<rnp::Hash>
 signature_hash_direct(const pgp_signature_t &sig, const pgp_key_pkt_t &key)
 {
     auto hash = signature_init(key, sig);
-    signature_hash_key(key, *hash);
+    signature_hash_key(key, *hash, sig.version);
     return hash;
 }
 
