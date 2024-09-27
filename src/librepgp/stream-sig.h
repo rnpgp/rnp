@@ -447,8 +447,10 @@ typedef struct pgp_signature_info_t {
  *        Throws exception on error.
  * @param key key packet, must be populated
  * @param hash initialized hash context
+ * @param pgpver for fingerprint calculation, the key version is required,
+ * otherwise the signature version is required
  */
-void signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash);
+void signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash, pgp_version_t pgpver);
 
 void signature_hash_userid(const pgp_userid_pkt_t &uid, rnp::Hash &hash, pgp_version_t sigver);
 
