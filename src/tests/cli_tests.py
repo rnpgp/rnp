@@ -4730,6 +4730,31 @@ class Compression(unittest.TestCase):
             file_encryption_rnp_to_gpg(size, z)
             rnp_signing_gpg_to_rnp(size, z)
 
+    def test_rnp_compression_corner_cases(self):
+        shutil.rmtree(RNPDIR)
+        kring = shutil.copytree(data_path(KEYRING_DIR_1), RNPDIR)
+        gpg_import_pubring()
+        gpg_import_secring()
+
+        src = data_path('test_compression/cleartext-z-bz.txt')
+        algosrnp = [None, 'zip', 'zlib', 'bzip2']
+
+        for algo in algosrnp:
+            z = [algo, None]
+            dst, enc = reg_workfiles('cleartext', '.gpg', '.rnp')
+            # Encrypt cleartext file with RNP
+            rnp_encrypt_file_ex(src, enc, [], None, None, None, z, False)
+
+            # Decrypt encrypted file with GPG
+            gpg_decrypt_file(enc, dst, PASSWORD)
+            compare_files(src, dst, GPG_DATA_DIFFERS)
+            remove_files(dst)
+            # Decrypt encrypted file with RNP
+            rnp_decrypt_file(enc, dst)
+            compare_files(src, dst, RNP_DATA_DIFFERS)
+            remove_files(enc, dst)
+            clear_workfiles()
+
 class SignDefault(unittest.TestCase):
     '''
         Things to try later:
