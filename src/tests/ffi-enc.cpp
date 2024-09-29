@@ -635,12 +635,12 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk)
     key = NULL;
     // set the data encryption cipher
     if (cast5_enabled()) {
-        if (cast5_enabled()) {
-            assert_rnp_success(rnp_remove_security_rule(
-              ffi, RNP_FEATURE_SYMM_ALG, "CAST5", 0, RNP_SECURITY_REMOVE_ALL, 0, nullptr));
-        }
+        assert_rnp_success(rnp_remove_security_rule(
+          ffi, RNP_FEATURE_SYMM_ALG, "CAST5", 0, RNP_SECURITY_REMOVE_ALL, 0, nullptr));
         assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
     } else {
+        assert_rnp_failure(rnp_remove_security_rule(
+          ffi, RNP_FEATURE_SYMM_ALG, "CAST5", 0, RNP_SECURITY_REMOVE_ALL, 0, nullptr));
         assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "CAST5"));
         assert_rnp_success(rnp_op_encrypt_set_cipher(op, "AES256"));
     }

@@ -4227,6 +4227,32 @@ class Misc(unittest.TestCase):
 
         clear_workfiles()
 
+    def test_allow_old_ciphers(self):
+        RNP2 = RNPDIR + '2'
+        os.mkdir(RNP2, 0o700)
+        if RNP_CAST5:
+            ret, _, err = run_proc(RNPK, ['--cipher', 'CAST5', '--homedir', RNP2, '--password', 'password', '--current-time', '2030-01-01',
+                                          '--userid', 'test_user', '--generate-key'])
+            self.assertNotEqual(ret, 0)
+            self.assertRegex(err, r'(?s)^.*Cipher algorithm \'CAST5\' is cryptographically weak!.*Old cipher detected. Pass --allow-old-ciphers option if you really want to use it\..*')
+            ret, _, err = run_proc(RNPK, ['--cipher', 'CAST5', '--homedir', RNP2, '--password', 'password', '--current-time', '2030-01-01',
+                                          '--userid', 'test_user', '--generate-key', '--allow-old-ciphers'])
+            self.assertEqual(ret, 0)
+
+        src, sig = reg_workfiles('cleartext', '.txt', '.sig')
+        random_text(src, 120)
+
+        if RNP_CAST5:
+            ret, _, err = run_proc(RNP, ['-c', src, '--output', sig, '--cipher', 'CAST5', '--password', 'password', '--current-time', '2030-01-01'])
+            self.assertNotEqual(ret, 0)
+            self.assertRegex(err, r'(?s)^.*Cipher algorithm \'CAST5\' is cryptographically weak!.*Old cipher detected. Pass --allow-old-ciphers option if you really want to use it\..*')
+            ret, _, err = run_proc(RNP, ['-c', src, '--output', sig, '--cipher', 'CAST5', '--password', 'password', '--current-time', '2030-01-01', '--allow-old-ciphers'])
+            self.assertEqual(ret, 0)
+
+        remove_files(sig)
+        clear_workfiles()
+        shutil.rmtree(RNP2, ignore_errors=True)
+
     def test_armored_detection_on_cleartext(self):
         ret, out, err = run_proc(RNP, ['--keyfile', data_path(SECRING_1), '--password', PASSWORD, '--clearsign'], 'Hello\n')
         self.assertEqual(ret, 0)
