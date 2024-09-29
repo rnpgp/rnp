@@ -3696,23 +3696,15 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *handle = (rnp_signature_handle_t) calloc(1, sizeof(**handle));
+    std::unique_ptr<pgp_subsig_t> subsig(new pgp_subsig_t(sig->sig_pkt));
+    *handle = new rnp_signature_handle_st(sig->ffi, nullptr, subsig.get(), true);
     if (!*handle) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
-
-    try {
-        (*handle)->sig = new pgp_subsig_t(sig->sig_pkt);
-    } catch (const std::exception &e) {
         /* LCOV_EXCL_START */
-        FFI_LOG(sig->ffi, "%s", e.what());
-        free(*handle);
         return RNP_ERROR_OUT_OF_MEMORY;
         /* LCOV_EXCL_END */
     }
-    (*handle)->ffi = sig->ffi;
-    (*handle)->key = NULL;
-    (*handle)->own_sig = true;
+    subsig.release();
+
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -4246,17 +4238,17 @@ report_signature_removal(rnp_ffi_t             ffi,
     if (!sigcb) {
         return;
     }
-    rnp_signature_handle_t sig = (rnp_signature_handle_t) calloc(1, sizeof(*sig));
-    if (!sig) {
+
+    rnp_signature_handle_t sig = nullptr;
+    try {
+        sig = new rnp_signature_handle_st(ffi, &key, &keysig, false);
+    } catch (const std::exception &e) {
         /* LCOV_EXCL_START */
-        FFI_LOG(ffi, "Signature handle allocation failed.");
+        FFI_LOG(ffi, "Signature handle allocation failed: %s", e.what());
         return;
         /* LCOV_EXCL_END */
     }
-    sig->ffi = ffi;
-    sig->key = &key;
-    sig->sig = &keysig;
-    sig->own_sig = false;
+
     uint32_t action = remove ? RNP_KEY_SIGNATURE_REMOVE : RNP_KEY_SIGNATURE_KEEP;
     sigcb(ffi, app_ctx, sig, &action);
     switch (action) {
@@ -5888,13 +5880,14 @@ rnp_key_return_signature(rnp_ffi_t               ffi,
                          pgp_subsig_t *          subsig,
                          rnp_signature_handle_t *sig)
 {
-    *sig = (rnp_signature_handle_t) calloc(1, sizeof(**sig));
-    if (!*sig) {
+    try {
+        *sig = new rnp_signature_handle_st(ffi, key, subsig);
+    } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
+        FFI_LOG(ffi, "%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
-    (*sig)->ffi = ffi;
-    (*sig)->key = key;
-    (*sig)->sig = subsig;
     return RNP_SUCCESS;
 }
 
@@ -5961,26 +5954,18 @@ create_key_signature(rnp_ffi_t               ffi,
     default:
         return RNP_ERROR_NOT_IMPLEMENTED;
     }
-    sig = (rnp_signature_handle_t) calloc(1, sizeof(*sig));
-    if (!sig) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
     try {
         pgp_signature_t sigpkt;
         sigkey.sign_init(
           ffi->rng(), sigpkt, DEFAULT_PGP_HASH_ALG, ffi->context.time(), sigkey.version());
         sigpkt.set_type(type);
-        sig->sig = new pgp_subsig_t(sigpkt);
-        sig->ffi = ffi;
-        sig->key = &tgkey;
-        sig->sig->uid = uid;
-        sig->own_sig = true;
-        sig->new_sig = true;
+        std::unique_ptr<pgp_subsig_t> subsig(new pgp_subsig_t(sigpkt));
+        subsig->uid = uid;
+        sig = new rnp_signature_handle_st(ffi, &tgkey, subsig.get(), true, true);
+        subsig.release();
     } catch (const std::exception &e) {
         /* LCOV_EXCL_START */
         FFI_LOG(ffi, "%s", e.what());
-        free(sig);
-        sig = NULL;
         return RNP_ERROR_OUT_OF_MEMORY;
         /* LCOV_EXCL_END */
     }
@@ -7020,7 +7005,7 @@ try {
     if (sig && sig->own_sig) {
         delete sig->sig;
     }
-    free(sig);
+    delete sig;
     return RNP_SUCCESS;
 }
 FFI_GUARD
