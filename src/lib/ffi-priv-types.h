@@ -65,6 +65,15 @@ struct rnp_signature_handle_st {
      * @brief This is a new signature, which is being populated.
      */
     bool new_sig;
+
+    rnp_signature_handle_st(rnp_ffi_t        affi,
+                            const pgp_key_t *akey = nullptr,
+                            pgp_subsig_t *   asig = nullptr,
+                            bool             aown_sig = false,
+                            bool             anew_sig = false)
+        : ffi(affi), key(akey), sig(asig), own_sig(aown_sig), new_sig(anew_sig)
+    {
+    }
 };
 
 struct rnp_recipient_handle_st {
