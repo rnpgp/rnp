@@ -54,16 +54,16 @@ KeygenParams::validate() const noexcept
 {
 #if defined(ENABLE_PQC)
     switch (alg()) {
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE: {
-        auto &slhdsa = dynamic_cast<const pgp::SlhdsaKeyParams &>(key_params());
-        if (!sphincsplus_hash_allowed(alg(), slhdsa.param(), hash())) {
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
+        if (!sphincsplus_hash_allowed(alg(), hash())) {
             RNP_LOG("invalid hash algorithm for the slhdsa key");
             return false;
         }
         break;
-    }
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
     // TODO: Add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
@@ -158,8 +158,9 @@ static const id_str_pair pubkey_alg_map[] = {{PGP_PKA_RSA, "RSA (Encrypt or Sign
                                              {PGP_PKA_DILITHIUM5_P384, "ML-DSA-87_P384"},
                                              {PGP_PKA_DILITHIUM3_BP256, "ML-DSA-65_BP256"},
                                              {PGP_PKA_DILITHIUM5_BP384, "ML-DSA-87_BP384"},
-                                             {PGP_PKA_SPHINCSPLUS_SHA2, "SLH-DSA-SHA2"},
-                                             {PGP_PKA_SPHINCSPLUS_SHAKE, "SLH-DSA-SHAKE"},
+                                             {PGP_PKA_SPHINCSPLUS_SHAKE_128f, "SLH-DSA-SHAKE-128f"},
+                                             {PGP_PKA_SPHINCSPLUS_SHAKE_128s, "SLH-DSA-SHAKE-128s"},
+                                             {PGP_PKA_SPHINCSPLUS_SHAKE_256s, "SLH-DSA-SHAKE-256s"},
 #endif
                                              {0, NULL}};
 

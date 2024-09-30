@@ -64,9 +64,11 @@ SigMaterial::create(pgp_pubkey_alg_t palg, pgp_hash_alg_t halg)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         return std::unique_ptr<SigMaterial>(new DilithiumSigMaterial(palg, halg));
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         return std::unique_ptr<SigMaterial>(new SlhdsaSigMaterial(halg));
 #endif
     default:
