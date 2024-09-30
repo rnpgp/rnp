@@ -1166,13 +1166,30 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
 
     assert_true(import_all_keys(ffi, "data/test_v6_valid_data/transferable_seckey_v6.asc"));
 
+    // No other cipher can be used here: the only 128-bit block ciphers in OpenPGP aside from
+    // AES are Camellia and TwoFish.
     std::vector<std::string> ciphers = {"AES128", "AES192", "AES256"};
+#ifdef ENABLE_TWOFISH
+    ciphers.push_back("TwoFish");
+#endif
+#if (defined BOTAN_HAS_CAMELLIA || !defined CRYPTO_BACKEND_BOTAN3)
+    // ENABLE_CAMELLIA does not exist, yet BOTAN might not support this algorithm.
+    std::vector<std::string> camellia({"Camellia128", "Camellia192", "Camellia256"});
+    ciphers.insert(ciphers.end(), camellia.begin(), camellia.end());
+#endif
     std::vector<std::string> aead_modes = {"None", "EAX", "OCB"};
     std::vector<bool>        enable_pkeskv6_modes = {true, false};
 
     for (auto enable_pkeskv6 : enable_pkeskv6_modes)
         for (auto aead : aead_modes)
             for (auto cipher : ciphers) {
+                bool expect_success = true;
+                if (!enable_pkeskv6 && (cipher == "TwoFish" || cipher.find("Camellia") == 0)) {
+                    // This combination is not supported, since the algorithm ID is fixed to
+                    // AES for v3 PKESK for the public key algorithm featured by the key used
+                    // here.
+                    expect_success = false;
+                }
                 // write out some data
                 FILE *fp = fopen("plaintext", "wb");
                 assert_non_null(fp);
@@ -1210,7 +1227,12 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
                 assert_rnp_success(rnp_op_encrypt_set_cipher(op, cipher.c_str()));
 
                 // execute the operation
-                assert_rnp_success(rnp_op_encrypt_execute(op));
+                if (expect_success) {
+                    assert_rnp_success(rnp_op_encrypt_execute(op));
+                } else {
+                    assert_rnp_failure(rnp_op_encrypt_execute(op));
+                    continue;
+                }
 
                 // make sure the output file was created
                 assert_true(rnp_file_exists("encrypted"));
@@ -1222,8 +1244,6 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
                 output = NULL;
                 assert_rnp_success(rnp_op_encrypt_destroy(op));
                 op = NULL;
-
-                /* decrypt */
 
                 // decrypt
                 assert_rnp_success(rnp_input_from_path(&input, "encrypted"));
