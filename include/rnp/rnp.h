@@ -1218,24 +1218,6 @@ RNP_API rnp_result_t rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op,
 RNP_API rnp_result_t rnp_op_generate_set_v6_key(rnp_op_generate_t op);
 #endif
 
-#if defined(RNP_EXPERIMENTAL_PQC)
-/** Set the SPHINCS+ parameter set
- *  NOTE: This is an experimental feature and this function can be replaced (or removed) at any
- *        time.
- *
- * @param op pointer to opaque key generation context.
- * @param param string, representing the SHPINCS+ parameter set.
- *               Possible Values:
- *                  128s, 128f, 192s, 192f, 256s, 256f
- *               All parameter sets refer to the simple variant and the hash function is given
- * by the algorithm id.
- *
- * @return RNP_SUCCESS or error code if failed.
- */
-RNP_API rnp_result_t rnp_op_generate_set_sphincsplus_param(rnp_op_generate_t op,
-                                                           const char *      param);
-#endif
-
 /** Execute the prepared key or subkey generation operation.
  *  Note: if you set protection algorithm, then you need to specify ffi password provider to
  *        be able to request password for key encryption.
@@ -2374,19 +2356,6 @@ RNP_API rnp_result_t rnp_key_get_default_key(rnp_key_handle_t  primary_key,
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_key_get_alg(rnp_key_handle_t key, char **alg);
-
-#if defined(RNP_EXPERIMENTAL_PQC)
-/** Get a SPHINCS+ key's parameter string
- *
- * @param key key handle
- * @param alg string with parameter name will be stored here. You must free it using the
- *            rnp_buffer_destroy() function.
- * @return RNP_SUCCESS or error code if failed.
- * NOTE: This is an experimental feature and this function can be replaced (or removed) at any
- * time.
- */
-RNP_API rnp_result_t rnp_key_sphincsplus_get_param(rnp_key_handle_t handle, char **param);
-#endif
 
 /** Get number of bits in the key. For EC-based keys it will return size of the curve.
  *
@@ -4058,8 +4027,9 @@ RNP_API const char *rnp_backend_version();
 #define RNP_ALGNAME_DILITHIUM5_P384 "ML-DSA-87+ECDSA-P384"
 #define RNP_ALGNAME_DILITHIUM3_BP256 "ML-DSA-65+ECDSA-BP256"
 #define RNP_ALGNAME_DILITHIUM5_BP384 "ML-DSA-87+ECDSA-BP384"
-#define RNP_ALGNAME_SPHINCSPLUS_SHA2 "SLH-DSA-SHA2"
-#define RNP_ALGNAME_SPHINCSPLUS_SHAKE "SLH-DSA-SHAKE"
+#define RNP_ALGNAME_SPHINCSPLUS_SHAKE_128f "SLH-DSA-SHAKE-128f"
+#define RNP_ALGNAME_SPHINCSPLUS_SHAKE_128s "SLH-DSA-SHAKE-128s"
+#define RNP_ALGNAME_SPHINCSPLUS_SHAKE_256s "SLH-DSA-SHAKE-256s"
 #endif
 #define RNP_ALGNAME_IDEA "IDEA"
 #define RNP_ALGNAME_TRIPLEDES "TRIPLEDES"

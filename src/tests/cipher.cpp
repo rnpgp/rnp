@@ -638,41 +638,34 @@ TEST_F(rnp_tests, dilithium_exdsa_signverify_success)
 
 TEST_F(rnp_tests, sphincsplus_signverify_success)
 {
-    uint8_t                 message[64];
-    pgp_pubkey_alg_t        algs[] = {PGP_PKA_SPHINCSPLUS_SHA2, PGP_PKA_SPHINCSPLUS_SHAKE};
-    sphincsplus_parameter_t params[] = {sphincsplus_simple_128s,
-                                        sphincsplus_simple_128f,
-                                        sphincsplus_simple_192s,
-                                        sphincsplus_simple_192f,
-                                        sphincsplus_simple_256s,
-                                        sphincsplus_simple_256f};
+    uint8_t          message[64];
+    pgp_pubkey_alg_t algs[] = {PGP_PKA_SPHINCSPLUS_SHAKE_128f,
+                               PGP_PKA_SPHINCSPLUS_SHAKE_128s,
+                               PGP_PKA_SPHINCSPLUS_SHAKE_256s};
 
     for (size_t i = 0; i < ARRAY_SIZE(algs); i++) {
-        for (size_t j = 0; j < ARRAY_SIZE(params); j++) {
-            // Generate test data. Mainly to make valgrind not to complain about uninitialized
-            // data
-            global_ctx.rng.get(message, sizeof(message));
+        // Generate test data. Mainly to make valgrind not to complain about uninitialized
+        // data
+        global_ctx.rng.get(message, sizeof(message));
 
-            rnp::KeygenParams keygen(algs[i], global_ctx);
-            auto &slhdsa = dynamic_cast<pgp::SlhdsaKeyParams &>(keygen.key_params());
-            slhdsa.set_param(params[j]);
+        rnp::KeygenParams keygen(algs[i], global_ctx);
 
-            pgp_key_pkt_t seckey1;
-            pgp_key_pkt_t seckey2;
+        pgp_key_pkt_t seckey1;
+        pgp_key_pkt_t seckey2;
 
-            assert_true(keygen.generate(seckey1, true));
-            assert_true(keygen.generate(seckey2, true));
+        assert_true(keygen.generate(seckey1, true));
+        assert_true(keygen.generate(seckey2, true));
 
-            auto &                      key1 = *seckey1.material;
-            auto &                      key2 = *seckey2.material;
-            rnp::secure_vector<uint8_t> hash(message, message + sizeof(message));
-            pgp_signature_material_t    sig;
-            assert_rnp_success(key1.sign(global_ctx, sig, hash));
-            assert_rnp_success(key1.verify(global_ctx, sig, hash));
+        auto &key1 = *seckey1.material;
+        auto &key2 = *seckey2.material;
 
-            // Fails because of different key used
-            assert_rnp_failure(key2.verify(global_ctx, sig, hash));
-        }
+        rnp::secure_vector<uint8_t> hash(message, message + sizeof(message));
+        pgp_signature_material_t    sig;
+        assert_rnp_success(key1.sign(global_ctx, sig, hash));
+        assert_rnp_success(key1.verify(global_ctx, sig, hash));
+
+        // Fails because of different key used
+        assert_rnp_failure(key2.verify(global_ctx, sig, hash));
     }
 }
 #endif

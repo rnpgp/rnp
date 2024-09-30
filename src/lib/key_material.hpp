@@ -156,23 +156,10 @@ class DilithiumEccKeyParams : public KeyParams {
 
 class SlhdsaKeyParams : public KeyParams {
   private:
-    sphincsplus_parameter_t param_;
+    pgp_pubkey_alg_t alg_;
 
   public:
-    SlhdsaKeyParams() : param_(sphincsplus_simple_128f){};
-
-    sphincsplus_parameter_t
-    param() const noexcept
-    {
-        return param_;
-    }
-
-    void
-    set_param(sphincsplus_parameter_t value) noexcept
-    {
-        param_ = value;
-    }
-
+    SlhdsaKeyParams(pgp_pubkey_alg_t alg) : alg_(alg){};
     size_t bits() const noexcept override;
 };
 #endif

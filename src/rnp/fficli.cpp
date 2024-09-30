@@ -1387,15 +1387,6 @@ cli_rnp_print_key_info(FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecr
     char *alg = NULL;
     (void) rnp_key_get_alg(key, &alg);
     fprintf(fp, "%s", cli_rnp_normalize_key_alg(alg));
-#if defined(ENABLE_PQC)
-    // in case of a SPHINCS+ key, also print the parameter set
-    char *       param;
-    rnp_result_t res = rnp_key_sphincsplus_get_param(key, &param);
-    if (res == RNP_SUCCESS) {
-        fprintf(fp, "-%s", param);
-        rnp_buffer_destroy(param);
-    }
-#endif
     fprintf(fp, " ");
     /* key id */
     char *keyid = NULL;
@@ -1599,14 +1590,6 @@ cli_rnp_generate_key(cli_rnp_t *rnp, const char *username)
         rnp_op_generate_set_v6_key(genkey);
     }
 #endif
-#if defined(ENABLE_PQC)
-    if (cfg.has(CFG_KG_PRIMARY_SPHINCSPLUS_PARAM) &&
-        rnp_op_generate_set_sphincsplus_param(
-          genkey, cfg.get_cstr(CFG_KG_PRIMARY_SPHINCSPLUS_PARAM))) {
-        ERR_MSG("Failed to set sphincsplus parameter.");
-        goto done;
-    }
-#endif
 
     fprintf(rnp->userio_out, "Generating a new key...\n");
     if (rnp_op_generate_execute(genkey) || rnp_op_generate_get_key(genkey, &primary)) {
@@ -1654,14 +1637,6 @@ cli_rnp_generate_key(cli_rnp_t *rnp, const char *username)
         rnp_op_generate_set_v6_key(genkey);
     }
 #endif
-#if defined(ENABLE_PQC)
-    if (cfg.has(CFG_KG_SUBKEY_SPHINCSPLUS_PARAM) &&
-        rnp_op_generate_set_sphincsplus_param(genkey,
-                                              cfg.get_cstr(CFG_KG_SUBKEY_SPHINCSPLUS_PARAM))) {
-        ERR_MSG("Failed to set sphincsplus parameter.");
-        goto done;
-    }
-#endif
     if (rnp_op_generate_execute(genkey) || rnp_op_generate_get_key(genkey, &subkey)) {
         ERR_MSG("Subkey generation failed.");
         goto done;
@@ -1704,12 +1679,6 @@ cli_rnp_generate_key(cli_rnp_t *rnp, const char *username)
             rnp_op_generate_set_v6_key(genkey);
         }
 #endif
-        if (cfg.has(CFG_KG_SUBKEY_2_SPHINCSPLUS_PARAM) &&
-            rnp_op_generate_set_sphincsplus_param(
-              genkey, cfg.get_cstr(CFG_KG_SUBKEY_2_SPHINCSPLUS_PARAM))) {
-            ERR_MSG("Failed to set sphincsplus parameter.");
-            goto done;
-        }
         if (rnp_op_generate_execute(genkey) || rnp_op_generate_get_key(genkey, &subkey2)) {
             ERR_MSG("Subkey generation failed.");
             goto done;

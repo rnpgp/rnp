@@ -31,120 +31,48 @@
 
 namespace {
 Botan::Sphincs_Parameter_Set
-rnp_sphincsplus_params_to_botan_param(sphincsplus_parameter_t param)
-{
-    switch (param) {
-    case sphincsplus_simple_128s:
-        return Botan::Sphincs_Parameter_Set::Sphincs128Small;
-    case sphincsplus_simple_128f:
-        return Botan::Sphincs_Parameter_Set::Sphincs128Fast;
-    case sphincsplus_simple_192s:
-        return Botan::Sphincs_Parameter_Set::Sphincs192Small;
-    case sphincsplus_simple_192f:
-        return Botan::Sphincs_Parameter_Set::Sphincs192Fast;
-    case sphincsplus_simple_256s:
-        return Botan::Sphincs_Parameter_Set::Sphincs256Small;
-    case sphincsplus_simple_256f:
-        return Botan::Sphincs_Parameter_Set::Sphincs256Fast;
-    default:
-        RNP_LOG("invalid parameter given");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
-}
-Botan::Sphincs_Hash_Type
-rnp_sphincsplus_hash_func_to_botan_hash_func(sphincsplus_hash_func_t hash_func)
-{
-    switch (hash_func) {
-    case sphincsplus_sha256:
-        return Botan::Sphincs_Hash_Type::Sha256;
-    case sphinscplus_shake256:
-        return Botan::Sphincs_Hash_Type::Shake256;
-    default:
-        RNP_LOG("invalid parameter given");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
-}
-
-sphincsplus_hash_func_t
-rnp_sphincsplus_alg_to_hashfunc(pgp_pubkey_alg_t alg)
+rnp_sphincsplus_alg_to_botan_param(pgp_pubkey_alg_t alg)
 {
     switch (alg) {
-    case PGP_PKA_SPHINCSPLUS_SHA2:
-        return sphincsplus_sha256;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        return sphinscplus_shake256;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
+        return Botan::Sphincs_Parameter_Set::Sphincs128Fast;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        return Botan::Sphincs_Parameter_Set::Sphincs128Small;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
+        return Botan::Sphincs_Parameter_Set::Sphincs256Small;
     default:
-        RNP_LOG("invalid SLH-DSA alg id");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
-}
-
-pgp_pubkey_alg_t
-rnp_sphincsplus_hashfunc_to_alg(sphincsplus_hash_func_t hashfunc)
-{
-    switch (hashfunc) {
-    case sphincsplus_sha256:
-        return PGP_PKA_SPHINCSPLUS_SHA2;
-    case sphinscplus_shake256:
-        return PGP_PKA_SPHINCSPLUS_SHAKE;
-    default:
-        RNP_LOG("invalid SLH-DSA hashfunc");
+        RNP_LOG("invalid algorithm ID given");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 }
 } // namespace
 
-pgp_sphincsplus_public_key_t::pgp_sphincsplus_public_key_t(const uint8_t *key_encoded,
-                                                           size_t         key_encoded_len,
-                                                           sphincsplus_parameter_t param,
-                                                           sphincsplus_hash_func_t hash_func)
-    : key_encoded_(key_encoded, key_encoded + key_encoded_len),
-      pk_alg_(rnp_sphincsplus_hashfunc_to_alg(hash_func)), sphincsplus_param_(param),
-      sphincsplus_hash_func_(hash_func), is_initialized_(true)
+pgp_sphincsplus_public_key_t::pgp_sphincsplus_public_key_t(const uint8_t *  key_encoded,
+                                                           size_t           key_encoded_len,
+                                                           pgp_pubkey_alg_t alg)
+    : key_encoded_(key_encoded, key_encoded + key_encoded_len), pk_alg_(alg),
+      is_initialized_(true)
 {
 }
 
 pgp_sphincsplus_public_key_t::pgp_sphincsplus_public_key_t(
-  std::vector<uint8_t> const &key_encoded,
-  sphincsplus_parameter_t     param,
-  sphincsplus_hash_func_t     hash_func)
-    : key_encoded_(key_encoded), pk_alg_(rnp_sphincsplus_hashfunc_to_alg(hash_func)),
-      sphincsplus_param_(param), sphincsplus_hash_func_(hash_func), is_initialized_(true)
+  std::vector<uint8_t> const &key_encoded, pgp_pubkey_alg_t alg)
+    : key_encoded_(key_encoded), pk_alg_(alg), is_initialized_(true)
 {
 }
 
-pgp_sphincsplus_public_key_t::pgp_sphincsplus_public_key_t(
-  std::vector<uint8_t> const &key_encoded, sphincsplus_parameter_t param, pgp_pubkey_alg_t alg)
-    : key_encoded_(key_encoded), pk_alg_(alg), sphincsplus_param_(param),
-      sphincsplus_hash_func_(rnp_sphincsplus_alg_to_hashfunc(alg)), is_initialized_(true)
-{
-}
-
-pgp_sphincsplus_private_key_t::pgp_sphincsplus_private_key_t(const uint8_t *key_encoded,
-                                                             size_t         key_encoded_len,
-                                                             sphincsplus_parameter_t param,
-                                                             sphincsplus_hash_func_t hash_func)
-    : key_encoded_(key_encoded, key_encoded + key_encoded_len),
-      pk_alg_(rnp_sphincsplus_hashfunc_to_alg(hash_func)), sphincsplus_param_(param),
-      sphincsplus_hash_func_(hash_func), is_initialized_(true)
+pgp_sphincsplus_private_key_t::pgp_sphincsplus_private_key_t(const uint8_t *  key_encoded,
+                                                             size_t           key_encoded_len,
+                                                             pgp_pubkey_alg_t alg)
+    : key_encoded_(key_encoded, key_encoded + key_encoded_len), pk_alg_(alg),
+      is_initialized_(true)
 {
 }
 
 pgp_sphincsplus_private_key_t::pgp_sphincsplus_private_key_t(
-  std::vector<uint8_t> const &key_encoded,
-  sphincsplus_parameter_t     param,
-  sphincsplus_hash_func_t     hash_func)
+  std::vector<uint8_t> const &key_encoded, pgp_pubkey_alg_t alg)
     : key_encoded_(Botan::secure_vector<uint8_t>(key_encoded.begin(), key_encoded.end())),
-      pk_alg_(rnp_sphincsplus_hashfunc_to_alg(hash_func)), sphincsplus_param_(param),
-      sphincsplus_hash_func_(hash_func), is_initialized_(true)
-{
-}
-
-pgp_sphincsplus_private_key_t::pgp_sphincsplus_private_key_t(
-  std::vector<uint8_t> const &key_encoded, sphincsplus_parameter_t param, pgp_pubkey_alg_t alg)
-    : key_encoded_(Botan::secure_vector<uint8_t>(key_encoded.begin(), key_encoded.end())),
-      pk_alg_(alg), sphincsplus_param_(param),
-      sphincsplus_hash_func_(rnp_sphincsplus_alg_to_hashfunc(alg)), is_initialized_(true)
+      pk_alg_(alg), is_initialized_(true)
 {
 }
 
@@ -159,7 +87,6 @@ pgp_sphincsplus_private_key_t::sign(rnp::RNG *                   rng,
 
     auto signer = Botan::PK_Signer(priv_key, *rng->obj(), "");
     sig->sig = signer.sign_message(msg, msg_len, *rng->obj());
-    sig->param = param();
 
     return RNP_SUCCESS;
 }
@@ -167,10 +94,9 @@ pgp_sphincsplus_private_key_t::sign(rnp::RNG *                   rng,
 Botan::SphincsPlus_PublicKey
 pgp_sphincsplus_public_key_t::botan_key() const
 {
-    return Botan::SphincsPlus_PublicKey(
-      key_encoded_,
-      rnp_sphincsplus_params_to_botan_param(this->sphincsplus_param_),
-      rnp_sphincsplus_hash_func_to_botan_hash_func(this->sphincsplus_hash_func_));
+    return Botan::SphincsPlus_PublicKey(key_encoded_,
+                                        rnp_sphincsplus_alg_to_botan_param(this->pk_alg_),
+                                        Botan::Sphincs_Hash_Type::Shake256);
 }
 
 Botan::SphincsPlus_PrivateKey
@@ -178,10 +104,9 @@ pgp_sphincsplus_private_key_t::botan_key() const
 {
     Botan::secure_vector<uint8_t> priv_sv(key_encoded_.data(),
                                           key_encoded_.data() + key_encoded_.size());
-    return Botan::SphincsPlus_PrivateKey(
-      priv_sv,
-      rnp_sphincsplus_params_to_botan_param(this->sphincsplus_param_),
-      rnp_sphincsplus_hash_func_to_botan_hash_func(this->sphincsplus_hash_func_));
+    return Botan::SphincsPlus_PrivateKey(priv_sv,
+                                         rnp_sphincsplus_alg_to_botan_param(this->pk_alg_),
+                                         Botan::Sphincs_Hash_Type::Shake256);
 }
 
 rnp_result_t
@@ -200,32 +125,23 @@ pgp_sphincsplus_public_key_t::verify(const pgp_sphincsplus_signature_t *sig,
 }
 
 std::pair<pgp_sphincsplus_public_key_t, pgp_sphincsplus_private_key_t>
-sphincsplus_generate_keypair(rnp::RNG *              rng,
-                             sphincsplus_parameter_t sphincsplus_param,
-                             sphincsplus_hash_func_t sphincsplus_hash_func)
+sphincsplus_generate_keypair(rnp::RNG *rng, pgp_pubkey_alg_t alg)
 {
-    Botan::SphincsPlus_PrivateKey priv_key(
-      *rng->obj(),
-      rnp_sphincsplus_params_to_botan_param(sphincsplus_param),
-      rnp_sphincsplus_hash_func_to_botan_hash_func(sphincsplus_hash_func));
+    Botan::SphincsPlus_PrivateKey priv_key(*rng->obj(),
+                                           rnp_sphincsplus_alg_to_botan_param(alg),
+                                           Botan::Sphincs_Hash_Type::Shake256);
 
     std::unique_ptr<Botan::Public_Key> pub_key = priv_key.public_key();
     Botan::secure_vector<uint8_t>      priv_bits = priv_key.private_key_bits();
     return std::make_pair(
-      pgp_sphincsplus_public_key_t(
-        pub_key->public_key_bits(), sphincsplus_param, sphincsplus_hash_func),
-      pgp_sphincsplus_private_key_t(
-        priv_bits.data(), priv_bits.size(), sphincsplus_param, sphincsplus_hash_func));
+      pgp_sphincsplus_public_key_t(pub_key->public_key_bits(), alg),
+      pgp_sphincsplus_private_key_t(priv_bits.data(), priv_bits.size(), alg));
 }
 
 rnp_result_t
-pgp_sphincsplus_generate(rnp::RNG *              rng,
-                         pgp_sphincsplus_key_t * material,
-                         sphincsplus_parameter_t param,
-                         pgp_pubkey_alg_t        alg)
+pgp_sphincsplus_generate(rnp::RNG *rng, pgp_sphincsplus_key_t *material, pgp_pubkey_alg_t alg)
 {
-    auto keypair =
-      sphincsplus_generate_keypair(rng, param, rnp_sphincsplus_alg_to_hashfunc(alg));
+    auto keypair = sphincsplus_generate_keypair(rng, alg);
     material->pub = keypair.first;
     material->priv = keypair.second;
 
@@ -237,7 +153,7 @@ pgp_sphincsplus_public_key_t::validate_signature_hash_requirements(
   pgp_hash_alg_t hash_alg) const
 {
     /* check if key is allowed with the hash algorithm */
-    return sphincsplus_hash_allowed(pk_alg_, sphincsplus_param_, hash_alg);
+    return sphincsplus_hash_allowed(pk_alg_, hash_alg);
 }
 
 bool
@@ -279,26 +195,20 @@ sphincsplus_validate_key(rnp::RNG *rng, const pgp_sphincsplus_key_t *key, bool s
 }
 
 size_t
-sphincsplus_privkey_size(sphincsplus_parameter_t param)
+sphincsplus_privkey_size(pgp_pubkey_alg_t alg)
 {
-    return 2 * sphincsplus_pubkey_size(param);
+    return 2 * sphincsplus_pubkey_size(alg);
 }
 
 size_t
-sphincsplus_pubkey_size(sphincsplus_parameter_t param)
+sphincsplus_pubkey_size(pgp_pubkey_alg_t alg)
 {
-    switch (param) {
-    case sphincsplus_simple_128s:
+    switch (alg) {
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         return 32;
-    case sphincsplus_simple_128f:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
         return 32;
-    case sphincsplus_simple_192s:
-        return 48;
-    case sphincsplus_simple_192f:
-        return 48;
-    case sphincsplus_simple_256s:
-        return 64;
-    case sphincsplus_simple_256f:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         return 64;
     default:
         RNP_LOG("invalid SLH-DSA parameter identifier");
@@ -307,21 +217,15 @@ sphincsplus_pubkey_size(sphincsplus_parameter_t param)
 }
 
 size_t
-sphincsplus_signature_size(sphincsplus_parameter_t param)
+sphincsplus_signature_size(pgp_pubkey_alg_t alg)
 {
-    switch (param) {
-    case sphincsplus_simple_128s:
-        return 7856;
-    case sphincsplus_simple_128f:
+    switch (alg) {
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         return 17088;
-    case sphincsplus_simple_192s:
-        return 16224;
-    case sphincsplus_simple_192f:
-        return 35664;
-    case sphincsplus_simple_256s:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        return 7856;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         return 29792;
-    case sphincsplus_simple_256f:
-        return 49856;
     default:
         RNP_LOG("invalid SLH-DSA parameter identifier");
         return 0;
@@ -329,97 +233,33 @@ sphincsplus_signature_size(sphincsplus_parameter_t param)
 }
 
 bool
-sphincsplus_hash_allowed(pgp_pubkey_alg_t        pk_alg,
-                         sphincsplus_parameter_t sphincsplus_param,
-                         pgp_hash_alg_t          hash_alg)
+sphincsplus_hash_allowed(pgp_pubkey_alg_t pk_alg, pgp_hash_alg_t hash_alg)
 {
-    /* draft-wussler-openpgp-pqc-02 Table 14*/
     switch (pk_alg) {
-    case PGP_PKA_SPHINCSPLUS_SHA2:
-        switch (sphincsplus_param) {
-        case sphincsplus_simple_128s:
-            FALLTHROUGH_STATEMENT;
-        case sphincsplus_simple_128f:
-            if (hash_alg != PGP_HASH_SHA256) {
-                return false;
-            }
-            break;
-        case sphincsplus_simple_192s:
-            FALLTHROUGH_STATEMENT;
-        case sphincsplus_simple_192f:
-            FALLTHROUGH_STATEMENT;
-        case sphincsplus_simple_256s:
-            FALLTHROUGH_STATEMENT;
-        case sphincsplus_simple_256f:
-            if (hash_alg != PGP_HASH_SHA512) {
-                return false;
-            }
-            break;
-        }
-        break;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        switch (sphincsplus_param) {
-        case sphincsplus_simple_128s:
-            FALLTHROUGH_STATEMENT;
-        case sphincsplus_simple_128f:
-            if (hash_alg != PGP_HASH_SHA3_256) {
-                return false;
-            }
-            break;
-        case sphincsplus_simple_192s:
-            FALLTHROUGH_STATEMENT;
-        case sphincsplus_simple_192f:
-            FALLTHROUGH_STATEMENT;
-        case sphincsplus_simple_256s:
-            FALLTHROUGH_STATEMENT;
-        case sphincsplus_simple_256f:
-            if (hash_alg != PGP_HASH_SHA3_512) {
-                return false;
-            }
-            break;
-        }
-        break;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        return hash_alg == PGP_HASH_SHA3_256;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
+        return hash_alg == PGP_HASH_SHA3_512;
     default:
-        break;
+        RNP_LOG("invalid algorithm ID given");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    return true;
 }
 
 pgp_hash_alg_t
-sphincsplus_default_hash_alg(pgp_pubkey_alg_t        pk_alg,
-                             sphincsplus_parameter_t sphincsplus_param)
+sphincsplus_default_hash_alg(pgp_pubkey_alg_t alg)
 {
-    switch (sphincsplus_param) {
-    case sphincsplus_simple_128s:
-        FALLTHROUGH_STATEMENT;
-    case sphincsplus_simple_128f:
-        switch (pk_alg) {
-        case PGP_PKA_SPHINCSPLUS_SHA2:
-            return PGP_HASH_SHA256;
-        case PGP_PKA_SPHINCSPLUS_SHAKE:
-            return PGP_HASH_SHA3_256;
-        default:
-            RNP_LOG("invalid parameter given");
-            throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-        }
-    case sphincsplus_simple_192s:
-        FALLTHROUGH_STATEMENT;
-    case sphincsplus_simple_192f:
-        FALLTHROUGH_STATEMENT;
-    case sphincsplus_simple_256s:
-        FALLTHROUGH_STATEMENT;
-    case sphincsplus_simple_256f:
-        switch (pk_alg) {
-        case PGP_PKA_SPHINCSPLUS_SHA2:
-            return PGP_HASH_SHA512;
-        case PGP_PKA_SPHINCSPLUS_SHAKE:
-            return PGP_HASH_SHA3_512;
-        default:
-            RNP_LOG("invalid parameter given");
-            throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-        }
+    switch (alg) {
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
+        return PGP_HASH_SHA3_256;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        return PGP_HASH_SHA3_256;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
+        return PGP_HASH_SHA3_512;
     default:
-        RNP_LOG("invalid parameter given");
+        RNP_LOG("invalid algorithm ID given");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 }
