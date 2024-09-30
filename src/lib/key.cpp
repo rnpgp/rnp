@@ -115,6 +115,91 @@ pgp_decrypt_seckey(const Key &                    key,
     }
 }
 
+static const id_str_pair ss_rr_code_map[] = {
+  {PGP_REVOCATION_NO_REASON, "No reason specified"},
+  {PGP_REVOCATION_SUPERSEDED, "Key is superseded"},
+  {PGP_REVOCATION_COMPROMISED, "Key material has been compromised"},
+  {PGP_REVOCATION_RETIRED, "Key is retired and no longer used"},
+  {PGP_REVOCATION_NO_LONGER_VALID, "User ID information is no longer valid"},
+  {0x00, NULL},
+};
+
+pgp_key_flags_t
+pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
+{
+    switch (alg) {
+    case PGP_PKA_RSA:
+        return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH | PGP_KF_ENCRYPT);
+
+    case PGP_PKA_RSA_SIGN_ONLY:
+        // deprecated, but still usable
+        return PGP_KF_SIGN;
+
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+        // deprecated, but still usable
+        return PGP_KF_ENCRYPT;
+
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: /* deprecated */
+        // These are no longer permitted per the RFC
+        return PGP_KF_NONE;
+
+    case PGP_PKA_DSA:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+        return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
+    case PGP_PKA_X25519:
+        return PGP_KF_ENCRYPT;
+#endif
+
+    case PGP_PKA_SM2:
+        return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH | PGP_KF_ENCRYPT);
+
+    case PGP_PKA_ECDH:
+    case PGP_PKA_ELGAMAL:
+        return PGP_KF_ENCRYPT;
+
+#if defined(ENABLE_PQC)
+    case PGP_PKA_KYBER768_X25519:
+        FALLTHROUGH_STATEMENT;
+    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER768_P256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_P384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER768_BP256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_BP384:
+        return PGP_KF_ENCRYPT;
+
+    case PGP_PKA_DILITHIUM3_ED25519:
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_P256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_P384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_BP256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_BP384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
+        return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
+#endif
+
+    default:
+        RNP_LOG("unknown pk alg: %d\n", alg);
+        return PGP_KF_NONE;
+    }
+}
+
 bool
 Key::write_sec_pgp(pgp_dest_t &       dst,
                    pgp_key_pkt_t &    seckey,
@@ -953,9 +1038,11 @@ Key::is_pqc_alg() const
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         return true;
     default:
         return false;
@@ -2613,9 +2700,11 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
 #endif
 

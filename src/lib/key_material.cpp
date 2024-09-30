@@ -177,10 +177,12 @@ KeyParams::create(pgp_pubkey_alg_t alg)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         return std::unique_ptr<KeyParams>(new DilithiumEccKeyParams(alg));
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        return std::unique_ptr<KeyParams>(new SlhdsaKeyParams());
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
+        return std::unique_ptr<KeyParams>(new SlhdsaKeyParams(alg));
 #endif
     default:
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -230,7 +232,7 @@ DilithiumEccKeyParams::bits() const noexcept
 size_t
 SlhdsaKeyParams::bits() const noexcept
 {
-    return sphincsplus_pubkey_size(param_) * 8;
+    return sphincsplus_pubkey_size(alg_) * 8;
 }
 #endif
 
@@ -421,9 +423,11 @@ KeyMaterial::create(pgp_pubkey_alg_t alg)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         return std::unique_ptr<KeyMaterial>(new DilithiumEccKeyMaterial(alg));
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         return std::unique_ptr<KeyMaterial>(new SlhdsaKeyMaterial(alg));
 #endif
     default:
@@ -1928,15 +1932,9 @@ bool
 SlhdsaKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 {
     secret_ = false;
-    uint8_t bt = 0;
-    if (!pkt.get(bt)) {
-        RNP_LOG("failed to parse SLH-DSA public key data");
-        return false;
-    }
-    sphincsplus_parameter_t param = (sphincsplus_parameter_t) bt;
-    auto                    size = sphincsplus_pubkey_size(param);
+    auto size = sphincsplus_pubkey_size(alg());
     if (!size) {
-        RNP_LOG("invalid SLH-DSA param");
+        RNP_LOG("invalid algorithm");
         return false;
     }
     std::vector<uint8_t> buf(size);
@@ -1944,25 +1942,19 @@ SlhdsaKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
         RNP_LOG("failed to parse SLH-DSA public key data");
         return false;
     }
-    key_.pub = pgp_sphincsplus_public_key_t(buf, param, alg());
+    key_.pub = pgp_sphincsplus_public_key_t(buf, alg());
     return true;
 }
 
 bool
 SlhdsaKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 {
-    uint8_t bt = 0;
-    if (!pkt.get(bt)) {
-        RNP_LOG("failed to parse SLH-DSA secret key data");
-        return false;
-    }
-    sphincsplus_parameter_t param = (sphincsplus_parameter_t) bt;
-    std::vector<uint8_t>    buf(sphincsplus_privkey_size(param));
+    std::vector<uint8_t>    buf(sphincsplus_privkey_size(alg()));
     if (!pkt.get(buf.data(), buf.size())) {
         RNP_LOG("failed to parse SLH-DSA secret key data");
         return false;
     }
-    key_.priv = pgp_sphincsplus_private_key_t(buf, param, alg());
+    key_.priv = pgp_sphincsplus_private_key_t(buf, alg());
     secret_ = true;
     return true;
 }
@@ -1970,14 +1962,12 @@ SlhdsaKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 void
 SlhdsaKeyMaterial::write(pgp_packet_body_t &pkt) const
 {
-    pkt.add_byte((uint8_t) key_.pub.param());
     pkt.add(key_.pub.get_encoded());
 }
 
 void
 SlhdsaKeyMaterial::write_secret(pgp_packet_body_t &pkt) const
 {
-    pkt.add_byte((uint8_t) key_.priv.param());
     pkt.add(key_.priv.get_encoded());
 }
 
@@ -1985,7 +1975,7 @@ bool
 SlhdsaKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 {
     auto &slhdsa = dynamic_cast<const SlhdsaKeyParams &>(params);
-    if (pgp_sphincsplus_generate(&ctx.rng, &key_, slhdsa.param(), alg_)) {
+    if (pgp_sphincsplus_generate(&ctx.rng, &key_, alg_)) {
         RNP_LOG("failed to generate SLH-DSA key for PK alg %d", alg_);
         return false;
     }
@@ -2019,7 +2009,7 @@ SlhdsaKeyMaterial::sign(rnp::SecurityContext &   ctx,
 pgp_hash_alg_t
 SlhdsaKeyMaterial::adjust_hash(pgp_hash_alg_t hash) const
 {
-    return sphincsplus_default_hash_alg(alg_, key_.pub.param());
+    return sphincsplus_default_hash_alg(alg());
 }
 
 bool
