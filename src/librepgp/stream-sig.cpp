@@ -1106,8 +1106,7 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
     case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE_256s: {
-        material.sphincsplus.sig.resize(
-          sphincsplus_signature_size(palg));
+        material.sphincsplus.sig.resize(sphincsplus_signature_size(palg));
         if (!pkt.get(material.sphincsplus.sig.data(), material.sphincsplus.sig.size())) {
             RNP_LOG("failed to parse SLH-DSA signature data");
             return false;
