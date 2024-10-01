@@ -73,6 +73,9 @@ class id_str_pair {
                               int                         notfound = 0);
 };
 
+typedef std::array<uint8_t, PGP_KEY_ID_SIZE>   pgp_key_id_t;
+typedef std::array<uint8_t, PGP_KEY_GRIP_SIZE> pgp_key_grip_t;
+
 /** pgp_fingerprint_t */
 typedef struct pgp_fingerprint_t {
     uint8_t  fingerprint[PGP_MAX_FINGERPRINT_SIZE];
@@ -96,6 +99,8 @@ typedef struct pgp_fingerprint_t {
         return (size == PGP_FINGERPRINT_V4_SIZE) || (size == PGP_FINGERPRINT_V3_SIZE) ||
                (size == PGP_FINGERPRINT_V5_SIZE);
     }
+
+    pgp_key_id_t keyid() const;
 } pgp_fingerprint_t;
 
 typedef std::array<uint8_t, PGP_KEY_GRIP_SIZE> pgp_sig_id_t;
@@ -129,10 +134,6 @@ template <> struct hash<pgp_sig_id_t> {
     }
 };
 }; // namespace std
-
-typedef std::array<uint8_t, PGP_KEY_GRIP_SIZE> pgp_key_grip_t;
-
-typedef std::array<uint8_t, PGP_KEY_ID_SIZE> pgp_key_id_t;
 
 namespace rnp {
 class rnp_exception : public std::exception {
