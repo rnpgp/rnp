@@ -54,6 +54,8 @@ bool json_add(json_object *obj, const char *name, const char *value);
  */
 bool json_add(json_object *obj, const char *name, const char *value, size_t len);
 
+bool json_add(json_object *obj, const char *name, const std::string &value);
+
 /**
  * @brief Shortcut to add bool via json_add().
  */
@@ -74,6 +76,8 @@ bool json_add(json_object *obj, const char *name, uint64_t value);
  *        Note: this function follows conventions of json_add().
  */
 bool json_add_hex(json_object *obj, const char *name, const uint8_t *val, size_t val_len);
+
+bool json_add_hex(json_object *obj, const char *name, const std::vector<uint8_t> &vec);
 
 /**
  * @brief Shortcut to add keyid via json_add_hex().
