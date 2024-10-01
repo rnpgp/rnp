@@ -1949,7 +1949,7 @@ SlhdsaKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 bool
 SlhdsaKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 {
-    std::vector<uint8_t>    buf(sphincsplus_privkey_size(alg()));
+    std::vector<uint8_t> buf(sphincsplus_privkey_size(alg()));
     if (!pkt.get(buf.data(), buf.size())) {
         RNP_LOG("failed to parse SLH-DSA secret key data");
         return false;
