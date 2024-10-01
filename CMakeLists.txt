@@ -82,10 +82,7 @@ tristate_feature_auto(ENABLE_RIPEMD160 "Enable RIPEMD-160 hash support.")
 option(ENABLE_CRYPTO_REFRESH "Enable crypto-refresh support (v6)")
 option(ENABLE_PQC "Enable PQC support")
 
-# Note: The following two flags are only temporary and will be removed once POC is in a stable state
-if (DEFINED ENABLE_PQC_MLKEM_IPD)
-  add_definitions(-DENABLE_PQC_MLKEM_IPD)
-endif()
+# Note: The following flag is only temporary and will be removed once POC is in a stable state
 if (DEFINED ENABLE_PQC_DBG_LOG)
   add_definitions(-DENABLE_PQC_DBG_LOG)
 endif()

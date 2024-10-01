@@ -32,9 +32,9 @@ namespace {
 Botan::DilithiumMode
 rnp_dilithium_param_to_botan_dimension(dilithium_parameter_e mode)
 {
-    Botan::DilithiumMode result = Botan::DilithiumMode::Dilithium8x7;
+    Botan::DilithiumMode result = Botan::DilithiumMode::ML_DSA_8x7;
     if (mode == dilithium_parameter_e::dilithium_L3) {
-        result = Botan::DilithiumMode::Dilithium6x5;
+        result = Botan::DilithiumMode::ML_DSA_6x5;
     }
     return result;
 }
