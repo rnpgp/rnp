@@ -35,38 +35,28 @@
 namespace rnp {
 class KMAC256 {
     /* KDF for PQC key combiner according to
-     * https://datatracker.ietf.org/doc/html/draft-wussler-openpgp-pqc-02 */
+     * https://datatracker.ietf.org/doc/html/draft-ietf-openpgp-pqc-05 */
 
   protected:
-    /*  The value of domSeparation is the UTF-8 encoding of the string
-       "OpenPGPCompositeKeyDerivationFunction" and MUST be the following octet sequence:
-
-        domSeparation := 4F 70 65 6E 50 47 50 43 6F 6D 70 6F 73 69 74 65
-                         4B 65 79 44 65 72 69 76 61 74 69 6F 6E 46 75 6E
-                         63 74 69 6F 6E
+    /*
+      //   domSep          – the UTF-8 encoding of the string "OpenPGPCompositeKDFv1"
+      //
+      //  domSep given in hexadecimal encoding := 4F 70 65 6E 50 47 50 43 6F 6D 70
+      //                                          6F 73 69 74 65 4B 44 46 76 31
 
     */
-    const std::vector<uint8_t> domSeparation_ = std::vector<uint8_t>(
-      {0x4F, 0x70, 0x65, 0x6E, 0x50, 0x47, 0x50, 0x43, 0x6F, 0x6D, 0x70, 0x6F, 0x73,
-       0x69, 0x74, 0x65, 0x4B, 0x65, 0x79, 0x44, 0x65, 0x72, 0x69, 0x76, 0x61, 0x74,
-       0x69, 0x6F, 0x6E, 0x46, 0x75, 0x6E, 0x63, 0x74, 0x69, 0x6F, 0x6E});
-
-    /* customizationString := 4B 44 46 */
-    const std::vector<uint8_t> customizationString_ = std::vector<uint8_t>({0x4B, 0x44, 0x46});
-
-    /* counter - a 4 byte counter set to the value 1 */
-    const std::vector<uint8_t> counter_ = std::vector<uint8_t>({0x00, 0x00, 0x00, 0x01});
+    const std::vector<uint8_t> domSeparation_ =
+      std::vector<uint8_t>({0x4F, 0x70, 0x65, 0x6E, 0x50, 0x47, 0x50, 0x43, 0x6F, 0x6D, 0x70,
+                            0x6F, 0x73, 0x69, 0x74, 0x65, 0x4B, 0x44, 0x46, 0x76, 0x31});
 
     std::vector<uint8_t> domSeparation() const;
-    std::vector<uint8_t> customizationString() const;
-    std::vector<uint8_t> counter() const;
-    std::vector<uint8_t> fixedInfo(pgp_pubkey_alg_t alg_id);
-    std::vector<uint8_t> encData(const std::vector<uint8_t> &ecc_key_share,
-                                 const std::vector<uint8_t> &ecc_ciphertext,
-                                 const std::vector<uint8_t> &kyber_key_share,
+    std::vector<uint8_t> Input_X(const std::vector<uint8_t> &ecc_ciphertext,
                                  const std::vector<uint8_t> &kyber_ciphertext,
+                                 const std::vector<uint8_t> &ecc_pub,
+                                 const std::vector<uint8_t> &kyber_pub,
                                  pgp_pubkey_alg_t            alg_id);
-
+    std::vector<uint8_t> Key_K(const std::vector<uint8_t> &ecc_key_share,
+                               const std::vector<uint8_t> &kyber_key_share);
     KMAC256(){};
 
   public:
@@ -75,8 +65,10 @@ class KMAC256 {
     /* KMAC interface for OpenPGP PQC composite algorithms */
     virtual void compute(const std::vector<uint8_t> &ecc_key_share,
                          const std::vector<uint8_t> &ecc_key_ciphertext,
+                         const std::vector<uint8_t> &ecc_pub,
                          const std::vector<uint8_t> &kyber_key_share,
                          const std::vector<uint8_t> &kyber_ciphertext,
+                         const std::vector<uint8_t> &kyber_pub,
                          const pgp_pubkey_alg_t      alg_id,
                          std::vector<uint8_t> &      out) = 0;
 

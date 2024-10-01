@@ -59,66 +59,45 @@ KMAC256::domSeparation() const
 }
 
 std::vector<uint8_t>
-KMAC256::customizationString() const
-{
-    return customizationString_;
-}
-
-std::vector<uint8_t>
-KMAC256::counter() const
-{
-    return counter_;
-}
-
-/*
-    //   Input:
-    //   algID     - the algorithm ID encoded as octet
-
-    fixedInfo = algID
-*/
-std::vector<uint8_t>
-KMAC256::fixedInfo(pgp_pubkey_alg_t alg_id)
-{
-    std::vector<uint8_t> result;
-    result.push_back(static_cast<uint8_t>(alg_id));
-    return result;
-}
-
-std::vector<uint8_t>
-KMAC256::encData(const std::vector<uint8_t> &ecc_key_share,
-                 const std::vector<uint8_t> &ecc_ciphertext,
-                 const std::vector<uint8_t> &kyber_key_share,
+KMAC256::Input_X(const std::vector<uint8_t> &ecc_ciphertext,
                  const std::vector<uint8_t> &kyber_ciphertext,
+                 const std::vector<uint8_t> &ecc_pub,
+                 const std::vector<uint8_t> &kyber_pub,
                  pgp_pubkey_alg_t            alg_id)
 {
-    std::vector<uint8_t> enc_data;
-    std::vector<uint8_t> counter_vec = counter();
-    std::vector<uint8_t> fixedInfo_vec = fixedInfo(alg_id);
+    std::vector<uint8_t> res;
 
-    /* draft-wussler-openpgp-pqc-02:
-
-        eccKemData = eccKeyShare || eccCipherText
-        kyberKemData = kyberKeyShare || kyberCipherText
-        encData = counter || eccKemData || kyberKemData || fixedInfo
-    */
 #if defined(ENABLE_PQC_DBG_LOG)
-    RNP_LOG_NO_POS_INFO("KMAC256 encData: ");
-    RNP_LOG_U8VEC(" - counter: %s", counter_vec);
-    RNP_LOG_U8VEC(" - eccKeyShare: %s", ecc_key_share);
+    RNP_LOG_NO_POS_INFO("KMAC256 Key_K: ");
     RNP_LOG_U8VEC(" - eccCipherText: %s", ecc_ciphertext);
-    RNP_LOG_U8VEC(" - kyberKeyShare: %s", kyber_key_share);
-    RNP_LOG_U8VEC(" - kyberCipherText: %s", kyber_ciphertext);
-    RNP_LOG_U8VEC(" - fixedInfo: %s", fixedInfo_vec);
+    RNP_LOG_U8VEC(" - mlkemCipherText: %s", kyber_ciphertext);
+    RNP_LOG_U8VEC(" - ecdhPublicKey: %s", ecc_pub);
+    RNP_LOG_U8VEC(" - mlkemPublicKey: %s", kyber_pub);
+    RNP_LOG(" - algId : %d", alg_id);
+#endif
+    res.insert(res.end(), ecc_ciphertext.begin(), ecc_ciphertext.end());
+    res.insert(res.end(), ecc_pub.begin(), ecc_pub.end());
+    res.insert(res.end(), kyber_ciphertext.begin(), kyber_ciphertext.end());
+    res.insert(res.end(), kyber_pub.begin(), kyber_pub.end());
+    res.push_back(static_cast<uint8_t>(alg_id));
+    return res;
+}
+
+std::vector<uint8_t>
+KMAC256::Key_K(const std::vector<uint8_t> &ecc_key_share,
+               const std::vector<uint8_t> &kyber_key_share)
+{
+    std::vector<uint8_t> res;
+
+#if defined(ENABLE_PQC_DBG_LOG)
+    RNP_LOG_NO_POS_INFO("KMAC256 Key_K: ");
+    RNP_LOG_U8VEC(" - eccKeyShare: %s", ecc_key_share);
+    RNP_LOG_U8VEC(" - mlkemKeyShare: %s", kyber_key_share);
 #endif
 
-    enc_data.insert(enc_data.end(), counter_vec.begin(), counter_vec.end());
-    enc_data.insert(enc_data.end(), ecc_key_share.begin(), ecc_key_share.end());
-    enc_data.insert(enc_data.end(), ecc_ciphertext.begin(), ecc_ciphertext.end());
-    enc_data.insert(enc_data.end(), kyber_key_share.begin(), kyber_key_share.end());
-    enc_data.insert(enc_data.end(), kyber_ciphertext.begin(), kyber_ciphertext.end());
-    enc_data.insert(enc_data.end(), fixedInfo_vec.begin(), fixedInfo_vec.end());
-
-    return enc_data;
+    res.insert(res.end(), ecc_key_share.begin(), ecc_key_share.end());
+    res.insert(res.end(), kyber_key_share.begin(), kyber_key_share.end());
+    return res;
 }
 
 KMAC256::~KMAC256()
