@@ -228,7 +228,7 @@ pgp_kyber_ecdh_composite_private_key_t::pgp_kyber_ecdh_composite_private_key_t(
     : pk_alg_(pk_alg)
 {
     if (ecdh_curve_privkey_size(pk_alg_to_curve_id(pk_alg)) != ecdh_key_encoded.size() ||
-        kyber_privkey_size(pk_alg_to_kyber_id(pk_alg)) != kyber_key_encoded.size()) {
+        kyber_privkey_size() != kyber_key_encoded.size()) {
         RNP_LOG("ecdh or kyber key length mismatch");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
@@ -270,9 +270,8 @@ pgp_kyber_ecdh_composite_private_key_t::pgp_kyber_ecdh_composite_private_key_t(
 size_t
 pgp_kyber_ecdh_composite_private_key_t::encoded_size(pgp_pubkey_alg_t pk_alg)
 {
-    kyber_parameter_e kyber_param = pk_alg_to_kyber_id(pk_alg);
-    pgp_curve_t       curve = pk_alg_to_curve_id(pk_alg);
-    return ecdh_curve_privkey_size(curve) + kyber_privkey_size(kyber_param);
+    pgp_curve_t curve = pk_alg_to_curve_id(pk_alg);
+    return ecdh_curve_privkey_size(curve) + kyber_privkey_size();
 }
 
 void
@@ -336,10 +335,12 @@ hashed_ecc_keyshare(const std::vector<uint8_t> &key_share,
 } // namespace
 
 rnp_result_t
-pgp_kyber_ecdh_composite_private_key_t::decrypt(rnp::RNG *                        rng,
-                                                uint8_t *                         out,
-                                                size_t *                          out_len,
-                                                const pgp_kyber_ecdh_encrypted_t *enc) const
+pgp_kyber_ecdh_composite_private_key_t::decrypt(
+  rnp::RNG *                        rng,
+  uint8_t *                         out,
+  size_t *                          out_len,
+  const pgp_kyber_ecdh_encrypted_t *enc,
+  const std::vector<uint8_t> &      kyber_pub_encoded) const
 {
     initialized_or_throw();
     rnp_result_t         res;
@@ -383,8 +384,10 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(rnp::RNG *                      
     auto                 kmac = rnp::KMAC256::create();
     kmac->compute(hashed_ecdh_keyshare,
                   ecdh_encapsulated_keyshare,
+                  ecdh_key_->get_pubkey_encoded(rng),
                   kyber_keyshare,
                   kyber_encapsulated_keyshare,
+                  kyber_pub_encoded,
                   pk_alg(),
                   kek_vec);
     Botan::SymmetricKey kek(kek_vec);
@@ -527,8 +530,10 @@ pgp_kyber_ecdh_composite_public_key_t::encrypt(rnp::RNG *                  rng,
     auto                 kmac = rnp::KMAC256::create();
     kmac->compute(ecdh_hashed_symmetric_key,
                   ecdh_ciphertext,
+                  ecdh_key_.get_encoded(),
                   kyber_encap.symmetric_key,
                   kyber_encap.ciphertext,
+                  kyber_key_.get_encoded(),
                   pk_alg(),
                   kek_vec);
     Botan::SymmetricKey kek(kek_vec);
@@ -561,6 +566,14 @@ pgp_kyber_ecdh_composite_public_key_t::get_encoded() const
     result.insert(result.end(), std::begin(ecdh_key_encoded), std::end(ecdh_key_encoded));
     result.insert(result.end(), std::begin(kyber_key_encoded), std::end(kyber_key_encoded));
     return result;
+};
+
+std::vector<uint8_t>
+pgp_kyber_ecdh_composite_public_key_t::get_kyber_encoded() const
+{
+    initialized_or_throw();
+
+    return kyber_key_.get_encoded();
 };
 
 bool

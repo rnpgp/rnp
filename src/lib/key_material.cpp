@@ -1751,7 +1751,8 @@ MlkemEcdhKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
                               size_t &                        out_len,
                               const pgp_encrypted_material_t &in) const
 {
-    return key_.priv.decrypt(&ctx.rng, out, &out_len, &in.kyber_ecdh);
+    return key_.priv.decrypt(
+      &ctx.rng, out, &out_len, &in.kyber_ecdh, pub().get_kyber_encoded());
 }
 
 size_t

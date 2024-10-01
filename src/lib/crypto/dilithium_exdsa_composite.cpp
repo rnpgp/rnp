@@ -257,8 +257,7 @@ pgp_dilithium_exdsa_composite_private_key_t::pgp_dilithium_exdsa_composite_priva
     : pk_alg_(pk_alg)
 {
     if (exdsa_curve_privkey_size(pk_alg_to_curve_id(pk_alg)) != exdsa_key_encoded.size() ||
-        dilithium_privkey_size(pk_alg_to_dilithium_id(pk_alg)) !=
-          dilithium_key_encoded.size()) {
+        dilithium_privkey_size() != dilithium_key_encoded.size()) {
         RNP_LOG("exdsa or mldsa key length mismatch");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
@@ -273,9 +272,8 @@ pgp_dilithium_exdsa_composite_private_key_t::pgp_dilithium_exdsa_composite_priva
 size_t
 pgp_dilithium_exdsa_composite_private_key_t::encoded_size(pgp_pubkey_alg_t pk_alg)
 {
-    dilithium_parameter_e dilithium_param = pk_alg_to_dilithium_id(pk_alg);
     pgp_curve_t           curve = pk_alg_to_curve_id(pk_alg);
-    return exdsa_curve_privkey_size(curve) + dilithium_privkey_size(dilithium_param);
+    return exdsa_curve_privkey_size(curve) + dilithium_privkey_size();
 }
 
 void

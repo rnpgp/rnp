@@ -3250,8 +3250,6 @@ TEST_F(rnp_tests, test_ffi_v6_cert_import)
 }
 
 #if defined(ENABLE_PQC)
-// NOTE: this tests ML-KEM-ipd test vectors
-// The final implementation of the PQC draft implementation will use the final NIST standard.
 TEST_F(rnp_tests, test_ffi_pqc_certs)
 {
     rnp_ffi_t   ffi = NULL;
@@ -3288,7 +3286,6 @@ TEST_F(rnp_tests, test_ffi_pqc_certs)
     assert_int_equal(keycount, 2);
     rnp_ffi_destroy(ffi);
 }
-
 #endif
 
 TEST_F(rnp_tests, test_ffi_v6_seckey_import)
