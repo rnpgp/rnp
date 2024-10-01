@@ -162,6 +162,34 @@ pk_alg_default_flags(pgp_pubkey_alg_t alg)
 static void
 adjust_hash_alg(rnp_keygen_crypto_params_t &crypto)
 {
+#if defined(ENABLE_PQC)
+    if (!crypto.hash_alg) {
+        // Set usable default hash for PQC key if not explicitly set before.
+        // Note that for PQC keys, some constraints for the used hash algorithm exist.
+        switch (crypto.key_alg) {
+        case PGP_PKA_DILITHIUM3_ED25519:
+            FALLTHROUGH_STATEMENT;
+        case PGP_PKA_DILITHIUM3_P256:
+            FALLTHROUGH_STATEMENT;
+        case PGP_PKA_DILITHIUM3_BP256:
+            FALLTHROUGH_STATEMENT;
+        case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
+            FALLTHROUGH_STATEMENT;
+        case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+            crypto.hash_alg = PGP_HASH_SHA3_256;
+            break;
+        case PGP_PKA_DILITHIUM5_BP384:
+            FALLTHROUGH_STATEMENT;
+        case PGP_PKA_DILITHIUM5_P384:
+            FALLTHROUGH_STATEMENT;
+        case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
+            crypto.hash_alg = PGP_HASH_SHA3_512;
+            break;
+        default:
+            break;
+        }
+    }
+#endif
     if (!crypto.hash_alg) {
         crypto.hash_alg = (pgp_hash_alg_t) DEFAULT_HASH_ALGS[0];
     }
@@ -178,6 +206,41 @@ adjust_hash_alg(rnp_keygen_crypto_params_t &crypto)
         crypto.hash_alg = min_hash;
     }
 }
+
+#if defined(ENABLE_PQC)
+static bool
+pgp_check_key_hash_requirements(const rnp_keygen_crypto_params_t &crypto)
+{
+    switch (crypto.key_alg) {
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
+        if (!sphincsplus_hash_allowed(crypto.key_alg, crypto.hash_alg)) {
+            return false;
+        }
+        break;
+    case PGP_PKA_DILITHIUM3_ED25519:
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_P256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_P384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_BP256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_BP384:
+        if (!dilithium_hash_allowed(crypto.hash_alg)) {
+            return false;
+        }
+        break;
+    default:
+        break;
+    }
+    return true;
+}
+#endif
 
 static void
 keygen_merge_crypto_defaults(rnp_keygen_crypto_params_t &crypto)
@@ -255,6 +318,13 @@ validate_keygen_primary(const rnp_keygen_primary_desc_t &desc)
         RNP_LOG("usage not permitted for pk algorithm");
         return false;
     }
+#if defined(ENABLE_PQC)
+    // check hash requirements
+    if (!pgp_check_key_hash_requirements(desc.crypto)) {
+        RNP_LOG("invalid hash algorithm for the chosen key");
+        return false;
+    }
+#endif
     // require a userid
     if (!desc.cert.userid[0]) {
         RNP_LOG("userid is required for primary key");
@@ -377,25 +447,11 @@ keygen_primary_merge_defaults(rnp_keygen_primary_desc_t &desc)
                  getenv_logname());
         desc.cert.userid = uid;
     }
-}
 
-#if defined(ENABLE_PQC)
-static bool
-pgp_check_key_hash_requirements(rnp_keygen_crypto_params_t &crypto)
-{
-    switch (crypto.key_alg) {
-    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
-        if (!sphincsplus_hash_allowed(crypto.key_alg, crypto.hash_alg)) {
-            return false;
-        }
-        break;
+#if defined(ENABLE_CRYPTO_REFRESH) && defined(ENABLE_PQC)
+    switch (desc.crypto.key_alg) {
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -403,16 +459,19 @@ pgp_check_key_hash_requirements(rnp_keygen_crypto_params_t &crypto)
     case PGP_PKA_DILITHIUM3_BP256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
-        if (!dilithium_hash_allowed(crypto.hash_alg)) {
-            return false;
-        }
-        break;
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
+        // set the correct key version for PQC primary keys
+        desc.pgp_version = PGP_V6;
     default:
         break;
     }
-    return true;
-}
 #endif
+}
 
 bool
 pgp_generate_primary_key(rnp_keygen_primary_desc_t &desc,
@@ -503,6 +562,13 @@ validate_keygen_subkey(rnp_keygen_subkey_desc_t &desc)
         RNP_LOG("usage not permitted for pk algorithm");
         return false;
     }
+#if defined(ENABLE_PQC)
+    // check hash requirements
+    if (!pgp_check_key_hash_requirements(desc.crypto)) {
+        RNP_LOG("invalid hash algorithm for the chosen key");
+        return false;
+    }
+#endif
     return true;
 }
 
@@ -540,6 +606,10 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t &     desc,
     // merge some defaults in, if requested
     if (merge_defaults) {
         keygen_subkey_merge_defaults(desc);
+#if defined(ENABLE_CRYPTO_REFRESH)
+        // by default make subkey version match primary key version
+        desc.pgp_version = primary_sec.version();
+#endif
     }
 
     // now validate the keygen fields
@@ -547,10 +617,10 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t &     desc,
         return false;
     }
 
-#if defined(ENABLE_PQC)
-    // check hash requirements
-    if (!pgp_check_key_hash_requirements(desc.crypto)) {
-        RNP_LOG("invalid hash algorithm for the chosen key");
+#if defined(ENABLE_CRYPTO_REFRESH)
+    // assure that key versions match between subkeys
+    if (desc.pgp_version != primary_sec.version()) {
+        RNP_LOG("primary and subkey versions do not match");
         return false;
     }
 #endif

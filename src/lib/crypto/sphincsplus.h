@@ -39,12 +39,12 @@ struct pgp_sphincsplus_key_t;
 struct pgp_sphincsplus_signature_t;
 
 typedef struct pgp_sphincsplus_signature_t {
-    std::vector<uint8_t>    sig;
+    std::vector<uint8_t> sig;
 } pgp_sphincsplus_signature_t;
 
 class pgp_sphincsplus_private_key_t {
   public:
-    pgp_sphincsplus_private_key_t(const uint8_t   *key_encoded,
+    pgp_sphincsplus_private_key_t(const uint8_t *  key_encoded,
                                   size_t           key_encoded_len,
                                   pgp_pubkey_alg_t alg);
     pgp_sphincsplus_private_key_t(std::vector<uint8_t> const &key_encoded,
@@ -122,17 +122,17 @@ class pgp_sphincsplus_public_key_t {
   private:
     Botan::SphincsPlus_PublicKey botan_key() const;
 
-    std::vector<uint8_t>    key_encoded_;
-    pgp_pubkey_alg_t        pk_alg_;
-    bool                    is_initialized_ = false;
+    std::vector<uint8_t> key_encoded_;
+    pgp_pubkey_alg_t     pk_alg_;
+    bool                 is_initialized_ = false;
 };
 
 std::pair<pgp_sphincsplus_public_key_t, pgp_sphincsplus_private_key_t>
 sphincsplus_generate_keypair(rnp::RNG *rng, pgp_pubkey_alg_t alg);
 
-rnp_result_t pgp_sphincsplus_generate(rnp::RNG *              rng,
-                                      pgp_sphincsplus_key_t * material,
-                                      pgp_pubkey_alg_t        alg);
+rnp_result_t pgp_sphincsplus_generate(rnp::RNG *             rng,
+                                      pgp_sphincsplus_key_t *material,
+                                      pgp_pubkey_alg_t       alg);
 
 rnp_result_t sphincsplus_validate_key(rnp::RNG *                   rng,
                                       const pgp_sphincsplus_key_t *key,
@@ -147,8 +147,7 @@ size_t sphincsplus_privkey_size(pgp_pubkey_alg_t alg);
 size_t sphincsplus_pubkey_size(pgp_pubkey_alg_t alg);
 size_t sphincsplus_signature_size(pgp_pubkey_alg_t alg);
 
-bool sphincsplus_hash_allowed(pgp_pubkey_alg_t pk_alg,
-                              pgp_hash_alg_t   hash_alg);
+bool sphincsplus_hash_allowed(pgp_pubkey_alg_t pk_alg, pgp_hash_alg_t hash_alg);
 
 pgp_hash_alg_t sphincsplus_default_hash_alg(pgp_pubkey_alg_t pk_alg);
 
