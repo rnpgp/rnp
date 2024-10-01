@@ -33,27 +33,17 @@ namespace {
 Botan::KyberMode
 rnp_kyber_param_to_botan_kyber_mode(kyber_parameter_e mode)
 {
-#if defined(BOTAN_HAS_ML_KEM_INITIAL_PUBLIC_DRAFT) && defined(ENABLE_PQC_MLKEM_IPD)
-    Botan::KyberMode result = Botan::KyberMode::ML_KEM_1024_ipd;
+    Botan::KyberMode result = Botan::KyberMode::ML_KEM_1024;
     if (mode == kyber_768) {
-        result = Botan::KyberMode::ML_KEM_768_ipd;
+        result = Botan::KyberMode::ML_KEM_768;
     }
-#else
-    Botan::KyberMode result = Botan::KyberMode::Kyber1024;
-    if (mode == kyber_768) {
-        result = Botan::KyberMode::Kyber768;
-    }
-#endif
     return result;
 }
 
 uint32_t
-key_share_size_from_kyber_param(kyber_parameter_e param)
+kyber_key_share_size()
 {
-    if (param == kyber_768) {
-        return 24;
-    }
-    return 32; // kyber_1024
+    return 32;
 }
 } // namespace
 
@@ -63,6 +53,7 @@ kyber_generate_keypair(rnp::RNG *rng, kyber_parameter_e kyber_param)
     Botan::Kyber_PrivateKey kyber_priv(*rng->obj(),
                                        rnp_kyber_param_to_botan_kyber_mode(kyber_param));
 
+    /* returns the two 32-byte values d and z of ML-KEM.KeyGen() */
     Botan::secure_vector<uint8_t>      encoded_private_key = kyber_priv.private_key_bits();
     std::unique_ptr<Botan::Public_Key> kyber_pub = kyber_priv.public_key();
 
@@ -98,10 +89,7 @@ pgp_kyber_public_key_t::encapsulate(rnp::RNG *rng) const
     Botan::secure_vector<uint8_t> encap_key;           // this has to go over the wire
     Botan::secure_vector<uint8_t> data_encryption_key; // this is the key used for
     // encryption of the payload data
-    kem_enc.encrypt(encap_key,
-                    data_encryption_key,
-                    *rng->obj(),
-                    key_share_size_from_kyber_param(kyber_mode_));
+    kem_enc.encrypt(encap_key, data_encryption_key, *rng->obj(), kyber_key_share_size());
     kyber_encap_result_t result;
     result.ciphertext.insert(
       result.ciphertext.end(), encap_key.data(), encap_key.data() + encap_key.size());
@@ -119,8 +107,8 @@ pgp_kyber_private_key_t::decapsulate(rnp::RNG *     rng,
     assert(is_initialized_);
     auto                          decoded_kyber_priv = botan_key();
     Botan::PK_KEM_Decryptor       kem_dec(decoded_kyber_priv, *rng->obj(), "Raw", "base");
-    Botan::secure_vector<uint8_t> dec_shared_key = kem_dec.decrypt(
-      ciphertext, ciphertext_len, key_share_size_from_kyber_param(kyber_mode_));
+    Botan::secure_vector<uint8_t> dec_shared_key =
+      kem_dec.decrypt(ciphertext, ciphertext_len, kyber_key_share_size());
     return std::vector<uint8_t>(dec_shared_key.data(),
                                 dec_shared_key.data() + dec_shared_key.size());
 }

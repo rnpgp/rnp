@@ -43,8 +43,10 @@ class KMAC256_Botan : public KMAC256 {
 
     void compute(const std::vector<uint8_t> &ecc_key_share,
                  const std::vector<uint8_t> &ecc_ciphertext,
+                 const std::vector<uint8_t> &ecc_pub,
                  const std::vector<uint8_t> &kyber_key_share,
                  const std::vector<uint8_t> &kyber_ciphertext,
+                 const std::vector<uint8_t> &kyber_pub,
                  const pgp_pubkey_alg_t      alg_id,
                  std::vector<uint8_t> &      out) override;
 };
