@@ -199,21 +199,15 @@ ec_generate_generic_native(rnp::RNG *            rng,
     auto         ec_desc = pgp::ec::Curve::get(curve);
     const size_t curve_order = ec_desc->bytes();
 
-    Botan::ECDH_PrivateKey privkey_botan(*(rng->obj()), Botan::EC_Group(ec_desc->botan_name));
-    Botan::BigInt          pub_x = privkey_botan.public_point().get_affine_x();
-    Botan::BigInt          pub_y = privkey_botan.public_point().get_affine_y();
-    Botan::BigInt          x = privkey_botan.private_value();
+    Botan::ECDH_PrivateKey privkey_botan(*(rng->obj()),
+                                         Botan::EC_Group::from_name(ec_desc->botan_name));
 
     // pubkey: 0x04 || X || Y
-    pubkey = Botan::unlock(Botan::BigInt::encode_fixed_length_int_pair(
-      pub_x, pub_y, curve_order)); // zero-pads to the given size
+    pubkey = Botan::unlock(privkey_botan.public_point().xy_bytes());
     pubkey.insert(pubkey.begin(), 0x04);
 
     privkey = std::vector<uint8_t>(curve_order);
-    x.binary_encode(privkey.data(), privkey.size()); // zero-pads to the given size
-
-    assert(pubkey.size() == 2 * curve_order + 1);
-    assert(privkey.size() == curve_order);
+    privkey_botan.private_value().serialize_to(privkey); // zero-pads to the given size
 
     return RNP_SUCCESS;
 }

@@ -25,7 +25,7 @@
  */
 
 #include "x25519.h"
-#include <botan/curve25519.h>
+#include <botan/x25519.h>
 #if defined(ENABLE_CRYPTO_REFRESH)
 #include "exdsa_ecdhkem.h"
 #include "hkdf.hpp"
@@ -155,11 +155,11 @@ x25519_validate_key_native(rnp::RNG *rng, const pgp_x25519_key_t *key, bool secr
     bool valid_pub;
     bool valid_priv;
 
-    Botan::Curve25519_PublicKey pub_key(key->priv);
+    Botan::X25519_PublicKey pub_key(key->priv);
     valid_pub = pub_key.check_key(*(rng->obj()), false);
 
     if (secret) {
-        Botan::Curve25519_PrivateKey priv_key(
+        Botan::X25519_PrivateKey priv_key(
           Botan::secure_vector<uint8_t>(key->priv.begin(), key->priv.end()));
         valid_priv = priv_key.check_key(*(rng->obj()), false);
     } else {
@@ -177,7 +177,7 @@ generate_x25519_native(rnp::RNG *            rng,
                        std::vector<uint8_t> &privkey,
                        std::vector<uint8_t> &pubkey)
 {
-    Botan::Curve25519_PrivateKey priv_key(*(rng->obj()));
+    Botan::X25519_PrivateKey priv_key(*(rng->obj()));
     pubkey = priv_key.public_value();
     privkey = Botan::unlock(priv_key.raw_private_key_bits());
 
