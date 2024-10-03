@@ -68,6 +68,7 @@ typedef struct pgp_packet_body_t {
      *  @param len number of available bytes in mem
      */
     pgp_packet_body_t(const uint8_t *data, size_t len);
+    pgp_packet_body_t(const std::vector<uint8_t> &data);
 
     pgp_packet_body_t(const pgp_packet_body_t &src) = delete;
     pgp_packet_body_t(pgp_packet_body_t &&src) = delete;
@@ -107,6 +108,12 @@ typedef struct pgp_packet_body_t {
      *  @return true on success or false otherwise (if end of the packet is reached)
      **/
     bool get(uint8_t *val, size_t len) noexcept;
+    /**
+     * @brief Get some bytes of data to vector, resizing it accordingly.
+     *
+     * @param len number of bytes to read.
+     */
+    bool get(std::vector<uint8_t> &val, size_t len);
     /** @brief get next keyid from the packet body, populated with read() call.
      *  @param val result will be stored here on success
      *  @return true on success or false otherwise (if end of the packet is reached)

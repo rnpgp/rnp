@@ -815,7 +815,7 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
         indent_dest_decrease(dst);
     }
 
-    dst_print_hex(dst, "lbits", sig->lbits, sizeof(sig->lbits), false);
+    dst_print_hex(dst, "lbits", sig->lbits.data(), sig->lbits.size(), false);
     dst_printf(dst, "signature material:\n");
     indent_dest_increase(dst);
 
@@ -2019,7 +2019,7 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
         }
     }
 
-    if (!json_add_hex(pkt, "lbits", sig->lbits, sizeof(sig->lbits))) {
+    if (!json_add_hex(pkt, "lbits", sig->lbits.data(), sig->lbits.size())) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 

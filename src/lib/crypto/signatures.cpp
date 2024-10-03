@@ -47,7 +47,7 @@ signature_hash_finish(const pgp_signature_t &  sig,
                       rnp::Hash &              hash,
                       const pgp_literal_hdr_t *hdr)
 {
-    hash.add(sig.hashed_data, sig.hashed_len);
+    hash.add(sig.hashed_data);
     switch (sig.version) {
     case PGP_V4:
 #if defined(ENABLE_CRYPTO_REFRESH)
@@ -56,12 +56,12 @@ signature_hash_finish(const pgp_signature_t &  sig,
     {
         uint8_t trailer[6] = {0x00, 0xff, 0x00, 0x00, 0x00, 0x00};
         trailer[0] = sig.version;
-        write_uint32(&trailer[2], sig.hashed_len);
+        write_uint32(&trailer[2], sig.hashed_data.size());
         hash.add(trailer, 6);
         break;
     }
     case PGP_V5: {
-        uint64_t hash_len = sig.hashed_len;
+        uint64_t hash_len = sig.hashed_data.size();
         if (sig.is_document()) {
             uint8_t doc_trailer[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
             /* This data is not added to the hash_len as per spec */
@@ -96,7 +96,7 @@ signature_init(const pgp_key_pkt_t &key, const pgp_signature_t &sig)
 
 #if defined(ENABLE_CRYPTO_REFRESH)
     if (key.version == PGP_V6) {
-        hash->add(sig.salt, sig.salt_size);
+        hash->add(sig.salt);
     }
 #endif
 
@@ -132,7 +132,7 @@ signature_calculate(pgp_signature_t &        sig,
     }
 
     /* Copy left 16 bits to signature */
-    memcpy(sig.lbits, hval.data(), 2);
+    std::copy(hval.begin(), hval.begin() + 2, sig.lbits.begin());
 
     pgp_signature_material_t material = {};
     /* Some algos require used hash algorithm for signing */
@@ -181,7 +181,7 @@ signature_validate(const pgp_signature_t &     sig,
     auto hval = signature_hash_finish(sig, hash, hdr);
 
     /* compare lbits */
-    if (memcmp(hval.data(), sig.lbits, 2)) {
+    if (memcmp(hval.data(), sig.lbits.data(), 2)) {
         RNP_LOG("wrong lbits");
         return RNP_ERROR_SIGNATURE_INVALID;
     }
