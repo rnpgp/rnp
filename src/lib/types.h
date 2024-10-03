@@ -227,9 +227,9 @@ typedef struct pgp_key_protection_t {
     uint8_t           iv[PGP_MAX_BLOCK_SIZE];
 } pgp_key_protection_t;
 
-typedef struct pgp_key_pkt_t    pgp_key_pkt_t;
-typedef struct pgp_userid_pkt_t pgp_userid_pkt_t;
-typedef struct pgp_signature_t  pgp_signature_t;
+typedef struct pgp_key_pkt_t      pgp_key_pkt_t;
+typedef struct pgp_userid_pkt_t   pgp_userid_pkt_t;
+typedef struct pgp_signature_t    pgp_signature_t;
 typedef struct pgp_one_pass_sig_t pgp_one_pass_sig_t;
 
 typedef enum {

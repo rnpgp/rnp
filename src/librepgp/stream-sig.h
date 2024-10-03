@@ -51,13 +51,11 @@ typedef struct pgp_signature_t {
   public:
     pgp_version_t version;
     /* common v3 and v4 fields */
-    pgp_pubkey_alg_t palg;
-    pgp_hash_alg_t   halg;
-    uint8_t          lbits[2];
-    uint8_t *        hashed_data;
-    size_t           hashed_len;
-    uint8_t *        material_buf; /* raw signature material */
-    size_t           material_len; /* raw signature material length */
+    pgp_pubkey_alg_t       palg;
+    pgp_hash_alg_t         halg;
+    std::array<uint8_t, 2> lbits;
+    std::vector<uint8_t>   hashed_data;
+    std::vector<uint8_t>   material_buf; /* raw signature material */
 
     /* v3 - only fields */
     uint32_t     creation_time;
@@ -68,21 +66,14 @@ typedef struct pgp_signature_t {
 
 #if defined(ENABLE_CRYPTO_REFRESH)
     /* v6 - only fields */
-    uint8_t salt[PGP_MAX_SALT_SIZE_V6_SIG];
-    uint8_t salt_size;
+    std::vector<uint8_t> salt;
 #endif
 
     pgp_signature_t()
         : type_(PGP_SIG_BINARY), version(PGP_VUNKNOWN), palg(PGP_PKA_NOTHING),
-          halg(PGP_HASH_UNKNOWN), hashed_data(NULL), hashed_len(0), material_buf(NULL),
-          material_len(0), creation_time(0){};
-    pgp_signature_t(const pgp_signature_t &src);
-    pgp_signature_t(pgp_signature_t &&src);
-    pgp_signature_t &operator=(pgp_signature_t &&src);
-    pgp_signature_t &operator=(const pgp_signature_t &src);
-    bool             operator==(const pgp_signature_t &src) const;
-    bool             operator!=(const pgp_signature_t &src) const;
-    ~pgp_signature_t();
+          halg(PGP_HASH_UNKNOWN), creation_time(0){};
+    bool operator==(const pgp_signature_t &src) const;
+    bool operator!=(const pgp_signature_t &src) const;
 
     /* @brief Get signature's type */
     pgp_sig_type_t
