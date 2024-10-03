@@ -183,148 +183,12 @@ process_pgp_signatures(pgp_source_t &src, pgp_signature_list_t &sigs)
     return RNP_SUCCESS;
 }
 
-pgp_signature_t::pgp_signature_t(const pgp_signature_t &src)
-{
-    version = src.version;
-    type_ = src.type_;
-    palg = src.palg;
-    halg = src.halg;
-    memcpy(lbits, src.lbits, sizeof(src.lbits));
-#if defined(ENABLE_CRYPTO_REFRESH)
-    if (version == PGP_V6) {
-        salt_size = src.salt_size;
-        memcpy(salt, src.salt, salt_size);
-    }
-#endif
-    creation_time = src.creation_time;
-    signer = src.signer;
-
-    hashed_len = src.hashed_len;
-    hashed_data = NULL;
-    if (src.hashed_data) {
-        if (!(hashed_data = (uint8_t *) malloc(hashed_len))) {
-            throw std::bad_alloc();
-        }
-        memcpy(hashed_data, src.hashed_data, hashed_len);
-    }
-    material_len = src.material_len;
-    material_buf = NULL;
-    if (src.material_buf) {
-        if (!(material_buf = (uint8_t *) malloc(material_len))) {
-            throw std::bad_alloc();
-        }
-        memcpy(material_buf, src.material_buf, material_len);
-    }
-    subpkts = src.subpkts;
-}
-
-pgp_signature_t::pgp_signature_t(pgp_signature_t &&src)
-{
-    version = src.version;
-    type_ = src.type_;
-    palg = src.palg;
-    halg = src.halg;
-    memcpy(lbits, src.lbits, sizeof(src.lbits));
-#if defined(ENABLE_CRYPTO_REFRESH)
-    if (version == PGP_V6) {
-        salt_size = src.salt_size;
-        memcpy(salt, src.salt, salt_size);
-    }
-#endif
-    creation_time = src.creation_time;
-    signer = src.signer;
-    hashed_len = src.hashed_len;
-    hashed_data = src.hashed_data;
-    src.hashed_data = NULL;
-    material_len = src.material_len;
-    material_buf = src.material_buf;
-    src.material_buf = NULL;
-    subpkts = std::move(src.subpkts);
-}
-
-pgp_signature_t &
-pgp_signature_t::operator=(pgp_signature_t &&src)
-{
-    if (this == &src) {
-        return *this;
-    }
-
-    version = src.version;
-    type_ = src.type_;
-    palg = src.palg;
-    halg = src.halg;
-    memcpy(lbits, src.lbits, sizeof(src.lbits));
-    creation_time = src.creation_time;
-    signer = src.signer;
-    hashed_len = src.hashed_len;
-    free(hashed_data);
-    hashed_data = src.hashed_data;
-    src.hashed_data = NULL;
-    material_len = src.material_len;
-    free(material_buf);
-    material_buf = src.material_buf;
-    src.material_buf = NULL;
-    subpkts = std::move(src.subpkts);
-
-    return *this;
-}
-
-pgp_signature_t &
-pgp_signature_t::operator=(const pgp_signature_t &src)
-{
-    if (this == &src) {
-        return *this;
-    }
-
-    version = src.version;
-    type_ = src.type_;
-    palg = src.palg;
-    halg = src.halg;
-    memcpy(lbits, src.lbits, sizeof(src.lbits));
-#if defined(ENABLE_CRYPTO_REFRESH)
-    if (version == PGP_V6) {
-        salt_size = src.salt_size;
-        memcpy(salt, src.salt, salt_size);
-    }
-#endif
-    creation_time = src.creation_time;
-    signer = src.signer;
-
-    hashed_len = src.hashed_len;
-    free(hashed_data);
-    hashed_data = NULL;
-    if (src.hashed_data) {
-        if (!(hashed_data = (uint8_t *) malloc(hashed_len))) {
-            throw std::bad_alloc();
-        }
-        memcpy(hashed_data, src.hashed_data, hashed_len);
-    }
-    material_len = src.material_len;
-    free(material_buf);
-    material_buf = NULL;
-    if (src.material_buf) {
-        if (!(material_buf = (uint8_t *) malloc(material_len))) {
-            throw std::bad_alloc();
-        }
-        memcpy(material_buf, src.material_buf, material_len);
-    }
-    subpkts = src.subpkts;
-
-    return *this;
-}
-
 bool
 pgp_signature_t::operator==(const pgp_signature_t &src) const
 {
-    if ((lbits[0] != src.lbits[0]) || (lbits[1] != src.lbits[1])) {
-        return false;
-    }
     // TODO-V6: could also compare salt
-    if ((hashed_len != src.hashed_len) || memcmp(hashed_data, src.hashed_data, hashed_len)) {
-        return false;
-    }
-    return (material_len == src.material_len) &&
-           !memcmp(material_buf, src.material_buf, material_len);
+    return (lbits == src.lbits) && (hashed_data == src.hashed_data) &&
+           (material_buf == src.material_buf);
 }
 
 bool
@@ -333,18 +197,12 @@ pgp_signature_t::operator!=(const pgp_signature_t &src) const
     return !(*this == src);
 }
 
-pgp_signature_t::~pgp_signature_t()
-{
-    free(hashed_data);
-    free(material_buf);
-}
-
 pgp_sig_id_t
 pgp_signature_t::get_id() const
 {
     auto hash = rnp::Hash::create(PGP_HASH_SHA1);
-    hash->add(hashed_data, hashed_len);
-    hash->add(material_buf, material_len);
+    hash->add(hashed_data);
+    hash->add(material_buf);
     pgp_sig_id_t res = {0};
     static_assert(std::tuple_size<decltype(res)>::value == PGP_SHA1_HASH_SIZE,
                   "pgp_sig_id_t size mismatch");
@@ -901,13 +759,7 @@ pgp_signature_t::parse_v2v3(pgp_packet_body_t &pkt)
         return RNP_ERROR_BAD_FORMAT;
     }
     /* hashed data */
-    free(hashed_data);
-    if (!(hashed_data = (uint8_t *) malloc(5))) {
-        RNP_LOG("allocation failed");
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    memcpy(hashed_data, &buf[1], 5);
-    hashed_len = 5;
+    hashed_data.assign(buf + 1, buf + 6);
     /* signature type */
     type_ = (pgp_sig_type_t) buf[1];
     /* creation time */
@@ -1063,23 +915,18 @@ pgp_signature_t::parse_v4up(pgp_packet_body_t &pkt)
         return RNP_ERROR_BAD_FORMAT;
     }
     /* building hashed data */
-    free(hashed_data);
     size_t hlen = 4 + splen + splen_size;
-    if (!(hashed_data = (uint8_t *) malloc(hlen))) {
-        RNP_LOG("allocation failed");
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
+    hashed_data.resize(hlen);
     hashed_data[0] = version;
     static_assert(sizeof(buf) == 3, "Wrong signature header size.");
     pkt.skip_back(3 + splen_size);
 
-    if (!pkt.get(hashed_data + 1, hlen - 1)) {
+    if (!pkt.get(hashed_data.data() + 1, hlen - 1)) {
         RNP_LOG("cannot get hashed subpackets data");
         return RNP_ERROR_BAD_FORMAT;
     }
-    hashed_len = hlen;
     /* parsing hashed subpackets */
-    if (!parse_subpackets(hashed_data + 4 + splen_size, splen, true)) {
+    if (!parse_subpackets(hashed_data.data() + 4 + splen_size, splen, true)) {
         RNP_LOG("failed to parse hashed subpackets");
         return RNP_ERROR_BAD_FORMAT;
     }
@@ -1137,13 +984,14 @@ pgp_signature_t::parse(pgp_packet_body_t &pkt)
     }
 
     /* left 16 bits of the hash */
-    if (!pkt.get(lbits, 2)) {
+    if (!pkt.get(lbits.data(), 2)) {
         RNP_LOG("not enough data for hash left bits");
         return RNP_ERROR_BAD_FORMAT;
     }
 
 #if defined(ENABLE_CRYPTO_REFRESH)
     if (ver == PGP_V6) {
+        uint8_t salt_size = 0;
         if (!pkt.get(salt_size)) {
             RNP_LOG("not enough data for v6 salt size octet");
             return RNP_ERROR_BAD_FORMAT;
@@ -1160,18 +1008,8 @@ pgp_signature_t::parse(pgp_packet_body_t &pkt)
 #endif
 
     /* raw signature material */
-    material_len = pkt.left();
-    if (!material_len) {
-        RNP_LOG("No signature material");
-        return RNP_ERROR_BAD_FORMAT;
-    }
-    material_buf = (uint8_t *) malloc(material_len);
-    if (!material_buf) {
-        RNP_LOG("Allocation failed");
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
     /* we cannot fail here */
-    pkt.get(material_buf, material_len);
+    pkt.get(material_buf, pkt.left());
     /* check whether it can be parsed */
     pgp_signature_material_t material = {};
     if (!parse_material(material)) {
@@ -1194,7 +1032,7 @@ pgp_signature_t::parse(pgp_source_t &src)
 bool
 pgp_signature_t::parse_material(pgp_signature_material_t &material) const
 {
-    pgp_packet_body_t pkt(material_buf, material_len);
+    pgp_packet_body_t pkt(material_buf);
 
     switch (palg) {
     case PGP_PKA_RSA:
@@ -1299,25 +1137,25 @@ pgp_signature_t::write(pgp_dest_t &dst, bool hdr) const
     if (version < PGP_V4) {
         /* for v3 signatures hashed data includes only type + creation_time */
         pktbody.add_byte(version);
-        pktbody.add_byte(hashed_len);
-        pktbody.add(hashed_data, hashed_len);
+        pktbody.add_byte(hashed_data.size());
+        pktbody.add(hashed_data);
         pktbody.add(signer);
         pktbody.add_byte(palg);
         pktbody.add_byte(halg);
     } else {
         /* for v4 sig->hashed_data must contain most of signature fields */
-        pktbody.add(hashed_data, hashed_len);
+        pktbody.add(hashed_data);
         pktbody.add_subpackets(*this, false);
     }
-    pktbody.add(lbits, 2);
+    pktbody.add(lbits.data(), 2);
 #if defined(ENABLE_CRYPTO_REFRESH)
     if (version == PGP_V6) {
-        pktbody.add_byte(salt_size);
-        pktbody.add(salt, salt_size);
+        pktbody.add_byte(salt.size());
+        pktbody.add(salt);
     }
 #endif
     /* write mpis */
-    pktbody.add(material_buf, material_len);
+    pktbody.add(material_buf);
     pktbody.write(dst, hdr);
 }
 
@@ -1383,14 +1221,7 @@ pgp_signature_t::write_material(const pgp_signature_material_t &material)
         RNP_LOG("Unknown pk algorithm : %d", (int) palg);
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    free(material_buf);
-    material_buf = (uint8_t *) malloc(pktbody.size());
-    if (!material_buf) {
-        RNP_LOG("allocation failed");
-        throw rnp::rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
-    }
-    memcpy(material_buf, pktbody.data(), pktbody.size());
-    material_len = pktbody.size();
+    material_buf.assign(pktbody.data(), pktbody.data() + pktbody.size());
 }
 
 void
@@ -1412,15 +1243,7 @@ pgp_signature_t::fill_hashed_data()
         hbody.add_byte(halg);
         hbody.add_subpackets(*this, true);
     }
-
-    free(hashed_data);
-    hashed_data = (uint8_t *) malloc(hbody.size());
-    if (!hashed_data) {
-        RNP_LOG("allocation failed");
-        throw std::bad_alloc();
-    }
-    memcpy(hashed_data, hbody.data(), hbody.size());
-    hashed_len = hbody.size();
+    hashed_data.assign(hbody.data(), hbody.data() + hbody.size());
 }
 
 void
