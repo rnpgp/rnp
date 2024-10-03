@@ -1040,8 +1040,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         psig = &pub.get_sig(0).sig;
         ssig = &sec.get_sig(0).sig;
         // make sure our sig MPI is not NULL
-        assert_int_not_equal(psig->material_len, 0);
-        assert_int_not_equal(ssig->material_len, 0);
+        assert_int_not_equal(psig->material_buf.size(), 0);
+        assert_int_not_equal(ssig->material_buf.size(), 0);
         // make sure we're targeting the right packet
         assert_int_equal(PGP_PKT_SIGNATURE, pub.get_sig(0).rawpkt.tag);
         assert_int_equal(PGP_PKT_SIGNATURE, sec.get_sig(0).rawpkt.tag);
@@ -1170,8 +1170,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         psig = &pub.get_sig(0).sig;
         ssig = &sec.get_sig(0).sig;
         // make sure our sig MPI is not NULL
-        assert_int_not_equal(psig->material_len, 0);
-        assert_int_not_equal(ssig->material_len, 0);
+        assert_int_not_equal(psig->material_buf.size(), 0);
+        assert_int_not_equal(ssig->material_buf.size(), 0);
         // make sure we're targeting the right packet
         assert_int_equal(PGP_PKT_SIGNATURE, pub.get_sig(0).rawpkt.tag);
         assert_int_equal(PGP_PKT_SIGNATURE, sec.get_sig(0).rawpkt.tag);
