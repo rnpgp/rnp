@@ -121,6 +121,10 @@ jobs:
         run: |
           dir_u=$(cygpath -u  ${{ env.VCPKG_DIR }})
           echo "VCPKG_DIR_U=$dir_u" >> $GITHUB_ENV
+          # See https://github.com/microsoft/vcpkg/issues/41339#issuecomment-2394308597 for lines below.
+          export SystemDrive="$SYSTEMDRIVE"
+          export SystemRoot="$SYSTEMROOT"
+          export windir="$WINDIR"          
           vcpkg install --triplet ${{ matrix.arch.triplet }} bzip2 zlib json-c getopt dirent ${{ matrix.backend }}
 
       - name: Upload vcpkg logs on failure
