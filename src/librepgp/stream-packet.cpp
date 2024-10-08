@@ -1357,14 +1357,17 @@ pgp_pk_sesskey_t::write_material(const pgp_encrypted_material_t &material)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384:
+    case PGP_PKA_KYBER1024_BP384: {
         pktbody.add(material.kyber_ecdh.composite_ciphertext);
-        pktbody.add_byte(static_cast<uint8_t>(material.kyber_ecdh.wrapped_sesskey.size()) + 1);
+        uint8_t opt_salg_length = (version == PGP_PKSK_V3) ? 1 : 0;
+        pktbody.add_byte(static_cast<uint8_t>(material.kyber_ecdh.wrapped_sesskey.size()) +
+                         opt_salg_length);
         if (version == PGP_PKSK_V3) {
             pktbody.add_byte(salg); /* added as plaintext */
         }
         pktbody.add(material.kyber_ecdh.wrapped_sesskey);
         break;
+    }
 #endif
     default:
         RNP_LOG("Unknown pk alg: %d", (int) alg);
