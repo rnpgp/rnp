@@ -256,6 +256,7 @@ typedef struct rnp_op_encrypt_st *         rnp_op_encrypt_t;
 typedef struct rnp_identifier_iterator_st *rnp_identifier_iterator_t;
 typedef struct rnp_uid_handle_st *         rnp_uid_handle_t;
 typedef struct rnp_signature_handle_st *   rnp_signature_handle_t;
+typedef struct rnp_sig_subpacket_st *      rnp_sig_subpacket_t;
 typedef struct rnp_recipient_handle_st *   rnp_recipient_handle_t;
 typedef struct rnp_symenc_handle_st *      rnp_symenc_handle_t;
 
@@ -1892,6 +1893,84 @@ RNP_API rnp_result_t rnp_signature_get_hash_alg(rnp_signature_handle_t sig, char
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_signature_get_creation(rnp_signature_handle_t sig, uint32_t *create);
+
+/**
+ * @brief Get number of the signature subpackets.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param count on success number of the subpackets will be stored here.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_subpacket_count(rnp_signature_handle_t sig, size_t *count);
+
+/**
+ * @brief Get signature subpacket at the specified position.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param idx index of the subpacket (see rnp_signature_subpacket_count for the total amount)
+ * @param subpkt on success handle to the subpacket object will be stored here. Must be later
+ *               destroyed via the rnp_signature_subpacket_destroy() call.
+ * @return RNP_SUCCESS on success, RNP_ERROR_NOT_FOUND if index is out of bounds, or any other
+ *         error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_subpacket_at(rnp_signature_handle_t sig,
+                                                size_t                 idx,
+                                                rnp_sig_subpacket_t *  subpkt);
+
+/**
+ * @brief Find the signature subpacket matching criteria.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param type type of the subpacket as per OpenPGP specification.
+ * @param hashed if true, then subpacket will be looked only in hashed area. If false - then in
+ *               both, hashed and unhashed areas.
+ * @param skip number of matching subpackets to skip, allowing to iterate over the subpackets
+ *             of the same type.
+ * @param subpkt on success handle to the subpacket will be stored here. Must be destroyed via
+ *               the rnp_signature_subpacket_destroy() call.
+ * @return RNP_SUCCESS if subpacket found, or RNP_ERROR_NOT_FOUND otherwise. Any other value
+ *         would mean that search failed.
+ */
+RNP_API rnp_result_t rnp_signature_subpacket_find(rnp_signature_handle_t sig,
+                                                  uint8_t                type,
+                                                  bool                   hashed,
+                                                  size_t                 skip,
+                                                  rnp_sig_subpacket_t *  subpkt);
+
+/**
+ * @brief Get the subpacket info.
+ *
+ * @param subpkt signature subpacket handle, cannot be NULL.
+ * @param type type of the subpacket as per OpenPGP specification will be stored here.
+ * @param hashed whether subpackets is stored in hased or unhashed area.
+ * @param critical whether subpacket has critical bit set.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_subpacket_info(rnp_sig_subpacket_t subpkt,
+                                                  uint8_t *           type,
+                                                  bool *              hashed,
+                                                  bool *              critical);
+
+/**
+ * @brief Get signature subpacket raw data.
+ *
+ * @param subpkt signature subpacket handle, cannot be NULL.
+ * @param data pointer to raw data will be stored here. Must be deallocated via the
+ * rnp_buffer_destroy() call.
+ * @param size size of the data will be stored here.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_subpacket_data(rnp_sig_subpacket_t subpkt,
+                                                  uint8_t **          data,
+                                                  size_t *            size);
+
+/**
+ * @brief Destroy the subpacket object.
+ *
+ * @param subpkt initialized signature subpacket handle, cannot be NULL.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_subpacket_destroy(rnp_sig_subpacket_t subpkt);
 
 /** Get the signature expiration time as number of seconds after creation time
  *

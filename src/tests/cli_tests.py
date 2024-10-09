@@ -2544,7 +2544,7 @@ class Misc(unittest.TestCase):
                         'json raw listing mismatch')
         # List packets with all values, JSON output
         params = ['--json', '--raw', '--list-packets', KEY_P256, '--mpi', '--grips']
-        ret, out, err = run_proc(RNP, params)
+        ret, out, _ = run_proc(RNP, params)
         self.assertEqual(ret, 0, 'json all listing failed')
         compare_file_ex(data_path('test_list_packets/list_json_all.txt'), out,
                         'json all listing mismatch')
@@ -2576,37 +2576,60 @@ class Misc(unittest.TestCase):
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'(?s)^.*"type.str":"signer\'s user ID".*"length":9.*"uid":"alice@rnp".*$')
         # List signature with reason for revocation subpacket
-        params = ['--list-packets', data_path('test_uid_validity/key-sig-revocation.pgp')]
+        KEY = data_path('test_uid_validity/key-sig-revocation.pgp')
+        params = ['--list-packets', KEY]
         ret, out, _ = run_proc(RNP, params)
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'(?s)^.*:type 29, len 24.*reason for revocation: 32 \(No longer valid\).*message: Testing revoked userid.*$')
         # JSON list signature with reason for revocation subpacket
-        params = ['--list-packets', '--json', data_path('test_uid_validity/key-sig-revocation.pgp')]
+        params = ['--list-packets', '--json', KEY]
         ret, out, _ = run_proc(RNP, params)
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'(?s)^.*"type.str":"reason for revocation".*"code":32.*"message":"Testing revoked userid.".*$')
         # v5 public key
-        params = ['--list-packets', data_path('test_stream_key_load/v5-rsa-pub.asc')]
+        KEY = data_path('test_stream_key_load/v5-rsa-pub.asc')
+        params = ['--list-packets', KEY]
         ret, out, _ = run_proc(RNP, params)
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'(?s)^.*v5 public key material length: 391.*v5 public key material length: 391.*$')
         self.assertNotRegex(out, r'(?s)^.*v5 s2k length.*$')
         self.assertNotRegex(out, r'(?s)^.*v5 secret key data length.*$')
-        params = ['--list-packets', '--json', data_path('test_stream_key_load/v5-rsa-pub.asc')]
+        params = ['--list-packets', '--json', KEY]
         ret, out, _ = run_proc(RNP, params)
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'(?s)^.*"v5 public key material length":391.*"v5 public key material length":391.*$')
         self.assertNotRegex(out, r'(?s)^.*"v5 s2k length".*$')
         self.assertNotRegex(out, r'(?s)^.*"v5 secret key data length".*$')
         # v5 secret key
-        params = ['--list-packets', data_path('test_stream_key_load/v5-rsa-sec.asc')]
+        KEY = data_path('test_stream_key_load/v5-rsa-sec.asc')
+        params = ['--list-packets', KEY]
         ret, out, _ = run_proc(RNP, params)
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'(?s)^.*v5 s2k length: 28.*v5 secret key data length: 988.*v5 s2k length: 28.*v5 secret key data length: 987.*$')
-        params = ['--list-packets', '--json', data_path('test_stream_key_load/v5-rsa-sec.asc')]
+        params = ['--list-packets', '--json', KEY]
         ret, out, _ = run_proc(RNP, params)
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'(?s)^.*"v5 s2k length":28.*"v5 secret key data length":988.*"v5 s2k length":28.*"v5 secret key data length":987.*$')
+        # key with designated revoker packet
+        KEY = data_path('test_stream_key_load/ecc-p256-desigrevoked-25519-pub.asc')
+        params = ['--list-packets', KEY]
+        ret, out, _ = run_proc(RNP, params)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*revocation key.*class.*128.*$')
+        params = ['--list-packets', '--json', KEY]
+        ret, out, _ = run_proc(RNP, params)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*"revocation key".*"class":128.*$')
+        # primary userid subpackets
+        KEY = data_path('test_uid_validity/key-uids-pub.pgp')
+        params = ['--list-packets', KEY]
+        ret, out, _ = run_proc(RNP, params)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.* primary user ID: 1.*$')
+        params = ['--list-packets', '--json', KEY]
+        ret, out, _ = run_proc(RNP, params)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*"primary":true.*$')
 
     def test_rnp_list_packets_edge_cases(self):
         KEY_EMPTY_UID = data_path('test_key_edge_cases/key-empty-uid.pgp')

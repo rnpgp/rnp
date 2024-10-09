@@ -465,6 +465,11 @@ pgp_packet_body_t::pgp_packet_body_t(const uint8_t *data, size_t len)
     secure_ = false;
 }
 
+pgp_packet_body_t::pgp_packet_body_t(const std::vector<uint8_t> &data)
+    : pgp_packet_body_t(data.data(), data.size())
+{
+}
+
 pgp_packet_body_t::~pgp_packet_body_t()
 {
     if (secure_) {
@@ -547,6 +552,17 @@ pgp_packet_body_t::get(uint8_t *val, size_t len) noexcept
         return false;
     }
     memcpy(val, data_.data() + pos_, len);
+    pos_ += len;
+    return true;
+}
+
+bool
+pgp_packet_body_t::get(std::vector<uint8_t> &val, size_t len)
+{
+    if (pos_ + len > data_.size()) {
+        return false;
+    }
+    val.assign(data_.data() + pos_, data_.data() + pos_ + len);
     pos_ += len;
     return true;
 }
@@ -755,15 +771,15 @@ pgp_packet_body_t::add_subpackets(const pgp_signature_t &sig, bool hashed)
     pgp_packet_body_t spbody(PGP_PKT_RESERVED);
 
     for (auto &subpkt : sig.subpkts) {
-        if (subpkt.hashed != hashed) {
+        if (subpkt->hashed() != hashed) {
             continue;
         }
 
         uint8_t splen[6];
-        size_t  lenlen = write_packet_len(splen, subpkt.len + 1);
+        size_t  lenlen = write_packet_len(splen, subpkt->data().size() + 1);
         spbody.add(splen, lenlen);
-        spbody.add_byte(subpkt.type | (subpkt.critical << 7));
-        spbody.add(subpkt.data, subpkt.len);
+        spbody.add_byte(subpkt->raw_type() | (subpkt->critical() << 7));
+        spbody.add(subpkt->data().data(), subpkt->data().size());
     }
 
     if (spbody.data_.size() > 0xffff) {

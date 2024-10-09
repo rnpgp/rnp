@@ -32,9 +32,11 @@
 #else
 #include "uniwin.h"
 #endif
-#include <string.h>
+#include <string>
 #include <type_traits>
 #include <stdexcept>
+#include <cinttypes>
+#include <cassert>
 #include <rnp/rnp_def.h>
 #include "types.h"
 #include "stream-sig.h"
@@ -181,428 +183,12 @@ process_pgp_signatures(pgp_source_t &src, pgp_signature_list_t &sigs)
     return RNP_SUCCESS;
 }
 
-pgp_sig_subpkt_t::pgp_sig_subpkt_t(const pgp_sig_subpkt_t &src)
-{
-    type = src.type;
-    len = src.len;
-    data = (uint8_t *) malloc(len);
-    if (!data) {
-        throw std::bad_alloc();
-    }
-    memcpy(data, src.data, len);
-    critical = src.critical;
-    hashed = src.hashed;
-    parsed = false;
-    parse();
-}
-
-pgp_sig_subpkt_t::pgp_sig_subpkt_t(pgp_sig_subpkt_t &&src)
-{
-    type = src.type;
-    len = src.len;
-    data = src.data;
-    src.data = NULL;
-    critical = src.critical;
-    hashed = src.hashed;
-    parsed = src.parsed;
-    memcpy(&fields, &src.fields, sizeof(fields));
-    src.fields = {};
-}
-
-pgp_sig_subpkt_t &
-pgp_sig_subpkt_t::operator=(pgp_sig_subpkt_t &&src)
-{
-    if (&src == this) {
-        return *this;
-    }
-
-    if (parsed && (type == PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE)) {
-        delete fields.sig;
-    }
-    type = src.type;
-    len = src.len;
-    free(data);
-    data = src.data;
-    src.data = NULL;
-    critical = src.critical;
-    hashed = src.hashed;
-    parsed = src.parsed;
-    fields = src.fields;
-    src.fields = {};
-    return *this;
-}
-
-pgp_sig_subpkt_t &
-pgp_sig_subpkt_t::operator=(const pgp_sig_subpkt_t &src)
-{
-    if (&src == this) {
-        return *this;
-    }
-
-    if (parsed && (type == PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE)) {
-        delete fields.sig;
-    }
-    type = src.type;
-    len = src.len;
-    free(data);
-    data = (uint8_t *) malloc(len);
-    if (!data) {
-        throw std::bad_alloc();
-    }
-    memcpy(data, src.data, len);
-    critical = src.critical;
-    hashed = src.hashed;
-    parsed = false;
-    fields = {};
-    parse();
-    return *this;
-}
-
-bool
-pgp_sig_subpkt_t::parse()
-{
-    bool oklen = true;
-    bool checked = true;
-
-    switch (type) {
-    case PGP_SIG_SUBPKT_CREATION_TIME:
-        if (!hashed) {
-            RNP_LOG("creation time subpacket must be hashed");
-            checked = false;
-        }
-        if ((oklen = len == 4)) {
-            fields.create = read_uint32(data);
-        }
-        break;
-    case PGP_SIG_SUBPKT_EXPIRATION_TIME:
-    case PGP_SIG_SUBPKT_KEY_EXPIRY:
-        if ((oklen = len == 4)) {
-            fields.expiry = read_uint32(data);
-        }
-        break;
-    case PGP_SIG_SUBPKT_EXPORT_CERT:
-        if ((oklen = len == 1)) {
-            fields.exportable = data[0] != 0;
-        }
-        break;
-    case PGP_SIG_SUBPKT_TRUST:
-        if ((oklen = len == 2)) {
-            fields.trust.level = data[0];
-            fields.trust.amount = data[1];
-        }
-        break;
-    case PGP_SIG_SUBPKT_REGEXP:
-        fields.regexp.str = (const char *) data;
-        fields.regexp.len = len;
-        break;
-    case PGP_SIG_SUBPKT_REVOCABLE:
-        if ((oklen = len == 1)) {
-            fields.revocable = data[0] != 0;
-        }
-        break;
-    case PGP_SIG_SUBPKT_PREFERRED_SKA:
-    case PGP_SIG_SUBPKT_PREFERRED_HASH:
-    case PGP_SIG_SUBPKT_PREF_COMPRESS:
-    case PGP_SIG_SUBPKT_PREFERRED_AEAD:
-        fields.preferred.arr = data;
-        fields.preferred.len = len;
-        break;
-    case PGP_SIG_SUBPKT_REVOCATION_KEY:
-        if ((oklen = ((len == 22) || (len == 34)))) {
-            fields.revocation_key.revclass = data[0];
-            fields.revocation_key.pkalg = (pgp_pubkey_alg_t) data[1];
-            fields.revocation_key.fp = &data[2];
-            fields.revocation_key.fp_len = len - 2;
-        }
-        break;
-    case PGP_SIG_SUBPKT_ISSUER_KEY_ID:
-        if ((oklen = len == 8)) {
-            fields.issuer = data;
-        }
-        break;
-    case PGP_SIG_SUBPKT_NOTATION_DATA:
-        if ((oklen = len >= 8)) {
-            memcpy(fields.notation.flags, data, 4);
-            fields.notation.human = fields.notation.flags[0] & 0x80;
-            fields.notation.nlen = read_uint16(&data[4]);
-            fields.notation.vlen = read_uint16(&data[6]);
-            if (len != 8 + fields.notation.nlen + fields.notation.vlen) {
-                oklen = false;
-            } else {
-                fields.notation.name = data + 8;
-                fields.notation.value = fields.notation.name + fields.notation.nlen;
-            }
-        }
-        break;
-    case PGP_SIG_SUBPKT_KEYSERV_PREFS:
-        if ((oklen = len >= 1)) {
-            fields.ks_prefs.no_modify = (data[0] & 0x80) != 0;
-        }
-        break;
-    case PGP_SIG_SUBPKT_PREF_KEYSERV:
-        fields.preferred_ks.uri = (const char *) data;
-        fields.preferred_ks.len = len;
-        break;
-    case PGP_SIG_SUBPKT_PRIMARY_USER_ID:
-        if ((oklen = len == 1)) {
-            fields.primary_uid = data[0] != 0;
-        }
-        break;
-    case PGP_SIG_SUBPKT_POLICY_URI:
-        fields.policy.uri = (const char *) data;
-        fields.policy.len = len;
-        break;
-    case PGP_SIG_SUBPKT_KEY_FLAGS:
-        if ((oklen = len >= 1)) {
-            fields.key_flags = data[0];
-        }
-        break;
-    case PGP_SIG_SUBPKT_SIGNERS_USER_ID:
-        fields.signer.uid = (const char *) data;
-        fields.signer.len = len;
-        break;
-    case PGP_SIG_SUBPKT_REVOCATION_REASON:
-        if ((oklen = len >= 1)) {
-            fields.revocation_reason.code = (pgp_revocation_type_t) data[0];
-            fields.revocation_reason.str = (const char *) &data[1];
-            fields.revocation_reason.len = len - 1;
-        }
-        break;
-    case PGP_SIG_SUBPKT_FEATURES:
-        if ((oklen = len >= 1)) {
-            fields.features = data[0];
-        }
-        break;
-    case PGP_SIG_SUBPKT_SIGNATURE_TARGET:
-        if ((oklen = len >= 18)) {
-            fields.sig_target.pkalg = (pgp_pubkey_alg_t) data[0];
-            fields.sig_target.halg = (pgp_hash_alg_t) data[1];
-            fields.sig_target.hash = &data[2];
-            fields.sig_target.hlen = len - 2;
-        }
-        break;
-    case PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE:
-        try {
-            /* parse signature */
-            pgp_packet_body_t pkt(data, len);
-            pgp_signature_t   sig;
-            oklen = checked = !sig.parse(pkt);
-            if (checked) {
-                fields.sig = new pgp_signature_t(std::move(sig));
-            }
-            break;
-        } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
-            return false;
-        }
-    case PGP_SIG_SUBPKT_ISSUER_FPR:
-        if ((oklen = len >= 21)) {
-            fields.issuer_fp.version = data[0];
-            fields.issuer_fp.fp = &data[1];
-            fields.issuer_fp.len = len - 1;
-        }
-        break;
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_SIG_SUBPKT_PREFERRED_AEAD_CIPHERSUITES:
-        if (len % 2 != 0) {
-            RNP_LOG("AEAD Ciphersuite Preferences must contain an even number of bytes");
-            return false;
-        }
-        fields.preferred.arr = data;
-        fields.preferred.len = len;
-        break;
-#endif
-    case PGP_SIG_SUBPKT_PRIVATE_100:
-    case PGP_SIG_SUBPKT_PRIVATE_101:
-    case PGP_SIG_SUBPKT_PRIVATE_102:
-    case PGP_SIG_SUBPKT_PRIVATE_103:
-    case PGP_SIG_SUBPKT_PRIVATE_104:
-    case PGP_SIG_SUBPKT_PRIVATE_105:
-    case PGP_SIG_SUBPKT_PRIVATE_106:
-    case PGP_SIG_SUBPKT_PRIVATE_107:
-    case PGP_SIG_SUBPKT_PRIVATE_108:
-    case PGP_SIG_SUBPKT_PRIVATE_109:
-    case PGP_SIG_SUBPKT_PRIVATE_110:
-        oklen = true;
-        checked = !critical;
-        if (!checked) {
-            RNP_LOG("unknown critical private subpacket %d", (int) type);
-        }
-        break;
-    case PGP_SIG_SUBPKT_RESERVED_1:
-    case PGP_SIG_SUBPKT_RESERVED_8:
-    case PGP_SIG_SUBPKT_PLACEHOLDER:
-    case PGP_SIG_SUBPKT_RESERVED_13:
-    case PGP_SIG_SUBPKT_RESERVED_14:
-    case PGP_SIG_SUBPKT_RESERVED_15:
-    case PGP_SIG_SUBPKT_RESERVED_17:
-    case PGP_SIG_SUBPKT_RESERVED_18:
-    case PGP_SIG_SUBPKT_RESERVED_19:
-        /* do not report reserved/placeholder subpacket */
-        return !critical;
-    default:
-        RNP_LOG("unknown subpacket : %d", (int) type);
-        return !critical;
-    }
-
-    if (!oklen) {
-        RNP_LOG("wrong len %d of subpacket type %d", (int) len, (int) type);
-    } else {
-        parsed = 1;
-    }
-    return oklen && checked;
-}
-
-pgp_sig_subpkt_t::~pgp_sig_subpkt_t()
-{
-    if (parsed && (type == PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE)) {
-        delete fields.sig;
-    }
-    free(data);
-}
-
-pgp_signature_t::pgp_signature_t(const pgp_signature_t &src)
-{
-    version = src.version;
-    type_ = src.type_;
-    palg = src.palg;
-    halg = src.halg;
-    memcpy(lbits, src.lbits, sizeof(src.lbits));
-#if defined(ENABLE_CRYPTO_REFRESH)
-    if (version == PGP_V6) {
-        salt_size = src.salt_size;
-        memcpy(salt, src.salt, salt_size);
-    }
-#endif
-    creation_time = src.creation_time;
-    signer = src.signer;
-
-    hashed_len = src.hashed_len;
-    hashed_data = NULL;
-    if (src.hashed_data) {
-        if (!(hashed_data = (uint8_t *) malloc(hashed_len))) {
-            throw std::bad_alloc();
-        }
-        memcpy(hashed_data, src.hashed_data, hashed_len);
-    }
-    material_len = src.material_len;
-    material_buf = NULL;
-    if (src.material_buf) {
-        if (!(material_buf = (uint8_t *) malloc(material_len))) {
-            throw std::bad_alloc();
-        }
-        memcpy(material_buf, src.material_buf, material_len);
-    }
-    subpkts = src.subpkts;
-}
-
-pgp_signature_t::pgp_signature_t(pgp_signature_t &&src)
-{
-    version = src.version;
-    type_ = src.type_;
-    palg = src.palg;
-    halg = src.halg;
-    memcpy(lbits, src.lbits, sizeof(src.lbits));
-#if defined(ENABLE_CRYPTO_REFRESH)
-    if (version == PGP_V6) {
-        salt_size = src.salt_size;
-        memcpy(salt, src.salt, salt_size);
-    }
-#endif
-    creation_time = src.creation_time;
-    signer = src.signer;
-    hashed_len = src.hashed_len;
-    hashed_data = src.hashed_data;
-    src.hashed_data = NULL;
-    material_len = src.material_len;
-    material_buf = src.material_buf;
-    src.material_buf = NULL;
-    subpkts = std::move(src.subpkts);
-}
-
-pgp_signature_t &
-pgp_signature_t::operator=(pgp_signature_t &&src)
-{
-    if (this == &src) {
-        return *this;
-    }
-
-    version = src.version;
-    type_ = src.type_;
-    palg = src.palg;
-    halg = src.halg;
-    memcpy(lbits, src.lbits, sizeof(src.lbits));
-    creation_time = src.creation_time;
-    signer = src.signer;
-    hashed_len = src.hashed_len;
-    free(hashed_data);
-    hashed_data = src.hashed_data;
-    src.hashed_data = NULL;
-    material_len = src.material_len;
-    free(material_buf);
-    material_buf = src.material_buf;
-    src.material_buf = NULL;
-    subpkts = std::move(src.subpkts);
-
-    return *this;
-}
-
-pgp_signature_t &
-pgp_signature_t::operator=(const pgp_signature_t &src)
-{
-    if (this == &src) {
-        return *this;
-    }
-
-    version = src.version;
-    type_ = src.type_;
-    palg = src.palg;
-    halg = src.halg;
-    memcpy(lbits, src.lbits, sizeof(src.lbits));
-#if defined(ENABLE_CRYPTO_REFRESH)
-    if (version == PGP_V6) {
-        salt_size = src.salt_size;
-        memcpy(salt, src.salt, salt_size);
-    }
-#endif
-    creation_time = src.creation_time;
-    signer = src.signer;
-
-    hashed_len = src.hashed_len;
-    free(hashed_data);
-    hashed_data = NULL;
-    if (src.hashed_data) {
-        if (!(hashed_data = (uint8_t *) malloc(hashed_len))) {
-            throw std::bad_alloc();
-        }
-        memcpy(hashed_data, src.hashed_data, hashed_len);
-    }
-    material_len = src.material_len;
-    free(material_buf);
-    material_buf = NULL;
-    if (src.material_buf) {
-        if (!(material_buf = (uint8_t *) malloc(material_len))) {
-            throw std::bad_alloc();
-        }
-        memcpy(material_buf, src.material_buf, material_len);
-    }
-    subpkts = src.subpkts;
-
-    return *this;
-}
-
 bool
 pgp_signature_t::operator==(const pgp_signature_t &src) const
 {
-    if ((lbits[0] != src.lbits[0]) || (lbits[1] != src.lbits[1])) {
-        return false;
-    }
     // TODO-V6: could also compare salt
-    if ((hashed_len != src.hashed_len) || memcmp(hashed_data, src.hashed_data, hashed_len)) {
-        return false;
-    }
-    return (material_len == src.material_len) &&
-           !memcmp(material_buf, src.material_buf, material_len);
+    return (lbits == src.lbits) && (hashed_data == src.hashed_data) &&
+           (material_buf == src.material_buf);
 }
 
 bool
@@ -611,18 +197,12 @@ pgp_signature_t::operator!=(const pgp_signature_t &src) const
     return !(*this == src);
 }
 
-pgp_signature_t::~pgp_signature_t()
-{
-    free(hashed_data);
-    free(material_buf);
-}
-
 pgp_sig_id_t
 pgp_signature_t::get_id() const
 {
     auto hash = rnp::Hash::create(PGP_HASH_SHA1);
-    hash->add(hashed_data, hashed_len);
-    hash->add(material_buf, material_len);
+    hash->add(hashed_data);
+    hash->add(material_buf);
     pgp_sig_id_t res = {0};
     static_assert(std::tuple_size<decltype(res)>::value == PGP_SHA1_HASH_SIZE,
                   "pgp_sig_id_t size mismatch");
@@ -630,49 +210,39 @@ pgp_signature_t::get_id() const
     return res;
 }
 
-pgp_sig_subpkt_t *
-pgp_signature_t::get_subpkt(pgp_sig_subpacket_type_t stype, bool hashed)
+/* Todo: remove once pgp_signature_t is renamed to pgp::pkt::Signature */
+using namespace pgp::pkt;
+
+sigsub::Raw *
+pgp_signature_t::get_subpkt(uint8_t stype, bool hashed)
 {
-    if (version < PGP_V4) {
-        return NULL;
-    }
-    for (auto &subpkt : subpkts) {
-        /* if hashed is false then accept any hashed/not hashed subpacket */
-        if ((subpkt.type == stype) && (!hashed || subpkt.hashed)) {
-            return &subpkt;
-        }
-    }
-    return NULL;
+    size_t idx = find_subpkt(stype, hashed);
+    return idx == SIZE_MAX ? nullptr : subpkts[idx].get();
 }
 
-const pgp_sig_subpkt_t *
-pgp_signature_t::get_subpkt(pgp_sig_subpacket_type_t stype, bool hashed) const
+const sigsub::Raw *
+pgp_signature_t::get_subpkt(uint8_t stype, bool hashed) const
 {
-    if (version < PGP_V4) {
-        return NULL;
-    }
-    for (auto &subpkt : subpkts) {
-        /* if hashed is false then accept any hashed/not hashed subpacket */
-        if ((subpkt.type == stype) && (!hashed || subpkt.hashed)) {
-            return &subpkt;
-        }
-    }
-    return NULL;
+    size_t idx = find_subpkt(stype, hashed);
+    return idx == SIZE_MAX ? nullptr : subpkts[idx].get();
+}
+
+sigsub::Raw *
+pgp_signature_t::get_subpkt(sigsub::Type type, bool hashed)
+{
+    return get_subpkt(static_cast<uint8_t>(type), hashed);
+}
+
+const sigsub::Raw *
+pgp_signature_t::get_subpkt(sigsub::Type type, bool hashed) const
+{
+    return get_subpkt(static_cast<uint8_t>(type), hashed);
 }
 
 bool
-pgp_signature_t::has_subpkt(pgp_sig_subpacket_type_t stype, bool hashed) const
+pgp_signature_t::has_subpkt(uint8_t stype, bool hashed) const
 {
-    if (version < PGP_V4) {
-        return false;
-    }
-    for (auto &subpkt : subpkts) {
-        /* if hashed is false then accept any hashed/not hashed subpacket */
-        if ((subpkt.type == stype) && (!hashed || subpkt.hashed)) {
-            return true;
-        }
-    }
-    return false;
+    return find_subpkt(stype, hashed) != SIZE_MAX;
 }
 
 bool
@@ -691,38 +261,15 @@ pgp_signature_t::keyid() const noexcept
     }
 
     /* version 4 and up use subpackets */
-    pgp_key_id_t res{};
-    static_assert(std::tuple_size<decltype(res)>::value == PGP_KEY_ID_SIZE,
-                  "pgp_key_id_t size mismatch");
-
-    switch (version) {
-    case PGP_V4: {
-        const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_ISSUER_KEY_ID, false);
-        if (subpkt) {
-            memcpy(res.data(), subpkt->fields.issuer, PGP_KEY_ID_SIZE);
-        } else if ((subpkt = get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR))) {
-            memcpy(res.data(),
-                   subpkt->fields.issuer_fp.fp + subpkt->fields.issuer_fp.len -
-                     PGP_KEY_ID_SIZE,
-                   PGP_KEY_ID_SIZE);
+    if (version == PGP_V4) {
+        auto sub = dynamic_cast<const sigsub::IssuerKeyID *>(
+          get_subpkt(sigsub::Type::IssuerKeyID, false));
+        if (sub) {
+            return sub->keyid();
         }
-        break;
     }
-    case PGP_V5:
-#ifdef ENABLE_CRYPTO_REFRESH
-    case PGP_V6:
-#endif
-    {
-        const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
-        if (subpkt) {
-            memcpy(res.data(), subpkt->fields.issuer_fp.fp, PGP_KEY_ID_SIZE);
-        }
-        break;
-    }
-    default:
-        break;
-    }
-    return res;
+    /* v5 and up must have fingerprint, from which keyid would be extracted */
+    return keyfp().keyid();
 }
 
 void
@@ -733,34 +280,27 @@ pgp_signature_t::set_keyid(const pgp_key_id_t &id)
         return;
     }
 
-    static_assert(std::tuple_size<std::remove_reference<decltype(id)>::type>::value ==
-                    PGP_KEY_ID_SIZE,
-                  "pgp_key_id_t size mismatch");
-    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_ISSUER_KEY_ID, PGP_KEY_ID_SIZE, true);
-    subpkt.parsed = true;
-    subpkt.hashed = false;
-    memcpy(subpkt.data, id.data(), PGP_KEY_ID_SIZE);
-    subpkt.fields.issuer = subpkt.data;
+    auto sub = std::unique_ptr<sigsub::IssuerKeyID>(new sigsub::IssuerKeyID(false));
+    sub->set_keyid(id);
+    add_subpkt(std::move(sub));
 }
 
 bool
 pgp_signature_t::has_keyfp() const
 {
-    if (version < PGP_V4) {
-        return false;
-    }
-    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
-    if (!subpkt) {
+    auto sub = dynamic_cast<const sigsub::IssuerFingerprint *>(
+      get_subpkt(sigsub::Type::IssuerFingerprint));
+    if (!sub) {
         return false;
     }
     switch (version) {
     case PGP_V4:
-        return subpkt->fields.issuer_fp.len == PGP_FINGERPRINT_V4_SIZE;
+        return sub->fp().length == PGP_FINGERPRINT_V4_SIZE;
     case PGP_V5:
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_V6:
 #endif
-        return subpkt->fields.issuer_fp.len == PGP_FINGERPRINT_V5_SIZE;
+        return sub->fp().length == PGP_FINGERPRINT_V5_SIZE;
     default:
         return false;
     }
@@ -769,37 +309,22 @@ pgp_signature_t::has_keyfp() const
 pgp_fingerprint_t
 pgp_signature_t::keyfp() const noexcept
 {
-    pgp_fingerprint_t res{};
-    if (version < PGP_V4) {
-        return res;
-    }
-    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
-    if (!subpkt || (subpkt->fields.issuer_fp.len > sizeof(res.fingerprint))) {
-        return res;
-    }
-    res.length = subpkt->fields.issuer_fp.len;
-    memcpy(res.fingerprint, subpkt->fields.issuer_fp.fp, subpkt->fields.issuer_fp.len);
-    return res;
+    auto sub = dynamic_cast<const sigsub::IssuerFingerprint *>(
+      get_subpkt(sigsub::Type::IssuerFingerprint));
+    return sub ? sub->fp() : pgp_fingerprint_t{};
 }
 
 void
 pgp_signature_t::set_keyfp(const pgp_fingerprint_t &fp)
 {
-    if (version < PGP_V4) {
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR, 1 + fp.length, true);
-    subpkt.parsed = true;
-    subpkt.hashed = true;
+    auto sub = std::unique_ptr<sigsub::IssuerFingerprint>(new sigsub::IssuerFingerprint());
 #if defined(ENABLE_CRYPTO_REFRESH)
-    subpkt.data[0] = (uint8_t) version;
+    sub->set_version(version);
 #else
-    subpkt.data[0] = 4;
+    sub->set_version(4);
 #endif
-    memcpy(subpkt.data + 1, fp.fingerprint, fp.length);
-    subpkt.fields.issuer_fp.len = fp.length;
-    subpkt.fields.issuer_fp.version = subpkt.data[0];
-    subpkt.fields.issuer_fp.fp = subpkt.data + 1;
+    sub->set_fp(fp);
+    add_subpkt(std::move(sub));
 }
 
 uint32_t
@@ -808,8 +333,9 @@ pgp_signature_t::creation() const
     if (version < PGP_V4) {
         return creation_time;
     }
-    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_CREATION_TIME);
-    return subpkt ? subpkt->fields.create : 0;
+    auto sub =
+      dynamic_cast<const sigsub::CreationTime *>(get_subpkt(sigsub::Type::CreationTime));
+    return sub ? sub->time() : 0;
 }
 
 void
@@ -819,343 +345,290 @@ pgp_signature_t::set_creation(uint32_t ctime)
         creation_time = ctime;
         return;
     }
-
-    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_CREATION_TIME, 4, true);
-    subpkt.parsed = true;
-    subpkt.hashed = true;
-    write_uint32(subpkt.data, ctime);
-    subpkt.fields.create = ctime;
+    auto sub = std::unique_ptr<sigsub::CreationTime>(new sigsub::CreationTime());
+    sub->set_time(ctime);
+    add_subpkt(std::move(sub));
 }
 
 uint32_t
 pgp_signature_t::expiration() const
 {
-    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_EXPIRATION_TIME);
-    return subpkt ? subpkt->fields.expiry : 0;
+    auto sub =
+      dynamic_cast<const sigsub::ExpirationTime *>(get_subpkt(sigsub::Type::ExpirationTime));
+    return sub ? sub->time() : 0;
 }
 
 void
 pgp_signature_t::set_expiration(uint32_t etime)
 {
-    if (version < PGP_V4) {
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-
-    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_EXPIRATION_TIME, 4, true);
-    subpkt.parsed = true;
-    subpkt.hashed = true;
-    write_uint32(subpkt.data, etime);
-    subpkt.fields.expiry = etime;
+    auto sub = std::unique_ptr<sigsub::ExpirationTime>(new sigsub::ExpirationTime());
+    sub->set_time(etime);
+    add_subpkt(std::move(sub));
 }
 
 uint32_t
 pgp_signature_t::key_expiration() const
 {
-    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_KEY_EXPIRY);
-    return subpkt ? subpkt->fields.expiry : 0;
+    auto sub = dynamic_cast<const sigsub::KeyExpirationTime *>(
+      get_subpkt(sigsub::Type::KeyExpirationTime));
+    return sub ? sub->time() : 0;
 }
 
 void
 pgp_signature_t::set_key_expiration(uint32_t etime)
 {
-    if (version < PGP_V4) {
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-
-    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_KEY_EXPIRY, 4, true);
-    subpkt.parsed = true;
-    subpkt.hashed = true;
-    write_uint32(subpkt.data, etime);
-    subpkt.fields.expiry = etime;
+    auto sub = std::unique_ptr<sigsub::KeyExpirationTime>(new sigsub::KeyExpirationTime());
+    sub->set_time(etime);
+    add_subpkt(std::move(sub));
 }
 
 uint8_t
 pgp_signature_t::key_flags() const
 {
-    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS);
-    return subpkt ? subpkt->fields.key_flags : 0;
+    auto sub = dynamic_cast<const sigsub::KeyFlags *>(get_subpkt(sigsub::Type::KeyFlags));
+    return sub ? sub->flags() : 0;
 }
 
 void
 pgp_signature_t::set_key_flags(uint8_t flags)
 {
-    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS, 1, true);
-    subpkt.parsed = true;
-    subpkt.hashed = true;
-    subpkt.data[0] = flags;
-    subpkt.fields.key_flags = flags;
+    auto sub = std::unique_ptr<sigsub::KeyFlags>(new sigsub::KeyFlags());
+    sub->set_flags(flags);
+    add_subpkt(std::move(sub));
 }
 
 bool
 pgp_signature_t::primary_uid() const
 {
-    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_PRIMARY_USER_ID);
-    return subpkt ? subpkt->fields.primary_uid : false;
+    auto sub =
+      dynamic_cast<const sigsub::PrimaryUserID *>(get_subpkt(sigsub::Type::PrimaryUserID));
+    return sub ? sub->primary() : 0;
 }
 
 void
 pgp_signature_t::set_primary_uid(bool primary)
 {
-    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_PRIMARY_USER_ID, 1, true);
-    subpkt.parsed = true;
-    subpkt.hashed = true;
-    subpkt.data[0] = primary;
-    subpkt.fields.primary_uid = primary;
+    auto sub = std::unique_ptr<sigsub::PrimaryUserID>(new sigsub::PrimaryUserID());
+    sub->set_primary(primary);
+    add_subpkt(std::move(sub));
 }
 
 std::vector<uint8_t>
-pgp_signature_t::preferred(pgp_sig_subpacket_type_t type) const
+pgp_signature_t::preferred(sigsub::Type type) const
 {
-    const pgp_sig_subpkt_t *subpkt = get_subpkt(type);
-    return subpkt ? std::vector<uint8_t>(subpkt->fields.preferred.arr,
-                                         subpkt->fields.preferred.arr +
-                                           subpkt->fields.preferred.len) :
-                    std::vector<uint8_t>();
+    auto sub = dynamic_cast<const sigsub::Preferred *>(get_subpkt(type));
+    return sub ? sub->algs() : std::vector<uint8_t>();
 }
 
 void
-pgp_signature_t::set_preferred(const std::vector<uint8_t> &data, pgp_sig_subpacket_type_t type)
+pgp_signature_t::set_preferred(const std::vector<uint8_t> &data, sigsub::Type type)
 {
-    if (version < PGP_V4) {
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-
     if (data.empty()) {
-        pgp_sig_subpkt_t *subpkt = get_subpkt(type);
-        if (subpkt) {
-            remove_subpkt(subpkt);
-        }
+        /* Here we assume that there could be only one subpacket of the corresponding type */
+        remove_subpkt(find_subpkt(type));
+        remove_subpkt(find_subpkt(type, false));
         return;
     }
 
-    pgp_sig_subpkt_t &subpkt = add_subpkt(type, data.size(), true);
-    subpkt.parsed = true;
-    subpkt.hashed = true;
-    memcpy(subpkt.data, data.data(), data.size());
-    subpkt.fields.preferred.arr = subpkt.data;
-    subpkt.fields.preferred.len = data.size();
+    auto sub = sigsub::Raw::create(type);
+    auto pref = dynamic_cast<sigsub::Preferred *>(sub.get());
+    pref->set_algs(data);
+    add_subpkt(std::move(sub));
 }
 
 std::vector<uint8_t>
 pgp_signature_t::preferred_symm_algs() const
 {
-    return preferred(PGP_SIG_SUBPKT_PREFERRED_SKA);
+    return preferred(sigsub::Type::PreferredSymmetric);
 }
 
 void
 pgp_signature_t::set_preferred_symm_algs(const std::vector<uint8_t> &algs)
 {
-    set_preferred(algs, PGP_SIG_SUBPKT_PREFERRED_SKA);
+    set_preferred(algs, sigsub::Type::PreferredSymmetric);
 }
 
 std::vector<uint8_t>
 pgp_signature_t::preferred_hash_algs() const
 {
-    return preferred(PGP_SIG_SUBPKT_PREFERRED_HASH);
+    return preferred(sigsub::Type::PreferredHash);
 }
 
 void
 pgp_signature_t::set_preferred_hash_algs(const std::vector<uint8_t> &algs)
 {
-    set_preferred(algs, PGP_SIG_SUBPKT_PREFERRED_HASH);
+    set_preferred(algs, sigsub::Type::PreferredHash);
 }
 
 std::vector<uint8_t>
 pgp_signature_t::preferred_z_algs() const
 {
-    return preferred(PGP_SIG_SUBPKT_PREF_COMPRESS);
+    return preferred(sigsub::Type::PreferredCompress);
 }
 
 void
 pgp_signature_t::set_preferred_z_algs(const std::vector<uint8_t> &algs)
 {
-    set_preferred(algs, PGP_SIG_SUBPKT_PREF_COMPRESS);
+    set_preferred(algs, sigsub::Type::PreferredCompress);
 }
 
 #if defined(ENABLE_CRYPTO_REFRESH)
 void
 pgp_signature_t::set_preferred_aead_algs(const std::vector<uint8_t> &algs)
 {
-    set_preferred(algs, PGP_SIG_SUBPKT_PREFERRED_AEAD_CIPHERSUITES);
+    set_preferred(algs, sigsub::Type::PreferredAEADv6);
 }
 
 std::vector<uint8_t>
 pgp_signature_t::preferred_aead_algs() const
 {
-    return preferred(PGP_SIG_SUBPKT_PREFERRED_AEAD_CIPHERSUITES);
+    return preferred(sigsub::Type::PreferredAEADv6);
 }
 #endif
 
 uint8_t
 pgp_signature_t::key_server_prefs() const
 {
-    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_KEYSERV_PREFS);
-    return subpkt ? subpkt->data[0] : 0;
+    auto sub =
+      dynamic_cast<const sigsub::KeyserverPrefs *>(get_subpkt(sigsub::Type::KeyserverPrefs));
+    return sub ? sub->raw() : 0;
 }
 
 void
 pgp_signature_t::set_key_server_prefs(uint8_t prefs)
 {
-    if (version < PGP_V4) {
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-
-    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_KEYSERV_PREFS, 1, true);
-    subpkt.parsed = true;
-    subpkt.hashed = true;
-    subpkt.data[0] = prefs;
-    subpkt.fields.ks_prefs.no_modify = prefs & 0x80;
+    auto sub = std::unique_ptr<sigsub::KeyserverPrefs>(new sigsub::KeyserverPrefs());
+    sub->set_raw(prefs);
+    add_subpkt(std::move(sub));
 }
 
 std::string
 pgp_signature_t::key_server() const
 {
-    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_PREF_KEYSERV);
-    return subpkt ? std::string((char *) subpkt->data, subpkt->len) : "";
+    auto sub = dynamic_cast<const sigsub::PreferredKeyserver *>(
+      get_subpkt(sigsub::Type::PreferredKeyserver));
+    return sub ? sub->keyserver() : "";
 }
 
 void
 pgp_signature_t::set_key_server(const std::string &uri)
 {
-    if (version < PGP_V4) {
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-
     if (uri.empty()) {
-        pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_PREF_KEYSERV);
-        if (subpkt) {
-            remove_subpkt(subpkt);
-        }
+        remove_subpkt(find_subpkt(sigsub::Type::PreferredKeyserver));
+        remove_subpkt(find_subpkt(sigsub::Type::PreferredKeyserver, false));
         return;
     }
 
-    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_PREF_KEYSERV, uri.size(), true);
-    subpkt.parsed = true;
-    subpkt.hashed = true;
-    memcpy(subpkt.data, uri.data(), uri.size());
-    subpkt.fields.preferred_ks.uri = (char *) subpkt.data;
-    subpkt.fields.preferred_ks.len = uri.size();
+    auto sub = std::unique_ptr<sigsub::PreferredKeyserver>(new sigsub::PreferredKeyserver());
+    sub->set_keyserver(uri);
+    add_subpkt(std::move(sub));
 }
 
 uint8_t
 pgp_signature_t::trust_level() const
 {
-    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_TRUST);
-    return subpkt ? subpkt->fields.trust.level : 0;
+    auto sub = dynamic_cast<const sigsub::Trust *>(get_subpkt(sigsub::Type::Trust));
+    return sub ? sub->level() : 0;
 }
 
 uint8_t
 pgp_signature_t::trust_amount() const
 {
-    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_TRUST);
-    return subpkt ? subpkt->fields.trust.amount : 0;
+    auto sub = dynamic_cast<const sigsub::Trust *>(get_subpkt(sigsub::Type::Trust));
+    return sub ? sub->amount() : 0;
 }
 
 void
 pgp_signature_t::set_trust(uint8_t level, uint8_t amount)
 {
-    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_TRUST, 2, true);
-    subpkt.parsed = true;
-    subpkt.hashed = true;
-    subpkt.data[0] = level;
-    subpkt.data[1] = amount;
-    subpkt.fields.trust.level = level;
-    subpkt.fields.trust.amount = amount;
+    auto sub = std::unique_ptr<sigsub::Trust>(new sigsub::Trust());
+    sub->set_level(level);
+    sub->set_amount(amount);
+    add_subpkt(std::move(sub));
 }
 
 bool
 pgp_signature_t::revocable() const
 {
-    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_REVOCABLE);
-    return subpkt ? subpkt->fields.revocable : true;
+    auto sub = dynamic_cast<const sigsub::Revocable *>(get_subpkt(sigsub::Type::Revocable));
+    return sub ? sub->revocable() : true;
 }
 
 void
 pgp_signature_t::set_revocable(bool status)
 {
-    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_REVOCABLE, 1, true);
-    subpkt.parsed = true;
-    subpkt.hashed = true;
-    subpkt.data[0] = status;
-    subpkt.fields.revocable = status;
+    auto sub = std::unique_ptr<sigsub::Revocable>(new sigsub::Revocable());
+    sub->set_revocable(status);
+    add_subpkt(std::move(sub));
 }
 
 std::string
 pgp_signature_t::revocation_reason() const
 {
-    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON);
-    return subpkt ? std::string(subpkt->fields.revocation_reason.str,
-                                subpkt->fields.revocation_reason.len) :
-                    "";
+    auto sub = dynamic_cast<const sigsub::RevocationReason *>(
+      get_subpkt(sigsub::Type::RevocationReason));
+    return sub ? sub->reason() : "";
 }
 
 pgp_revocation_type_t
 pgp_signature_t::revocation_code() const
 {
-    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON);
-    return subpkt ? subpkt->fields.revocation_reason.code : PGP_REVOCATION_NO_REASON;
+    auto sub = dynamic_cast<const sigsub::RevocationReason *>(
+      get_subpkt(sigsub::Type::RevocationReason));
+    return sub ? sub->code() : PGP_REVOCATION_NO_REASON;
 }
 
 bool
 pgp_signature_t::has_revocation_reason() const
 {
-    return get_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON);
+    return get_subpkt(sigsub::Type::RevocationReason);
 }
 
 void
 pgp_signature_t::set_revocation_reason(pgp_revocation_type_t code, const std::string &reason)
 {
-    size_t            datalen = 1 + reason.size();
-    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON, datalen, true);
-    subpkt.hashed = true;
-    subpkt.data[0] = code;
-    memcpy(subpkt.data + 1, reason.data(), reason.size());
-
-    if (!subpkt.parse()) {
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-    }
+    auto sub = std::unique_ptr<sigsub::RevocationReason>(new sigsub::RevocationReason());
+    sub->set_code(code);
+    sub->set_reason(reason);
+    add_subpkt(std::move(sub));
 }
 
 uint32_t
 pgp_signature_t::key_get_features() const
 {
-    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_FEATURES);
-    return (uint32_t)(subpkt ? subpkt->data[0] : 0);
+    auto sub = dynamic_cast<const sigsub::Features *>(get_subpkt(sigsub::Type::Features));
+    return sub ? sub->features() : 0;
 }
 
 bool
 pgp_signature_t::key_has_features(uint32_t flags) const
 {
-    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_FEATURES);
-    return subpkt ? subpkt->data[0] & flags : false;
+    auto sub = dynamic_cast<const sigsub::Features *>(get_subpkt(sigsub::Type::Features));
+    return sub ? sub->features() & flags : false;
 }
 
 void
 pgp_signature_t::set_key_features(uint32_t flags)
 {
-    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_FEATURES, 1, true);
-    subpkt.hashed = true;
-    subpkt.data[0] = flags;
-    subpkt.fields.features = flags;
-    subpkt.parsed = true;
+    auto sub = std::unique_ptr<sigsub::Features>(new sigsub::Features());
+    sub->set_features(flags & 0xff);
+    add_subpkt(std::move(sub));
 }
 
 std::string
 pgp_signature_t::signer_uid() const
 {
-    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_SIGNERS_USER_ID);
-    return subpkt ? std::string(subpkt->fields.signer.uid, subpkt->fields.signer.len) : "";
+    auto sub =
+      dynamic_cast<const sigsub::SignersUserID *>(get_subpkt(sigsub::Type::SignersUserID));
+    return sub ? sub->signer() : "";
 }
 
 void
 pgp_signature_t::set_signer_uid(const std::string &uid)
 {
-    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_SIGNERS_USER_ID, uid.size(), true);
-    subpkt.hashed = true;
-    memcpy(subpkt.data, uid.data(), uid.size());
-    subpkt.fields.signer.uid = (const char *) subpkt.data;
-    subpkt.fields.signer.len = subpkt.len;
-    subpkt.parsed = true;
+    auto sub = std::unique_ptr<sigsub::SignersUserID>(new sigsub::SignersUserID());
+    sub->set_signer(uid);
+    add_subpkt(std::move(sub));
 }
 
 void
@@ -1164,26 +637,16 @@ pgp_signature_t::add_notation(const std::string &         name,
                               bool                        human,
                               bool                        critical)
 {
-    auto nlen = name.size();
-    auto vlen = value.size();
-    if ((nlen > 0xffff) || (vlen > 0xffff)) {
+    if ((name.size() > 0xffff) || (value.size() > 0xffff)) {
         RNP_LOG("wrong length");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
-    auto &subpkt = add_subpkt(PGP_SIG_SUBPKT_NOTATION_DATA, 8 + nlen + vlen, false);
-    subpkt.hashed = true;
-    subpkt.critical = critical;
-    if (human) {
-        subpkt.data[0] = 0x80;
-    }
-    write_uint16(subpkt.data + 4, nlen);
-    write_uint16(subpkt.data + 6, vlen);
-    memcpy(subpkt.data + 8, name.data(), nlen);
-    memcpy(subpkt.data + 8 + nlen, value.data(), vlen);
-    if (!subpkt.parse()) {
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-    }
+    auto sub = std::unique_ptr<sigsub::NotationData>(new sigsub::NotationData(true, critical));
+    sub->set_human_readable(human);
+    sub->set_name(name);
+    sub->set_value(value);
+    add_subpkt(std::move(sub), false);
 }
 
 void
@@ -1195,30 +658,17 @@ pgp_signature_t::add_notation(const std::string &name, const std::string &value,
 void
 pgp_signature_t::set_embedded_sig(const pgp_signature_t &esig)
 {
-    pgp_rawpacket_t   esigpkt(esig);
-    rnp::MemorySource mem(esigpkt.raw);
-    size_t            len = 0;
-    stream_read_pkt_len(mem.src(), &len);
-    if (!len || (len > 0xffff) || (len >= esigpkt.raw.size())) {
-        RNP_LOG("wrong pkt len");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE, len, true);
-    subpkt.hashed = false;
-    size_t skip = esigpkt.raw.size() - len;
-    memcpy(subpkt.data, esigpkt.raw.data() + skip, len);
-    subpkt.fields.sig = new pgp_signature_t(esig);
-    subpkt.parsed = true;
+    auto sub =
+      std::unique_ptr<sigsub::EmbeddedSignature>(new sigsub::EmbeddedSignature(false));
+    sub->set_signature(esig);
+    add_subpkt(std::move(sub));
 }
 
-const pgp_sig_subpkt_t *
+const sigsub::RevocationKey *
 pgp_signature_t::revoker_subpkt() const noexcept
 {
-    if (version < PGP_V4) {
-        return nullptr;
-    }
-    auto subpkt = get_subpkt(PGP_SIG_SUBPKT_REVOCATION_KEY);
-    return subpkt && subpkt->hashed ? subpkt : nullptr;
+    return dynamic_cast<const sigsub::RevocationKey *>(
+      get_subpkt(sigsub::Type::RevocationKey));
 }
 
 bool
@@ -1230,64 +680,44 @@ pgp_signature_t::has_revoker() const noexcept
 pgp_fingerprint_t
 pgp_signature_t::revoker() const noexcept
 {
-    pgp_fingerprint_t res{};
-    auto              subpkt = revoker_subpkt();
-    if (!subpkt) {
-        return res;
-    }
-    res.length = subpkt->fields.revocation_key.fp_len;
-    memcpy(res.fingerprint, subpkt->fields.revocation_key.fp, res.length);
-    return res;
+    auto sub = revoker_subpkt();
+    return sub ? sub->fp() : pgp_fingerprint_t();
 }
 
 void
 pgp_signature_t::set_revoker(const pgp_key_t &revoker, bool sensitive)
 {
-    auto &fp = revoker.fp();
-    auto &subpkt = add_subpkt(PGP_SIG_SUBPKT_REVOCATION_KEY, fp.length + 2, true);
-    subpkt.hashed = true;
-    subpkt.data[0] = sensitive ? 0xC0 : 0x80;
-    subpkt.data[1] = revoker.alg();
-    memcpy(subpkt.data + 2, fp.fingerprint, fp.length);
-    subpkt.parse();
+    auto sub = std::unique_ptr<sigsub::RevocationKey>(new sigsub::RevocationKey());
+    sub->set_rev_class(sensitive ? 0xC0 : 0x80);
+    sub->set_alg(revoker.alg());
+    sub->set_fp(revoker.fp());
+    add_subpkt(std::move(sub));
 }
 
-pgp_sig_subpkt_t &
-pgp_signature_t::add_subpkt(pgp_sig_subpacket_type_t type, size_t datalen, bool reuse)
+void
+pgp_signature_t::add_subpkt(std::unique_ptr<pgp::pkt::sigsub::Raw> &&sub, bool replace)
 {
     if (version < PGP_V4) {
         RNP_LOG("wrong signature version");
         throw std::invalid_argument("version");
     }
 
-    uint8_t *newdata = (uint8_t *) calloc(1, datalen);
-    if (!newdata) {
-        RNP_LOG("Allocation failed");
-        throw std::bad_alloc();
+    sub->write();
+    if (replace) {
+        auto idx = find_subpkt(sub->raw_type(), sub->hashed());
+        if (idx != SIZE_MAX) {
+            subpkts[idx] = std::move(sub);
+            return;
+        }
     }
-
-    pgp_sig_subpkt_t *subpkt = NULL;
-    if (reuse && (subpkt = get_subpkt(type))) {
-        *subpkt = {};
-    } else {
-        subpkts.push_back({});
-        subpkt = &subpkts.back();
-    }
-
-    subpkt->data = newdata;
-    subpkt->type = type;
-    subpkt->len = datalen;
-    return *subpkt;
+    subpkts.items.push_back(std::move(sub));
 }
 
 void
-pgp_signature_t::remove_subpkt(pgp_sig_subpkt_t *subpkt)
+pgp_signature_t::remove_subpkt(size_t idx)
 {
-    for (auto it = subpkts.begin(); it < subpkts.end(); it++) {
-        if (&*it == subpkt) {
-            subpkts.erase(it);
-            return;
-        }
+    if (idx < subpkts.size()) {
+        subpkts.items.erase(subpkts.begin() + idx);
     }
 }
 
@@ -1329,13 +759,7 @@ pgp_signature_t::parse_v2v3(pgp_packet_body_t &pkt)
         return RNP_ERROR_BAD_FORMAT;
     }
     /* hashed data */
-    free(hashed_data);
-    if (!(hashed_data = (uint8_t *) malloc(5))) {
-        RNP_LOG("allocation failed");
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    memcpy(hashed_data, &buf[1], 5);
-    hashed_len = 5;
+    hashed_data.assign(buf + 1, buf + 6);
     /* signature type */
     type_ = (pgp_sig_type_t) buf[1];
     /* creation time */
@@ -1358,62 +782,49 @@ pgp_signature_t::parse_subpackets(uint8_t *buf, size_t len, bool hashed)
 {
     bool res = true;
 
-    while (len > 0) {
+    while (len) {
         if (subpkts.size() >= MAX_SUBPACKETS) {
             RNP_LOG("too many signature subpackets");
             return false;
         }
         if (len < 2) {
-            RNP_LOG("got single byte %d", (int) *buf);
+            RNP_LOG("got single byte %" PRIu8, *buf);
             return false;
         }
 
         /* subpacket length */
-        size_t splen;
-        if (*buf < 192) {
-            splen = *buf;
-            buf++;
+        size_t splen = *buf++;
+        len--;
+        if ((splen >= 192) && (splen < 255)) {
+            splen = ((splen - 192) << 8) + *buf++ + 192;
             len--;
-        } else if (*buf < 255) {
-            splen = ((buf[0] - 192) << 8) + buf[1] + 192;
-            buf += 2;
-            len -= 2;
-        } else {
-            if (len < 5) {
-                RNP_LOG("got 4-byte len but only %d bytes in buffer", (int) len);
+        } else if (splen == 255) {
+            if (len < 4) {
+                RNP_LOG("got 4-byte len but only %zu bytes in buffer", len);
                 return false;
             }
-            splen = read_uint32(&buf[1]);
-            buf += 5;
-            len -= 5;
+            splen = read_uint32(buf);
+            buf += 4;
+            len -= 4;
         }
 
-        if (splen < 1) {
+        if (!splen) {
             RNP_LOG("got subpacket with 0 length");
             return false;
         }
 
         /* subpacket data */
         if (len < splen) {
-            RNP_LOG("got subpacket len %d, while only %d bytes left", (int) splen, (int) len);
+            RNP_LOG("got subpacket len %zu, while only %zu bytes left", splen, len);
             return false;
         }
 
-        pgp_sig_subpkt_t subpkt;
-        if (!(subpkt.data = (uint8_t *) malloc(splen - 1))) {
-            RNP_LOG("subpacket data allocation failed");
-            return false;
+        auto subpkt = sigsub::Raw::create(buf, splen, hashed);
+        if (!subpkt) {
+            res = false;
+        } else {
+            subpkts.items.push_back(std::move(subpkt));
         }
-
-        subpkt.type = (pgp_sig_subpacket_type_t)(*buf & 0x7f);
-        subpkt.critical = !!(*buf & 0x80);
-        subpkt.hashed = hashed;
-        subpkt.parsed = 0;
-        memcpy(subpkt.data, buf + 1, splen - 1);
-        subpkt.len = splen - 1;
-
-        res = res && subpkt.parse();
-        subpkts.push_back(std::move(subpkt));
         len -= splen;
         buf += splen;
     }
@@ -1449,6 +860,30 @@ pgp_signature_t::get_subpkt_len(pgp_packet_body_t &pkt, size_t &splen)
     }
 }
 
+size_t
+pgp_signature_t::find_subpkt(uint8_t stype, bool hashed, size_t skip) const
+{
+    if (version < PGP_V4) {
+        return SIZE_MAX;
+    }
+    for (size_t idx = 0; idx < subpkts.size(); idx++) {
+        if ((subpkts[idx]->raw_type() != stype) || (hashed && !subpkts[idx]->hashed())) {
+            continue;
+        }
+        if (!skip) {
+            return idx;
+        }
+        skip--;
+    }
+    return SIZE_MAX;
+}
+
+size_t
+pgp_signature_t::find_subpkt(sigsub::Type type, bool hashed, size_t skip) const
+{
+    return find_subpkt(static_cast<uint8_t>(type), hashed, skip);
+}
+
 rnp_result_t
 pgp_signature_t::parse_v4up(pgp_packet_body_t &pkt)
 {
@@ -1480,23 +915,18 @@ pgp_signature_t::parse_v4up(pgp_packet_body_t &pkt)
         return RNP_ERROR_BAD_FORMAT;
     }
     /* building hashed data */
-    free(hashed_data);
     size_t hlen = 4 + splen + splen_size;
-    if (!(hashed_data = (uint8_t *) malloc(hlen))) {
-        RNP_LOG("allocation failed");
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
+    hashed_data.resize(hlen);
     hashed_data[0] = version;
     static_assert(sizeof(buf) == 3, "Wrong signature header size.");
     pkt.skip_back(3 + splen_size);
 
-    if (!pkt.get(hashed_data + 1, hlen - 1)) {
+    if (!pkt.get(hashed_data.data() + 1, hlen - 1)) {
         RNP_LOG("cannot get hashed subpackets data");
         return RNP_ERROR_BAD_FORMAT;
     }
-    hashed_len = hlen;
     /* parsing hashed subpackets */
-    if (!parse_subpackets(hashed_data + 4 + splen_size, splen, true)) {
+    if (!parse_subpackets(hashed_data.data() + 4 + splen_size, splen, true)) {
         RNP_LOG("failed to parse hashed subpackets");
         return RNP_ERROR_BAD_FORMAT;
     }
@@ -1554,13 +984,14 @@ pgp_signature_t::parse(pgp_packet_body_t &pkt)
     }
 
     /* left 16 bits of the hash */
-    if (!pkt.get(lbits, 2)) {
+    if (!pkt.get(lbits.data(), 2)) {
         RNP_LOG("not enough data for hash left bits");
         return RNP_ERROR_BAD_FORMAT;
     }
 
 #if defined(ENABLE_CRYPTO_REFRESH)
     if (ver == PGP_V6) {
+        uint8_t salt_size = 0;
         if (!pkt.get(salt_size)) {
             RNP_LOG("not enough data for v6 salt size octet");
             return RNP_ERROR_BAD_FORMAT;
@@ -1577,18 +1008,8 @@ pgp_signature_t::parse(pgp_packet_body_t &pkt)
 #endif
 
     /* raw signature material */
-    material_len = pkt.left();
-    if (!material_len) {
-        RNP_LOG("No signature material");
-        return RNP_ERROR_BAD_FORMAT;
-    }
-    material_buf = (uint8_t *) malloc(material_len);
-    if (!material_buf) {
-        RNP_LOG("Allocation failed");
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
     /* we cannot fail here */
-    pkt.get(material_buf, material_len);
+    pkt.get(material_buf, pkt.left());
     /* check whether it can be parsed */
     pgp_signature_material_t material = {};
     if (!parse_material(material)) {
@@ -1611,7 +1032,7 @@ pgp_signature_t::parse(pgp_source_t &src)
 bool
 pgp_signature_t::parse_material(pgp_signature_material_t &material) const
 {
-    pgp_packet_body_t pkt(material_buf, material_len);
+    pgp_packet_body_t pkt(material_buf);
 
     switch (palg) {
     case PGP_PKA_RSA:
@@ -1704,7 +1125,7 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
 }
 
 void
-pgp_signature_t::write(pgp_dest_t &dst) const
+pgp_signature_t::write(pgp_dest_t &dst, bool hdr) const
 {
     if (!pgp_signature_t::version_supported(version)) {
         RNP_LOG("don't know version %d", (int) version);
@@ -1716,26 +1137,34 @@ pgp_signature_t::write(pgp_dest_t &dst) const
     if (version < PGP_V4) {
         /* for v3 signatures hashed data includes only type + creation_time */
         pktbody.add_byte(version);
-        pktbody.add_byte(hashed_len);
-        pktbody.add(hashed_data, hashed_len);
+        pktbody.add_byte(hashed_data.size());
+        pktbody.add(hashed_data);
         pktbody.add(signer);
         pktbody.add_byte(palg);
         pktbody.add_byte(halg);
     } else {
         /* for v4 sig->hashed_data must contain most of signature fields */
-        pktbody.add(hashed_data, hashed_len);
+        pktbody.add(hashed_data);
         pktbody.add_subpackets(*this, false);
     }
-    pktbody.add(lbits, 2);
+    pktbody.add(lbits.data(), 2);
 #if defined(ENABLE_CRYPTO_REFRESH)
     if (version == PGP_V6) {
-        pktbody.add_byte(salt_size);
-        pktbody.add(salt, salt_size);
+        pktbody.add_byte(salt.size());
+        pktbody.add(salt);
     }
 #endif
     /* write mpis */
-    pktbody.add(material_buf, material_len);
-    pktbody.write(dst);
+    pktbody.add(material_buf);
+    pktbody.write(dst, hdr);
+}
+
+std::vector<uint8_t>
+pgp_signature_t::write(bool hdr) const
+{
+    rnp::MemoryDest dst;
+    write(dst.dst(), hdr);
+    return dst.to_vector();
 }
 
 void
@@ -1792,14 +1221,7 @@ pgp_signature_t::write_material(const pgp_signature_material_t &material)
         RNP_LOG("Unknown pk algorithm : %d", (int) palg);
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    free(material_buf);
-    material_buf = (uint8_t *) malloc(pktbody.size());
-    if (!material_buf) {
-        RNP_LOG("allocation failed");
-        throw rnp::rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
-    }
-    memcpy(material_buf, pktbody.data(), pktbody.size());
-    material_len = pktbody.size();
+    material_buf.assign(pktbody.data(), pktbody.data() + pktbody.size());
 }
 
 void
@@ -1821,15 +1243,7 @@ pgp_signature_t::fill_hashed_data()
         hbody.add_byte(halg);
         hbody.add_subpackets(*this, true);
     }
-
-    free(hashed_data);
-    hashed_data = (uint8_t *) malloc(hbody.size());
-    if (!hashed_data) {
-        RNP_LOG("allocation failed");
-        throw std::bad_alloc();
-    }
-    memcpy(hashed_data, hbody.data(), hbody.size());
-    hashed_len = hbody.size();
+    hashed_data.assign(hbody.data(), hbody.data() + hbody.size());
 }
 
 void

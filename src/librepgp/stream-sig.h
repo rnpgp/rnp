@@ -33,55 +33,47 @@
 #include "rnp.h"
 #include "stream-common.h"
 #include "stream-packet.h"
+#include "sig_subpacket.hpp"
 
 typedef struct pgp_signature_t {
   private:
     pgp_sig_type_t       type_;
-    std::vector<uint8_t> preferred(pgp_sig_subpacket_type_t type) const;
-    void set_preferred(const std::vector<uint8_t> &data, pgp_sig_subpacket_type_t type);
+    std::vector<uint8_t> preferred(pgp::pkt::sigsub::Type type) const;
+    void         set_preferred(const std::vector<uint8_t> &data, pgp::pkt::sigsub::Type type);
     rnp_result_t parse_v2v3(pgp_packet_body_t &pkt);
     rnp_result_t parse_v4up(pgp_packet_body_t &pkt);
     bool         get_subpkt_len(pgp_packet_body_t &pkt, size_t &len);
     bool         parse_subpackets(uint8_t *buf, size_t len, bool hashed);
     static bool  version_supported(pgp_version_t version);
 
-    const pgp_sig_subpkt_t *revoker_subpkt() const noexcept;
+    const pgp::pkt::sigsub::RevocationKey *revoker_subpkt() const noexcept;
 
   public:
     pgp_version_t version;
     /* common v3 and v4 fields */
-    pgp_pubkey_alg_t palg;
-    pgp_hash_alg_t   halg;
-    uint8_t          lbits[2];
-    uint8_t *        hashed_data;
-    size_t           hashed_len;
-    uint8_t *        material_buf; /* raw signature material */
-    size_t           material_len; /* raw signature material length */
+    pgp_pubkey_alg_t       palg;
+    pgp_hash_alg_t         halg;
+    std::array<uint8_t, 2> lbits;
+    std::vector<uint8_t>   hashed_data;
+    std::vector<uint8_t>   material_buf; /* raw signature material */
 
     /* v3 - only fields */
     uint32_t     creation_time;
     pgp_key_id_t signer;
 
-    /* common v4 and v6 fields */
-    std::vector<pgp_sig_subpkt_t> subpkts;
+    /* common v4, v5 and v6 fields */
+    pgp::pkt::sigsub::List subpkts;
 
 #if defined(ENABLE_CRYPTO_REFRESH)
     /* v6 - only fields */
-    uint8_t salt[PGP_MAX_SALT_SIZE_V6_SIG];
-    uint8_t salt_size;
+    std::vector<uint8_t> salt;
 #endif
 
     pgp_signature_t()
         : type_(PGP_SIG_BINARY), version(PGP_VUNKNOWN), palg(PGP_PKA_NOTHING),
-          halg(PGP_HASH_UNKNOWN), hashed_data(NULL), hashed_len(0), material_buf(NULL),
-          material_len(0), creation_time(0){};
-    pgp_signature_t(const pgp_signature_t &src);
-    pgp_signature_t(pgp_signature_t &&src);
-    pgp_signature_t &operator=(pgp_signature_t &&src);
-    pgp_signature_t &operator=(const pgp_signature_t &src);
-    bool             operator==(const pgp_signature_t &src) const;
-    bool             operator!=(const pgp_signature_t &src) const;
-    ~pgp_signature_t();
+          halg(PGP_HASH_UNKNOWN), creation_time(0){};
+    bool operator==(const pgp_signature_t &src) const;
+    bool operator!=(const pgp_signature_t &src) const;
 
     /* @brief Get signature's type */
     pgp_sig_type_t
@@ -104,18 +96,22 @@ typedef struct pgp_signature_t {
     /** @brief Calculate the unique signature identifier by hashing signature's fields. */
     pgp_sig_id_t get_id() const;
 
+    size_t find_subpkt(uint8_t type, bool hashed = true, size_t skip = 0) const;
+    size_t find_subpkt(pgp::pkt::sigsub::Type type, bool hashed = true, size_t skip = 0) const;
     /**
-     * @brief Get v4 signature's subpacket of the specified type and hashedness.
+     * @brief Get v4 and up signature's subpacket of the specified type and hashedness.
      * @param stype subpacket type.
-     * @param hashed If true (default), then will search for subpacket only in hashed (i.e.
-     * covered by signature) area, otherwise will search in both hashed and non-hashed areas.
-     * @return pointer to the subpacket, or NULL if subpacket was not found.
+     * @param hashed whether subpacket must be in hashed area on in any area.
+     * @return pointer to the subpacket, or nullptr if subpacket was not found.
      */
-    pgp_sig_subpkt_t *      get_subpkt(pgp_sig_subpacket_type_t stype, bool hashed = true);
-    const pgp_sig_subpkt_t *get_subpkt(pgp_sig_subpacket_type_t stype,
-                                       bool                     hashed = true) const;
+    pgp::pkt::sigsub::Raw *      get_subpkt(uint8_t stype, bool hashed = true);
+    const pgp::pkt::sigsub::Raw *get_subpkt(uint8_t stype, bool hashed = true) const;
+    pgp::pkt::sigsub::Raw *      get_subpkt(pgp::pkt::sigsub::Type type, bool hashed = true);
+    const pgp::pkt::sigsub::Raw *get_subpkt(pgp::pkt::sigsub::Type type,
+                                            bool                   hashed = true) const;
+
     /* @brief Check whether v4 signature has subpacket of the specified type/hashedness */
-    bool has_subpkt(pgp_sig_subpacket_type_t stype, bool hashed = true) const;
+    bool has_subpkt(uint8_t stype, bool hashed = true) const;
     /* @brief Check whether signature has signing key id (via v3 field, or v4 key id/key fp
      * subpacket) */
     bool has_keyid() const;
@@ -369,20 +365,18 @@ typedef struct pgp_signature_t {
     void set_revoker(const pgp_key_t &revoker, bool sensitive = false);
 
     /**
-     * @brief Add subpacket of the specified type to v4 signature
-     * @param type type of the subpacket
-     * @param datalen length of the subpacket body
-     * @param reuse replace already existing subpacket of the specified type if any
+     * @brief Add subpacket to v4 and up signature
+     * @param sub pointer to the subpacket object.
+     * @param replace replace already existing subpacket of the specified type if any
      * @return reference to the subpacket structure or throws an exception
      */
-    pgp_sig_subpkt_t &add_subpkt(pgp_sig_subpacket_type_t type, size_t datalen, bool reuse);
+    void add_subpkt(std::unique_ptr<pgp::pkt::sigsub::Raw> &&sub, bool replace = true);
 
     /**
      * @brief Remove signature's subpacket
-     * @param subpkt subpacket to remove. If not in the subpackets list then no action is
-     * taken.
+     * @param idx Index of the subpacket in list.
      */
-    void remove_subpkt(pgp_sig_subpkt_t *subpkt);
+    void remove_subpkt(size_t idx);
 
     /**
      * @brief Check whether signature packet matches one-pass signature packet.
@@ -418,7 +412,8 @@ typedef struct pgp_signature_t {
     /**
      * @brief Write signature to the destination. May throw an exception.
      */
-    void write(pgp_dest_t &dst) const;
+    void                 write(pgp_dest_t &dst, bool hdr = true) const;
+    std::vector<uint8_t> write(bool hdr = true) const;
 
     /**
      * @brief Write the signature material's raw representation. May throw an exception.

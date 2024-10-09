@@ -134,3 +134,20 @@ pgp_fingerprint_t::operator!=(const pgp_fingerprint_t &src) const
 {
     return !(*this == src);
 }
+
+pgp_key_id_t
+pgp_fingerprint_t::keyid() const
+{
+    pgp_key_id_t res{};
+    static_assert(std::tuple_size<decltype(res)>::value == PGP_KEY_ID_SIZE,
+                  "pgp_key_id_t size mismatch");
+
+    if (length == PGP_FINGERPRINT_V4_SIZE) {
+        memcpy(res.data(),
+               fingerprint + PGP_FINGERPRINT_V4_SIZE - PGP_KEY_ID_SIZE,
+               PGP_KEY_ID_SIZE);
+    } else if (length == PGP_FINGERPRINT_V5_SIZE) {
+        memcpy(res.data(), fingerprint, PGP_KEY_ID_SIZE);
+    }
+    return res;
+}

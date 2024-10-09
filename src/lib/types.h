@@ -73,6 +73,9 @@ class id_str_pair {
                               int                         notfound = 0);
 };
 
+typedef std::array<uint8_t, PGP_KEY_ID_SIZE>   pgp_key_id_t;
+typedef std::array<uint8_t, PGP_KEY_GRIP_SIZE> pgp_key_grip_t;
+
 /** pgp_fingerprint_t */
 typedef struct pgp_fingerprint_t {
     uint8_t  fingerprint[PGP_MAX_FINGERPRINT_SIZE];
@@ -96,6 +99,8 @@ typedef struct pgp_fingerprint_t {
         return (size == PGP_FINGERPRINT_V4_SIZE) || (size == PGP_FINGERPRINT_V3_SIZE) ||
                (size == PGP_FINGERPRINT_V5_SIZE);
     }
+
+    pgp_key_id_t keyid() const;
 } pgp_fingerprint_t;
 
 typedef std::array<uint8_t, PGP_KEY_GRIP_SIZE> pgp_sig_id_t;
@@ -129,10 +134,6 @@ template <> struct hash<pgp_sig_id_t> {
     }
 };
 }; // namespace std
-
-typedef std::array<uint8_t, PGP_KEY_GRIP_SIZE> pgp_key_grip_t;
-
-typedef std::array<uint8_t, PGP_KEY_ID_SIZE> pgp_key_id_t;
 
 namespace rnp {
 class rnp_exception : public std::exception {
@@ -226,101 +227,9 @@ typedef struct pgp_key_protection_t {
     uint8_t           iv[PGP_MAX_BLOCK_SIZE];
 } pgp_key_protection_t;
 
-typedef struct pgp_key_pkt_t    pgp_key_pkt_t;
-typedef struct pgp_userid_pkt_t pgp_userid_pkt_t;
-typedef struct pgp_signature_t  pgp_signature_t;
-
-/* Signature subpacket, see 5.2.3.1 in RFC 4880 and RFC 4880 bis 02 */
-typedef struct pgp_sig_subpkt_t {
-    pgp_sig_subpacket_type_t type;         /* type of the subpacket */
-    size_t                   len;          /* length of the data */
-    uint8_t *                data;         /* raw subpacket data, excluding the header */
-    bool                     critical : 1; /* critical flag */
-    bool                     hashed : 1;   /* whether subpacket is hashed or not */
-    bool                     parsed : 1;   /* whether subpacket was successfully parsed */
-    union {
-        uint32_t create; /* 5.2.3.4.   Signature Creation Time */
-        uint32_t expiry; /* 5.2.3.6.   Key Expiration Time */
-                         /* 5.2.3.10.  Signature Expiration Time */
-        bool exportable; /* 5.2.3.11.  Exportable Certification */
-        struct {
-            uint8_t level;
-            uint8_t amount;
-        } trust; /* 5.2.3.13.  Trust Signature */
-        struct {
-            const char *str;
-            unsigned    len;
-        } regexp;       /* 5.2.3.14.  Regular Expression */
-        bool revocable; /* 5.2.3.12.  Revocable */
-        struct {
-            uint8_t *arr;
-            unsigned len;
-        } preferred; /* 5.2.3.7.  Preferred Symmetric Algorithms */
-                     /* 5.2.3.8.  Preferred Hash Algorithms */
-                     /* 5.2.3.9.  Preferred Compression Algorithms */
-        struct {
-            uint8_t          revclass;
-            pgp_pubkey_alg_t pkalg;
-            uint8_t *        fp;
-            size_t           fp_len;
-        } revocation_key; /* 5.2.3.15.  Revocation Key */
-        uint8_t *issuer;  /* 5.2.3.5.   Issuer */
-        struct {
-            uint8_t        flags[4];
-            unsigned       nlen;
-            unsigned       vlen;
-            bool           human;
-            const uint8_t *name;
-            const uint8_t *value;
-        } notation; /* 5.2.3.16.  Notation Data */
-        struct {
-            bool no_modify;
-        } ks_prefs; /* 5.2.3.17.  Key Server Preferences */
-        struct {
-            const char *uri;
-            unsigned    len;
-        } preferred_ks;   /* 5.2.3.18.  Preferred Key Server */
-        bool primary_uid; /* 5.2.3.19.  Primary User ID */
-        struct {
-            const char *uri;
-            unsigned    len;
-        } policy;          /* 5.2.3.20.  Policy URI */
-        uint8_t key_flags; /* 5.2.3.21.  Key Flags */
-        struct {
-            const char *uid;
-            unsigned    len;
-        } signer; /* 5.2.3.22.  Signer's User ID */
-        struct {
-            pgp_revocation_type_t code;
-            const char *          str;
-            unsigned              len;
-        } revocation_reason; /* 5.2.3.23.  Reason for Revocation */
-        uint8_t features;    /* 5.2.3.24.  Features */
-        struct {
-            pgp_pubkey_alg_t pkalg;
-            pgp_hash_alg_t   halg;
-            uint8_t *        hash;
-            unsigned         hlen;
-        } sig_target;         /* 5.2.3.25.  Signature Target */
-        pgp_signature_t *sig; /* 5.2.3.27. Embedded Signature */
-        struct {
-            uint8_t  version;
-            uint8_t *fp;
-            unsigned len;
-        } issuer_fp; /* 5.2.3.28.  Issuer Fingerprint, RFC 4880 bis 04 */
-    } fields;        /* parsed contents of the subpacket */
-
-    pgp_sig_subpkt_t()
-        : type(PGP_SIG_SUBPKT_UNKNOWN), len(0), data(NULL), critical(false), hashed(false),
-          parsed(false), fields({}){};
-    pgp_sig_subpkt_t(const pgp_sig_subpkt_t &src);
-    pgp_sig_subpkt_t(pgp_sig_subpkt_t &&src);
-    pgp_sig_subpkt_t &operator=(pgp_sig_subpkt_t &&src);
-    pgp_sig_subpkt_t &operator=(const pgp_sig_subpkt_t &src);
-    ~pgp_sig_subpkt_t();
-    bool parse();
-} pgp_sig_subpkt_t;
-
+typedef struct pgp_key_pkt_t      pgp_key_pkt_t;
+typedef struct pgp_userid_pkt_t   pgp_userid_pkt_t;
+typedef struct pgp_signature_t    pgp_signature_t;
 typedef struct pgp_one_pass_sig_t pgp_one_pass_sig_t;
 
 typedef enum {

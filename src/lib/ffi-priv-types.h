@@ -67,6 +67,14 @@ struct rnp_signature_handle_st {
     bool new_sig;
 };
 
+struct rnp_sig_subpacket_st {
+    const pgp::pkt::sigsub::Raw &sub;
+
+    rnp_sig_subpacket_st(const pgp::pkt::sigsub::Raw &val) : sub(val)
+    {
+    }
+};
+
 struct rnp_recipient_handle_st {
     rnp_ffi_t        ffi;
     pgp_key_id_t     keyid;

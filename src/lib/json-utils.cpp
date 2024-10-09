@@ -81,6 +81,12 @@ json_add(json_object *obj, const char *name, const char *value, size_t len)
 }
 
 bool
+json_add(json_object *obj, const char *name, const std::string &value)
+{
+    return json_add(obj, name, json_object_new_string_len(value.data(), value.size()));
+}
+
+bool
 json_add_hex(json_object *obj, const char *name, const uint8_t *val, size_t val_len)
 {
     if (val_len > 1024 * 1024) {
@@ -103,6 +109,12 @@ json_add_hex(json_object *obj, const char *name, const uint8_t *val, size_t val_
         free(hexbuf);
     }
     return res;
+}
+
+bool
+json_add_hex(json_object *obj, const char *name, const std::vector<uint8_t> &vec)
+{
+    return json_add_hex(obj, name, vec.data(), vec.size());
 }
 
 bool
