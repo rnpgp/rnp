@@ -422,15 +422,11 @@ dst_print_str(pgp_dest_t *dst, const char *name, const std::string &str)
 
 static void
 dst_print_algs(pgp_dest_t *                dst,
-               const char *                name,
+               const std::string &         name,
                const std::vector<uint8_t> &algs,
                const id_str_pair           map[])
 {
-    if (!name) {
-        name = "algorithms";
-    }
-
-    dst_printf(dst, "%s: ", name);
+    dst_printf(dst, "%s: ", name.c_str());
     for (size_t i = 0; i < algs.size(); i++) {
         auto comma = i + 1 < algs.size() ? ", " : "";
         dst_printf(dst, "%s%s", id_str_pair::lookup(map, algs[i], "Unknown"), comma);
@@ -454,32 +450,27 @@ dst_print_sig_type(pgp_dest_t *dst, const char *name, pgp_sig_type_t sigtype)
 }
 
 static void
-dst_print_hex(pgp_dest_t *dst, const char *name, const uint8_t *data, size_t len, bool bytes)
+dst_print_hex(
+  pgp_dest_t *dst, const std::string &name, const uint8_t *data, size_t len, bool bytes)
 {
     char hex[512];
     vsnprinthex(hex, sizeof(hex), data, len);
     if (bytes) {
-        dst_printf(dst, "%s: 0x%s (%d bytes)\n", name, hex, (int) len);
+        dst_printf(dst, "%s: 0x%s (%d bytes)\n", name.c_str(), hex, (int) len);
     } else {
-        dst_printf(dst, "%s: 0x%s\n", name, hex);
+        dst_printf(dst, "%s: 0x%s\n", name.c_str(), hex);
     }
 }
 
 static void
-dst_print_keyid(pgp_dest_t *dst, const char *name, const pgp_key_id_t &keyid)
+dst_print_keyid(pgp_dest_t *dst, const std::string &name, const pgp_key_id_t &keyid)
 {
-    if (!name) {
-        name = "key id";
-    }
     dst_print_hex(dst, name, keyid.data(), keyid.size(), false);
 }
 
 static void
-dst_print_fp(pgp_dest_t *dst, const char *name, const pgp_fingerprint_t &fp)
+dst_print_fp(pgp_dest_t *dst, const std::string &name, const pgp_fingerprint_t &fp)
 {
-    if (!name) {
-        name = "fingerprint";
-    }
     dst_print_hex(dst, name, fp.fingerprint, fp.length, true);
 }
 
@@ -589,6 +580,13 @@ static void         stream_dump_signature_pkt(rnp_dump_ctx_t * ctx,
 /* Todo: move dumper to pgp::pkt or pgp namespace */
 using namespace pgp;
 
+/**
+ * @brief Dump signature subpacket to the dst.
+ *
+ * @param ctx dump context
+ * @param dst dest
+ * @param subpkt subpacket itself
+ */
 static void
 signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, const pkt::sigsub::Raw &subpkt)
 {
@@ -1186,12 +1184,12 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
     dst_printf(dst, "version: %d\n", (int) pkey.version);
 #if defined(ENABLE_CRYPTO_REFRESH)
     if (pkey.version == PGP_PKSK_V6) {
-        dst_print_fp(dst, NULL, pkey.fp);
+        dst_print_fp(dst, "fingerprint", pkey.fp);
     } else {
-        dst_print_keyid(dst, NULL, pkey.key_id);
+        dst_print_keyid(dst, "key id", pkey.key_id);
     }
 #else
-    dst_print_keyid(dst, NULL, pkey.key_id);
+    dst_print_keyid(dst, "key id", pkey.key_id);
 #endif
     dst_print_palg(dst, NULL, pkey.alg);
     dst_printf(dst, "encrypted material:\n");
