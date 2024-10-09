@@ -43,7 +43,6 @@ typedef struct pgp_signature_t {
     rnp_result_t parse_v2v3(pgp_packet_body_t &pkt);
     rnp_result_t parse_v4up(pgp_packet_body_t &pkt);
     bool         get_subpkt_len(pgp_packet_body_t &pkt, size_t &len);
-    size_t       find_subpkt(uint8_t type, bool hashed = true, size_t start = 0) const;
     bool         parse_subpackets(uint8_t *buf, size_t len, bool hashed);
     static bool  version_supported(pgp_version_t version);
 
@@ -106,9 +105,8 @@ typedef struct pgp_signature_t {
     /** @brief Calculate the unique signature identifier by hashing signature's fields. */
     pgp_sig_id_t get_id() const;
 
-    size_t find_subpkt(pgp::pkt::sigsub::Type type,
-                       bool                   hashed = true,
-                       size_t                 start = 0) const;
+    size_t find_subpkt(uint8_t type, bool hashed = true, size_t skip = 0) const;
+    size_t find_subpkt(pgp::pkt::sigsub::Type type, bool hashed = true, size_t skip = 0) const;
     /**
      * @brief Get v4 and up signature's subpacket of the specified type and hashedness.
      * @param stype subpacket type.
