@@ -1289,23 +1289,27 @@ pgp_signature_t::get_subpkt_len(pgp_packet_body_t &pkt, size_t &splen)
 }
 
 size_t
-pgp_signature_t::find_subpkt(uint8_t stype, bool hashed, size_t start) const
+pgp_signature_t::find_subpkt(uint8_t stype, bool hashed, size_t skip) const
 {
     if (version < PGP_V4) {
         return SIZE_MAX;
     }
-    for (size_t idx = start; idx < subpkts.size(); idx++) {
-        if ((subpkts[idx]->raw_type() == stype) && (!hashed || subpkts[idx]->hashed())) {
+    for (size_t idx = 0; idx < subpkts.size(); idx++) {
+        if ((subpkts[idx]->raw_type() != stype) || (hashed && !subpkts[idx]->hashed())) {
+            continue;
+        }
+        if (!skip) {
             return idx;
         }
+        skip--;
     }
     return SIZE_MAX;
 }
 
 size_t
-pgp_signature_t::find_subpkt(sigsub::Type type, bool hashed, size_t start) const
+pgp_signature_t::find_subpkt(sigsub::Type type, bool hashed, size_t skip) const
 {
-    return find_subpkt(static_cast<uint8_t>(type), hashed, start);
+    return find_subpkt(static_cast<uint8_t>(type), hashed, skip);
 }
 
 rnp_result_t
