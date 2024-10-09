@@ -312,6 +312,16 @@ rnp_cfg::get_hashalg() const
     return DEFAULT_HASH_ALG;
 }
 
+const std::string
+rnp_cfg::get_cipher() const
+{
+    const std::string cipher_alg = get_str(CFG_CIPHER);
+    if (!cipher_alg.empty()) {
+        return cipher_alg;
+    }
+    return DEFAULT_SYMM_ALG;
+}
+
 bool
 rnp_cfg::get_expiration(const std::string &key, uint32_t &seconds) const
 {
