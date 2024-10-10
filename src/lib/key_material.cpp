@@ -127,6 +127,102 @@ grip_hash_ec(rnp::Hash &hash, const pgp_ec_key_t &key)
 
 namespace pgp {
 
+KeyParams::~KeyParams()
+{
+}
+
+std::unique_ptr<KeyParams>
+KeyParams::create(pgp_pubkey_alg_t alg)
+{
+    switch (alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        return std::unique_ptr<KeyParams>(new RSAKeyParams());
+    case PGP_PKA_ECDSA:
+        return std::unique_ptr<KeyParams>(new ECDSAKeyParams());
+    case PGP_PKA_ECDH:
+        return std::unique_ptr<KeyParams>(new ECCKeyParams());
+    case PGP_PKA_EDDSA:
+        return std::unique_ptr<KeyParams>(new ECCKeyParams(PGP_CURVE_ED25519));
+    case PGP_PKA_SM2:
+        return std::unique_ptr<KeyParams>(new ECCKeyParams(PGP_CURVE_SM2_P_256));
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        return std::unique_ptr<KeyParams>(new ECCKeyParams(PGP_CURVE_ED25519));
+    case PGP_PKA_X25519:
+        return std::unique_ptr<KeyParams>(new ECCKeyParams(PGP_CURVE_25519));
+#endif
+    case PGP_PKA_DSA:
+        return std::unique_ptr<KeyParams>(new DSAKeyParams());
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        return std::unique_ptr<KeyParams>(new EGKeyParams());
+#if defined(ENABLE_PQC)
+    case PGP_PKA_KYBER768_X25519:
+        FALLTHROUGH_STATEMENT;
+    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER768_P256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_P384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER768_BP256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_BP384:
+        return std::unique_ptr<KeyParams>(new MlkemEcdhKeyParams(alg));
+    case PGP_PKA_DILITHIUM3_ED25519:
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_P256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_P384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_BP256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_BP384:
+        return std::unique_ptr<KeyParams>(new DilithiumEccKeyParams(alg));
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
+        return std::unique_ptr<KeyParams>(new SlhdsaKeyParams());
+#endif
+    default:
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+}
+
+DSAKeyParams::DSAKeyParams() : BitsKeyParams(DSA_DEFAULT_P_BITLEN)
+{
+    qbits_ = dsa_choose_qsize_by_psize(bits());
+}
+
+size_t
+ECCKeyParams::bits() const noexcept
+{
+    auto curve = get_curve_desc(curve_);
+    return curve ? curve->bitlen : 0;
+}
+
+#if defined(ENABLE_PQC)
+size_t
+MlkemEcdhKeyParams::bits() const noexcept
+{
+    return pgp_kyber_ecdh_composite_public_key_t::encoded_size(alg_) * 8;
+}
+
+size_t
+DilithiumEccKeyParams::bits() const noexcept
+{
+    return pgp_dilithium_exdsa_composite_public_key_t::encoded_size(alg_) * 8;
+}
+
+size_t
+SlhdsaKeyParams::bits() const noexcept
+{
+    return sphincsplus_pubkey_size(param_) * 8;
+}
+#endif
+
 KeyMaterial::~KeyMaterial()
 {
 }
