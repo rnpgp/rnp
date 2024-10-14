@@ -328,6 +328,17 @@ def rnp_genkey_rsa(userid, bits=2048, pswd=PASSWORD):
     if ret != 0:
         raise_err('rsa key generation failed', err)
 
+def rnp_genkey_pqc(userid, algo_cli_nr, algo_param = None, pswd=PASSWORD):
+    algo_pipe = str(algo_cli_nr)
+    if algo_param:
+        algo_pipe += "\n" + str(algo_param)
+    ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', pswd,
+                                  '--notty', '--userid', userid, '--generate-key', '--expert'], algo_pipe)
+    #os.close(algo_pipe)
+    if ret != 0:
+        raise_err('pqc key generation failed', err)
+    return out
+
 def rnp_params_insert_z(params, pos, z):
     if z:
         if len(z) > 0 and z[0] != None:
@@ -865,7 +876,7 @@ def gpg_check_features():
     print('GPG_BRAINPOOL: ' + str(GPG_BRAINPOOL))
 
 def rnp_check_features():
-    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_AEAD_EAX, RNP_AEAD_OCB, RNP_AEAD_OCB_AES, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160
+    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_AEAD_EAX, RNP_AEAD_OCB, RNP_AEAD_OCB_AES, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160, RNP_PQC
     global RNP_BOTAN_OCB_AV
     ret, out, _ = run_proc(RNP, ['--version'])
     if ret != 0:
@@ -892,6 +903,9 @@ def rnp_check_features():
     RNP_BLOWFISH = re.match(r'(?s)^.*Encryption:.*BLOWFISH.*', out) is not None
     RNP_CAST5 = re.match(r'(?s)^.*Encryption:.*CAST5.*', out) is not None
     RNP_RIPEMD160 = re.match(r'(?s)^.*Hash:.*RIPEMD160.*', out) is not None
+    # Determine PQC support in general. If present, assume that all PQC schemes are supported.
+    pqc_strs = ['ML-KEM', 'ML-DSA']
+    RNP_PQC = any([re.match('(?s)^.*Public key:.*' + scheme + '.*', out) is not None for scheme in pqc_strs])
     print('RNP_TWOFISH: ' + str(RNP_TWOFISH))
     print('RNP_BLOWFISH: ' + str(RNP_BLOWFISH))
     print('RNP_IDEA: ' + str(RNP_IDEA))
@@ -902,6 +916,7 @@ def rnp_check_features():
     print('RNP_AEAD_OCB: ' + str(RNP_AEAD_OCB))
     print('RNP_AEAD_OCB_AES: ' + str(RNP_AEAD_OCB_AES))
     print('RNP_BOTAN_OCB_AV: ' + str(RNP_BOTAN_OCB_AV))
+    print('RNP_PQC: ' + str(RNP_PQC))
 
 def setup(loglvl):
     # Setting up directories.
@@ -4579,6 +4594,84 @@ class Encryption(unittest.TestCase):
                     remove_files(dec)
                 rnp_decrypt_file(dst, dec, '\n'.join([pswd] * 5))
                 remove_files(dec)
+
+            remove_files(dst, dec)
+
+
+    def verify_pqc_algo_ui_nb_to_algo_ui_str(self, stdout: str, algo_ui_exp_strs) -> None:
+        stdout_lines = stdout.split('\n')
+        for expected_line in algo_ui_exp_strs:
+            found_this_entry : bool = False
+            for line in stdout_lines:
+                # compare ignore whitespaces and tabs:
+                re_patt_for_algo = r'[^\t ]'
+                char_list_expected = [c for c in expected_line if re.match(re_patt_for_algo, c)]
+                char_list_actual = [c for c in line if re.match(re_patt_for_algo, c)]
+                if char_list_expected == char_list_actual:
+                    found_this_entry = True
+                    break
+
+            if not found_this_entry:
+                raise RuntimeError("did not match the expected UI choice for algorithm: " + expected_line)
+
+    """ zzz_ prefix makes it the last test. This is a workaround against a gnupg import error with the
+    pqc keys in other member function tests that would otherwise follow this one.
+    """
+    def test_zzz_encryption_and_signing_pqc(self):
+        if not RNP_PQC:
+            return
+        algo_ui_exp_strs = [ "(24) Ed25519Legacy + Curve25519Legacy + (ML-KEM-768 + X25519)",
+                             "(25) (ML-DSA-65 + Ed25519) + (ML-KEM-768 + X25519)",
+                             "(27) (ML-DSA-65 + ECDSA-NIST-P-256) + (ML-KEM-768 + ECDH-NIST-P-256)",
+                             "(28) (ML-DSA-87 + ECDSA-NIST-P-384) + (ML-KEM-1024 + ECDH-NIST-P-384)",
+                             "(29) (ML-DSA-65 + ECDSA-brainpoolP256r1) + (ML-KEM-768 + ECDH-brainpoolP256r1)",
+                             "(30) (ML-DSA-87 + ECDSA-brainpoolP384r1) + (ML-KEM-1024 + ECDH-brainpoolP384r1)",
+                             "(31) SLH-DSA-SHA2 + MLKEM-ECDH Composite",
+                             "(32) SLH-DSA-SHAKE + MLKEM-ECDH Composite",
+                               ]
+        USERIDS = ['enc-sign25@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign32a@rnp','enc-sign32b@rnp','enc-sign32c@rnp','enc-sign24-v4-key@rnp']
+
+        # '24' in the below array creates a v4 primary signature key with a v4 pqc subkey without a Features Subpacket. This way we test PQC encryption to a v4 subkey. RNP prefers the PQC subkey in case of a certificate having a PQC and a
+        # non-PQC subkey.
+        ALGO       = [25,   27,   28,   29,   30,   32, 32, 32, 24, ]
+        ALGO_PARAM = [None, None, None, None, None, 1,  2,  6,  None,  ]
+        aead_list = []
+        passwds = [ ]
+        for x in range(len(ALGO)): passwds.append('testpw' if x % 1 == 0 else '')
+        for x in range(len(ALGO)): aead_list.append(None if x % 3 == 0 else ('ocb' if x % 3 == 1 else 'eax' ))
+        if any(len(USERIDS) != len(x) for x in [ALGO, ALGO_PARAM]):
+            raise  RuntimeError("test_zzz_encryption_and_signing_pqc: internal error: lengths of test data arrays matching")
+        # Generate multiple keys and import to GnuPG
+        verified_algo_nums = False
+        for uid, algo, param, passwd in zip(USERIDS, ALGO, ALGO_PARAM, passwds):
+            stdout = rnp_genkey_pqc(uid, algo, param, passwd)
+            if not verified_algo_nums:
+                self.verify_pqc_algo_ui_nb_to_algo_ui_str(stdout, algo_ui_exp_strs)
+                verified_algo_nums = True
+
+        #gpg_import_pubring()
+        #gpg_import_secring()
+
+
+        src, dst, dec = reg_workfiles('cleartext', '.txt', '.rnp', '.dec')
+        # Generate random file of required size
+        random_text(src, 65500)
+
+        for i in range(0, len(USERIDS)):
+            signers = [USERIDS[i]]
+            #signpswd = KEYPASS[:SIGNERS[i]]
+            #keynum, pswdnum = KEYPSWD[i]
+            recipients = [USERIDS[i]]
+            passwords = [] # SKESK for v6 not yet supported
+            signerpws = [passwds[i]]
+
+            rnp_encrypt_and_sign_file(src, dst, recipients, passwords, signers,
+                                      signerpws, aead=[aead_list[i]])
+            # Decrypt file with each of the keys, we have different password for each key
+            rnp_decrypt_file(dst, dec, passwds[i])
+            remove_files(dec)
+
+
 
             remove_files(dst, dec)
 
