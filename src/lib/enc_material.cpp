@@ -51,7 +51,8 @@ EncMaterial::create(pgp_pubkey_alg_t alg)
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: Add case for PGP_PKA_KYBER1024_X448 with FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -163,6 +164,39 @@ X25519EncMaterial::parse(pgp_packet_body_t &pkt) noexcept
     }
     return true;
 }
+
+bool
+X448EncMaterial::parse(pgp_packet_body_t &pkt) noexcept
+{
+        const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_448);
+        enc.eph_key.eph_key.resize(BITS_TO_BYTES(ec_desc->bitlen));
+        if (!pkt.get(enc.eph_key.data(), enc.eph_key.eph_key.size())) {
+            RNP_LOG("failed to parse X448 PKESK (eph. pubkey)");
+            return false;
+        }
+        uint8_t sess_len;
+        if (!pkt.get(sess_len)) {
+            RNP_LOG("failed to parse X448 PKESK (enc sesskey length)");
+            return false;
+        }
+        /* get plaintext salg if PKESKv3 */
+        if ((version == PGP_PKSK_V3) && !do_encrypt_pkesk_v3_alg_id(alg)) {
+            uint8_t                bt = 0;
+            if (!pkt.get(bt)) {
+                RNP_LOG("failed to get salg");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            sess_len--;
+            salg = (pgp_symm_alg_t) bt;
+        }
+        enc.enc_sess_key.resize(sess_len);
+        if (!pkt.get(enc.enc_sess_key.data(), sess_len)) {
+            RNP_LOG("failed to parse X448 PKESK (enc sesskey)");
+            return false;
+        }
+        break;
+}
+
 
 void
 X25519EncMaterial::write(pgp_packet_body_t &pkt) const

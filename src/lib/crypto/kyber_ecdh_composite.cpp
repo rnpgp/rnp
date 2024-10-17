@@ -79,9 +79,8 @@ pgp_kyber_ecdh_composite_key_t::ecdh_curve_privkey_size(pgp_curve_t curve)
     switch (curve) {
     case PGP_CURVE_25519:
         return 32;
-    /* TODO */
-    // case PGP_CURVE_X448:
-    //   return 56;
+    case PGP_CURVE_448:
+        return 56;
     case PGP_CURVE_NIST_P_256:
         return 32;
     case PGP_CURVE_NIST_P_384:
@@ -102,9 +101,8 @@ pgp_kyber_ecdh_composite_key_t::ecdh_curve_pubkey_size(pgp_curve_t curve)
     switch (curve) {
     case PGP_CURVE_25519:
         return 32;
-    /* TODO */
-    //  case PGP_CURVE_X448:
-    //    return 56;
+    case PGP_CURVE_448:
+        return 56;
     case PGP_CURVE_NIST_P_256:
         return 65;
     case PGP_CURVE_NIST_P_384:
@@ -125,9 +123,8 @@ pgp_kyber_ecdh_composite_key_t::ecdh_curve_ephemeral_size(pgp_curve_t curve)
     switch (curve) {
     case PGP_CURVE_25519:
         return 32;
-    /* TODO */
-    //  case PGP_CURVE_X448:
-    //    return 56;
+    case PGP_CURVE_448:
+        return 56;
     case PGP_CURVE_NIST_P_256:
         return 65;
     case PGP_CURVE_NIST_P_384:
@@ -148,9 +145,8 @@ pgp_kyber_ecdh_composite_key_t::ecdh_curve_keyshare_size(pgp_curve_t curve)
     switch (curve) {
     case PGP_CURVE_25519:
         return 32;
-    /* TODO */
-    //  case PGP_CURVE_X448:
-    //    return 56;
+    case PGP_CURVE_448:
+        return 56;
     case PGP_CURVE_NIST_P_256:
         return 32;
     case PGP_CURVE_NIST_P_384:
@@ -175,6 +171,8 @@ pgp_kyber_ecdh_composite_key_t::pk_alg_to_kyber_id(pgp_pubkey_alg_t pk_alg)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
         return kyber_768;
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -199,8 +197,8 @@ pgp_kyber_ecdh_composite_key_t::pk_alg_to_curve_id(pgp_pubkey_alg_t pk_alg)
         return PGP_CURVE_BP384;
     case PGP_PKA_KYBER1024_P384:
         return PGP_CURVE_NIST_P_384;
-    /*case PGP_PKA_KYBER1024_X448:
-      return ... NOT_IMPLEMENTED*/
+    case PGP_PKA_KYBER1024_X448:
+        return PGP_CURVE_448;
     default:
         RNP_LOG("invalid PK alg given");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -312,7 +310,7 @@ hashed_ecc_keyshare(const std::vector<uint8_t> &key_share,
     case PGP_PKA_KYBER768_P256:
         hash_alg = PGP_HASH_SHA3_256;
         break;
-    // case PGP_PKA_KYBER1024_X448:
+    case PGP_PKA_KYBER1024_X448:
     case PGP_PKA_KYBER1024_P384:
     case PGP_PKA_KYBER1024_BP384:
         hash_alg = PGP_HASH_SHA3_512;

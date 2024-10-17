@@ -188,8 +188,7 @@ static rnp_result_t
 ec_generate_generic_native(rnp::RNG *            rng,
                            std::vector<uint8_t> &privkey,
                            std::vector<uint8_t> &pubkey,
-                           pgp_curve_t           curve,
-                           pgp_pubkey_alg_t      alg)
+                           pgp_curve_t           curve)
 {
     if (!is_generic_prime_curve(curve)) {
         RNP_LOG("expected generic prime curve");
@@ -216,22 +215,20 @@ rnp_result_t
 ec_generate_native(rnp::RNG *            rng,
                    std::vector<uint8_t> &privkey,
                    std::vector<uint8_t> &pubkey,
-                   pgp_curve_t           curve,
-                   pgp_pubkey_alg_t      alg)
+                   pgp_curve_t           curve)
 {
-    if (curve == PGP_CURVE_25519) {
+    switch (curve) {
+    case PGP_CURVE_25519:
         return generate_x25519_native(rng, privkey, pubkey);
-    } else if (curve == PGP_CURVE_ED25519) {
+    case PGP_CURVE_ED25519:
         return generate_ed25519_native(rng, privkey, pubkey);
-    } else if (is_generic_prime_curve(curve)) {
-        if (alg != PGP_PKA_ECDH && alg != PGP_PKA_ECDSA) {
-            RNP_LOG("alg and curve mismatch");
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
-        return ec_generate_generic_native(rng, privkey, pubkey, curve, alg);
-    } else {
-        RNP_LOG("invalid curve");
-        return RNP_ERROR_BAD_PARAMETERS;
+    case PGP_CURVE_448:
+        return generate_x448_native(rng, privkey, pubkey);
+    case PGP_CURVE_ED448:
+        return generate_ed448_native(rng, privkey, pubkey);
+    default:
+        break;
     }
+    return ec_generate_generic_native(rng, privkey, pubkey, curve);
 }
 #endif
