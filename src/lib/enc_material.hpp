@@ -88,6 +88,14 @@ class X25519EncMaterial : public EncMaterial {
     bool parse(pgp_packet_body_t &pkt) noexcept override;
     void write(pgp_packet_body_t &pkt) const override;
 };
+
+class X448EncMaterial : public EncMaterial {
+  public:
+    pgp_x448_encrypted_t enc;
+
+    bool parse(pgp_packet_body_t &pkt) noexcept override;
+    void write(pgp_packet_body_t &pkt) const override;
+};
 #endif
 
 #if defined(ENABLE_PQC)

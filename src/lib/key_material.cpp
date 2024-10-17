@@ -403,7 +403,8 @@ KeyMaterial::create(pgp_pubkey_alg_t alg)
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: Add case for PGP_PKA_KYBER1024_X448
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -414,7 +415,8 @@ KeyMaterial::create(pgp_pubkey_alg_t alg)
         return std::unique_ptr<KeyMaterial>(new MlkemEcdhKeyMaterial(alg));
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: Add case for PGP_PKA_DILITHIUM5_ED448
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -1654,6 +1656,474 @@ X25519KeyMaterial::pub() const noexcept
 
 const std::vector<uint8_t> &
 X25519KeyMaterial::priv() const noexcept
+{
+    return key_.priv;
+}
+
+std::unique_ptr<KeyMaterial>
+Ed448KeyMaterial::clone()
+{
+    return std::unique_ptr<KeyMaterial>(new Ed448KeyMaterial(*this));
+}
+
+void
+Ed448KeyMaterial::grip_update(rnp::Hash &hash) const
+{
+    // TODO: if GnuPG would ever support v6, check whether this works correctly.
+    hash.add(pub());
+}
+
+bool
+Ed448KeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
+{
+    return !ed448_validate_key_native(&ctx.rng, &key_, secret_);
+}
+
+void
+Ed448KeyMaterial::clear_secret() noexcept
+{
+    key_.clear_secret();
+    KeyMaterial::clear_secret();
+}
+
+bool
+Ed448KeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
+{
+    secret_ = false;
+    auto                 ec_desc = get_curve_desc(PGP_CURVE_ED448);
+    std::vector<uint8_t> buf(BITS_TO_BYTES(ec_desc->bitlen));
+    if (!pkt.get(buf.data(), buf.size())) {
+        RNP_LOG("failed to parse Ed448 public key data");
+        return false;
+    }
+    key_.pub = buf;
+    return true;
+}
+
+bool
+Ed448KeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
+{
+    auto                 ec_desc = get_curve_desc(PGP_CURVE_ED448);
+    std::vector<uint8_t> buf(BITS_TO_BYTES(ec_desc->bitlen));
+    if (!pkt.get(buf.data(), buf.size())) {
+        RNP_LOG("failed to parse Ed448 secret key data");
+        return false;
+    }
+    key_.priv = buf;
+    secret_ = true;
+    return true;
+}
+
+void
+Ed448KeyMaterial::write(pgp_packet_body_t &pkt) const
+{
+    pkt.add(key_.pub);
+}
+
+void
+Ed448KeyMaterial::write_secret(pgp_packet_body_t &pkt) const
+{
+    pkt.add(key_.priv);
+}
+
+bool
+Ed448KeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
+{
+    if (generate_ed448_native(&params.ctx->rng, key_.priv, key_.pub)) {
+        RNP_LOG("failed to generate ED448 key");
+        return false;
+    }
+    return finish_generate();
+}
+
+rnp_result_t
+Ed448KeyMaterial::verify(const rnp::SecurityContext &       ctx,
+                         const pgp_signature_material_t &   sig,
+                         const rnp::secure_vector<uint8_t> &hash) const
+{
+    return ed448_verify_native(sig.ed448.sig, key_.pub, hash.data(), hash.size());
+}
+
+rnp_result_t
+Ed448KeyMaterial::sign(rnp::SecurityContext &             ctx,
+                       pgp_signature_material_t &         sig,
+                       const rnp::secure_vector<uint8_t> &hash) const
+{
+    return ed448_sign_native(&ctx.rng, sig.ed448.sig, key_.priv, hash.data(), hash.size());
+}
+
+size_t
+Ed448KeyMaterial::bits() const noexcept
+{
+    return 57 * 8; // TODO: sensible?
+}
+
+pgp_curve_t
+Ed448KeyMaterial::curve() const noexcept
+{
+    return PGP_CURVE_ED448;
+}
+
+const std::vector<uint8_t> &
+Ed448KeyMaterial::pub() const noexcept
+{
+    return key_.pub;
+}
+
+const std::vector<uint8_t> &
+Ed448KeyMaterial::priv() const noexcept
+{
+    return key_.priv;
+}
+
+std::unique_ptr<KeyMaterial>
+X448KeyMaterial::clone()
+{
+    return std::unique_ptr<KeyMaterial>(new X448KeyMaterial(*this));
+}
+
+void
+X448KeyMaterial::grip_update(rnp::Hash &hash) const
+{
+    // TODO: if GnuPG would ever support v6, check whether this works correctly.
+    hash.add(pub());
+}
+
+bool
+X448KeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
+{
+    return !x448_validate_key_native(&ctx.rng, &key_, secret_);
+}
+
+void
+X448KeyMaterial::clear_secret() noexcept
+{
+    key_.clear_secret();
+    KeyMaterial::clear_secret();
+}
+
+bool
+X448KeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
+{
+    secret_ = false;
+    auto                 ec_desc = get_curve_desc(PGP_CURVE_448);
+    std::vector<uint8_t> buf(BITS_TO_BYTES(ec_desc->bitlen));
+    if (!pkt.get(buf.data(), buf.size())) {
+        RNP_LOG("failed to parse X448 public key data");
+        return false;
+    }
+    key_.pub = buf;
+    return true;
+}
+
+bool
+X448KeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
+{
+    auto                 ec_desc = get_curve_desc(PGP_CURVE_448);
+    std::vector<uint8_t> buf(BITS_TO_BYTES(ec_desc->bitlen));
+    if (!pkt.get(buf.data(), buf.size())) {
+        RNP_LOG("failed to parse X448 secret key data");
+        return false;
+    }
+    key_.priv = buf;
+    secret_ = true;
+    return true;
+}
+
+void
+X448KeyMaterial::write(pgp_packet_body_t &pkt) const
+{
+    pkt.add(key_.pub);
+}
+
+void
+X448KeyMaterial::write_secret(pgp_packet_body_t &pkt) const
+{
+    pkt.add(key_.priv);
+}
+
+bool
+X448KeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
+{
+    if (generate_x448_native(&params.ctx->rng, key_.priv, key_.pub)) {
+        RNP_LOG("failed to generate X448 key");
+        return false;
+    }
+    return finish_generate();
+}
+
+rnp_result_t
+X448KeyMaterial::encrypt(rnp::SecurityContext &    ctx,
+                         pgp_encrypted_material_t &out,
+                         const uint8_t *           data,
+                         size_t                    len) const
+{
+    return x448_native_encrypt(&ctx.rng, key_.pub, data, len, &out.x448);
+}
+
+rnp_result_t
+X448KeyMaterial::decrypt(rnp::SecurityContext &          ctx,
+                         uint8_t *                       out,
+                         size_t &                        out_len,
+                         const pgp_encrypted_material_t &in) const
+{
+    return x448_native_decrypt(&ctx.rng, key_, &in.x448, out, &out_len);
+}
+
+size_t
+X448KeyMaterial::bits() const noexcept
+{
+    return 56 * 8; // TODO: sensible?
+}
+
+pgp_curve_t
+X448KeyMaterial::curve() const noexcept
+{
+    return PGP_CURVE_448;
+}
+
+const std::vector<uint8_t> &
+X448KeyMaterial::pub() const noexcept
+{
+    return key_.pub;
+}
+
+const std::vector<uint8_t> &
+X448KeyMaterial::priv() const noexcept
+{
+    return key_.priv;
+}
+
+std::unique_ptr<KeyMaterial>
+Ed448KeyMaterial::clone()
+{
+    return std::unique_ptr<KeyMaterial>(new Ed448KeyMaterial(*this));
+}
+
+void
+Ed448KeyMaterial::grip_update(rnp::Hash &hash) const
+{
+    // TODO: if GnuPG would ever support v6, check whether this works correctly.
+    hash.add(pub());
+}
+
+bool
+Ed448KeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
+{
+    return !ed448_validate_key_native(&ctx.rng, &key_, secret_);
+}
+
+void
+Ed448KeyMaterial::clear_secret() noexcept
+{
+    key_.clear_secret();
+    KeyMaterial::clear_secret();
+}
+
+bool
+Ed448KeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
+{
+    secret_ = false;
+    auto                 ec_desc = get_curve_desc(PGP_CURVE_ED448);
+    std::vector<uint8_t> buf(BITS_TO_BYTES(ec_desc->bitlen));
+    if (!pkt.get(buf.data(), buf.size())) {
+        RNP_LOG("failed to parse Ed448 public key data");
+        return false;
+    }
+    key_.pub = buf;
+    return true;
+}
+
+bool
+Ed448KeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
+{
+    auto                 ec_desc = get_curve_desc(PGP_CURVE_ED448);
+    std::vector<uint8_t> buf(BITS_TO_BYTES(ec_desc->bitlen));
+    if (!pkt.get(buf.data(), buf.size())) {
+        RNP_LOG("failed to parse Ed448 secret key data");
+        return false;
+    }
+    key_.priv = buf;
+    secret_ = true;
+    return true;
+}
+
+void
+Ed448KeyMaterial::write(pgp_packet_body_t &pkt) const
+{
+    pkt.add(key_.pub);
+}
+
+void
+Ed448KeyMaterial::write_secret(pgp_packet_body_t &pkt) const
+{
+    pkt.add(key_.priv);
+}
+
+bool
+Ed448KeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
+{
+    if (generate_ed448_native(&params.ctx->rng, key_.priv, key_.pub)) {
+        RNP_LOG("failed to generate ED448 key");
+        return false;
+    }
+    return finish_generate();
+}
+
+rnp_result_t
+Ed448KeyMaterial::verify(const rnp::SecurityContext &       ctx,
+                         const pgp_signature_material_t &   sig,
+                         const rnp::secure_vector<uint8_t> &hash) const
+{
+    return ed448_verify_native(sig.ed448.sig, key_.pub, hash.data(), hash.size());
+}
+
+rnp_result_t
+Ed448KeyMaterial::sign(rnp::SecurityContext &             ctx,
+                       pgp_signature_material_t &         sig,
+                       const rnp::secure_vector<uint8_t> &hash) const
+{
+    return ed448_sign_native(&ctx.rng, sig.ed448.sig, key_.priv, hash.data(), hash.size());
+}
+
+size_t
+Ed448KeyMaterial::bits() const noexcept
+{
+    return 57 * 8; // TODO: sensible?
+}
+
+pgp_curve_t
+Ed448KeyMaterial::curve() const noexcept
+{
+    return PGP_CURVE_ED448;
+}
+
+const std::vector<uint8_t> &
+Ed448KeyMaterial::pub() const noexcept
+{
+    return key_.pub;
+}
+
+const std::vector<uint8_t> &
+Ed448KeyMaterial::priv() const noexcept
+{
+    return key_.priv;
+}
+
+std::unique_ptr<KeyMaterial>
+X448KeyMaterial::clone()
+{
+    return std::unique_ptr<KeyMaterial>(new X448KeyMaterial(*this));
+}
+
+void
+X448KeyMaterial::grip_update(rnp::Hash &hash) const
+{
+    // TODO: if GnuPG would ever support v6, check whether this works correctly.
+    hash.add(pub());
+}
+
+bool
+X448KeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
+{
+    return !x448_validate_key_native(&ctx.rng, &key_, secret_);
+}
+
+void
+X448KeyMaterial::clear_secret() noexcept
+{
+    key_.clear_secret();
+    KeyMaterial::clear_secret();
+}
+
+bool
+X448KeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
+{
+    secret_ = false;
+    auto                 ec_desc = get_curve_desc(PGP_CURVE_448);
+    std::vector<uint8_t> buf(BITS_TO_BYTES(ec_desc->bitlen));
+    if (!pkt.get(buf.data(), buf.size())) {
+        RNP_LOG("failed to parse X448 public key data");
+        return false;
+    }
+    key_.pub = buf;
+    return true;
+}
+
+bool
+X448KeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
+{
+    auto                 ec_desc = get_curve_desc(PGP_CURVE_448);
+    std::vector<uint8_t> buf(BITS_TO_BYTES(ec_desc->bitlen));
+    if (!pkt.get(buf.data(), buf.size())) {
+        RNP_LOG("failed to parse X448 secret key data");
+        return false;
+    }
+    key_.priv = buf;
+    secret_ = true;
+    return true;
+}
+
+void
+X448KeyMaterial::write(pgp_packet_body_t &pkt) const
+{
+    pkt.add(key_.pub);
+}
+
+void
+X448KeyMaterial::write_secret(pgp_packet_body_t &pkt) const
+{
+    pkt.add(key_.priv);
+}
+
+bool
+X448KeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
+{
+    if (generate_x448_native(&params.ctx->rng, key_.priv, key_.pub)) {
+        RNP_LOG("failed to generate X448 key");
+        return false;
+    }
+    return finish_generate();
+}
+
+rnp_result_t
+X448KeyMaterial::encrypt(rnp::SecurityContext &    ctx,
+                         pgp_encrypted_material_t &out,
+                         const uint8_t *           data,
+                         size_t                    len) const
+{
+    return x448_native_encrypt(&ctx.rng, key_.pub, data, len, &out.x448);
+}
+
+rnp_result_t
+X448KeyMaterial::decrypt(rnp::SecurityContext &          ctx,
+                         uint8_t *                       out,
+                         size_t &                        out_len,
+                         const pgp_encrypted_material_t &in) const
+{
+    return x448_native_decrypt(&ctx.rng, key_, &in.x448, out, &out_len);
+}
+
+size_t
+X448KeyMaterial::bits() const noexcept
+{
+    return 56 * 8; // TODO: sensible?
+}
+
+pgp_curve_t
+X448KeyMaterial::curve() const noexcept
+{
+    return PGP_CURVE_448;
+}
+
+const std::vector<uint8_t> &
+X448KeyMaterial::pub() const noexcept
+{
+    return key_.pub;
+}
+
+const std::vector<uint8_t> &
+X448KeyMaterial::priv() const noexcept
 {
     return key_.priv;
 }

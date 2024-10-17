@@ -60,16 +60,18 @@ static const id_str_pair pubkey_alg_map[] = {
 #if defined(ENABLE_CRYPTO_REFRESH)
   {PGP_PKA_ED25519, "ED25519"},
   {PGP_PKA_X25519, "X25519"},
+  {PGP_PKA_ED448, "ED448"},
+  {PGP_PKA_X448, "X448"},
 #endif
 #if defined(ENABLE_PQC)
   {PGP_PKA_KYBER768_X25519, "ML-KEM-768_X25519"},
-  //{PGP_PKA_KYBER1024_X448, "Kyber-X448"},
+  {PGP_PKA_KYBER1024_X448, "ML-KEM-1024_X448"},
   {PGP_PKA_KYBER768_P256, "ML-KEM-768_P256"},
   {PGP_PKA_KYBER1024_P384, "ML-KEM-1024_P384"},
   {PGP_PKA_KYBER768_BP256, "ML-KEM-768_BP256"},
   {PGP_PKA_KYBER1024_BP384, "ML-KEM-1024_BP384"},
   {PGP_PKA_DILITHIUM3_ED25519, "ML-DSA-65_ED25519"},
-  //{PGP_PKA_DILITHIUM5_ED448, "Dilithium-ED448"},
+  {PGP_PKA_DILITHIUM5_ED448, "ML-DSA-87_ED448"},
   {PGP_PKA_DILITHIUM3_P256, "ML-DSA-65_P256"},
   {PGP_PKA_DILITHIUM5_P384, "ML-DSA-87_P384"},
   {PGP_PKA_DILITHIUM3_BP256, "ML-DSA-65_BP256"},
@@ -82,8 +84,6 @@ static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_PRIVATE02, "Private/Experimental"},
   {PGP_PKA_PRIVATE03, "Private/Experimental"},
   {PGP_PKA_PRIVATE04, "Private/Experimental"},
-  {PGP_PKA_PRIVATE06, "Private/Experimental"},
-  {PGP_PKA_PRIVATE08, "Private/Experimental"},
   {PGP_PKA_PRIVATE10, "Private/Experimental"},
 #else
   {PGP_PKA_PRIVATE00, "Private/Experimental"},
@@ -223,7 +223,8 @@ pgp_check_key_hash_requirements(const rnp_keygen_crypto_params_t &crypto)
         break;
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -356,6 +357,10 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
         return 255;
     case PGP_PKA_X25519:
         return 255;
+    case PGP_PKA_ED448:
+        return 57 * 8; // TODO: sensible?
+    case PGP_PKA_X448:
+        return 56 * 8; // TODO: sensible?
 #endif
     case PGP_PKA_DSA:
         return crypto->dsa.p_bitlen;
@@ -365,7 +370,8 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -376,7 +382,8 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
         return pgp_kyber_ecdh_composite_public_key_t::encoded_size(crypto->key_alg) * 8;
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
