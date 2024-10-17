@@ -1633,14 +1633,17 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
 
     uint8_t *decbuf_sesskey = decbuf.data();
     size_t   decbuf_sesskey_len = declen;
+    size_t   keylen;
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
     if (do_encrypt_pkesk_v3_alg_id(sesskey.alg))
 #endif
     {
         sesskey.salg = static_cast<pgp_symm_alg_t>(decbuf[0]);
     }
-    size_t keylen = pgp_key_size(sesskey.salg);
     if (sesskey.version == PGP_PKSK_V3) {
+        /* salg always set in this case, either from parsing the packet (plaintext salg) or
+         * from parsing the decrypted content (encrypted salg) */
+        keylen = pgp_key_size(sesskey.salg);
         /* Check algorithm and key length */
         if (!pgp_is_sa_supported(sesskey.salg)) {
             RNP_LOG("Unsupported symmetric algorithm %d", (int) sesskey.salg);
@@ -1665,7 +1668,8 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     else { // V6 PKESK
-        /* compute the expected key length from the decbuf_sesskey_len and check */
+        /* compute the expected key length from the decbuf_sesskey_len and check if it matches
+         * SEIPDv2 header */
         keylen =
           have_pkesk_checksum(sesskey.alg) ? decbuf_sesskey_len - 2 : decbuf_sesskey_len;
         if (pgp_key_size(param->aead_hdr.ealg) != keylen) {
