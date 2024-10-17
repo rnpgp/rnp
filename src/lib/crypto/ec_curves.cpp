@@ -255,6 +255,37 @@ static const Curve ec_curves[] = {
     "0x32C4AE2C1F1981195F9904466A39C9948FE30BBFF2660BE1715A4589334C74C7",
     "0xBC3736A2F4F6779C59BDCEE36B692153D0A9877CC62A474002DF32E52139F0A0",
   },
+/* TODO: correct values */
+#if defined(ENABLE_CRYPTO_REFRESH)
+  {PGP_CURVE_ED448,
+   0,
+   {},
+   0,
+   "Ed25519",
+   "Ed25519",
+   true,
+   "0x00",
+   "0x00",
+   "0x00",
+   "0x00",
+   "0x00",
+   "0x00",
+   "0x00"},
+  {PGP_CURVE_448,
+   0,
+   {},
+   0x00,
+   "curve25519",
+   "Curve25519",
+   true,
+   "0x00",
+   "0x00",
+   "0x00",
+   "0x00",
+   "0x00",
+   "0x00",
+   "0x00"},
+#endif
 };
 
 pgp_curve_t
