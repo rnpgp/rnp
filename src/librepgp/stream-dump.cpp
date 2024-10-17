@@ -145,16 +145,18 @@ static const id_str_pair pubkey_alg_map[] = {
 #if defined(ENABLE_CRYPTO_REFRESH)
   {PGP_PKA_ED25519, "Ed25519"},
   {PGP_PKA_X25519, "X25519"},
+  {PGP_PKA_ED448, "Ed448"},
+  {PGP_PKA_X448, "X448"},
 #endif
 #if defined(ENABLE_PQC)
   {PGP_PKA_KYBER768_X25519, "ML-KEM-768 + X25519"},
-  //{PGP_PKA_KYBER1024_X448, "Kyber1024 + X448"},
+  {PGP_PKA_KYBER1024_X448, "ML-KEM-1024 + X448"},
   {PGP_PKA_KYBER768_P256, "ML-KEM-768 + NIST P-256"},
   {PGP_PKA_KYBER1024_P384, "ML-KEM-1024 + NIST P-384"},
   {PGP_PKA_KYBER768_BP256, "ML-KEM-768 + Brainpool256"},
   {PGP_PKA_KYBER1024_BP384, "ML-KEM-1024 + Brainpool384"},
   {PGP_PKA_DILITHIUM3_ED25519, "ML-DSA-65 + ED25519"},
-  //{PGP_PKA_DILITHIUM5_ED448, "Dilithium + X448"},
+  {PGP_PKA_DILITHIUM5_ED448, "ML-DSA-87 + X448"},
   {PGP_PKA_DILITHIUM3_P256, "ML-DSA-65 + NIST P-256"},
   {PGP_PKA_DILITHIUM5_P384, "ML-DSA-87 + NIST P-384"},
   {PGP_PKA_DILITHIUM3_BP256, "ML-DSA-65 + Brainpool256"},
@@ -852,11 +854,15 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
     case PGP_PKA_ED25519:
         dst_print_vec(dst, "ed25519 sig", material.ed25519.sig, ctx->dump_mpi);
         break;
+    case PGP_PKA_ED448:
+        dst_print_vec(dst, "ed448 sig", material.ed448.sig, ctx->dump_mpi);
+        break;
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -971,11 +977,22 @@ stream_dump_key_material(rnp_dump_ctx_t &        ctx,
         dst_print_vec(dst, "x25519", x25519.pub(), ctx.dump_mpi);
         return;
     }
+    case PGP_PKA_ED448: {
+        auto &ed448 = dynamic_cast<const pgp::Ed448KeyMaterial &>(*material);
+        dst_print_vec(dst, "ed448", ed448.pub(), ctx.dump_mpi);
+        return;
+    }
+    case PGP_PKA_X448: {
+        auto &x448 = dynamic_cast<const pgp::X448KeyMaterial &>(*material);
+        dst_print_vec(dst, "x448", x448.pub(), ctx.dump_mpi);
+        return;
+    }
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -990,7 +1007,8 @@ stream_dump_key_material(rnp_dump_ctx_t &        ctx,
     }
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -1232,7 +1250,8 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -2070,13 +2089,15 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
+    case PGP_PKA_ED448:
         /* TODO */
         break;
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -2188,13 +2209,16 @@ stream_dump_key_material_json(rnp_dump_ctx_t &        ctx,
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
     case PGP_PKA_X25519:
+    case PGP_PKA_ED448:
+    case PGP_PKA_X448:
         /* TODO */
         return true;
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -2206,7 +2230,8 @@ stream_dump_key_material_json(rnp_dump_ctx_t &        ctx,
         return true;
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -2412,13 +2437,16 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
     case PGP_PKA_X25519:
+    case PGP_PKA_ED448:
+    case PGP_PKA_X448:
         /* TODO */
         break;
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:

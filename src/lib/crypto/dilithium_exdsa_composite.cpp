@@ -74,9 +74,8 @@ pgp_dilithium_exdsa_composite_key_t::exdsa_curve_privkey_size(pgp_curve_t curve)
     switch (curve) {
     case PGP_CURVE_ED25519:
         return 32;
-    /* TODO */
-    // case PGP_CURVE_ED448:
-    //   return 56;
+    case PGP_CURVE_ED448:
+        return 57;
     case PGP_CURVE_NIST_P_256:
         return 32;
     case PGP_CURVE_NIST_P_384:
@@ -97,9 +96,8 @@ pgp_dilithium_exdsa_composite_key_t::exdsa_curve_pubkey_size(pgp_curve_t curve)
     switch (curve) {
     case PGP_CURVE_ED25519:
         return 32;
-    /* TODO */
-    //  case PGP_CURVE_ED448:
-    //    return 56;
+    case PGP_CURVE_ED448:
+        return 57;
     case PGP_CURVE_NIST_P_256:
         return 65;
     case PGP_CURVE_NIST_P_384:
@@ -120,9 +118,8 @@ pgp_dilithium_exdsa_composite_key_t::exdsa_curve_signature_size(pgp_curve_t curv
     switch (curve) {
     case PGP_CURVE_ED25519:
         return 64;
-    /* TODO */
-    //  case PGP_CURVE_ED448:
-    //    return 114;
+    case PGP_CURVE_ED448:
+        return 114;
     case PGP_CURVE_NIST_P_256:
         return 64;
     case PGP_CURVE_NIST_P_384:
@@ -150,6 +147,8 @@ pgp_dilithium_exdsa_composite_key_t::pk_alg_to_dilithium_id(pgp_pubkey_alg_t pk_
     case PGP_PKA_DILITHIUM5_BP384:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_ED448:
         return dilithium_L5;
     default:
         RNP_LOG("invalid PK alg given");
@@ -171,8 +170,8 @@ pgp_dilithium_exdsa_composite_key_t::pk_alg_to_curve_id(pgp_pubkey_alg_t pk_alg)
         return PGP_CURVE_BP384;
     case PGP_PKA_DILITHIUM5_P384:
         return PGP_CURVE_NIST_P_384;
-    /*case PGP_PKA_DILITHIUM5_ED448:
-      throw rnp::rnp_exception(RNP_ERROR_NOT_IMPLEMENTED);*/
+    case PGP_PKA_DILITHIUM5_ED448:
+        return PGP_CURVE_ED448;
     default:
         RNP_LOG("invalid PK alg given");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -272,7 +271,7 @@ pgp_dilithium_exdsa_composite_private_key_t::pgp_dilithium_exdsa_composite_priva
 size_t
 pgp_dilithium_exdsa_composite_private_key_t::encoded_size(pgp_pubkey_alg_t pk_alg)
 {
-    pgp_curve_t           curve = pk_alg_to_curve_id(pk_alg);
+    pgp_curve_t curve = pk_alg_to_curve_id(pk_alg);
     return exdsa_curve_privkey_size(curve) + dilithium_privkey_size();
 }
 

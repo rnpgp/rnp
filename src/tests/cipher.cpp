@@ -568,7 +568,7 @@ TEST_F(rnp_tests, test_dsa_verify_negative)
 TEST_F(rnp_tests, kyber_ecdh_roundtrip)
 {
     pgp_pubkey_alg_t algs[] = {PGP_PKA_KYBER768_X25519,
-                               /* PGP_PKA_KYBER1024_X448,  */ // X448 not yet implemented
+                               PGP_PKA_KYBER1024_X448,
                                PGP_PKA_KYBER1024_P384,
                                PGP_PKA_KYBER768_BP256,
                                PGP_PKA_KYBER1024_BP384};
@@ -604,7 +604,8 @@ TEST_F(rnp_tests, dilithium_exdsa_signverify_success)
     const pgp_hash_alg_t hash_alg = PGP_HASH_SHA512;
 
     pgp_pubkey_alg_t algs[] = {PGP_PKA_DILITHIUM3_ED25519,
-                               /* PGP_PKA_DILITHIUM5_ED448,*/ PGP_PKA_DILITHIUM3_P256,
+                               PGP_PKA_DILITHIUM5_ED448,
+                               PGP_PKA_DILITHIUM3_P256,
                                PGP_PKA_DILITHIUM5_P384,
                                PGP_PKA_DILITHIUM3_BP256,
                                PGP_PKA_DILITHIUM5_BP384};

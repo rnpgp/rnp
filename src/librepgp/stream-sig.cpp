@@ -1073,10 +1073,19 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519: {
-        const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_25519);
+        const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_ED25519);
         material.ed25519.sig.resize(2 * BITS_TO_BYTES(ec_desc->bitlen));
         if (!pkt.get(material.ed25519.sig.data(), material.ed25519.sig.size())) {
             RNP_LOG("failed to parse ED25519 signature data");
+            return false;
+        }
+        break;
+    }
+    case PGP_PKA_ED448: {
+        const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_ED448);
+        material.ed448.sig.resize(2 * BITS_TO_BYTES(ec_desc->bitlen));
+        if (!pkt.get(material.ed448.sig.data(), material.ed448.sig.size())) {
+            RNP_LOG("failed to parse ED448 signature data");
             return false;
         }
         break;
@@ -1085,7 +1094,8 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
 #if defined(ENABLE_PQC)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -1198,11 +1208,15 @@ pgp_signature_t::write_material(const pgp_signature_material_t &material)
     case PGP_PKA_ED25519:
         pktbody.add(material.ed25519.sig);
         break;
+    case PGP_PKA_ED448:
+        pktbody.add(material.ed448.sig);
+        break;
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:

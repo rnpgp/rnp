@@ -30,6 +30,7 @@
 
 #include <botan/pubkey.h>
 #include <botan/ed25519.h>
+#include <botan/ed448.h>
 #include <cassert>
 
 rnp_result_t
@@ -91,5 +92,65 @@ ed25519_validate_key_native(rnp::RNG *rng, const pgp_ed25519_key_t *key, bool se
         }
     }
 
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+generate_ed448_native(rnp::RNG *            rng,
+                      std::vector<uint8_t> &privkey,
+                      std::vector<uint8_t> &pubkey)
+{
+    Botan::Ed448_PrivateKey private_key(*(rng->obj()));
+    const size_t            key_len = 57;
+    auto                    priv = Botan::unlock(private_key.raw_private_key_bits());
+    assert(priv.size() == key_len);
+    auto pub = private_key.public_key_bits();
+    assert(pub.size() == key_len);
+    privkey = std::vector<uint8_t>(priv.begin(), priv.begin() + key_len);
+    pubkey = std::vector<uint8_t>(pub.begin(), pub.begin() + key_len);
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+ed448_sign_native(rnp::RNG *                  rng,
+                  std::vector<uint8_t> &      sig_out,
+                  const std::vector<uint8_t> &key,
+                  const uint8_t *             hash,
+                  size_t                      hash_len)
+{
+    Botan::Ed448_PrivateKey priv_key(Botan::secure_vector<uint8_t>(key.begin(), key.end()));
+    auto                    signer = Botan::PK_Signer(priv_key, *(rng->obj()), "Pure");
+    sig_out = signer.sign_message(hash, hash_len, *(rng->obj()));
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+ed448_verify_native(const std::vector<uint8_t> &sig,
+                    const std::vector<uint8_t> &key,
+                    const uint8_t *             hash,
+                    size_t                      hash_len)
+{
+    Botan::Ed448_PublicKey pub_key(key);
+    auto                   verifier = Botan::PK_Verifier(pub_key, "Pure");
+    if (verifier.verify_message(hash, hash_len, sig.data(), sig.size())) {
+        return RNP_SUCCESS;
+    }
+    return RNP_ERROR_VERIFICATION_FAILED;
+}
+
+rnp_result_t
+ed448_validate_key_native(rnp::RNG *rng, const pgp_ed448_key_t *key, bool secret)
+{
+    Botan::Ed448_PublicKey pub_key(key->pub);
+    if (!pub_key.check_key(*(rng->obj()), false)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (secret) {
+        Botan::Ed448_PrivateKey priv_key(
+          Botan::secure_vector<uint8_t>(key->priv.begin(), key->priv.end()));
+        if (!priv_key.check_key(*(rng->obj()), false)) {
+            return RNP_ERROR_SIGNING_FAILED;
+        }
+    }
     return RNP_SUCCESS;
 }

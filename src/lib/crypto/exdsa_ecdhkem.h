@@ -39,6 +39,8 @@
 #include <botan/ecdh.h>
 #include <botan/ed25519.h>
 #include <botan/x25519.h>
+#include <botan/x448.h>
+#include <botan/ed448.h>
 
 struct ecdh_kem_key_t; /* forward declaration */
 struct exdsa_key_t;    /* forward declaration */
@@ -93,6 +95,7 @@ class ecdh_kem_public_key_t : public ec_key_t {
   private:
     Botan::ECDH_PublicKey   botan_key_ecdh(rnp::RNG *rng) const;
     Botan::X25519_PublicKey botan_key_x25519() const;
+    Botan::X448_PublicKey   botan_key_x448() const;
 
     std::vector<uint8_t> key_;
 };
@@ -120,6 +123,7 @@ class ecdh_kem_private_key_t : public ec_key_t {
   private:
     Botan::ECDH_PrivateKey   botan_key_ecdh(rnp::RNG *rng) const;
     Botan::X25519_PrivateKey botan_key_x25519() const;
+    Botan::X448_PrivateKey   botan_key_x448() const;
 
     Botan::secure_vector<uint8_t> key_;
 };

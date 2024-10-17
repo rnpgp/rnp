@@ -251,6 +251,7 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
           "\t(24) Ed25519Legacy + Curve25519Legacy + (ML-KEM-768 + X25519)\n"
 #if defined(ENABLE_CRYPTO_REFRESH) // PQC primary keys only for v6
           "\t(25) (ML-DSA-65 + Ed25519) + (ML-KEM-768 + X25519)\n"
+          "\t(26) (ML-DSA-87 + Ed448) + (ML-KEM-1024 + X448)\n"
           "\t(27) (ML-DSA-65 + ECDSA-NIST-P-256) + (ML-KEM-768 + ECDH-NIST-P-256)\n"
           "\t(28) (ML-DSA-87 + ECDSA-NIST-P-384) + (ML-KEM-1024 + ECDH-NIST-P-384)\n"
           "\t(29) (ML-DSA-65 + ECDSA-brainpoolP256r1) + (ML-KEM-768 + ECDH-brainpoolP256r1)\n"
@@ -343,6 +344,12 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
             cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DILITHIUM3_ED25519);
             cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_X25519);
+            cfg.set_str(CFG_KG_V6_KEY, "true");
+            break;
+        case 26:
+            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DILITHIUM5_ED448);
+            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_X448);
             cfg.set_str(CFG_KG_V6_KEY, "true");
             break;
         case 27:

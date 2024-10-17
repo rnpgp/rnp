@@ -227,8 +227,10 @@ typedef enum : uint8_t {
     PGP_PKA_EDDSA = 22,                   /* EdDSA from draft-ietf-openpgp-rfc4880bis */
 
 #if defined(ENABLE_CRYPTO_REFRESH)
-    PGP_PKA_X25519 = 25,  /* v6 / Crypto Refresh */
-    PGP_PKA_ED25519 = 27, /* v6 / Crypto Refresh */
+    PGP_PKA_X25519 = 25,
+    PGP_PKA_X448 = 26,
+    PGP_PKA_ED25519 = 27,
+    PGP_PKA_ED448 = 28,
 #endif
 
     PGP_PKA_SM2 = 99, /* SM2 encryption/signature schemes */
@@ -236,14 +238,14 @@ typedef enum : uint8_t {
 #if defined(ENABLE_PQC)
     /* PQC-ECC composite */
     PGP_PKA_KYBER768_X25519 = 105,
-    // PGP_PKA_KYBER1024_X448 = 106,
+    PGP_PKA_KYBER1024_X448 = 106,
     PGP_PKA_KYBER768_P256 = 111,
     PGP_PKA_KYBER1024_P384 = 112,
     PGP_PKA_KYBER768_BP256 = 113,
     PGP_PKA_KYBER1024_BP384 = 114,
 
     PGP_PKA_DILITHIUM3_ED25519 = 107,
-    // PGP_PKA_DILITHIUM5_ED448 = 108,
+    PGP_PKA_DILITHIUM5_ED448 = 108,
     PGP_PKA_DILITHIUM3_P256 = 115,
     PGP_PKA_DILITHIUM5_P384 = 116,
     PGP_PKA_DILITHIUM3_BP256 = 117,
@@ -258,8 +260,6 @@ typedef enum : uint8_t {
     PGP_PKA_PRIVATE02 = 102, /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE03 = 103, /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE04 = 104, /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE06 = 106, /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE08 = 108, /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE10 = 110  /* Private/Experimental Algorithm */
 #else
     PGP_PKA_PRIVATE00 = 100, /* Private/Experimental Algorithm */
@@ -296,7 +296,10 @@ typedef enum {
     PGP_CURVE_P256K1,
 
     PGP_CURVE_SM2_P_256,
-
+#if defined(ENABLE_CRYPTO_REFRESH)
+    PGP_CURVE_ED448,
+    PGP_CURVE_448,
+#endif
     // Keep always last one
     PGP_CURVE_MAX
 } pgp_curve_t;
