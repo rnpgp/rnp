@@ -57,6 +57,7 @@
 #include <time.h>
 #include <algorithm>
 #ifdef ENABLE_CRYPTO_REFRESH
+#include "crypto/hkdf.hpp"
 #include "v2_seipd.h"
 #endif
 
@@ -721,7 +722,11 @@ encrypted_add_password(rnp_symmetric_pass_info_t * pass,
 
     skey.s2k = pass->s2k;
 
-    if (param->auth_type != rnp::AuthType::AEADv1) {
+    if (param->auth_type != rnp::AuthType::AEADv1
+#if defined(ENABLE_CRYPTO_REFRESH)
+        && param->auth_type != rnp::AuthType::AEADv2
+#endif
+    ) {
         skey.version = PGP_SKSK_V4;
         if (singlepass) {
             /* if there are no public keys then we do not encrypt session key in the packet */
@@ -757,6 +762,33 @@ encrypted_add_password(rnp_symmetric_pass_info_t * pass,
         skey.aalg = param->ctx->aalg;
         skey.ivlen = pgp_cipher_aead_nonce_len(skey.aalg);
         skey.enckeylen = keylen + pgp_cipher_aead_tag_len(skey.aalg);
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+        if (param->auth_type == rnp::AuthType::AEADv2) {
+            skey.version = PGP_SKSK_V6;
+
+            auto kdf = rnp::Hkdf::create(PGP_HASH_SHA256);
+
+            std::vector<uint8_t> kdf_info;
+            kdf_info.push_back(PGP_PKT_SK_SESSION_KEY | PGP_PTAG_ALWAYS_SET |
+                               PGP_PTAG_NEW_FORMAT);
+            kdf_info.push_back(skey.version);
+            kdf_info.push_back(skey.alg);
+            kdf_info.push_back(skey.aalg);
+
+            std::vector<uint8_t> kdf_input(pass->key.data(),
+                                           pass->key.data() + pgp_key_size(skey.alg));
+
+            kdf->extract_expand(NULL,
+                                0, // no salt
+                                kdf_input.data(),
+                                kdf_input.size(),
+                                kdf_info.data(),
+                                kdf_info.size(),
+                                pass->key.data(),
+                                pgp_key_size(skey.alg));
+        }
+#endif
 
         try {
             param->ctx->ctx->rng.get(skey.iv, skey.ivlen);
@@ -956,8 +988,12 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     bool                        singlepass = true;
     unsigned                    pkeycount = 0;
     unsigned                    skeycount = 0;
-    unsigned                    keylen;
-    rnp_result_t                ret = RNP_ERROR_GENERIC;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    bool use_v6_pkesk = false;
+    bool use_v6_skesk = false;
+#endif
+    unsigned     keylen;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
 
     keylen = pgp_key_size(handler->ctx->ealg);
     if (!keylen) {
@@ -1007,10 +1043,15 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     skeycount = handler->ctx->passwords.size();
 
 #if defined(ENABLE_CRYPTO_REFRESH)
-    /* in the case of PKESK (pkeycount > 0) and all keys are PKESKv6/SEIPDv2 capable, upgrade
-     * to AEADv2 */
-    if (handler->ctx->enable_pkesk_v6 && handler->ctx->pkeskv6_capable() && pkeycount > 0) {
-        param->auth_type = rnp::AuthType::AEADv2;
+    /* We use v6 PKESK/SKESK with v2 SEIPD if all recipients support it
+       and the variables enable_pkesk_v6 and enable_skesk_v6 are set. */
+    if (handler->ctx->aalg != PGP_AEAD_NONE) {
+        use_v6_pkesk = handler->ctx->enable_pkesk_v6 && handler->ctx->pkeskv6_capable();
+        use_v6_skesk = handler->ctx->enable_skesk_v6;
+
+        if ((use_v6_pkesk || !pkeycount) && (use_v6_skesk || !skeycount)) {
+            param->auth_type = rnp::AuthType::AEADv2;
+        }
     }
 #endif
     param->aalg = handler->ctx->aalg;
