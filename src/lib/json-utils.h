@@ -100,6 +100,35 @@ bool json_array_add(json_object *obj, const char *val);
  */
 bool json_array_add(json_object *obj, json_object *val);
 
+/**
+ * @brief Get string from the object, and optionally delete the field.
+ *        Would check field's type as well.
+ *
+ * @param obj json object
+ * @param name field name
+ * @param value on success field value will be stored here.
+ * @param del true to delete field after the extraction.
+ * @return true on success or false otherwise.
+ */
+bool json_get_str(json_object *obj, const char *name, std::string &value, bool del = true);
+
+/**
+ * Analog of the previous but extracts int value.
+ */
+bool json_get_int(json_object *obj, const char *name, int &value, bool del = true);
+bool json_get_uint64(json_object *obj, const char *name, uint64_t &value, bool del = true);
+
+/**
+ * Analog of previous which extract array of string values.
+ */
+bool json_get_str_arr(json_object *             obj,
+                      const char *              name,
+                      std::vector<std::string> &value,
+                      bool                      del = true);
+
+/* Get object with specified name, but do not delete it from json */
+json_object *json_get_obj(json_object *obj, const char *name);
+
 namespace rnp {
 class JSONObject {
     json_object *obj_;
