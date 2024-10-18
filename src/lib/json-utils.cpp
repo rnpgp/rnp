@@ -147,3 +147,82 @@ json_array_add(json_object *obj, json_object *val)
     }
     return true;
 }
+
+static json_object *
+json_get_field(json_object *obj, const char *name, json_type type)
+{
+    json_object *res = NULL;
+    if (!json_object_object_get_ex(obj, name, &res) || !json_object_is_type(res, type)) {
+        return NULL;
+    }
+    return res;
+}
+
+bool
+json_get_str(json_object *obj, const char *name, std::string &value, bool del)
+{
+    auto str = json_get_field(obj, name, json_type_string);
+    if (!str) {
+        return false;
+    }
+    value = json_object_get_string(str);
+    if (del) {
+        json_object_object_del(obj, name);
+    }
+    return true;
+}
+
+bool
+json_get_int(json_object *obj, const char *name, int &value, bool del)
+{
+    auto num = json_get_field(obj, name, json_type_int);
+    if (!num) {
+        return false;
+    }
+    value = json_object_get_int(num);
+    if (del) {
+        json_object_object_del(obj, name);
+    }
+    return true;
+}
+
+bool
+json_get_uint64(json_object *obj, const char *name, uint64_t &value, bool del)
+{
+    auto num = json_get_field(obj, name, json_type_int);
+    if (!num) {
+        return false;
+    }
+    value = (uint64_t) json_object_get_int64(num);
+    if (del) {
+        json_object_object_del(obj, name);
+    }
+    return true;
+}
+
+bool
+json_get_str_arr(json_object *obj, const char *name, std::vector<std::string> &value, bool del)
+{
+    auto arr = json_get_field(obj, name, json_type_array);
+    if (!arr) {
+        return false;
+    }
+    value.clear();
+    for (size_t i = 0; i < (size_t) json_object_array_length(arr); i++) {
+        json_object *item = json_object_array_get_idx(arr, i);
+        if (!json_object_is_type(item, json_type_string)) {
+            return false;
+        }
+        value.push_back(json_object_get_string(item));
+    }
+    if (del) {
+        json_object_object_del(obj, name);
+    }
+    return true;
+}
+
+json_object *
+json_get_obj(json_object *obj, const char *name)
+{
+    return json_get_field(obj, name, json_type_object);
+}
