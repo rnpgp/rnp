@@ -39,6 +39,7 @@
 #include "librepgp/stream-key.h"
 #include "defaults.h"
 #include <fstream>
+#include "keygen.hpp"
 
 static bool
 generate_test_key(const char *keystore, const char *userid, const char *hash, const char *home)
@@ -1001,21 +1002,22 @@ TEST_F(rnp_tests, test_generated_key_sigs)
 
     // primary
     {
-        pgp_key_t                 pub;
-        pgp_key_t                 sec;
-        rnp_keygen_primary_desc_t desc;
-        pgp_signature_t *         psig = NULL;
-        pgp_signature_t *         ssig = NULL;
-        pgp_signature_info_t      psiginfo = {};
-        pgp_signature_info_t      ssiginfo = {};
+        pgp_key_t            pub;
+        pgp_key_t            sec;
+        pgp_signature_t *    psig = NULL;
+        pgp_signature_t *    ssig = NULL;
+        pgp_signature_info_t psiginfo = {};
+        pgp_signature_info_t ssiginfo = {};
 
-        desc.crypto.key_alg = PGP_PKA_RSA;
-        desc.crypto.rsa.modulus_bit_len = 1024;
-        desc.crypto.ctx = &global_ctx;
-        desc.cert.userid = "test";
+        rnp::KeygenParams keygen(PGP_PKA_RSA, global_ctx);
+        auto &            rsa = dynamic_cast<pgp::RSAKeyParams &>(keygen.key_params());
+        rsa.set_bits(1024);
+
+        rnp_selfsig_cert_info_t cert{};
+        cert.userid = "test";
 
         // generate
-        assert_true(pgp_generate_primary_key(desc, true, sec, pub, PGP_KEY_STORE_GPG));
+        assert_true(keygen.generate(cert, sec, pub, PGP_KEY_STORE_GPG));
 
         // add to our rings
         assert_true(pubring->add_key(pub));
@@ -1136,25 +1138,22 @@ TEST_F(rnp_tests, test_generated_key_sigs)
 
     // sub
     {
-        pgp_key_t                pub;
-        pgp_key_t                sec;
-        rnp_keygen_subkey_desc_t desc = {};
-        pgp_signature_t *        psig = NULL;
-        pgp_signature_t *        ssig = NULL;
-        pgp_signature_info_t     psiginfo = {};
-        pgp_signature_info_t     ssiginfo = {};
+        pgp_key_t            pub;
+        pgp_key_t            sec;
+        pgp_signature_t *    psig = NULL;
+        pgp_signature_t *    ssig = NULL;
+        pgp_signature_info_t psiginfo = {};
+        pgp_signature_info_t ssiginfo = {};
 
-#if defined(ENABLE_CRYPTO_REFRESH)
-        desc.pgp_version = PGP_V4;
-#endif
-        desc.crypto.key_alg = PGP_PKA_RSA;
-        desc.crypto.rsa.modulus_bit_len = 1024;
-        desc.crypto.ctx = &global_ctx;
+        rnp::KeygenParams keygen(PGP_PKA_RSA, global_ctx);
+        auto &            rsa = dynamic_cast<pgp::RSAKeyParams &>(keygen.key_params());
+        rsa.set_bits(1024);
 
         // generate
-        pgp_password_provider_t prov = {};
-        assert_true(pgp_generate_subkey(
-          desc, true, *primary_sec, *primary_pub, sec, pub, prov, PGP_KEY_STORE_GPG));
+        pgp_password_provider_t    prov = {};
+        rnp_selfsig_binding_info_t binding{};
+        assert_true(keygen.generate(
+          binding, *primary_sec, *primary_pub, sec, pub, prov, PGP_KEY_STORE_GPG));
         assert_true(pub.valid());
         assert_true(pub.validated());
         assert_false(pub.expired());
