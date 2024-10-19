@@ -319,52 +319,6 @@ typedef struct pgp_user_prefs_t {
     void merge_defaults(pgp_version_t version = PGP_V4);
 } pgp_user_prefs_t;
 
-struct rnp_keygen_ecc_params_t {
-    pgp_curve_t curve;
-};
-
-struct rnp_keygen_rsa_params_t {
-    uint32_t modulus_bit_len;
-};
-
-struct rnp_keygen_dsa_params_t {
-    size_t p_bitlen;
-    size_t q_bitlen;
-};
-
-struct rnp_keygen_elgamal_params_t {
-    size_t key_bitlen;
-};
-
-#if defined(ENABLE_PQC)
-struct rnp_keygen_sphincsplus_params_t {
-    sphincsplus_parameter_t param;
-};
-#endif
-
-/* structure used to hold context of key generation */
-namespace rnp {
-class SecurityContext;
-}
-
-typedef struct rnp_keygen_crypto_params_t {
-    // Asymmetric algorithm that user requested key for
-    pgp_pubkey_alg_t key_alg;
-    // Hash to be used for key signature
-    pgp_hash_alg_t hash_alg;
-    // Pointer to security context
-    rnp::SecurityContext *ctx;
-    union {
-        struct rnp_keygen_ecc_params_t     ecc;
-        struct rnp_keygen_rsa_params_t     rsa;
-        struct rnp_keygen_dsa_params_t     dsa;
-        struct rnp_keygen_elgamal_params_t elgamal;
-#if defined(ENABLE_PQC)
-        struct rnp_keygen_sphincsplus_params_t sphincsplus;
-#endif
-    };
-} rnp_keygen_crypto_params_t;
-
 typedef struct rnp_selfsig_cert_info_t {
     std::string      userid;           /* userid, required */
     uint8_t          key_flags{};      /* key flags */
@@ -385,18 +339,6 @@ typedef struct rnp_selfsig_binding_info_t {
     uint8_t  key_flags;
     uint32_t key_expiration;
 } rnp_selfsig_binding_info_t;
-
-typedef struct rnp_keygen_primary_desc_t {
-    rnp_keygen_crypto_params_t crypto{};
-    rnp_selfsig_cert_info_t    cert{};
-    pgp_version_t              pgp_version = PGP_V4;
-} rnp_keygen_primary_desc_t;
-
-typedef struct rnp_keygen_subkey_desc_t {
-    rnp_keygen_crypto_params_t crypto;
-    rnp_selfsig_binding_info_t binding;
-    pgp_version_t              pgp_version = PGP_V4;
-} rnp_keygen_subkey_desc_t;
 
 typedef struct rnp_key_protection_params_t {
     pgp_symm_alg_t    symm_alg;

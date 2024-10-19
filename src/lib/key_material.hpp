@@ -30,10 +30,9 @@
 #include "types.h"
 #include "defaults.h"
 
-typedef struct pgp_packet_body_t          pgp_packet_body_t;
-typedef struct rnp_keygen_crypto_params_t rnp_keygen_crypto_params_t;
-typedef struct pgp_encrypted_material_t   pgp_encrypted_material_t;
-typedef struct pgp_signature_material_t   pgp_signature_material_t;
+typedef struct pgp_packet_body_t        pgp_packet_body_t;
+typedef struct pgp_encrypted_material_t pgp_encrypted_material_t;
+typedef struct pgp_signature_material_t pgp_signature_material_t;
 
 namespace pgp {
 
@@ -207,7 +206,6 @@ class KeyMaterial {
     virtual bool          parse_secret(pgp_packet_body_t &pkt) noexcept = 0;
     virtual void          write(pgp_packet_body_t &pkt) const = 0;
     virtual void          write_secret(pgp_packet_body_t &pkt) const = 0;
-    virtual bool          generate(const rnp_keygen_crypto_params_t &params);
     virtual bool          generate(rnp::SecurityContext &ctx, const KeyParams &params);
     virtual rnp_result_t  encrypt(rnp::SecurityContext &    ctx,
                                   pgp_encrypted_material_t &out,
@@ -257,7 +255,6 @@ class RSAKeyMaterial : public KeyMaterial {
     bool         parse_secret(pgp_packet_body_t &pkt) noexcept override;
     void         write(pgp_packet_body_t &pkt) const override;
     void         write_secret(pgp_packet_body_t &pkt) const override;
-    bool         generate(const rnp_keygen_crypto_params_t &params) override;
     bool         generate(rnp::SecurityContext &ctx, const KeyParams &params) override;
     rnp_result_t encrypt(rnp::SecurityContext &    ctx,
                          pgp_encrypted_material_t &out,
@@ -304,7 +301,6 @@ class DSAKeyMaterial : public KeyMaterial {
     bool           parse_secret(pgp_packet_body_t &pkt) noexcept override;
     void           write(pgp_packet_body_t &pkt) const override;
     void           write_secret(pgp_packet_body_t &pkt) const override;
-    bool           generate(const rnp_keygen_crypto_params_t &params) override;
     bool           generate(rnp::SecurityContext &ctx, const KeyParams &params) override;
     rnp_result_t   verify(const rnp::SecurityContext &       ctx,
                           const pgp_signature_material_t &   sig,
@@ -343,7 +339,6 @@ class EGKeyMaterial : public KeyMaterial {
     bool         parse_secret(pgp_packet_body_t &pkt) noexcept override;
     void         write(pgp_packet_body_t &pkt) const override;
     void         write_secret(pgp_packet_body_t &pkt) const override;
-    bool         generate(const rnp_keygen_crypto_params_t &params) override;
     bool         generate(rnp::SecurityContext &ctx, const KeyParams &params) override;
     rnp_result_t encrypt(rnp::SecurityContext &    ctx,
                          pgp_encrypted_material_t &out,
@@ -384,7 +379,6 @@ class ECKeyMaterial : public KeyMaterial {
     bool        parse_secret(pgp_packet_body_t &pkt) noexcept override;
     void        write(pgp_packet_body_t &pkt) const override;
     void        write_secret(pgp_packet_body_t &pkt) const override;
-    bool        generate(const rnp_keygen_crypto_params_t &params) override;
     bool        generate(rnp::SecurityContext &ctx, const KeyParams &params) override;
     void        set_secret(const mpi &x);
     size_t      bits() const noexcept override;
@@ -425,7 +419,6 @@ class ECDHKeyMaterial : public ECKeyMaterial {
 
     bool         parse(pgp_packet_body_t &pkt) noexcept override;
     void         write(pgp_packet_body_t &pkt) const override;
-    bool         generate(const rnp_keygen_crypto_params_t &params) override;
     bool         generate(rnp::SecurityContext &ctx, const KeyParams &params) override;
     rnp_result_t encrypt(rnp::SecurityContext &    ctx,
                          pgp_encrypted_material_t &out,
@@ -452,7 +445,6 @@ class EDDSAKeyMaterial : public ECKeyMaterial {
         : ECKeyMaterial(PGP_PKA_EDDSA, key, secret){};
     std::unique_ptr<KeyMaterial> clone() override;
 
-    bool         generate(const rnp_keygen_crypto_params_t &params) override;
     bool         generate(rnp::SecurityContext &ctx, const KeyParams &params) override;
     rnp_result_t verify(const rnp::SecurityContext &       ctx,
                         const pgp_signature_material_t &   sig,
@@ -507,7 +499,6 @@ class Ed25519KeyMaterial : public KeyMaterial {
     bool         parse_secret(pgp_packet_body_t &pkt) noexcept override;
     void         write(pgp_packet_body_t &pkt) const override;
     void         write_secret(pgp_packet_body_t &pkt) const override;
-    bool         generate(const rnp_keygen_crypto_params_t &params) override;
     bool         generate(rnp::SecurityContext &ctx, const KeyParams &params) override;
     rnp_result_t verify(const rnp::SecurityContext &       ctx,
                         const pgp_signature_material_t &   sig,
@@ -539,7 +530,6 @@ class X25519KeyMaterial : public KeyMaterial {
     bool         parse_secret(pgp_packet_body_t &pkt) noexcept override;
     void         write(pgp_packet_body_t &pkt) const override;
     void         write_secret(pgp_packet_body_t &pkt) const override;
-    bool         generate(const rnp_keygen_crypto_params_t &params) override;
     bool         generate(rnp::SecurityContext &ctx, const KeyParams &params) override;
     rnp_result_t encrypt(rnp::SecurityContext &    ctx,
                          pgp_encrypted_material_t &out,
@@ -575,7 +565,6 @@ class MlkemEcdhKeyMaterial : public KeyMaterial {
     bool         parse_secret(pgp_packet_body_t &pkt) noexcept override;
     void         write(pgp_packet_body_t &pkt) const override;
     void         write_secret(pgp_packet_body_t &pkt) const override;
-    bool         generate(const rnp_keygen_crypto_params_t &params) override;
     bool         generate(rnp::SecurityContext &ctx, const KeyParams &params) override;
     rnp_result_t encrypt(rnp::SecurityContext &    ctx,
                          pgp_encrypted_material_t &out,
@@ -610,7 +599,6 @@ class DilithiumEccKeyMaterial : public KeyMaterial {
     bool           parse_secret(pgp_packet_body_t &pkt) noexcept override;
     void           write(pgp_packet_body_t &pkt) const override;
     void           write_secret(pgp_packet_body_t &pkt) const override;
-    bool           generate(const rnp_keygen_crypto_params_t &params) override;
     bool           generate(rnp::SecurityContext &ctx, const KeyParams &params) override;
     rnp_result_t   verify(const rnp::SecurityContext &       ctx,
                           const pgp_signature_material_t &   sig,
@@ -642,7 +630,6 @@ class SlhdsaKeyMaterial : public KeyMaterial {
     bool           parse_secret(pgp_packet_body_t &pkt) noexcept override;
     void           write(pgp_packet_body_t &pkt) const override;
     void           write_secret(pgp_packet_body_t &pkt) const override;
-    bool           generate(const rnp_keygen_crypto_params_t &params) override;
     bool           generate(rnp::SecurityContext &ctx, const KeyParams &params) override;
     rnp_result_t   verify(const rnp::SecurityContext &       ctx,
                           const pgp_signature_material_t &   sig,

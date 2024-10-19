@@ -59,49 +59,4 @@
 #include "crypto/common.h"
 #include <rekey/rnp_key_store.h>
 
-/* raw key generation */
-bool pgp_generate_seckey(const rnp_keygen_crypto_params_t &params,
-                         pgp_key_pkt_t &                   seckey,
-                         bool                              primary,
-                         pgp_version_t                     pgp_version = PGP_V4);
-
-/** generate a new primary key
- *
- *  @param desc keygen description
- *  @param merge_defaults true if you want defaults to be set for unset
- *         keygen description parameters.
- *  @param primary_sec pointer to store the generated secret key, must not be NULL
- *  @param primary_pub pointer to store the generated public key, must not be NULL
- *  @return true if successful, false otherwise.
- **/
-bool pgp_generate_primary_key(rnp_keygen_primary_desc_t &desc,
-                              bool                       merge_defaults,
-                              pgp_key_t &                primary_sec,
-                              pgp_key_t &                primary_pub,
-                              pgp_key_store_format_t     secformat);
-
-/** generate a new subkey
- *
- *  @param desc keygen description
- *  @param merge_defaults true if you want defaults to be set for unset
- *         keygen description parameters.
- *  @param primary_sec pointer to the primary secret key that will own this
- *         subkey, must not be NULL
- *  @param primary_pub pointer to the primary public key that will own this
- *         subkey, must not be NULL
- *  @param subkey_sec pointer to store the generated secret key, must not be NULL
- *  @param subkey_pub pointer to store the generated public key, must not be NULL
- *  @param password_provider the password provider that will be used to
- *         decrypt the primary key, may be NULL if primary key is unlocked
- *  @return true if successful, false otherwise.
- **/
-bool pgp_generate_subkey(rnp_keygen_subkey_desc_t &     desc,
-                         bool                           merge_defaults,
-                         pgp_key_t &                    primary_sec,
-                         pgp_key_t &                    primary_pub,
-                         pgp_key_t &                    subkey_sec,
-                         pgp_key_t &                    subkey_pub,
-                         const pgp_password_provider_t &password_provider,
-                         pgp_key_store_format_t         secformat);
-
 #endif /* CRYPTO_H_ */
