@@ -113,15 +113,13 @@ jobs:
       - name: Build and cwd
         run: |
           cmake --build build --parallel $CORES
-          ls -la /usr/include || true
-          ls -la /usr/include/botan || true
-          ls -la /usr/include/x86_64-linux-gnu/ || true
-          ls -la /usr/include/x86_64-linux-gnu/botan || true
+          ls -la /usr/src/googletest || true
+          ls -la /usr/src/googletest/include || true
 
       - name: Run Include What You Use
         env:
-          CPLUS_INCLUDE_PATH: /usr/include/x86_64-linux-gnu
-          C_INCLUDE_PATH: /usr/include/x86_64-linux-gnu
+          CPLUS_INCLUDE_PATH: /usr/include/botan-2;/usr/include/json-c;/usr/src/googletest/include
+          C_INCLUDE_PATH: /usr/include/botan-2;/usr/include/json-c;/usr/src/googletest/include
         uses: EmilGedda/include-what-you-use-action@v1.0
         with:
           compilation-database-path: 'build'
