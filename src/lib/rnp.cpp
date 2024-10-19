@@ -25,7 +25,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "crypto.h"
 #include "crypto/common.h"
 #include "pgp-key.h"
 #include "defaults.h"

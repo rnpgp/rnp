@@ -28,7 +28,6 @@
 
 #include "rnp_tests.h"
 #include "support.h"
-#include "crypto.h"
 #include "keygen.hpp"
 
 bool
