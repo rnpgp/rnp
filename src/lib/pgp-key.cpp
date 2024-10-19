@@ -52,7 +52,6 @@
 #include "pgp-key.h"
 #include "utils.h"
 #include <librekey/key_store_g10.h>
-#include "crypto.h"
 #include "crypto/s2k.h"
 #include "crypto/mem.h"
 #include "crypto/signatures.h"
