@@ -24,10 +24,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "crypto.h"
 #include "config.h"
 #include "defaults.h"
+#include "repgp/repgp_def.h"
 #include "dsa_common.h"
+#include <cstddef>
 
 pgp_hash_alg_t
 dsa_get_min_hash(size_t qsize)
