@@ -364,9 +364,7 @@ add_library(librnp-obj OBJECT
 
   # other sources
   sec_profile.cpp
-  crypto.cpp
   fingerprint.cpp
-  generate-key.cpp
   key-provider.cpp
   logging.cpp
   json-utils.cpp

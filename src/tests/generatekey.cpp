@@ -32,7 +32,6 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include "crypto/common.h"
-#include "crypto.h"
 #include "pgp-key.h"
 #include "librepgp/stream-ctx.h"
 #include "librepgp/stream-sig.h"

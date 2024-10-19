@@ -24,9 +24,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "crypto.h"
 #include "config.h"
 #include "defaults.h"
+#include "symmetric.h"
+#include <cstring>
 
 void
 pgp_cipher_cfb_resync(pgp_crypt_t *crypt, const uint8_t *buf)
