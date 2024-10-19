@@ -34,6 +34,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include "fingerprint.h"
+#include "keygen.hpp"
 
 TEST_F(rnp_tests, hash_test_success)
 {
@@ -118,13 +119,12 @@ TEST_F(rnp_tests, pkcs1_rsa_test_success)
     uint8_t ptext[1024 / 8] = {'a', 'b', 'c', 0};
     uint8_t dec[1024 / 8];
 
-    rnp_keygen_crypto_params_t key_desc;
-    key_desc.key_alg = PGP_PKA_RSA;
-    key_desc.hash_alg = PGP_HASH_SHA256;
-    key_desc.rsa.modulus_bit_len = 1024;
-    key_desc.ctx = &global_ctx;
+    rnp::KeygenParams keygen(PGP_PKA_RSA, global_ctx);
+    auto &            rsa = dynamic_cast<pgp::RSAKeyParams &>(keygen.key_params());
+    rsa.set_bits(1024);
+
     pgp_key_pkt_t seckey;
-    assert_true(pgp_generate_seckey(key_desc, seckey, true));
+    assert_true(keygen.generate(seckey, true));
 
     pgp_encrypted_material_t enc;
     assert_rnp_success(seckey.material->encrypt(global_ctx, enc, ptext, 3));
@@ -139,13 +139,9 @@ TEST_F(rnp_tests, pkcs1_rsa_test_success)
 
 TEST_F(rnp_tests, rnp_test_eddsa)
 {
-    rnp_keygen_crypto_params_t key_desc;
-    key_desc.key_alg = PGP_PKA_EDDSA;
-    key_desc.hash_alg = PGP_HASH_SHA256;
-    key_desc.ctx = &global_ctx;
-
-    pgp_key_pkt_t seckey;
-    assert_true(pgp_generate_seckey(key_desc, seckey, true));
+    rnp::KeygenParams keygen(PGP_PKA_EDDSA, global_ctx);
+    pgp_key_pkt_t     seckey;
+    assert_true(keygen.generate(seckey, true));
 
     rnp::secure_vector<uint8_t> hash(32);
     pgp_signature_material_t    sig = {};
@@ -166,14 +162,13 @@ TEST_F(rnp_tests, rnp_test_eddsa)
 
 TEST_F(rnp_tests, rnp_test_x25519)
 {
-    rnp_keygen_crypto_params_t key_desc = {};
-    key_desc.key_alg = PGP_PKA_ECDH;
-    key_desc.hash_alg = PGP_HASH_SHA256;
-    key_desc.ctx = &global_ctx;
-    key_desc.ecc.curve = PGP_CURVE_25519;
+    rnp::KeygenParams keygen(PGP_PKA_ECDH, global_ctx);
+    auto &            ecc = dynamic_cast<pgp::ECCKeyParams &>(keygen.key_params());
+    ecc.set_curve(PGP_CURVE_25519);
 
     pgp_key_pkt_t seckey;
-    assert_true(pgp_generate_seckey(key_desc, seckey, true));
+    assert_true(keygen.generate(seckey, true));
+
     /* check for length and correctly tweaked bits */
     auto &ec = dynamic_cast<pgp::ECKeyMaterial &>(*seckey.material);
     assert_int_equal(ec.x().len, 32);
@@ -249,17 +244,16 @@ TEST_F(rnp_tests, ecdsa_signverify_success)
         rnp::secure_vector<uint8_t> hash(rnp::Hash::size(hash_alg));
         global_ctx.rng.get(hash.data(), hash.size());
 
-        rnp_keygen_crypto_params_t key_desc;
-        key_desc.key_alg = PGP_PKA_ECDSA;
-        key_desc.hash_alg = hash_alg;
-        key_desc.ecc.curve = curves[i].id;
-        key_desc.ctx = &global_ctx;
+        rnp::KeygenParams keygen(PGP_PKA_ECDSA, global_ctx);
+        keygen.set_hash(hash_alg);
+        auto &ecc = dynamic_cast<pgp::ECCKeyParams &>(keygen.key_params());
+        ecc.set_curve(curves[i].id);
 
         pgp_key_pkt_t seckey1;
         pgp_key_pkt_t seckey2;
 
-        assert_true(pgp_generate_seckey(key_desc, seckey1, true));
-        assert_true(pgp_generate_seckey(key_desc, seckey2, true));
+        assert_true(keygen.generate(seckey1, true));
+        assert_true(keygen.generate(seckey2, true));
 
         pgp_signature_material_t sig = {};
         sig.halg = hash_alg;
@@ -287,14 +281,13 @@ TEST_F(rnp_tests, ecdh_roundtrip)
     size_t  in_len = sizeof(in);
 
     for (size_t i = 0; i < ARRAY_SIZE(curves); i++) {
-        rnp_keygen_crypto_params_t key_desc{};
-        key_desc.key_alg = PGP_PKA_ECDH;
-        key_desc.hash_alg = PGP_HASH_SHA512;
-        key_desc.ecc.curve = curves[i].id;
-        key_desc.ctx = &global_ctx;
+        rnp::KeygenParams keygen(PGP_PKA_ECDH, global_ctx);
+        keygen.set_hash(PGP_HASH_SHA512);
+        auto &ecc = dynamic_cast<pgp::ECCKeyParams &>(keygen.key_params());
+        ecc.set_curve(curves[i].id);
 
         pgp_key_pkt_t ecdh_key1{};
-        assert_true(pgp_generate_seckey(key_desc, ecdh_key1, true));
+        assert_true(keygen.generate(ecdh_key1, true));
 
         pgp_fingerprint_t ecdh_key1_fpr{};
         assert_rnp_success(pgp_fingerprint(ecdh_key1_fpr, ecdh_key1));
@@ -340,14 +333,13 @@ TEST_F(rnp_tests, ecdh_decryptionNegativeCases)
     uint8_t res[36] = {0};
     size_t  res_len = sizeof(res);
 
-    rnp_keygen_crypto_params_t key_desc;
-    key_desc.key_alg = PGP_PKA_ECDH;
-    key_desc.hash_alg = PGP_HASH_SHA512;
-    key_desc.ecc.curve = PGP_CURVE_NIST_P_256;
-    key_desc.ctx = &global_ctx;
+    rnp::KeygenParams keygen(PGP_PKA_ECDH, global_ctx);
+    keygen.set_hash(PGP_HASH_SHA512);
+    auto &ecc = dynamic_cast<pgp::ECCKeyParams &>(keygen.key_params());
+    ecc.set_curve(PGP_CURVE_NIST_P_256);
 
     pgp_key_pkt_t ecdh_key1;
-    assert_true(pgp_generate_seckey(key_desc, ecdh_key1, true));
+    assert_true(keygen.generate(ecdh_key1, true));
 
     pgp_fingerprint_t ecdh_key1_fpr = {};
     assert_rnp_success(pgp_fingerprint(ecdh_key1_fpr, ecdh_key1));
@@ -377,17 +369,14 @@ TEST_F(rnp_tests, ecdh_decryptionNegativeCases)
 #if defined(ENABLE_SM2)
 TEST_F(rnp_tests, sm2_roundtrip)
 {
-    rnp_keygen_crypto_params_t key_desc;
-    key_desc.key_alg = PGP_PKA_SM2;
-    key_desc.hash_alg = PGP_HASH_SM3;
-    key_desc.ecc.curve = PGP_CURVE_SM2_P_256;
-    key_desc.ctx = &global_ctx;
+    rnp::KeygenParams keygen(PGP_PKA_SM2, global_ctx);
+    keygen.set_hash(PGP_HASH_SM3);
 
     uint8_t key[27] = {0};
     global_ctx.rng.get(key, sizeof(key));
 
     pgp_key_pkt_t seckey;
-    assert_true(pgp_generate_seckey(key_desc, seckey, true));
+    assert_true(keygen.generate(seckey, true));
 
     auto &eckey = *seckey.material;
 
@@ -523,26 +512,21 @@ TEST_F(rnp_tests, test_dsa_roundtrip)
     global_ctx.rng.get(message, sizeof(message));
 
     for (size_t i = 0; i < ARRAY_SIZE(keys); i++) {
-        rnp_keygen_crypto_params_t key_desc;
-        key_desc.key_alg = PGP_PKA_DSA;
-        key_desc.hash_alg = keys[i].h;
-        key_desc.dsa.p_bitlen = keys[i].p;
-        key_desc.dsa.q_bitlen = keys[i].q;
-        key_desc.ctx = &global_ctx;
+        rnp::KeygenParams keygen(PGP_PKA_DSA, global_ctx);
+        keygen.set_hash(keys[i].h);
+        auto &dsa = dynamic_cast<pgp::DSAKeyParams &>(keygen.key_params());
+        dsa.set_bits(keys[i].p);
+        dsa.set_qbits(keys[i].q);
 
         pgp_key_pkt_t seckey;
-        assert_true(pgp_generate_seckey(key_desc, seckey, true));
+        assert_true(keygen.generate(seckey, true));
         // try to prevent timeouts in travis-ci
-        printf("p: %zu q: %zu h: %s\n",
-               key_desc.dsa.p_bitlen,
-               key_desc.dsa.q_bitlen,
-               rnp::Hash::name(key_desc.hash_alg));
+        printf(
+          "p: %zu q: %zu h: %s\n", dsa.bits(), dsa.qbits(), rnp::Hash::name(keygen.hash()));
         fflush(stdout);
 
-        auto &key = *seckey.material;
-
-        size_t                      h_size = rnp::Hash::size(keys[i].h);
-        rnp::secure_vector<uint8_t> hash(message, message + h_size);
+        auto &                      key = *seckey.material;
+        rnp::secure_vector<uint8_t> hash(message, message + rnp::Hash::size(keygen.hash()));
         pgp_signature_material_t    sig = {};
         assert_rnp_success(key.sign(global_ctx, sig, hash));
         assert_rnp_success(key.verify(global_ctx, sig, hash));
@@ -555,34 +539,23 @@ TEST_F(rnp_tests, test_dsa_verify_negative)
     pgp_key_pkt_t sec_key1;
     pgp_key_pkt_t sec_key2;
 
-    struct key_params {
-        size_t         p;
-        size_t         q;
-        pgp_hash_alg_t h;
-    } key = {1024, 160, PGP_HASH_SHA1};
-
     global_ctx.rng.get(message, sizeof(message));
 
-    rnp_keygen_crypto_params_t key_desc;
-    key_desc.key_alg = PGP_PKA_DSA;
-    key_desc.hash_alg = key.h;
-    key_desc.dsa.p_bitlen = key.p;
-    key_desc.dsa.q_bitlen = key.q;
-    key_desc.ctx = &global_ctx;
+    rnp::KeygenParams keygen(PGP_PKA_DSA, global_ctx);
+    keygen.set_hash(PGP_HASH_SHA1);
+    auto &dsa = dynamic_cast<pgp::DSAKeyParams &>(keygen.key_params());
+    dsa.set_bits(1024);
+    dsa.set_qbits(160);
 
-    assert_true(pgp_generate_seckey(key_desc, sec_key1, true));
+    assert_true(keygen.generate(sec_key1, true));
     // try to prevent timeouts in travis-ci
-    printf("p: %zu q: %zu h: %s\n",
-           key_desc.dsa.p_bitlen,
-           key_desc.dsa.q_bitlen,
-           rnp::Hash::name(key_desc.hash_alg));
-    assert_true(pgp_generate_seckey(key_desc, sec_key2, true));
+    printf("p: %zu q: %zu h: %s\n", dsa.bits(), dsa.qbits(), rnp::Hash::name(keygen.hash()));
+    assert_true(keygen.generate(sec_key2, true));
 
     auto &key1 = *sec_key1.material;
     auto &key2 = *sec_key2.material;
 
-    size_t                      h_size = rnp::Hash::size(key.h);
-    rnp::secure_vector<uint8_t> hash(message, message + h_size);
+    rnp::secure_vector<uint8_t> hash(message, message + rnp::Hash::size(keygen.hash()));
     pgp_signature_material_t    sig = {};
     assert_rnp_success(key1.sign(global_ctx, sig, hash));
     // wrong key used
@@ -611,13 +584,11 @@ TEST_F(rnp_tests, kyber_ecdh_roundtrip)
     }
 
     for (size_t i = 0; i < ARRAY_SIZE(algs); i++) {
-        rnp_keygen_crypto_params_t key_desc;
-        key_desc.key_alg = algs[i];
-        key_desc.hash_alg = PGP_HASH_SHA512;
-        key_desc.ctx = &global_ctx;
+        rnp::KeygenParams keygen(algs[i], global_ctx);
+        keygen.set_hash(PGP_HASH_SHA512);
 
         pgp_key_pkt_t key_pkt;
-        assert_true(pgp_generate_seckey(key_desc, key_pkt, true));
+        assert_true(keygen.generate(key_pkt, true));
 
         pgp_encrypted_material_t enc;
         assert_rnp_success(key_pkt.material->encrypt(global_ctx, enc, in, in_len));
@@ -643,16 +614,14 @@ TEST_F(rnp_tests, dilithium_exdsa_signverify_success)
         // Generate test data. Mainly to make valgrind not to complain about uninitialized data
         global_ctx.rng.get(message, sizeof(message));
 
-        rnp_keygen_crypto_params_t key_desc;
-        key_desc.key_alg = algs[i];
-        key_desc.hash_alg = hash_alg;
-        key_desc.ctx = &global_ctx;
+        rnp::KeygenParams keygen(algs[i], global_ctx);
+        keygen.set_hash(hash_alg);
 
         pgp_key_pkt_t seckey1;
         pgp_key_pkt_t seckey2;
 
-        assert_true(pgp_generate_seckey(key_desc, seckey1, true));
-        assert_true(pgp_generate_seckey(key_desc, seckey2, true));
+        assert_true(keygen.generate(seckey1, true));
+        assert_true(keygen.generate(seckey2, true));
 
         auto &key1 = *seckey1.material;
         auto &key2 = *seckey2.material;
@@ -685,16 +654,15 @@ TEST_F(rnp_tests, sphincsplus_signverify_success)
             // data
             global_ctx.rng.get(message, sizeof(message));
 
-            rnp_keygen_crypto_params_t key_desc;
-            key_desc.key_alg = algs[i];
-            key_desc.sphincsplus.param = params[j];
-            key_desc.ctx = &global_ctx;
+            rnp::KeygenParams keygen(algs[i], global_ctx);
+            auto &slhdsa = dynamic_cast<pgp::SlhdsaKeyParams &>(keygen.key_params());
+            slhdsa.set_param(params[j]);
 
             pgp_key_pkt_t seckey1;
             pgp_key_pkt_t seckey2;
 
-            assert_true(pgp_generate_seckey(key_desc, seckey1, true));
-            assert_true(pgp_generate_seckey(key_desc, seckey2, true));
+            assert_true(keygen.generate(seckey1, true));
+            assert_true(keygen.generate(seckey2, true));
 
             auto &                      key1 = *seckey1.material;
             auto &                      key2 = *seckey2.material;

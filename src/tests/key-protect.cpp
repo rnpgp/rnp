@@ -29,6 +29,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include "crypto.h"
+#include "keygen.hpp"
 
 bool
 rsa_sec_empty(const pgp::KeyMaterial &key)
@@ -231,23 +232,20 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
 
 TEST_F(rnp_tests, test_key_protect_sec_data)
 {
-    rnp_keygen_primary_desc_t pri_desc = {};
-    pri_desc.crypto.key_alg = PGP_PKA_RSA;
-    pri_desc.crypto.rsa.modulus_bit_len = 1024;
-    pri_desc.crypto.ctx = &global_ctx;
-    pri_desc.cert.userid = "test";
+    rnp::KeygenParams keygen(PGP_PKA_RSA, global_ctx);
+    auto &            rsa = dynamic_cast<pgp::RSAKeyParams &>(keygen.key_params());
+    rsa.set_bits(1024);
 
-    rnp_keygen_subkey_desc_t sub_desc = {};
-    sub_desc.crypto.key_alg = PGP_PKA_RSA;
-    sub_desc.crypto.rsa.modulus_bit_len = 1024;
-    sub_desc.crypto.ctx = &global_ctx;
+    rnp_selfsig_cert_info_t cert{};
+    cert.userid = "test";
+
+    rnp_selfsig_binding_info_t binding{};
 
     /* generate raw unprotected keypair */
     pgp_key_t               skey, pkey, ssub, psub;
     pgp_password_provider_t prov = {};
-    assert_true(pgp_generate_primary_key(pri_desc, true, skey, pkey, PGP_KEY_STORE_GPG));
-    assert_true(
-      pgp_generate_subkey(sub_desc, true, skey, pkey, ssub, psub, prov, PGP_KEY_STORE_GPG));
+    assert_true(keygen.generate(cert, skey, pkey, PGP_KEY_STORE_GPG));
+    assert_true(keygen.generate(binding, skey, pkey, ssub, psub, prov, PGP_KEY_STORE_GPG));
     assert_non_null(skey.pkt().sec_data);
     assert_non_null(ssub.pkt().sec_data);
     assert_null(pkey.pkt().sec_data);

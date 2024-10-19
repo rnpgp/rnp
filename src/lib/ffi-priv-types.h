@@ -32,6 +32,7 @@
 #include <unordered_set>
 #include <crypto/mem.h>
 #include "sec_profile.hpp"
+#include "keygen.hpp"
 
 struct rnp_key_handle_st {
     rnp_ffi_t  ffi;
@@ -145,7 +146,7 @@ struct rnp_output_st {
 };
 
 struct rnp_op_generate_st {
-    rnp_ffi_t  ffi{};
+    rnp_ffi_t  ffi;
     bool       primary{};
     pgp_key_t *primary_sec{};
     pgp_key_t *primary_pub{};
@@ -154,13 +155,16 @@ struct rnp_op_generate_st {
     /* password used to encrypt the key, if specified */
     rnp::secure_vector<char> password;
     /* request password for key encryption via ffi's password provider */
-    bool request_password{};
-    /* we don't use top-level keygen action here for easier fields access */
-    rnp_keygen_crypto_params_t  crypto{};
+    bool                        request_password{};
+    rnp::KeygenParams           keygen_params;
     rnp_key_protection_params_t protection{};
     rnp_selfsig_cert_info_t     cert{};
     rnp_selfsig_binding_info_t  binding{};
-    pgp_version_t               pgp_version = PGP_V4;
+
+    rnp_op_generate_st(rnp_ffi_t affi, pgp_pubkey_alg_t alg)
+        : ffi(affi), keygen_params(alg, affi->context)
+    {
+    }
 };
 
 struct rnp_op_sign_signature_st {
