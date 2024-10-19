@@ -31,6 +31,7 @@
 #include "types.h"
 #include "sec_profile.hpp"
 #include "key_material.hpp"
+#include "pgp-key.h"
 
 namespace rnp {
 
@@ -63,6 +64,8 @@ class KeygenParams {
         hash_ = value;
     }
 
+    void check_defaults() noexcept;
+
     pgp_version_t
     version() const noexcept
     {
@@ -86,6 +89,30 @@ class KeygenParams {
     {
         return *key_params_;
     }
+
+    pgp::KeyParams &
+    key_params() noexcept
+    {
+        return *key_params_;
+    }
+
+    /* Generate secret key packet */
+    bool generate(pgp_key_pkt_t &seckey, bool primary);
+
+    /* Generate primary key with self-certification */
+    bool generate(rnp_selfsig_cert_info_t &cert,
+                  pgp_key_t &              primary_sec,
+                  pgp_key_t &              primary_pub,
+                  pgp_key_store_format_t   secformat);
+
+    /* Generate a subkey for already existing primary key*/
+    bool generate(rnp_selfsig_binding_info_t &   binding,
+                  pgp_key_t &                    primary_sec,
+                  pgp_key_t &                    primary_pub,
+                  pgp_key_t &                    subkey_sec,
+                  pgp_key_t &                    subkey_pub,
+                  const pgp_password_provider_t &password_provider,
+                  pgp_key_store_format_t         secformat);
 };
 
 } // namespace rnp
