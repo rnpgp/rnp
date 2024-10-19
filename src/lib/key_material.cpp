@@ -191,9 +191,22 @@ KeyParams::create(pgp_pubkey_alg_t alg)
     }
 }
 
-DSAKeyParams::DSAKeyParams() : BitsKeyParams(DSA_DEFAULT_P_BITLEN)
+DSAKeyParams::DSAKeyParams() : BitsKeyParams(DSA_DEFAULT_P_BITLEN), qbits_(0)
 {
-    qbits_ = dsa_choose_qsize_by_psize(bits());
+}
+
+void
+DSAKeyParams::check_defaults() noexcept
+{
+    if (!qbits_) {
+        qbits_ = dsa_choose_qsize_by_psize(bits());
+    }
+}
+
+pgp_hash_alg_t
+DSAKeyParams::min_hash() const noexcept
+{
+    return dsa_get_min_hash(qbits_);
 }
 
 size_t
@@ -201,6 +214,12 @@ ECCKeyParams::bits() const noexcept
 {
     auto curve = get_curve_desc(curve_);
     return curve ? curve->bitlen : 0;
+}
+
+pgp_hash_alg_t
+ECDSAKeyParams::min_hash() const noexcept
+{
+    return ecdsa_get_min_hash(curve());
 }
 
 #if defined(ENABLE_PQC)
@@ -301,6 +320,13 @@ KeyMaterial::finish_generate()
 
 bool
 KeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
+{
+    RNP_LOG("key generation not implemented for PK alg: %d", alg_);
+    return false;
+}
+
+bool
+KeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 {
     RNP_LOG("key generation not implemented for PK alg: %d", alg_);
     return false;
@@ -548,6 +574,21 @@ RSAKeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
     return finish_generate();
 }
 
+bool
+RSAKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
+{
+    /* We do not generate PGP_PKA_RSA_ENCRYPT_ONLY or PGP_PKA_RSA_SIGN_ONLY keys */
+    if (alg_ != PGP_PKA_RSA) {
+        RNP_LOG("Unsupported algorithm for key generation: %d", alg_);
+        return false;
+    }
+    if (rsa_generate(&ctx.rng, &key_, params.bits())) {
+        RNP_LOG("failed to generate RSA key");
+        return false;
+    }
+    return finish_generate();
+}
+
 rnp_result_t
 RSAKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                         pgp_encrypted_material_t &out,
@@ -724,6 +765,17 @@ DSAKeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
     return finish_generate();
 }
 
+bool
+DSAKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
+{
+    auto &dsa = dynamic_cast<const DSAKeyParams &>(params);
+    if (dsa_generate(&ctx.rng, &key_, dsa.bits(), dsa.qbits())) {
+        RNP_LOG("failed to generate DSA key");
+        return false;
+    }
+    return finish_generate();
+}
+
 rnp_result_t
 DSAKeyMaterial::verify(const rnp::SecurityContext &       ctx,
                        const pgp_signature_material_t &   sig,
@@ -877,6 +929,21 @@ EGKeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
         return false;
     }
     if (elgamal_generate(&params.ctx->rng, &key_, params.elgamal.key_bitlen)) {
+        RNP_LOG("failed to generate ElGamal key");
+        return false;
+    }
+    return finish_generate();
+}
+
+bool
+EGKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
+{
+    /* We do not generate PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN keys */
+    if (alg_ != PGP_PKA_ELGAMAL) {
+        RNP_LOG("Unsupported algorithm for key generation: %d", alg_);
+        return false;
+    }
+    if (elgamal_generate(&ctx.rng, &key_, params.bits())) {
         RNP_LOG("failed to generate ElGamal key");
         return false;
     }
@@ -1039,6 +1106,22 @@ ECKeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
     return finish_generate();
 }
 
+bool
+ECKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
+{
+    auto &ecc = dynamic_cast<const ECCKeyParams &>(params);
+    if (!curve_supported(ecc.curve())) {
+        RNP_LOG("EC generate: curve %d is not supported.", ecc.curve());
+        return false;
+    }
+    if (ec_generate(&ctx.rng, &key_, alg_, ecc.curve())) {
+        RNP_LOG("failed to generate EC key");
+        return false;
+    }
+    key_.curve = ecc.curve();
+    return finish_generate();
+}
+
 void
 ECKeyMaterial::set_secret(const mpi &x)
 {
@@ -1193,6 +1276,27 @@ ECDHKeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
     return ECKeyMaterial::generate(params);
 }
 
+bool
+ECDHKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
+{
+    auto &ecc = dynamic_cast<const ECCKeyParams &>(params);
+    if (!ecdh_set_params(&key_, ecc.curve())) {
+        RNP_LOG("Unsupported curve [ID=%d]", ecc.curve());
+        return false;
+    }
+    /* Special case for x25519*/
+    if (ecc.curve() == PGP_CURVE_25519) {
+        if (x25519_generate(&ctx.rng, &key_)) {
+            RNP_LOG("failed to generate x25519 key");
+            return false;
+        }
+        key_.curve = ecc.curve();
+        return finish_generate();
+    }
+    /* Fallback to default EC generation for other cases */
+    return ECKeyMaterial::generate(ctx, params);
+}
+
 rnp_result_t
 ECDHKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                          pgp_encrypted_material_t &out,
@@ -1263,6 +1367,16 @@ bool
 EDDSAKeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
 {
     if (eddsa_generate(&params.ctx->rng, &key_)) {
+        RNP_LOG("failed to generate EDDSA key");
+        return false;
+    }
+    return finish_generate();
+}
+
+bool
+EDDSAKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
+{
+    if (eddsa_generate(&ctx.rng, &key_)) {
         RNP_LOG("failed to generate EDDSA key");
         return false;
     }
@@ -1462,6 +1576,16 @@ Ed25519KeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
     return finish_generate();
 }
 
+bool
+Ed25519KeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
+{
+    if (generate_ed25519_native(&ctx.rng, key_.priv, key_.pub)) {
+        RNP_LOG("failed to generate ED25519 key");
+        return false;
+    }
+    return finish_generate();
+}
+
 rnp_result_t
 Ed25519KeyMaterial::verify(const rnp::SecurityContext &       ctx,
                            const pgp_signature_material_t &   sig,
@@ -1582,6 +1706,16 @@ bool
 X25519KeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
 {
     if (generate_x25519_native(&params.ctx->rng, key_.priv, key_.pub)) {
+        RNP_LOG("failed to generate X25519 key");
+        return false;
+    }
+    return finish_generate();
+}
+
+bool
+X25519KeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
+{
+    if (generate_x25519_native(&ctx.rng, key_.priv, key_.pub)) {
         RNP_LOG("failed to generate X25519 key");
         return false;
     }
@@ -1715,6 +1849,16 @@ MlkemEcdhKeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
     return finish_generate();
 }
 
+bool
+MlkemEcdhKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
+{
+    if (pgp_kyber_ecdh_composite_key_t::gen_keypair(&ctx.rng, &key_, alg_)) {
+        RNP_LOG("failed to generate MLKEM-ECDH-composite key for PK alg %d", alg_);
+        return false;
+    }
+    return finish_generate();
+}
+
 rnp_result_t
 MlkemEcdhKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                               pgp_encrypted_material_t &out,
@@ -1828,6 +1972,16 @@ bool
 DilithiumEccKeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
 {
     if (pgp_dilithium_exdsa_composite_key_t::gen_keypair(&params.ctx->rng, &key_, alg_)) {
+        RNP_LOG("failed to generate mldsa-ecdsa/eddsa-composite key for PK alg %d", alg_);
+        return false;
+    }
+    return finish_generate();
+}
+
+bool
+DilithiumEccKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
+{
+    if (pgp_dilithium_exdsa_composite_key_t::gen_keypair(&ctx.rng, &key_, alg_)) {
         RNP_LOG("failed to generate mldsa-ecdsa/eddsa-composite key for PK alg %d", alg_);
         return false;
     }
@@ -1970,6 +2124,17 @@ bool
 SlhdsaKeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
 {
     if (pgp_sphincsplus_generate(&params.ctx->rng, &key_, params.sphincsplus.param, alg_)) {
+        RNP_LOG("failed to generate SLH-DSA key for PK alg %d", alg_);
+        return false;
+    }
+    return finish_generate();
+}
+
+bool
+SlhdsaKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
+{
+    auto &slhdsa = dynamic_cast<const SlhdsaKeyParams &>(params);
+    if (pgp_sphincsplus_generate(&ctx.rng, &key_, slhdsa.param(), alg_)) {
         RNP_LOG("failed to generate SLH-DSA key for PK alg %d", alg_);
         return false;
     }
