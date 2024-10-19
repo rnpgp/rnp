@@ -4401,341 +4401,208 @@ pk_alg_allows_custom_curve(pgp_pubkey_alg_t pkalg)
 static bool
 parse_preferences(json_object *jso, pgp_user_prefs_t &prefs)
 {
-    static const struct {
-        const char *   key;
-        enum json_type type;
-    } properties[] = {{"hashes", json_type_array},
-                      {"ciphers", json_type_array},
-                      {"compression", json_type_array},
-                      {"key server", json_type_string}};
-
-    for (size_t iprop = 0; iprop < ARRAY_SIZE(properties); iprop++) {
-        json_object *value = NULL;
-        const char * key = properties[iprop].key;
-
-        if (!json_object_object_get_ex(jso, key, &value)) {
-            continue;
-        }
-
-        if (!json_object_is_type(value, properties[iprop].type)) {
-            return false;
-        }
-        try {
-            if (rnp::str_case_eq(key, "hashes")) {
-                int length = json_object_array_length(value);
-                for (int i = 0; i < length; i++) {
-                    json_object *item = json_object_array_get_idx(value, i);
-                    if (!json_object_is_type(item, json_type_string)) {
-                        return false;
-                    }
-                    pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
-                    if (!str_to_hash_alg(json_object_get_string(item), &hash_alg)) {
-                        return false;
-                    }
-                    prefs.add_hash_alg(hash_alg);
-                }
-            } else if (rnp::str_case_eq(key, "ciphers")) {
-                int length = json_object_array_length(value);
-                for (int i = 0; i < length; i++) {
-                    json_object *item = json_object_array_get_idx(value, i);
-                    if (!json_object_is_type(item, json_type_string)) {
-                        return false;
-                    }
-                    pgp_symm_alg_t symm_alg = PGP_SA_UNKNOWN;
-                    if (!str_to_cipher(json_object_get_string(item), &symm_alg)) {
-                        return false;
-                    }
-                    prefs.add_symm_alg(symm_alg);
-                }
-            } else if (rnp::str_case_eq(key, "compression")) {
-                int length = json_object_array_length(value);
-                for (int i = 0; i < length; i++) {
-                    json_object *item = json_object_array_get_idx(value, i);
-                    if (!json_object_is_type(item, json_type_string)) {
-                        return false;
-                    }
-                    pgp_compression_type_t z_alg = PGP_C_UNKNOWN;
-                    if (!str_to_compression_alg(json_object_get_string(item), &z_alg)) {
-                        return false;
-                    }
-                    prefs.add_z_alg(z_alg);
-                }
-            } else if (rnp::str_case_eq(key, "key server")) {
-                prefs.key_server = json_object_get_string(value);
+    /* Preferred hashes */
+    std::vector<std::string> strs;
+    if (json_get_str_arr(jso, "hashes", strs)) {
+        for (auto &str : strs) {
+            pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
+            if (!str_to_hash_alg(str.c_str(), &hash_alg)) {
+                return false;
             }
-        } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
-            return false;
+            prefs.add_hash_alg(hash_alg);
         }
-        // delete this field since it has been handled
-        json_object_object_del(jso, key);
     }
-    return true;
+    /* Preferred symmetric algorithms */
+    if (json_get_str_arr(jso, "ciphers", strs)) {
+        for (auto &str : strs) {
+            pgp_symm_alg_t symm_alg = PGP_SA_UNKNOWN;
+            if (!str_to_cipher(str.c_str(), &symm_alg)) {
+                return false;
+            }
+            prefs.add_symm_alg(symm_alg);
+        }
+    }
+    /* Preferred compression algorithms */
+    if (json_get_str_arr(jso, "compression", strs)) {
+        for (auto &str : strs) {
+            pgp_compression_type_t z_alg = PGP_C_UNKNOWN;
+            if (!str_to_compression_alg(str.c_str(), &z_alg)) {
+                return false;
+            }
+            prefs.add_z_alg(z_alg);
+        }
+    }
+    /* Preferred key server */
+    std::string key_server;
+    if (json_get_str(jso, "key server", key_server)) {
+        prefs.key_server = key_server;
+    }
+    /* Do not allow extra unknown keys */
+    return !json_object_object_length(jso);
 }
 
-static bool
-parse_keygen_crypto(json_object *jso, rnp_keygen_crypto_params_t &crypto)
+static std::unique_ptr<rnp::KeygenParams>
+parse_keygen_params(rnp_ffi_t ffi, json_object *jso)
 {
-    static const struct {
-        const char *   key;
-        enum json_type type;
-    } properties[] = {{"type", json_type_string},
-                      {"curve", json_type_string},
-                      {"length", json_type_int},
-                      {"hash", json_type_string}};
-
-    for (size_t i = 0; i < ARRAY_SIZE(properties); i++) {
-        json_object *value = NULL;
-        const char * key = properties[i].key;
-
-        if (!json_object_object_get_ex(jso, key, &value)) {
-            continue;
-        }
-
-        if (!json_object_is_type(value, properties[i].type)) {
-            return false;
-        }
-        // TODO: make sure there are no duplicate keys in the JSON
-        if (rnp::str_case_eq(key, "type")) {
-            if (!str_to_pubkey_alg(json_object_get_string(value), &crypto.key_alg)) {
-                return false;
-            }
-        } else if (rnp::str_case_eq(key, "length")) {
-            int length = json_object_get_int(value);
-            switch (crypto.key_alg) {
-            case PGP_PKA_RSA:
-                crypto.rsa.modulus_bit_len = length;
-                break;
-            case PGP_PKA_DSA:
-                crypto.dsa.p_bitlen = length;
-                break;
-            case PGP_PKA_ELGAMAL:
-                crypto.elgamal.key_bitlen = length;
-                break;
-            default:
-                return false;
-            }
-        } else if (rnp::str_case_eq(key, "curve")) {
-            if (!pk_alg_allows_custom_curve(crypto.key_alg)) {
-                return false;
-            }
-            if (!curve_str_to_type(json_object_get_string(value), &crypto.ecc.curve)) {
-                return false;
-            }
-        } else if (rnp::str_case_eq(key, "hash")) {
-            if (!str_to_hash_alg(json_object_get_string(value), &crypto.hash_alg)) {
-                return false;
-            }
-        } else {
-            // shouldn't happen
-            return false;
-        }
-        // delete this field since it has been handled
-        json_object_object_del(jso, key);
+    /* Type */
+    std::string      str;
+    pgp_pubkey_alg_t alg = PGP_PKA_RSA;
+    if (json_get_str(jso, "type", str) && !str_to_pubkey_alg(str.c_str(), &alg)) {
+        return nullptr;
     }
-    return true;
+    std::unique_ptr<rnp::KeygenParams> params(new rnp::KeygenParams(alg, ffi->context));
+    /* Length */
+    int bits = 0;
+    if (json_get_int(jso, "length", bits)) {
+        auto bit_params = dynamic_cast<pgp::BitsKeyParams *>(&params->key_params());
+        if (!bit_params) {
+            return nullptr;
+        }
+        bit_params->set_bits(bits);
+    }
+    /* Curve */
+    if (json_get_str(jso, "curve", str)) {
+        if (!pk_alg_allows_custom_curve(params->alg())) {
+            return nullptr;
+        }
+        auto        ecc_params = dynamic_cast<pgp::ECCKeyParams *>(&params->key_params());
+        pgp_curve_t curve = PGP_CURVE_UNKNOWN;
+        if (!ecc_params || !curve_str_to_type(str.c_str(), &curve)) {
+            return nullptr;
+        }
+        ecc_params->set_curve(curve);
+    }
+    /* Hash algorithm */
+    if (json_get_str(jso, "hash", str)) {
+        pgp_hash_alg_t hash = PGP_HASH_UNKNOWN;
+        if (!str_to_hash_alg(str.c_str(), &hash)) {
+            return nullptr;
+        }
+        params->set_hash(hash);
+    }
+    return params;
 }
 
 static bool
 parse_protection(json_object *jso, rnp_key_protection_params_t &protection)
 {
-    static const struct {
-        const char *   key;
-        enum json_type type;
-    } properties[] = {{"cipher", json_type_string},
-                      {"mode", json_type_string},
-                      {"iterations", json_type_int},
-                      {"hash", json_type_string}};
-
-    for (size_t i = 0; i < ARRAY_SIZE(properties); i++) {
-        json_object *value = NULL;
-        const char * key = properties[i].key;
-
-        if (!json_object_object_get_ex(jso, key, &value)) {
-            continue;
-        }
-
-        if (!json_object_is_type(value, properties[i].type)) {
+    /* Cipher */
+    std::string str;
+    if (json_get_str(jso, "cipher", str)) {
+        if (!str_to_cipher(str.c_str(), &protection.symm_alg)) {
             return false;
         }
-        // TODO: make sure there are no duplicate keys in the JSON
-        if (rnp::str_case_eq(key, "cipher")) {
-            if (!str_to_cipher(json_object_get_string(value), &protection.symm_alg)) {
-                return false;
-            }
-        } else if (rnp::str_case_eq(key, "mode")) {
-            if (!str_to_cipher_mode(json_object_get_string(value), &protection.cipher_mode)) {
-                return false;
-            }
-        } else if (rnp::str_case_eq(key, "iterations")) {
-            protection.iterations = json_object_get_int(value);
-        } else if (rnp::str_case_eq(key, "hash")) {
-            if (!str_to_hash_alg(json_object_get_string(value), &protection.hash_alg)) {
-                return false;
-            }
-        } else {
-            // shouldn't happen
+    }
+    /* Mode */
+    if (json_get_str(jso, "mode", str)) {
+        if (!str_to_cipher_mode(str.c_str(), &protection.cipher_mode)) {
             return false;
         }
-        // delete this field since it has been handled
-        json_object_object_del(jso, key);
+    }
+    /* Iterations */
+    int iterations = 0;
+    if (json_get_int(jso, "iterations", iterations)) {
+        protection.iterations = iterations;
+    }
+    /* Hash algorithm */
+    if (json_get_str(jso, "hash", str)) {
+        if (!str_to_hash_alg(str.c_str(), &protection.hash_alg)) {
+            return false;
+        }
+    }
+    /* Do not allow extra unknown keys */
+    return !json_object_object_length(jso);
+}
+
+static bool
+parse_keygen_common_fields(json_object *                jso,
+                           uint8_t &                    usage,
+                           uint32_t &                   expiry,
+                           rnp_key_protection_params_t &prot)
+{
+    /* Key/subkey usage flags */
+    std::string              str;
+    std::vector<std::string> strs;
+    if (json_get_str(jso, "usage", str)) {
+        strs.push_back(str);
+    } else {
+        json_get_str_arr(jso, "usage", strs);
+    }
+    for (auto &st : strs) {
+        uint8_t flag = 0;
+        if (!str_to_key_flag(st.c_str(), &flag) || (usage & flag)) {
+            return false;
+        }
+        usage |= flag;
+    }
+    /* Key/subkey expiration */
+    uint64_t keyexp = 0;
+    if (json_get_uint64(jso, "expiration", keyexp)) {
+        keyexp = expiry;
+    }
+    /* Protection */
+    auto obj = json_get_obj(jso, "protection");
+    if (obj) {
+        if (!parse_protection(obj, prot)) {
+            return false;
+        }
+        json_object_object_del(jso, "protection");
     }
     return true;
 }
 
-static bool
-parse_keygen_primary(json_object *                jso,
-                     rnp_keygen_primary_desc_t &  desc,
+static std::unique_ptr<rnp::KeygenParams>
+parse_keygen_primary(rnp_ffi_t                    ffi,
+                     json_object *                jso,
+                     rnp_selfsig_cert_info_t &    cert,
                      rnp_key_protection_params_t &prot)
 {
-    static const char *properties[] = {
-      "userid", "usage", "expiration", "preferences", "protection"};
-    auto &cert = desc.cert;
-
-    if (!parse_keygen_crypto(jso, desc.crypto)) {
-        return false;
+    /* Parse keygen params first */
+    auto params = parse_keygen_params(ffi, jso);
+    if (!params) {
+        return nullptr;
     }
-    for (size_t i = 0; i < ARRAY_SIZE(properties); i++) {
-        json_object *value = NULL;
-        const char * key = properties[i];
-
-        if (!json_object_object_get_ex(jso, key, &value)) {
-            continue;
-        }
-        if (rnp::str_case_eq(key, "userid")) {
-            if (!json_object_is_type(value, json_type_string)) {
-                return false;
-            }
-            auto uid = json_object_get_string(value);
-            if (strlen(uid) > MAX_ID_LENGTH) {
-                return false;
-            }
-            cert.userid = json_object_get_string(value);
-        } else if (rnp::str_case_eq(key, "usage")) {
-            switch (json_object_get_type(value)) {
-            case json_type_array: {
-                int length = json_object_array_length(value);
-                for (int j = 0; j < length; j++) {
-                    json_object *item = json_object_array_get_idx(value, j);
-                    if (!json_object_is_type(item, json_type_string)) {
-                        return false;
-                    }
-                    uint8_t flag = 0;
-                    if (!str_to_key_flag(json_object_get_string(item), &flag)) {
-                        return false;
-                    }
-                    // check for duplicate
-                    if (cert.key_flags & flag) {
-                        return false;
-                    }
-                    cert.key_flags |= flag;
-                }
-            } break;
-            case json_type_string: {
-                if (!str_to_key_flag(json_object_get_string(value), &cert.key_flags)) {
-                    return false;
-                }
-            } break;
-            default:
-                return false;
-            }
-        } else if (rnp::str_case_eq(key, "expiration")) {
-            if (!json_object_is_type(value, json_type_int)) {
-                return false;
-            }
-            cert.key_expiration = json_object_get_int(value);
-        } else if (rnp::str_case_eq(key, "preferences")) {
-            if (!json_object_is_type(value, json_type_object)) {
-                return false;
-            }
-            if (!parse_preferences(value, cert.prefs)) {
-                return false;
-            }
-            if (json_object_object_length(value)) {
-                return false;
-            }
-        } else if (rnp::str_case_eq(key, "protection")) {
-            if (!json_object_is_type(value, json_type_object)) {
-                return false;
-            }
-            if (!parse_protection(value, prot)) {
-                return false;
-            }
-            if (json_object_object_length(value)) {
-                return false;
-            }
-        }
-        // delete this field since it has been handled
-        json_object_object_del(jso, key);
+    /* Parse common key/subkey fields */
+    if (!parse_keygen_common_fields(jso, cert.key_flags, cert.key_expiration, prot)) {
+        return nullptr;
     }
-    return !json_object_object_length(jso);
+    /* UserID */
+    std::string str;
+    if (json_get_str(jso, "userid", str)) {
+        if (str.size() > MAX_ID_LENGTH) {
+            return nullptr;
+        }
+        cert.userid = str;
+    }
+    /* Preferences */
+    auto obj = json_get_obj(jso, "preferences");
+    if (obj) {
+        if (!parse_preferences(obj, cert.prefs)) {
+            return nullptr;
+        }
+        json_object_object_del(jso, "preferences");
+    }
+    /* Do not allow unknown extra fields */
+    return json_object_object_length(jso) ? nullptr : std::move(params);
 }
 
-static bool
-parse_keygen_sub(json_object *                jso,
-                 rnp_keygen_subkey_desc_t &   desc,
+static std::unique_ptr<rnp::KeygenParams>
+parse_keygen_sub(rnp_ffi_t                    ffi,
+                 json_object *                jso,
+                 rnp_selfsig_binding_info_t & binding,
                  rnp_key_protection_params_t &prot)
 {
-    static const char *properties[] = {"usage", "expiration", "protection"};
-    auto &             binding = desc.binding;
-
-    if (!parse_keygen_crypto(jso, desc.crypto)) {
-        return false;
+    /* Parse keygen params first */
+    auto params = parse_keygen_params(ffi, jso);
+    if (!params) {
+        return nullptr;
     }
-    for (size_t i = 0; i < ARRAY_SIZE(properties); i++) {
-        json_object *value = NULL;
-        const char * key = properties[i];
-
-        if (!json_object_object_get_ex(jso, key, &value)) {
-            continue;
-        }
-        if (rnp::str_case_eq(key, "usage")) {
-            switch (json_object_get_type(value)) {
-            case json_type_array: {
-                int length = json_object_array_length(value);
-                for (int j = 0; j < length; j++) {
-                    json_object *item = json_object_array_get_idx(value, j);
-                    if (!json_object_is_type(item, json_type_string)) {
-                        return false;
-                    }
-                    uint8_t flag = 0;
-                    if (!str_to_key_flag(json_object_get_string(item), &flag)) {
-                        return false;
-                    }
-                    if (binding.key_flags & flag) {
-                        return false;
-                    }
-                    binding.key_flags |= flag;
-                }
-            } break;
-            case json_type_string: {
-                if (!str_to_key_flag(json_object_get_string(value), &binding.key_flags)) {
-                    return false;
-                }
-            } break;
-            default:
-                return false;
-            }
-        } else if (rnp::str_case_eq(key, "expiration")) {
-            if (!json_object_is_type(value, json_type_int)) {
-                return false;
-            }
-            binding.key_expiration = json_object_get_int(value);
-        } else if (rnp::str_case_eq(key, "protection")) {
-            if (!json_object_is_type(value, json_type_object)) {
-                return false;
-            }
-            if (!parse_protection(value, prot)) {
-                return false;
-            }
-            if (json_object_object_length(value)) {
-                return false;
-            }
-        }
-        // delete this field since it has been handled
-        json_object_object_del(jso, key);
+    /* Parse common with primary key fields */
+    if (!parse_keygen_common_fields(jso, binding.key_flags, binding.key_expiration, prot)) {
+        return nullptr;
     }
-    return !json_object_object_length(jso);
+    /* Do not allow unknown extra fields */
+    return json_object_object_length(jso) ? nullptr : std::move(params);
 }
 
 static bool
@@ -4783,23 +4650,20 @@ gen_json_primary_key(rnp_ffi_t                    ffi,
                      pgp_fingerprint_t &          fp,
                      bool                         protect)
 {
-    rnp_keygen_primary_desc_t desc = {};
-    // desc.crypto is a union
-    // so at least Clang 12 on Windows zero-initializes the first union member only
-    // keeping the "larger" member partially uninitialized
-    desc.crypto.dsa.q_bitlen = 0;
+    rnp_selfsig_cert_info_t cert = {};
+    cert.key_expiration = DEFAULT_KEY_EXPIRATION;
 
-    desc.cert.key_expiration = DEFAULT_KEY_EXPIRATION;
-    if (!parse_keygen_primary(jsoparams, desc, prot)) {
+    auto keygen = parse_keygen_primary(ffi, jsoparams, cert, prot);
+    if (!keygen) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     pgp_key_t pub;
     pgp_key_t sec;
-    desc.crypto.ctx = &ffi->context;
-    if (!pgp_generate_primary_key(desc, true, sec, pub, ffi->secring->format)) {
+    if (!keygen->generate(cert, sec, pub, ffi->secring->format)) {
         return RNP_ERROR_GENERIC;
     }
+
     if (!ffi->pubring->add_key(pub)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -4821,28 +4685,22 @@ gen_json_subkey(rnp_ffi_t          ffi,
                 pgp_key_t &        prim_sec,
                 pgp_fingerprint_t &fp)
 {
-    rnp_keygen_subkey_desc_t    desc = {};
+    rnp_selfsig_binding_info_t  binding = {};
     rnp_key_protection_params_t prot = {};
 
-    desc.binding.key_expiration = DEFAULT_KEY_EXPIRATION;
-    if (!parse_keygen_sub(jsoparams, desc, prot)) {
+    binding.key_expiration = DEFAULT_KEY_EXPIRATION;
+    auto keygen = parse_keygen_sub(ffi, jsoparams, binding, prot);
+    if (!keygen) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!desc.binding.key_flags) {
+    if (!binding.key_flags) {
         /* Generate encrypt-only subkeys by default */
-        desc.binding.key_flags = PGP_KF_ENCRYPT;
+        binding.key_flags = PGP_KF_ENCRYPT;
     }
     pgp_key_t pub;
     pgp_key_t sec;
-    desc.crypto.ctx = &ffi->context;
-    if (!pgp_generate_subkey(desc,
-                             true,
-                             prim_sec,
-                             prim_pub,
-                             sec,
-                             pub,
-                             ffi->pass_provider,
-                             ffi->secring->format)) {
+    if (!keygen->generate(
+          binding, prim_sec, prim_pub, sec, pub, ffi->pass_provider, ffi->secring->format)) {
         return RNP_ERROR_GENERIC;
     }
     if (!ffi->pubring->add_key(pub)) {
@@ -5043,7 +4901,7 @@ try {
     if (password && (ret = rnp_op_generate_set_protection_password(subop, password))) {
         goto done;
     }
-    if (pgp_pk_alg_capabilities(subop->crypto.key_alg) & PGP_KF_ENCRYPT) {
+    if (pgp_pk_alg_capabilities(subop->keygen_params.alg()) & PGP_KF_ENCRYPT) {
         if ((ret = rnp_op_generate_add_usage(subop, "encrypt"))) {
             goto done;
         }
@@ -5241,11 +5099,8 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    *op = new rnp_op_generate_st();
-    (*op)->ffi = ffi;
+    *op = new rnp_op_generate_st(ffi, key_alg);
     (*op)->primary = true;
-    (*op)->crypto.key_alg = key_alg;
-    (*op)->crypto.ctx = &ffi->context;
     (*op)->cert.key_flags = default_key_flags(key_alg, false);
     (*op)->cert.key_expiration = DEFAULT_KEY_EXPIRATION;
 
@@ -5277,11 +5132,8 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    *op = new rnp_op_generate_st();
-    (*op)->ffi = ffi;
+    *op = new rnp_op_generate_st(ffi, key_alg);
     (*op)->primary = false;
-    (*op)->crypto.key_alg = key_alg;
-    (*op)->crypto.ctx = &ffi->context;
     (*op)->binding.key_flags = default_key_flags(key_alg, true);
     (*op)->binding.key_expiration = DEFAULT_KEY_EXPIRATION;
     (*op)->primary_sec = primary->sec;
@@ -5298,22 +5150,11 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    switch (op->crypto.key_alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        op->crypto.rsa.modulus_bit_len = bits;
-        break;
-    case PGP_PKA_ELGAMAL:
-        op->crypto.elgamal.key_bitlen = bits;
-        break;
-    case PGP_PKA_DSA:
-        op->crypto.dsa.p_bitlen = bits;
-        break;
-    default:
+    auto bitkeygen = dynamic_cast<pgp::BitsKeyParams *>(&op->keygen_params.key_params());
+    if (!bitkeygen) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-
+    bitkeygen->set_bits(bits);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5324,10 +5165,12 @@ try {
     if (!op || !hash) {
         return RNP_ERROR_NULL_POINTER;
     }
-    if (!str_to_hash_alg(hash, &op->crypto.hash_alg)) {
+    pgp_hash_alg_t halg = PGP_HASH_UNKNOWN;
+    if (!str_to_hash_alg(hash, &halg)) {
         FFI_LOG(op->ffi, "Invalid hash: %s", hash);
         return RNP_ERROR_BAD_PARAMETERS;
     }
+    op->keygen_params.set_hash(halg);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5338,10 +5181,11 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    if (op->crypto.key_alg != PGP_PKA_DSA) {
+    if (op->keygen_params.alg() != PGP_PKA_DSA) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    op->crypto.dsa.q_bitlen = qbits;
+    auto &dsa = dynamic_cast<pgp::DSAKeyParams &>(op->keygen_params.key_params());
+    dsa.set_qbits(qbits);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5352,12 +5196,15 @@ try {
     if (!op || !curve) {
         return RNP_ERROR_NULL_POINTER;
     }
-    if (!pk_alg_allows_custom_curve(op->crypto.key_alg)) {
+    if (!pk_alg_allows_custom_curve(op->keygen_params.alg())) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!curve_str_to_type(curve, &op->crypto.ecc.curve)) {
+    pgp_curve_t eccurve = PGP_CURVE_UNKNOWN;
+    if (!curve_str_to_type(curve, &eccurve)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
+    auto &ecc = dynamic_cast<pgp::ECCKeyParams &>(op->keygen_params.key_params());
+    ecc.set_curve(eccurve);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5444,7 +5291,7 @@ try {
     if (!str_to_key_flag(usage, &flag)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!(pgp_pk_alg_capabilities(op->crypto.key_alg) & flag)) {
+    if (!(pgp_pk_alg_capabilities(op->keygen_params.alg()) & flag)) {
         return RNP_ERROR_NOT_SUPPORTED;
     }
     if (op->primary) {
@@ -5620,7 +5467,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    op->pgp_version = PGP_V6;
+    op->keygen_params.set_version(PGP_V6);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5632,6 +5479,10 @@ rnp_op_generate_set_sphincsplus_param(rnp_op_generate_t op, const char *param_cs
 try {
     if (!op || !param_cstr) {
         return RNP_ERROR_NULL_POINTER;
+    }
+    auto slhdsa = dynamic_cast<pgp::SlhdsaKeyParams *>(&op->keygen_params.key_params());
+    if (!slhdsa) {
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
     sphincsplus_parameter_t param;
@@ -5653,7 +5504,7 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    op->crypto.sphincsplus.param = param;
+    slhdsa->set_param(param);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5672,29 +5523,18 @@ try {
     pgp_password_provider_t prov;
 
     if (op->primary) {
-        rnp_keygen_primary_desc_t keygen = {};
-        keygen.crypto = op->crypto;
-        keygen.cert = op->cert;
-        keygen.pgp_version = op->pgp_version;
-        op->cert.prefs = {}; /* generate call will free prefs */
-
-        if (!pgp_generate_primary_key(keygen, true, sec, pub, op->ffi->secring->format)) {
+        if (!op->keygen_params.generate(op->cert, sec, pub, op->ffi->secring->format)) {
             return RNP_ERROR_KEY_GENERATION;
         }
     } else {
         /* subkey generation */
-        rnp_keygen_subkey_desc_t keygen = {};
-        keygen.crypto = op->crypto;
-        keygen.binding = op->binding;
-        keygen.pgp_version = op->pgp_version;
-        if (!pgp_generate_subkey(keygen,
-                                 true,
-                                 *op->primary_sec,
-                                 *op->primary_pub,
-                                 sec,
-                                 pub,
-                                 op->ffi->pass_provider,
-                                 op->ffi->secring->format)) {
+        if (!op->keygen_params.generate(op->binding,
+                                        *op->primary_sec,
+                                        *op->primary_pub,
+                                        sec,
+                                        pub,
+                                        op->ffi->pass_provider,
+                                        op->ffi->secring->format)) {
             return RNP_ERROR_KEY_GENERATION;
         }
     }
