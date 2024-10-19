@@ -84,3 +84,39 @@ jobs:
           set -eux
           pwd
           [[ "$(cat ./rnp/version.txt)" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]];
+  iwyu:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Actions Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: true
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install cmake libjson-c-dev libbotan-2-dev asciidoctor googletest
+
+      - name: Configure
+        env:
+          CC: clang
+          CXX: clang++    
+        run: |
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+          cmake -B build   -DBUILD_SHARED_LIBS=ON              \
+                           -DCRYPTO_BACKEND=botan              \
+                           -DDOWNLOAD_GTEST=OFF                \
+                           -DGTEST_SOURCES=/usr/src/googletest \
+                           -DCMAKE_EXPORT_COMPILE_COMMANDS=ON  \
+                           -DCMAKE_BUILD_TYPE=Release          .
+
+      - name: Build and cwd
+        run: |
+          cmake --build build --parallel $CORES
+          cd build
+
+      - name: Run Include What You Use
+        uses: EmilGedda/include-what-you-use-action@v1.0
+        with:
+          compilation-database-path: 'build'
+
