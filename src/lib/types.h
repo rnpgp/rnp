@@ -316,7 +316,7 @@ typedef struct pgp_user_prefs_t {
     void set_aead_prefs(const std::vector<uint8_t> &algs);
     void add_aead_prefs(pgp_symm_alg_t sym_alg, pgp_aead_alg_t aead_alg);
 #endif
-
+    void merge_defaults(pgp_version_t version = PGP_V4);
 } pgp_user_prefs_t;
 
 struct rnp_keygen_ecc_params_t {

@@ -574,6 +574,30 @@ pgp_user_prefs_t::add_aead_prefs(pgp_symm_alg_t sym_alg, pgp_aead_alg_t aead_alg
 }
 #endif
 
+void
+pgp_user_prefs_t::merge_defaults(pgp_version_t version)
+{
+    if (symm_algs.empty()) {
+        set_symm_algs({PGP_SA_AES_256, PGP_SA_AES_192, PGP_SA_AES_128});
+    }
+    if (hash_algs.empty()) {
+        set_hash_algs({PGP_HASH_SHA256, PGP_HASH_SHA384, PGP_HASH_SHA512, PGP_HASH_SHA224});
+    }
+    if (z_algs.empty()) {
+        set_z_algs({PGP_C_ZLIB, PGP_C_BZIP2, PGP_C_ZIP, PGP_C_NONE});
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (aead_prefs.empty() && version == PGP_V6) {
+        std::vector<uint8_t> algs;
+        for (auto sym_alg : symm_algs) {
+            algs.push_back(sym_alg);
+            algs.push_back(PGP_AEAD_OCB);
+        }
+        set_aead_prefs(algs);
+    }
+#endif
+}
+
 pgp_rawpacket_t::pgp_rawpacket_t(const pgp_signature_t &sig)
 {
     raw = sig.write();
