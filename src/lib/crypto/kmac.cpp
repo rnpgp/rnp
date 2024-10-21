@@ -75,10 +75,10 @@ KMAC256::Input_X(const std::vector<uint8_t> &ecc_ciphertext,
     RNP_LOG_U8VEC(" - mlkemPublicKey: %s", kyber_pub);
     RNP_LOG(" - algId : %d", alg_id);
 #endif
-    res.insert(res.end(), ecc_ciphertext.begin(), ecc_ciphertext.end());
-    res.insert(res.end(), ecc_pub.begin(), ecc_pub.end());
     res.insert(res.end(), kyber_ciphertext.begin(), kyber_ciphertext.end());
+    res.insert(res.end(), ecc_ciphertext.begin(), ecc_ciphertext.end());
     res.insert(res.end(), kyber_pub.begin(), kyber_pub.end());
+    res.insert(res.end(), ecc_pub.begin(), ecc_pub.end());
     res.push_back(static_cast<uint8_t>(alg_id));
     return res;
 }
@@ -95,8 +95,8 @@ KMAC256::Key_K(const std::vector<uint8_t> &ecc_key_share,
     RNP_LOG_U8VEC(" - mlkemKeyShare: %s", kyber_key_share);
 #endif
 
-    res.insert(res.end(), ecc_key_share.begin(), ecc_key_share.end());
     res.insert(res.end(), kyber_key_share.begin(), kyber_key_share.end());
+    res.insert(res.end(), ecc_key_share.begin(), ecc_key_share.end());
     return res;
 }
 
