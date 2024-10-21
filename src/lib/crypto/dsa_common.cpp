@@ -28,6 +28,7 @@
 #include "defaults.h"
 #include "repgp/repgp_def.h"
 #include "dsa_common.h"
+#include "dsa.h"
 #include <cstddef>
 
 pgp_hash_alg_t
