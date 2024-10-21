@@ -44,7 +44,6 @@
 #include "str-utils.h"
 #include "types.h"
 #include "crypto/s2k.h"
-#include "crypto.h"
 #include "crypto/signatures.h"
 #include "fingerprint.h"
 #include "pgp-key.h"
