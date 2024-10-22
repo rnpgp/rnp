@@ -132,7 +132,9 @@ typedef struct pgp_userid_t {
 
 namespace rnp {
 class KeyStore;
-}
+class CertParams;
+class BindingParams;
+} // namespace rnp
 
 /* describes a user's key */
 struct pgp_key_t {
@@ -580,10 +582,10 @@ struct pgp_key_t {
      * @param pubkey if non-NULL then the direct-key signature will be added to this key as
      *               well.
      */
-    void add_direct_sig(rnp_selfsig_cert_info_t &cert,
-                        pgp_hash_alg_t           hash,
-                        rnp::SecurityContext &   ctx,
-                        pgp_key_t *              pubkey = nullptr);
+    void add_direct_sig(rnp::CertParams &     cert,
+                        pgp_hash_alg_t        hash,
+                        rnp::SecurityContext &ctx,
+                        pgp_key_t *           pubkey = nullptr);
 #endif
 
     /**
@@ -596,10 +598,10 @@ struct pgp_key_t {
      * @param pubkey if non-NULL then userid and certification will be added to this key as
      *               well.
      */
-    void add_uid_cert(rnp_selfsig_cert_info_t &cert,
-                      pgp_hash_alg_t           hash,
-                      rnp::SecurityContext &   ctx,
-                      pgp_key_t *              pubkey = nullptr);
+    void add_uid_cert(rnp::CertParams &     cert,
+                      pgp_hash_alg_t        hash,
+                      rnp::SecurityContext &ctx,
+                      pgp_key_t *           pubkey = nullptr);
 
     /**
      * @brief Calculate and add subkey binding signature.
@@ -612,11 +614,11 @@ struct pgp_key_t {
      * @param hash hash algorithm to use (may be adjusted according to key and subkey
      *             algorithms)
      */
-    void add_sub_binding(pgp_key_t &                       subsec,
-                         pgp_key_t &                       subpub,
-                         const rnp_selfsig_binding_info_t &binding,
-                         pgp_hash_alg_t                    hash,
-                         rnp::SecurityContext &            ctx);
+    void add_sub_binding(pgp_key_t &               subsec,
+                         pgp_key_t &               subpub,
+                         const rnp::BindingParams &binding,
+                         pgp_hash_alg_t            hash,
+                         rnp::SecurityContext &    ctx);
 
     /** @brief Refresh internal fields after primary key is updated */
     bool refresh_data(const rnp::SecurityContext &ctx);

@@ -56,6 +56,7 @@
 #include "crypto/mem.h"
 #include "crypto/signatures.h"
 #include "fingerprint.h"
+#include "keygen.hpp"
 
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-key.h>
@@ -2592,10 +2593,10 @@ pgp_key_t::sign_subkey_binding(pgp_key_t &           sub,
 
 #if defined(ENABLE_CRYPTO_REFRESH)
 void
-pgp_key_t::add_direct_sig(rnp_selfsig_cert_info_t &cert,
-                          pgp_hash_alg_t           hash,
-                          rnp::SecurityContext &   ctx,
-                          pgp_key_t *              pubkey)
+pgp_key_t::add_direct_sig(rnp::CertParams &     cert,
+                          pgp_hash_alg_t        hash,
+                          rnp::SecurityContext &ctx,
+                          pgp_key_t *           pubkey)
 {
     // We only support modifying v4 and newer keys
     if (pkt().version < PGP_V4) {
@@ -2620,10 +2621,10 @@ pgp_key_t::add_direct_sig(rnp_selfsig_cert_info_t &cert,
 #endif
 
 void
-pgp_key_t::add_uid_cert(rnp_selfsig_cert_info_t &cert,
-                        pgp_hash_alg_t           hash,
-                        rnp::SecurityContext &   ctx,
-                        pgp_key_t *              pubkey)
+pgp_key_t::add_uid_cert(rnp::CertParams &     cert,
+                        pgp_hash_alg_t        hash,
+                        rnp::SecurityContext &ctx,
+                        pgp_key_t *           pubkey)
 {
     if (cert.userid.empty()) {
         /* todo: why not to allow empty uid? */
@@ -2680,11 +2681,11 @@ pgp_key_t::add_uid_cert(rnp_selfsig_cert_info_t &cert,
 }
 
 void
-pgp_key_t::add_sub_binding(pgp_key_t &                       subsec,
-                           pgp_key_t &                       subpub,
-                           const rnp_selfsig_binding_info_t &binding,
-                           pgp_hash_alg_t                    hash,
-                           rnp::SecurityContext &            ctx)
+pgp_key_t::add_sub_binding(pgp_key_t &               subsec,
+                           pgp_key_t &               subpub,
+                           const rnp::BindingParams &binding,
+                           pgp_hash_alg_t            hash,
+                           rnp::SecurityContext &    ctx)
 {
     if (!is_primary()) {
         RNP_LOG("must be called on primary key");
@@ -2695,14 +2696,14 @@ pgp_key_t::add_sub_binding(pgp_key_t &                       subsec,
     pgp_signature_t sig;
     sign_init(ctx.rng, sig, hash, ctx.time(), version());
     sig.set_type(PGP_SIG_SUBKEY);
-    if (binding.key_expiration) {
-        sig.set_key_expiration(binding.key_expiration);
+    if (binding.expiration) {
+        sig.set_key_expiration(binding.expiration);
     }
-    if (binding.key_flags) {
-        sig.set_key_flags(binding.key_flags);
+    if (binding.flags) {
+        sig.set_key_flags(binding.flags);
     }
     /* calculate binding */
-    pgp_key_flags_t realkf = (pgp_key_flags_t) binding.key_flags;
+    pgp_key_flags_t realkf = (pgp_key_flags_t) binding.flags;
     if (!realkf) {
         realkf = pgp_pk_alg_capabilities(subsec.alg());
     }
