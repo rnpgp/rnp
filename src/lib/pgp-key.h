@@ -229,6 +229,9 @@ struct pgp_key_t {
     bool             can_certify() const noexcept;
     bool             can_encrypt() const noexcept;
     bool             has_secret() const noexcept;
+#if defined(ENABLE_PQC)
+    bool is_pqc_alg() const;
+#endif
     /**
      * @brief Check whether key is usable for the specified operation.
      *
@@ -688,6 +691,7 @@ bool pgp_subkey_set_expiration(pgp_key_t *                    sub,
 pgp_key_t *find_suitable_key(pgp_op_t          op,
                              pgp_key_t *       key,
                              rnp::KeyProvider *key_provider,
-                             bool              no_primary = false);
+                             bool              no_primary = false,
+                             bool              pref_pqc_sub = false);
 
 #endif // RNP_PACKET_KEY_H

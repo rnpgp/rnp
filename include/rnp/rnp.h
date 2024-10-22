@@ -104,6 +104,9 @@ typedef uint32_t rnp_result_t;
  * Flags for default key selection.
  */
 #define RNP_KEY_SUBKEYS_ONLY (1U << 0)
+#if defined(RNP_EXPERIMENTAL_CRYPTO_REFRESH)
+#define RNP_KEY_PREFER_PQC_ENC_SUBKEY (1U << 1)
+#endif
 
 /**
  * User id type
@@ -2349,6 +2352,9 @@ RNP_API rnp_result_t rnp_key_get_subkey_at(rnp_key_handle_t  key,
  *  @param flags possible values:  RNP_KEY_SUBKEYS_ONLY - select only subkeys,
  *               otherwise if flags is 0, primary key can be returned if
  *               it is suitable for specified usage.
+ *               Note: If RNP_EXPERIMENTAL_PQC is set, then the flag
+ *               RNP_KEY_PREFER_PQC_ENC_SUBKEY can be used to prefer PQC-encryption subkeys
+ *               over non-PQC-encryption subkeys
  *  @param default_key on success resulting key handle will be stored here, otherwise it
  *                     will contain NULL value. You must free this handle after use with
  *                     rnp_key_handle_destroy().
@@ -3613,6 +3619,18 @@ RNP_API rnp_result_t rnp_op_encrypt_add_recipient(rnp_op_encrypt_t op, rnp_key_h
  * @return RNP_SUCCESS or errorcode if failed.
  */
 RNP_API rnp_result_t rnp_op_encrypt_enable_pkesk_v6(rnp_op_encrypt_t op);
+#endif
+
+#if defined(RNP_EXPERIMENTAL_PQC)
+/**
+ * @brief Prefer using PQC subkeys over non-PQC subkeys when encrypting.
+ *        NOTE: This is an experimental feature and this function can be replaced (or removed)
+ *        at any time.
+ *
+ * @param op opaque encrypting context. Must be allocated and initialized.
+ * @return RNP_SUCCESS or errorcode if failed.
+ */
+RNP_API rnp_result_t rnp_op_encrypt_prefer_pqc_enc_subkey(rnp_op_encrypt_t op);
 #endif
 
 /**
