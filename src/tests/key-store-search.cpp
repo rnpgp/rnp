@@ -75,10 +75,8 @@ TEST_F(rnp_tests, test_key_store_search)
             for (size_t uidn = 0; testdata[i].userids[uidn]; uidn++) {
                 pgp_transferable_userid_t tuid;
                 tuid.uid.tag = PGP_PKT_USER_ID;
-                tuid.uid.uid_len = strlen(testdata[i].userids[uidn]);
-                tuid.uid.uid = (uint8_t *) malloc(tuid.uid.uid_len);
-                assert_non_null(tuid.uid.uid);
-                memcpy(tuid.uid.uid, testdata[i].userids[uidn], tuid.uid.uid_len);
+                auto uiddata = testdata[i].userids[uidn];
+                tuid.uid.uid.assign(uiddata, uiddata + strlen(uiddata));
                 key.add_uid(tuid);
             }
             // add to the store

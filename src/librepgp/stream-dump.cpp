@@ -1145,11 +1145,11 @@ stream_dump_userid(pgp_source_t *src, pgp_dest_t *dst)
     switch (uid.tag) {
     case PGP_PKT_USER_ID:
         dst_printf(dst, "id: ");
-        dst_write(dst, uid.uid, uid.uid_len);
+        dst_write(dst, uid.uid.data(), uid.uid.size());
         dst_printf(dst, "\n");
         break;
     case PGP_PKT_USER_ATTR:
-        dst_printf(dst, "id: (%d bytes of data)\n", (int) uid.uid_len);
+        dst_printf(dst, "id: (%zu bytes of data)\n", uid.uid.size());
         break;
     default:;
     }
@@ -2326,12 +2326,12 @@ stream_dump_userid_json(pgp_source_t *src, json_object *pkt)
 
     switch (uid.tag) {
     case PGP_PKT_USER_ID:
-        if (!json_add(pkt, "userid", (char *) uid.uid, uid.uid_len)) {
+        if (!json_add(pkt, "userid", (char *) uid.uid.data(), uid.uid.size())) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     case PGP_PKT_USER_ATTR:
-        if (!json_add_hex(pkt, "userattr", uid.uid, uid.uid_len)) {
+        if (!json_add_hex(pkt, "userattr", uid.uid.data(), uid.uid.size())) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;

@@ -787,7 +787,7 @@ TEST_F(rnp_tests, test_key_import)
     assert_int_equal(tkey.userids.size(), 1);
     assert_non_null(tuid = &tkey.userids.front());
     assert_true(tuid->signatures.empty());
-    assert_false(memcmp(tuid->uid.uid, "key-merge-uid-1", 15));
+    assert_false(memcmp(tuid->uid.uid.data(), "key-merge-uid-1", 15));
     assert_int_equal(tkey.key.tag, PGP_PKT_PUBLIC_KEY);
     assert_int_equal(tuid->uid.tag, PGP_PKT_USER_ID);
 
@@ -807,7 +807,7 @@ TEST_F(rnp_tests, test_key_import)
     assert_int_equal(tkey.key.tag, PGP_PKT_PUBLIC_KEY);
     assert_non_null(tuid = &tkey.userids.front());
     assert_int_equal(tuid->signatures.size(), 1);
-    assert_false(memcmp(tuid->uid.uid, "key-merge-uid-1", 15));
+    assert_false(memcmp(tuid->uid.uid.data(), "key-merge-uid-1", 15));
     assert_int_equal(tuid->uid.tag, PGP_PKT_USER_ID);
 
     /* import public key + 1 subkey */
@@ -826,7 +826,7 @@ TEST_F(rnp_tests, test_key_import)
     assert_int_equal(tkey.key.tag, PGP_PKT_PUBLIC_KEY);
     assert_non_null(tuid = &tkey.userids.front());
     assert_int_equal(tuid->signatures.size(), 1);
-    assert_false(memcmp(tuid->uid.uid, "key-merge-uid-1", 15));
+    assert_false(memcmp(tuid->uid.uid.data(), "key-merge-uid-1", 15));
     assert_int_equal(tuid->uid.tag, PGP_PKT_USER_ID);
     assert_non_null(tskey = &tkey.subkeys.front());
     assert_int_equal(tskey->signatures.size(), 1);
@@ -848,7 +848,7 @@ TEST_F(rnp_tests, test_key_import)
     assert_int_equal(tkey.key.tag, PGP_PKT_PUBLIC_KEY);
     assert_non_null(tuid = &tkey.userids.front());
     assert_int_equal(tuid->signatures.size(), 1);
-    assert_false(memcmp(tuid->uid.uid, "key-merge-uid-1", 15));
+    assert_false(memcmp(tuid->uid.uid.data(), "key-merge-uid-1", 15));
     assert_int_equal(tuid->uid.tag, PGP_PKT_USER_ID);
     assert_non_null(tskey = &tkey.subkeys.front());
     assert_int_equal(tskey->signatures.size(), 1);
@@ -862,7 +862,7 @@ TEST_F(rnp_tests, test_key_import)
     assert_rnp_success(decrypt_secret_key(&tkey.key, "password"));
     assert_non_null(tuid = &tkey.userids.front());
     assert_int_equal(tuid->signatures.size(), 1);
-    assert_false(memcmp(tuid->uid.uid, "key-merge-uid-1", 15));
+    assert_false(memcmp(tuid->uid.uid.data(), "key-merge-uid-1", 15));
     assert_int_equal(tuid->uid.tag, PGP_PKT_USER_ID);
     assert_non_null(tskey = &tkey.subkeys.front());
     assert_int_equal(tskey->signatures.size(), 1);
@@ -885,11 +885,11 @@ TEST_F(rnp_tests, test_key_import)
     assert_int_equal(tkey.key.tag, PGP_PKT_PUBLIC_KEY);
     assert_non_null(tuid = &tkey.userids.front());
     assert_int_equal(tuid->signatures.size(), 1);
-    assert_false(memcmp(tuid->uid.uid, "key-merge-uid-1", 15));
+    assert_false(memcmp(tuid->uid.uid.data(), "key-merge-uid-1", 15));
     assert_int_equal(tuid->uid.tag, PGP_PKT_USER_ID);
     assert_non_null(tuid = &tkey.userids[1]);
     assert_int_equal(tuid->signatures.size(), 1);
-    assert_false(memcmp(tuid->uid.uid, "key-merge-uid-2", 15));
+    assert_false(memcmp(tuid->uid.uid.data(), "key-merge-uid-2", 15));
     assert_int_equal(tuid->uid.tag, PGP_PKT_USER_ID);
     assert_non_null(tskey = &tkey.subkeys.front());
     assert_int_equal(tskey->signatures.size(), 1);
@@ -906,11 +906,11 @@ TEST_F(rnp_tests, test_key_import)
     assert_rnp_success(decrypt_secret_key(&tkey.key, "password"));
     assert_non_null(tuid = &tkey.userids.front());
     assert_int_equal(tuid->signatures.size(), 1);
-    assert_false(memcmp(tuid->uid.uid, "key-merge-uid-1", 15));
+    assert_false(memcmp(tuid->uid.uid.data(), "key-merge-uid-1", 15));
     assert_int_equal(tuid->uid.tag, PGP_PKT_USER_ID);
     assert_non_null(tuid = &tkey.userids[1]);
     assert_int_equal(tuid->signatures.size(), 1);
-    assert_false(memcmp(tuid->uid.uid, "key-merge-uid-2", 15));
+    assert_false(memcmp(tuid->uid.uid.data(), "key-merge-uid-2", 15));
     assert_int_equal(tuid->uid.tag, PGP_PKT_USER_ID);
     assert_non_null(tskey = &tkey.subkeys.front());
     assert_int_equal(tskey->signatures.size(), 1);
