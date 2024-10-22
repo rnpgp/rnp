@@ -100,7 +100,7 @@ void
 signature_hash_userid(const pgp_userid_pkt_t &uid, rnp::Hash &hash, pgp_version_t sigver)
 {
     if (sigver < PGP_V4) {
-        hash.add(uid.uid, uid.uid_len);
+        hash.add(uid.uid.data(), uid.uid.size());
         return;
     }
 
@@ -116,9 +116,9 @@ signature_hash_userid(const pgp_userid_pkt_t &uid, rnp::Hash &hash, pgp_version_
         RNP_LOG("wrong uid");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    write_uint32(hdr + 1, uid.uid_len);
+    write_uint32(hdr + 1, uid.uid.size());
     hash.add(hdr, 5);
-    hash.add(uid.uid, uid.uid_len);
+    hash.add(uid.uid.data(), uid.uid.size());
 }
 
 std::unique_ptr<rnp::Hash>
