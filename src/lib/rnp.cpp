@@ -4398,7 +4398,7 @@ pk_alg_allows_custom_curve(pgp_pubkey_alg_t pkalg)
 }
 
 static bool
-parse_preferences(json_object *jso, pgp_user_prefs_t &prefs)
+parse_preferences(json_object *jso, rnp::UserPrefs &prefs)
 {
     /* Preferred hashes */
     std::vector<std::string> strs;
@@ -5358,7 +5358,7 @@ try {
     if (!op->primary) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    op->cert.prefs.set_hash_algs({});
+    op->cert.prefs.hash_algs.clear();
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5390,7 +5390,7 @@ try {
     if (!op->primary) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    op->cert.prefs.set_z_algs({});
+    op->cert.prefs.z_algs.clear();
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5422,7 +5422,7 @@ try {
     if (!op->primary) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    op->cert.prefs.set_symm_algs({});
+    op->cert.prefs.symm_algs.clear();
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -8201,57 +8201,44 @@ add_json_sig_mpis(json_object *jso, const pgp_signature_t *sig)
 }
 
 static bool
-add_json_user_prefs(json_object *jso, const pgp_user_prefs_t &prefs)
+add_json_array_lookup(json_object *        jso,
+                      std::vector<uint8_t> vals,
+                      const char *         name,
+                      const id_str_pair *  map)
+{
+    if (vals.empty()) {
+        return true;
+    }
+    json_object *jsoarr = json_object_new_array();
+    if (!jsoarr || !json_add(jso, name, jsoarr)) {
+        return false;
+    }
+    for (auto val : vals) {
+        const char *vname = id_str_pair::lookup(map, val, "Unknown");
+        if (!json_array_add(jsoarr, vname)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool
+add_json_user_prefs(json_object *jso, const rnp::UserPrefs &prefs)
 {
     // TODO: instead of using a string "Unknown" as a fallback for these,
     // we could add a string of hex/dec (or even an int)
-    if (!prefs.symm_algs.empty()) {
-        json_object *jsoarr = json_object_new_array();
-        if (!jsoarr || !json_add(jso, "ciphers", jsoarr)) {
-            return false;
-        }
-        for (auto alg : prefs.symm_algs) {
-            const char *name = id_str_pair::lookup(symm_alg_map, alg, "Unknown");
-            if (!json_array_add(jsoarr, name)) {
-                return false;
-            }
-        }
+    if (!add_json_array_lookup(jso, prefs.symm_algs, "ciphers", symm_alg_map)) {
+        return false;
     }
-    if (!prefs.hash_algs.empty()) {
-        json_object *jsoarr = json_object_new_array();
-        if (!jsoarr || !json_add(jso, "hashes", jsoarr)) {
-            return false;
-        }
-        for (auto alg : prefs.hash_algs) {
-            const char *name = id_str_pair::lookup(hash_alg_map, alg, "Unknown");
-            if (!json_array_add(jsoarr, name)) {
-                return false;
-            }
-        }
+    if (!add_json_array_lookup(jso, prefs.hash_algs, "hashes", hash_alg_map)) {
+        return false;
     }
-    if (!prefs.z_algs.empty()) {
-        json_object *jsoarr = json_object_new_array();
-        if (!jsoarr || !json_add(jso, "compression", jsoarr)) {
-            return false;
-        }
-        for (auto alg : prefs.z_algs) {
-            const char *name = id_str_pair::lookup(compress_alg_map, alg, "Unknown");
-            if (!json_array_add(jsoarr, name)) {
-                return false;
-            }
-        }
+    if (!add_json_array_lookup(jso, prefs.z_algs, "compression", compress_alg_map)) {
+        return false;
     }
-    if (!prefs.ks_prefs.empty()) {
-        json_object *jsoarr = json_object_new_array();
-        if (!jsoarr || !json_add(jso, "key server preferences", jsoarr)) {
-            return false;
-        }
-        for (auto flag : prefs.ks_prefs) {
-            const char *name = id_str_pair::lookup(key_server_prefs_map, flag, "Unknown");
-            if (!json_array_add(jsoarr, name)) {
-                return false;
-            }
-        }
+    if (!add_json_array_lookup(
+          jso, prefs.ks_prefs, "key server preferences", key_server_prefs_map)) {
+        return false;
     }
     if (!prefs.key_server.empty()) {
         if (!json_add(jso, "key server", prefs.key_server.c_str())) {
@@ -8287,7 +8274,7 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // preferences
-    const pgp_user_prefs_t &prefs = subsig->prefs;
+    const rnp::UserPrefs prefs(subsig->sig);
     if (!prefs.symm_algs.empty() || !prefs.hash_algs.empty() || !prefs.z_algs.empty() ||
         !prefs.ks_prefs.empty() || !prefs.key_server.empty()) {
         json_object *jsoprefs = json_object_new_object();

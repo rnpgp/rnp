@@ -365,10 +365,93 @@ KeygenParams::generate(BindingParams &                binding,
            subkey_sec.refresh_data(&primary_sec, ctx());
 }
 
+UserPrefs::UserPrefs(const pgp_signature_t &sig)
+{
+    symm_algs = sig.preferred_symm_algs();
+    hash_algs = sig.preferred_hash_algs();
+    z_algs = sig.preferred_z_algs();
+
+    if (sig.has_subpkt(PGP_SIG_SUBPKT_KEYSERV_PREFS)) {
+        ks_prefs = {sig.key_server_prefs()};
+    }
+
+    if (sig.has_subpkt(PGP_SIG_SUBPKT_PREF_KEYSERV)) {
+        key_server = sig.key_server();
+    }
+}
+
+void
+UserPrefs::add_uniq(std::vector<uint8_t> &vec, uint8_t val)
+{
+    if (std::find(vec.begin(), vec.end(), val) == vec.end()) {
+        vec.push_back(val);
+    }
+}
+
+void
+UserPrefs::add_symm_alg(pgp_symm_alg_t alg)
+{
+    add_uniq(symm_algs, alg);
+}
+
+void
+UserPrefs::add_hash_alg(pgp_hash_alg_t alg)
+{
+    add_uniq(hash_algs, alg);
+}
+
+void
+UserPrefs::add_z_alg(pgp_compression_type_t alg)
+{
+    add_uniq(z_algs, alg);
+}
+
+void
+UserPrefs::add_ks_pref(pgp_key_server_prefs_t pref)
+{
+    add_uniq(ks_prefs, pref);
+}
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+void
+UserPrefs::add_aead_prefs(pgp_symm_alg_t sym_alg, pgp_aead_alg_t aead_alg)
+{
+    for (size_t i = 0; i < aead_prefs.size(); i += 2) {
+        if (aead_prefs[i] == sym_alg && aead_prefs[i + 1] == aead_alg) {
+            return;
+        }
+    }
+    aead_prefs.push_back(sym_alg);
+    aead_prefs.push_back(aead_alg);
+}
+#endif
+
+void
+UserPrefs::check_defaults(pgp_version_t version)
+{
+    if (symm_algs.empty()) {
+        symm_algs = {PGP_SA_AES_256, PGP_SA_AES_192, PGP_SA_AES_128};
+    }
+    if (hash_algs.empty()) {
+        hash_algs = {PGP_HASH_SHA256, PGP_HASH_SHA384, PGP_HASH_SHA512, PGP_HASH_SHA224};
+    }
+    if (z_algs.empty()) {
+        z_algs = {PGP_C_ZLIB, PGP_C_BZIP2, PGP_C_ZIP, PGP_C_NONE};
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (aead_prefs.empty() && (version == PGP_V6)) {
+        for (auto sym_alg : symm_algs) {
+            aead_prefs.push_back(sym_alg);
+            aead_prefs.push_back(PGP_AEAD_OCB);
+        }
+    }
+#endif
+}
+
 void
 CertParams::check_defaults(const KeygenParams &params)
 {
-    prefs.merge_defaults(params.version());
+    prefs.check_defaults(params.version());
 
     if (!flags) {
         // set some default key flags if none are provided
