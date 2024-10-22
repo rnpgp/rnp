@@ -289,36 +289,6 @@ typedef struct pgp_revoke_t {
     pgp_revoke_t(pgp_subsig_t &sig);
 } pgp_revoke_t;
 
-typedef struct pgp_user_prefs_t {
-    // preferred symmetric algs (pgp_symm_alg_t)
-    std::vector<uint8_t> symm_algs{};
-    // preferred hash algs (pgp_hash_alg_t)
-    std::vector<uint8_t> hash_algs{};
-    // preferred compression algs (pgp_compression_type_t)
-    std::vector<uint8_t> z_algs{};
-    // key server preferences (pgp_key_server_prefs_t)
-    std::vector<uint8_t> ks_prefs{};
-    // preferred key server
-    std::string key_server{};
-#if defined(ENABLE_CRYPTO_REFRESH)
-    std::vector<uint8_t> aead_prefs{};
-#endif
-
-    void set_symm_algs(const std::vector<uint8_t> &algs);
-    void add_symm_alg(pgp_symm_alg_t alg);
-    void set_hash_algs(const std::vector<uint8_t> &algs);
-    void add_hash_alg(pgp_hash_alg_t alg);
-    void set_z_algs(const std::vector<uint8_t> &algs);
-    void add_z_alg(pgp_compression_type_t alg);
-    void set_ks_prefs(const std::vector<uint8_t> &prefs);
-    void add_ks_pref(pgp_key_server_prefs_t pref);
-#if defined(ENABLE_CRYPTO_REFRESH)
-    void set_aead_prefs(const std::vector<uint8_t> &algs);
-    void add_aead_prefs(pgp_symm_alg_t sym_alg, pgp_aead_alg_t aead_alg);
-#endif
-    void merge_defaults(pgp_version_t version = PGP_V4);
-} pgp_user_prefs_t;
-
 typedef struct rnp_key_protection_params_t {
     pgp_symm_alg_t    symm_alg;
     pgp_cipher_mode_t cipher_mode;
