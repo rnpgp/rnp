@@ -319,27 +319,6 @@ typedef struct pgp_user_prefs_t {
     void merge_defaults(pgp_version_t version = PGP_V4);
 } pgp_user_prefs_t;
 
-typedef struct rnp_selfsig_cert_info_t {
-    std::string      userid;           /* userid, required */
-    uint8_t          key_flags{};      /* key flags */
-    uint32_t         key_expiration{}; /* key expiration time (sec), 0 = no expiration */
-    pgp_user_prefs_t prefs{};          /* user preferences, optional */
-    bool             primary;          /* mark this as the primary user id */
-
-    /**
-     * @brief Populate uid and sig packet with data stored in this struct.
-     *        At some point we should get rid of it.
-     */
-    void populate(pgp_userid_pkt_t &uid, pgp_signature_t &sig);
-    void populate(pgp_signature_t &sig);
-    void populate(pgp_userid_pkt_t &uid);
-} rnp_selfsig_cert_info_t;
-
-typedef struct rnp_selfsig_binding_info_t {
-    uint8_t  key_flags;
-    uint32_t key_expiration;
-} rnp_selfsig_binding_info_t;
-
 typedef struct rnp_key_protection_params_t {
     pgp_symm_alg_t    symm_alg;
     pgp_cipher_mode_t cipher_mode;

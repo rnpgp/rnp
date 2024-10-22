@@ -66,6 +66,12 @@ class KeygenParams {
 
     void check_defaults() noexcept;
 
+    bool validate() const noexcept;
+
+    bool validate(const CertParams &cert) const noexcept;
+
+    bool validate(const BindingParams &binding) const noexcept;
+
     pgp_version_t
     version() const noexcept
     {
@@ -100,19 +106,46 @@ class KeygenParams {
     bool generate(pgp_key_pkt_t &seckey, bool primary);
 
     /* Generate primary key with self-certification */
-    bool generate(rnp_selfsig_cert_info_t &cert,
-                  pgp_key_t &              primary_sec,
-                  pgp_key_t &              primary_pub,
-                  pgp_key_store_format_t   secformat);
+    bool generate(CertParams &           cert,
+                  pgp_key_t &            primary_sec,
+                  pgp_key_t &            primary_pub,
+                  pgp_key_store_format_t secformat);
 
     /* Generate a subkey for already existing primary key*/
-    bool generate(rnp_selfsig_binding_info_t &   binding,
+    bool generate(BindingParams &                binding,
                   pgp_key_t &                    primary_sec,
                   pgp_key_t &                    primary_pub,
                   pgp_key_t &                    subkey_sec,
                   pgp_key_t &                    subkey_pub,
                   const pgp_password_provider_t &password_provider,
                   pgp_key_store_format_t         secformat);
+};
+
+class CertParams {
+  public:
+    std::string      userid;       /* userid, required */
+    uint8_t          flags{};      /* key flags */
+    uint32_t         expiration{}; /* key expiration time (sec), 0 = no expiration */
+    pgp_user_prefs_t prefs{};      /* user preferences, optional */
+    bool             primary;      /* mark this as the primary user id */
+
+    void check_defaults(const KeygenParams &params);
+
+    /**
+     * @brief Populate uid and sig packet with data stored in this struct.
+     *        At some point we should get rid of it.
+     */
+    void populate(pgp_userid_pkt_t &uid, pgp_signature_t &sig) const;
+    void populate(pgp_signature_t &sig) const;
+    void populate(pgp_userid_pkt_t &uid) const;
+};
+
+class BindingParams {
+  public:
+    uint8_t  flags{};
+    uint32_t expiration{};
+
+    void check_defaults(const KeygenParams &params);
 };
 
 } // namespace rnp
