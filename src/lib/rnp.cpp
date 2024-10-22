@@ -8261,16 +8261,16 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // trust level and amount
-    if (!json_add(jsotrust, "level", (int) subsig->trustlevel) ||
-        !json_add(jsotrust, "amount", (int) subsig->trustamount)) {
+    if (!json_add(jsotrust, "level", (int) subsig->sig.trust_level()) ||
+        !json_add(jsotrust, "amount", (int) subsig->sig.trust_amount())) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // key flags (usage)
-    if (!add_json_key_usage(jso, subsig->key_flags)) {
+    if (!add_json_key_usage(jso, subsig->sig.key_flags())) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // key flags (other)
-    if (!add_json_key_flags(jso, subsig->key_flags)) {
+    if (!add_json_key_flags(jso, subsig->sig.key_flags())) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // preferences

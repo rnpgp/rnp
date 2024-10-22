@@ -82,14 +82,11 @@ typedef struct pgp_rawpacket_t {
 
 /** information about the signature */
 typedef struct pgp_subsig_t {
-    uint32_t        uid{};         /* index in userid array in key for certification sig */
-    pgp_signature_t sig{};         /* signature packet */
-    pgp_sig_id_t    sigid{};       /* signature identifier */
-    pgp_rawpacket_t rawpkt{};      /* signature's rawpacket */
-    uint8_t         trustlevel{};  /* level of trust */
-    uint8_t         trustamount{}; /* amount of trust */
-    uint8_t         key_flags{};   /* key flags for certification/direct key sig */
-    pgp_validity_t  validity{};    /* signature validity information */
+    uint32_t        uid{};      /* index in userid array in key for certification sig */
+    pgp_signature_t sig{};      /* signature packet */
+    pgp_sig_id_t    sigid{};    /* signature identifier */
+    pgp_rawpacket_t rawpkt{};   /* signature's rawpacket */
+    pgp_validity_t  validity{}; /* signature validity information */
 
     pgp_subsig_t() = delete;
     pgp_subsig_t(const pgp_signature_t &sig);
