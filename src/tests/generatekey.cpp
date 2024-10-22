@@ -1012,7 +1012,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         auto &            rsa = dynamic_cast<pgp::RSAKeyParams &>(keygen.key_params());
         rsa.set_bits(1024);
 
-        rnp_selfsig_cert_info_t cert{};
+        rnp::CertParams cert;
         cert.userid = "test";
 
         // generate
@@ -1149,8 +1149,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         rsa.set_bits(1024);
 
         // generate
-        pgp_password_provider_t    prov = {};
-        rnp_selfsig_binding_info_t binding{};
+        pgp_password_provider_t prov = {};
+        rnp::BindingParams      binding;
         assert_true(keygen.generate(
           binding, *primary_sec, *primary_pub, sec, pub, prov, PGP_KEY_STORE_GPG));
         assert_true(pub.valid());

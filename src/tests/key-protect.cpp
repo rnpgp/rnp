@@ -235,10 +235,10 @@ TEST_F(rnp_tests, test_key_protect_sec_data)
     auto &            rsa = dynamic_cast<pgp::RSAKeyParams &>(keygen.key_params());
     rsa.set_bits(1024);
 
-    rnp_selfsig_cert_info_t cert{};
+    rnp::CertParams cert;
     cert.userid = "test";
 
-    rnp_selfsig_binding_info_t binding{};
+    rnp::BindingParams binding;
 
     /* generate raw unprotected keypair */
     pgp_key_t               skey, pkey, ssub, psub;
