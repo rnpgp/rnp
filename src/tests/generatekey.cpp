@@ -1086,10 +1086,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         // ensure validation fails with incorrect uid
         pgp_userid_pkt_t uid;
         uid.tag = PGP_PKT_USER_ID;
-        uid.uid = (uint8_t *) malloc(4);
-        assert_non_null(uid.uid);
-        uid.uid_len = 4;
-        memcpy(uid.uid, "fake", 4);
+        auto fake = "fake";
+        uid.uid.assign(fake, fake + strlen(fake));
 
         pub.validate_cert(psiginfo, pub.pkt(), uid, global_ctx);
         assert_false(psiginfo.valid);

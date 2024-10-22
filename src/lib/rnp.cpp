@@ -5842,12 +5842,12 @@ try {
     if (!id) {
         return RNP_ERROR_NULL_POINTER;
     }
-    *data = malloc(id->pkt.uid_len);
-    if (id->pkt.uid_len && !*data) {
+    *data = malloc(id->pkt.uid.size());
+    if (id->pkt.uid.size() && !*data) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    memcpy(*data, id->pkt.uid, id->pkt.uid_len);
-    *size = id->pkt.uid_len;
+    memcpy(*data, id->pkt.uid.data(), id->pkt.uid.size());
+    *size = id->pkt.uid.size();
     return RNP_SUCCESS;
 }
 FFI_GUARD

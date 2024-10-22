@@ -230,18 +230,12 @@ typedef struct pgp_one_pass_sig_t {
  *  binary blob as it is. It may be distinguished by tag field.
  */
 typedef struct pgp_userid_pkt_t {
-    pgp_pkt_type_t tag;
-    uint8_t *      uid;
-    size_t         uid_len;
+    pgp_pkt_type_t       tag;
+    std::vector<uint8_t> uid;
 
-    pgp_userid_pkt_t() : tag(PGP_PKT_RESERVED), uid(NULL), uid_len(0){};
-    pgp_userid_pkt_t(const pgp_userid_pkt_t &src);
-    pgp_userid_pkt_t(pgp_userid_pkt_t &&src);
-    pgp_userid_pkt_t &operator=(pgp_userid_pkt_t &&src);
-    pgp_userid_pkt_t &operator=(const pgp_userid_pkt_t &src);
-    bool              operator==(const pgp_userid_pkt_t &src) const;
-    bool              operator!=(const pgp_userid_pkt_t &src) const;
-    ~pgp_userid_pkt_t();
+    bool operator==(const pgp_userid_pkt_t &src) const;
+    bool operator!=(const pgp_userid_pkt_t &src) const;
+    pgp_userid_pkt_t() : tag(PGP_PKT_RESERVED){};
 
     void         write(pgp_dest_t &dst) const;
     rnp_result_t parse(pgp_source_t &src);
