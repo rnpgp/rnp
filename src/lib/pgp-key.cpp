@@ -546,13 +546,6 @@ pgp_subsig_t::pgp_subsig_t(const pgp_signature_t &pkt)
 {
     sig = pkt;
     sigid = sig.get_id();
-    if (sig.has_subpkt(PGP_SIG_SUBPKT_TRUST)) {
-        trustlevel = sig.trust_level();
-        trustamount = sig.trust_amount();
-    }
-    if (sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
-        key_flags = sig.key_flags();
-    }
     /* add signature rawpacket */
     rawpkt = pgp_rawpacket_t(sig);
 }
@@ -2664,11 +2657,11 @@ pgp_key_t::refresh_data(const rnp::SecurityContext &ctx)
     }
     /* key flags: check in direct-key sig first, then primary uid, and then latest */
     if (dirsig && dirsig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
-        flags_ = dirsig->key_flags;
+        flags_ = dirsig->sig.key_flags();
     } else if (prisig && prisig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
-        flags_ = prisig->key_flags;
+        flags_ = prisig->sig.key_flags();
     } else if (latest && latest->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
-        flags_ = latest->key_flags;
+        flags_ = latest->sig.key_flags();
     } else {
         flags_ = pgp_pk_alg_capabilities(alg());
     }
@@ -2732,7 +2725,7 @@ pgp_key_t::refresh_data(pgp_key_t *primary, const rnp::SecurityContext &ctx)
     expiration_ = sig ? sig->sig.key_expiration() : 0;
     /* subkey flags */
     if (sig && sig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
-        flags_ = sig->key_flags;
+        flags_ = sig->sig.key_flags();
     } else {
         flags_ = pgp_pk_alg_capabilities(alg());
     }

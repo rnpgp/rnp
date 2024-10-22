@@ -141,15 +141,15 @@ TEST_F(rnp_tests, test_key_add_userid)
     // added0
     assert_string_equal(key->get_uid(uidc).str.c_str(), "added0");
     assert_int_equal(uidc, key->get_sig(subsigc).uid);
-    assert_int_equal(0x2, key->get_sig(subsigc).key_flags);
+    assert_int_equal(0x2, key->get_sig(subsigc).sig.key_flags());
     // added1
     assert_string_equal(key->get_uid(uidc + 1).str.c_str(), "added1");
     assert_int_equal(uidc + 1, key->get_sig(subsigc + 1).uid);
-    assert_int_equal(0xAB, key->get_sig(subsigc + 1).key_flags);
+    assert_int_equal(0xAB, key->get_sig(subsigc + 1).sig.key_flags());
     // added2
     assert_string_equal(key->get_uid(uidc + 2).str.c_str(), "added2");
     assert_int_equal(uidc + 2, key->get_sig(subsigc + 2).uid);
-    assert_int_equal(0xCD, key->get_sig(subsigc + 2).key_flags);
+    assert_int_equal(0xCD, key->get_sig(subsigc + 2).sig.key_flags());
 
     // save the raw packets for the key (to reload later)
     assert_rnp_success(init_mem_dest(&dst, NULL, 0));
@@ -180,24 +180,24 @@ TEST_F(rnp_tests, test_key_add_userid)
     // added0
     assert_string_equal(key->get_uid(uidc).str.c_str(), "added0");
     assert_int_equal(uidc, key->get_sig(subsigc).uid);
-    assert_int_equal(0x2, key->get_sig(subsigc).key_flags);
+    assert_int_equal(0x2, key->get_sig(subsigc).sig.key_flags());
     assert_true(key->get_uid(uidc).valid);
     // added1
     assert_string_equal(key->get_uid(uidc + 1).str.c_str(), "added1");
     assert_int_equal(uidc + 1, key->get_sig(subsigc + 1).uid);
-    assert_int_equal(0xAB, key->get_sig(subsigc + 1).key_flags);
+    assert_int_equal(0xAB, key->get_sig(subsigc + 1).sig.key_flags());
     assert_true(key->get_uid(uidc + 1).valid);
     // added2
     assert_string_equal(key->get_uid(uidc + 2).str.c_str(), "added2");
     assert_int_equal(uidc + 2, key->get_sig(subsigc + 2).uid);
-    assert_int_equal(0xCD, key->get_sig(subsigc + 2).key_flags);
+    assert_int_equal(0xCD, key->get_sig(subsigc + 2).sig.key_flags());
     assert_true(key->get_uid(uidc + 2).valid);
     // delete primary userid and see how flags/expiration changes
     key->del_uid(uidc + 1);
     key->revalidate(*ks);
     assert_string_equal(key->get_uid(uidc + 1).str.c_str(), "added2");
     assert_int_equal(uidc + 1, key->get_sig(subsigc + 1).uid);
-    assert_int_equal(0xCD, key->get_sig(subsigc + 1).key_flags);
+    assert_int_equal(0xCD, key->get_sig(subsigc + 1).sig.key_flags());
     assert_int_equal(key->expiration(), 0);
     assert_int_equal(key->flags(), 0xCD);
     // delete first uid
@@ -205,7 +205,7 @@ TEST_F(rnp_tests, test_key_add_userid)
     key->revalidate(*ks);
     assert_string_equal(key->get_uid(uidc).str.c_str(), "added2");
     assert_int_equal(uidc, key->get_sig(subsigc).uid);
-    assert_int_equal(0xCD, key->get_sig(subsigc).key_flags);
+    assert_int_equal(0xCD, key->get_sig(subsigc).sig.key_flags());
     assert_int_equal(key->expiration(), 0);
     assert_int_equal(key->flags(), 0xCD);
     // delete last uid, leaving added0 only
@@ -213,7 +213,7 @@ TEST_F(rnp_tests, test_key_add_userid)
     key->revalidate(*ks);
     assert_string_equal(key->get_uid(uidc - 1).str.c_str(), "added0");
     assert_int_equal(uidc - 1, key->get_sig(subsigc - 1).uid);
-    assert_int_equal(0x2, key->get_sig(subsigc - 1).key_flags);
+    assert_int_equal(0x2, key->get_sig(subsigc - 1).sig.key_flags());
     assert_int_equal(key->expiration(), base_expiry);
     assert_int_equal(key->flags(), 0x2);
     // delete added0
