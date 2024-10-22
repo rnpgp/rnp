@@ -661,66 +661,10 @@ encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rnp::RNG &rng)
     }
 }
 
-pgp_userid_pkt_t::pgp_userid_pkt_t(const pgp_userid_pkt_t &src)
-{
-    tag = src.tag;
-    uid_len = src.uid_len;
-    uid = NULL;
-    if (src.uid) {
-        uid = (uint8_t *) malloc(uid_len);
-        if (!uid) {
-            throw std::bad_alloc();
-        }
-        memcpy(uid, src.uid, uid_len);
-    }
-}
-
-pgp_userid_pkt_t::pgp_userid_pkt_t(pgp_userid_pkt_t &&src)
-{
-    tag = src.tag;
-    uid_len = src.uid_len;
-    uid = src.uid;
-    src.uid = NULL;
-}
-
-pgp_userid_pkt_t &
-pgp_userid_pkt_t::operator=(pgp_userid_pkt_t &&src)
-{
-    if (this == &src) {
-        return *this;
-    }
-    tag = src.tag;
-    uid_len = src.uid_len;
-    free(uid);
-    uid = src.uid;
-    src.uid = NULL;
-    return *this;
-}
-
-pgp_userid_pkt_t &
-pgp_userid_pkt_t::operator=(const pgp_userid_pkt_t &src)
-{
-    if (this == &src) {
-        return *this;
-    }
-    tag = src.tag;
-    uid_len = src.uid_len;
-    free(uid);
-    uid = NULL;
-    if (src.uid) {
-        uid = (uint8_t *) malloc(uid_len);
-        if (!uid) {
-            throw std::bad_alloc();
-        }
-        memcpy(uid, src.uid, uid_len);
-    }
-    return *this;
-}
-
 bool
 pgp_userid_pkt_t::operator==(const pgp_userid_pkt_t &src) const
 {
-    return (tag == src.tag) && (uid_len == src.uid_len) && !memcmp(uid, src.uid, uid_len);
+    return (tag == src.tag) && (uid == src.uid);
 }
 
 bool
@@ -728,12 +672,6 @@ pgp_userid_pkt_t::operator!=(const pgp_userid_pkt_t &src) const
 {
     return !(*this == src);
 }
-
-pgp_userid_pkt_t::~pgp_userid_pkt_t()
-{
-    free(uid);
-}
-
 void
 pgp_userid_pkt_t::write(pgp_dest_t &dst) const
 {
@@ -741,15 +679,9 @@ pgp_userid_pkt_t::write(pgp_dest_t &dst) const
         RNP_LOG("wrong userid tag");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    if (uid_len && !uid) {
-        RNP_LOG("null but non-empty userid");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
 
     pgp_packet_body_t pktbody(tag);
-    if (uid) {
-        pktbody.add(uid, uid_len);
-    }
+    pktbody.add(uid.data(), uid.size());
     pktbody.write(dst);
 }
 
@@ -771,14 +703,8 @@ pgp_userid_pkt_t::parse(pgp_source_t &src)
 
     /* userid type, i.e. tag */
     tag = (pgp_pkt_type_t) stag;
-    free(uid);
-    uid = (uint8_t *) malloc(pkt.size());
-    if (!uid) {
-        RNP_LOG("allocation failed");
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    memcpy(uid, pkt.data(), pkt.size());
-    uid_len = pkt.size();
+    uid.resize(pkt.size());
+    memcpy(uid.data(), pkt.data(), pkt.size());
     return RNP_SUCCESS;
 }
 
