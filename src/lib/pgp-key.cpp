@@ -594,7 +594,7 @@ pgp_userid_t::pgp_userid_t(const pgp_userid_pkt_t &uidpkt)
     rawpkt = pgp_rawpacket_t(uidpkt);
     /* populate uid string */
     if (uidpkt.tag == PGP_PKT_USER_ID) {
-        str = std::string(uidpkt.uid, uidpkt.uid + uidpkt.uid_len);
+        str.assign(uidpkt.uid.data(), uidpkt.uid.data() + uidpkt.uid.size());
     } else {
         str = "(photo)";
     }

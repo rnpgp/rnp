@@ -471,12 +471,7 @@ void
 CertParams::populate(pgp_userid_pkt_t &uid) const
 {
     uid.tag = PGP_PKT_USER_ID;
-    uid.uid_len = userid.size();
-    if (!(uid.uid = (uint8_t *) malloc(uid.uid_len))) {
-        RNP_LOG("alloc failed");
-        throw rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
-    }
-    memcpy(uid.uid, userid.data(), uid.uid_len);
+    uid.uid.assign(userid.data(), userid.data() + userid.size());
 }
 
 void
