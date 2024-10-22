@@ -4531,7 +4531,7 @@ parse_keygen_common_fields(json_object *                jso,
 static std::unique_ptr<rnp::KeygenParams>
 parse_keygen_primary(rnp_ffi_t                    ffi,
                      json_object *                jso,
-                     rnp_selfsig_cert_info_t &    cert,
+                     rnp::CertParams &            cert,
                      rnp_key_protection_params_t &prot)
 {
     /* Parse keygen params first */
@@ -4540,7 +4540,7 @@ parse_keygen_primary(rnp_ffi_t                    ffi,
         return nullptr;
     }
     /* Parse common key/subkey fields */
-    if (!parse_keygen_common_fields(jso, cert.key_flags, cert.key_expiration, prot)) {
+    if (!parse_keygen_common_fields(jso, cert.flags, cert.expiration, prot)) {
         return nullptr;
     }
     /* UserID */
@@ -4566,7 +4566,7 @@ parse_keygen_primary(rnp_ffi_t                    ffi,
 static std::unique_ptr<rnp::KeygenParams>
 parse_keygen_sub(rnp_ffi_t                    ffi,
                  json_object *                jso,
-                 rnp_selfsig_binding_info_t & binding,
+                 rnp::BindingParams &         binding,
                  rnp_key_protection_params_t &prot)
 {
     /* Parse keygen params first */
@@ -4575,7 +4575,7 @@ parse_keygen_sub(rnp_ffi_t                    ffi,
         return nullptr;
     }
     /* Parse common with primary key fields */
-    if (!parse_keygen_common_fields(jso, binding.key_flags, binding.key_expiration, prot)) {
+    if (!parse_keygen_common_fields(jso, binding.flags, binding.expiration, prot)) {
         return nullptr;
     }
     /* Do not allow unknown extra fields */
@@ -4627,8 +4627,8 @@ gen_json_primary_key(rnp_ffi_t                    ffi,
                      pgp_fingerprint_t &          fp,
                      bool                         protect)
 {
-    rnp_selfsig_cert_info_t cert = {};
-    cert.key_expiration = DEFAULT_KEY_EXPIRATION;
+    rnp::CertParams cert;
+    cert.expiration = DEFAULT_KEY_EXPIRATION;
 
     auto keygen = parse_keygen_primary(ffi, jsoparams, cert, prot);
     if (!keygen) {
@@ -4662,17 +4662,17 @@ gen_json_subkey(rnp_ffi_t          ffi,
                 pgp_key_t &        prim_sec,
                 pgp_fingerprint_t &fp)
 {
-    rnp_selfsig_binding_info_t  binding = {};
+    rnp::BindingParams          binding;
     rnp_key_protection_params_t prot = {};
 
-    binding.key_expiration = DEFAULT_KEY_EXPIRATION;
+    binding.expiration = DEFAULT_KEY_EXPIRATION;
     auto keygen = parse_keygen_sub(ffi, jsoparams, binding, prot);
     if (!keygen) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!binding.key_flags) {
+    if (!binding.flags) {
         /* Generate encrypt-only subkeys by default */
-        binding.key_flags = PGP_KF_ENCRYPT;
+        binding.flags = PGP_KF_ENCRYPT;
     }
     pgp_key_t pub;
     pgp_key_t sec;
@@ -4878,7 +4878,7 @@ try {
     if (password && (ret = rnp_op_generate_set_protection_password(subop, password))) {
         goto done;
     }
-    if (pgp_pk_alg_capabilities(subop->keygen_params.alg()) & PGP_KF_ENCRYPT) {
+    if (pgp_pk_alg_capabilities(subop->keygen.alg()) & PGP_KF_ENCRYPT) {
         if ((ret = rnp_op_generate_add_usage(subop, "encrypt"))) {
             goto done;
         }
@@ -5078,8 +5078,8 @@ try {
 
     *op = new rnp_op_generate_st(ffi, key_alg);
     (*op)->primary = true;
-    (*op)->cert.key_flags = default_key_flags(key_alg, false);
-    (*op)->cert.key_expiration = DEFAULT_KEY_EXPIRATION;
+    (*op)->cert.flags = default_key_flags(key_alg, false);
+    (*op)->cert.expiration = DEFAULT_KEY_EXPIRATION;
 
     return RNP_SUCCESS;
 }
@@ -5111,8 +5111,8 @@ try {
 
     *op = new rnp_op_generate_st(ffi, key_alg);
     (*op)->primary = false;
-    (*op)->binding.key_flags = default_key_flags(key_alg, true);
-    (*op)->binding.key_expiration = DEFAULT_KEY_EXPIRATION;
+    (*op)->binding.flags = default_key_flags(key_alg, true);
+    (*op)->binding.expiration = DEFAULT_KEY_EXPIRATION;
     (*op)->primary_sec = primary->sec;
     (*op)->primary_pub = primary->pub;
 
@@ -5127,7 +5127,7 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    auto bitkeygen = dynamic_cast<pgp::BitsKeyParams *>(&op->keygen_params.key_params());
+    auto bitkeygen = dynamic_cast<pgp::BitsKeyParams *>(&op->keygen.key_params());
     if (!bitkeygen) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -5147,7 +5147,7 @@ try {
         FFI_LOG(op->ffi, "Invalid hash: %s", hash);
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    op->keygen_params.set_hash(halg);
+    op->keygen.set_hash(halg);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5158,10 +5158,10 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    if (op->keygen_params.alg() != PGP_PKA_DSA) {
+    if (op->keygen.alg() != PGP_PKA_DSA) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    auto &dsa = dynamic_cast<pgp::DSAKeyParams &>(op->keygen_params.key_params());
+    auto &dsa = dynamic_cast<pgp::DSAKeyParams &>(op->keygen.key_params());
     dsa.set_qbits(qbits);
     return RNP_SUCCESS;
 }
@@ -5173,14 +5173,14 @@ try {
     if (!op || !curve) {
         return RNP_ERROR_NULL_POINTER;
     }
-    if (!pk_alg_allows_custom_curve(op->keygen_params.alg())) {
+    if (!pk_alg_allows_custom_curve(op->keygen.alg())) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     pgp_curve_t eccurve = PGP_CURVE_UNKNOWN;
     if (!curve_str_to_type(curve, &eccurve)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    auto &ecc = dynamic_cast<pgp::ECCKeyParams &>(op->keygen_params.key_params());
+    auto &ecc = dynamic_cast<pgp::ECCKeyParams &>(op->keygen.key_params());
     ecc.set_curve(eccurve);
     return RNP_SUCCESS;
 }
@@ -5268,13 +5268,13 @@ try {
     if (!str_to_key_flag(usage, &flag)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!(pgp_pk_alg_capabilities(op->keygen_params.alg()) & flag)) {
+    if (!(pgp_pk_alg_capabilities(op->keygen.alg()) & flag)) {
         return RNP_ERROR_NOT_SUPPORTED;
     }
     if (op->primary) {
-        op->cert.key_flags |= flag;
+        op->cert.flags |= flag;
     } else {
-        op->binding.key_flags |= flag;
+        op->binding.flags |= flag;
     }
     return RNP_SUCCESS;
 }
@@ -5287,9 +5287,9 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
     if (op->primary) {
-        op->cert.key_flags = 0;
+        op->cert.flags = 0;
     } else {
-        op->binding.key_flags = 0;
+        op->binding.flags = 0;
     }
     return RNP_SUCCESS;
 }
@@ -5319,9 +5319,9 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
     if (op->primary) {
-        op->cert.key_expiration = expiration;
+        op->cert.expiration = expiration;
     } else {
-        op->binding.key_expiration = expiration;
+        op->binding.expiration = expiration;
     }
     return RNP_SUCCESS;
 }
@@ -5444,7 +5444,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    op->keygen_params.set_version(PGP_V6);
+    op->keygen.set_version(PGP_V6);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5457,7 +5457,7 @@ try {
     if (!op || !param_cstr) {
         return RNP_ERROR_NULL_POINTER;
     }
-    auto slhdsa = dynamic_cast<pgp::SlhdsaKeyParams *>(&op->keygen_params.key_params());
+    auto slhdsa = dynamic_cast<pgp::SlhdsaKeyParams *>(&op->keygen.key_params());
     if (!slhdsa) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -5500,18 +5500,18 @@ try {
     pgp_password_provider_t prov;
 
     if (op->primary) {
-        if (!op->keygen_params.generate(op->cert, sec, pub, op->ffi->secring->format)) {
+        if (!op->keygen.generate(op->cert, sec, pub, op->ffi->secring->format)) {
             return RNP_ERROR_KEY_GENERATION;
         }
     } else {
         /* subkey generation */
-        if (!op->keygen_params.generate(op->binding,
-                                        *op->primary_sec,
-                                        *op->primary_pub,
-                                        sec,
-                                        pub,
-                                        op->ffi->pass_provider,
-                                        op->ffi->secring->format)) {
+        if (!op->keygen.generate(op->binding,
+                                 *op->primary_sec,
+                                 *op->primary_pub,
+                                 sec,
+                                 pub,
+                                 op->ffi->pass_provider,
+                                 op->ffi->secring->format)) {
             return RNP_ERROR_KEY_GENERATION;
         }
     }
@@ -5679,10 +5679,10 @@ try {
         FFI_LOG(handle->ffi, "UserID too long");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    rnp_selfsig_cert_info_t info;
+    rnp::CertParams info;
     info.userid = uid;
-    info.key_flags = key_flags;
-    info.key_expiration = expiration;
+    info.flags = key_flags;
+    info.expiration = expiration;
     info.primary = primary;
 
     /* obtain and unlok secret key */

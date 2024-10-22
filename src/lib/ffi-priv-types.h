@@ -156,13 +156,13 @@ struct rnp_op_generate_st {
     rnp::secure_vector<char> password;
     /* request password for key encryption via ffi's password provider */
     bool                        request_password{};
-    rnp::KeygenParams           keygen_params;
+    rnp::KeygenParams           keygen;
     rnp_key_protection_params_t protection{};
-    rnp_selfsig_cert_info_t     cert{};
-    rnp_selfsig_binding_info_t  binding{};
+    rnp::CertParams             cert;
+    rnp::BindingParams          binding;
 
     rnp_op_generate_st(rnp_ffi_t affi, pgp_pubkey_alg_t alg)
-        : ffi(affi), keygen_params(alg, affi->context)
+        : ffi(affi), keygen(alg, affi->context)
     {
     }
 };

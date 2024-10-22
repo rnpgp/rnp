@@ -42,10 +42,93 @@ KeygenParams::check_defaults() noexcept
         hash_ = alg_ == PGP_PKA_SM2 ? PGP_HASH_SM3 : DEFAULT_PGP_HASH_ALG;
     }
     pgp_hash_alg_t min_hash = key_params_->min_hash();
-    if (rnp::Hash::size(hash_) < rnp::Hash::size(min_hash)) {
+    if (Hash::size(hash_) < Hash::size(min_hash)) {
         hash_ = min_hash;
     }
     key_params_->check_defaults();
+}
+
+bool
+KeygenParams::validate() const noexcept
+{
+#if defined(ENABLE_PQC)
+    switch (alg()) {
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE: {
+        auto &slhdsa = dynamic_cast<const pgp::SlhdsaKeyParams &>(key_params());
+        if (!sphincsplus_hash_allowed(alg(), slhdsa.param(), hash())) {
+            RNP_LOG("invalid hash algorithm for the slhdsa key");
+            return false;
+        }
+        break;
+    }
+    case PGP_PKA_DILITHIUM3_ED25519:
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_P256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_P384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_BP256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_BP384:
+        if (!dilithium_hash_allowed(hash())) {
+            RNP_LOG("invalid hash algorithm for the dilithium key");
+            return false;
+        }
+        break;
+    default:
+        break;
+    }
+#endif
+    return true;
+}
+
+bool
+KeygenParams::validate(const CertParams &cert) const noexcept
+{
+    /* Confirm that the specified pk alg can certify.
+     * gpg requires this, though the RFC only says that a V4 primary
+     * key SHOULD be a key capable of certification.
+     */
+    if (!(pgp_pk_alg_capabilities(alg()) & PGP_KF_CERTIFY)) {
+        RNP_LOG("primary key alg (%d) must be able to sign", alg());
+        return false;
+    }
+
+    // check key flags
+    if (!cert.flags) {
+        // these are probably not *technically* required
+        RNP_LOG("key flags are required");
+        return false;
+    }
+    if (cert.flags & ~pgp_pk_alg_capabilities(alg())) {
+        // check the flags against the alg capabilities
+        RNP_LOG("usage not permitted for pk algorithm");
+        return false;
+    }
+    // require a userid
+    if (cert.userid.empty()) {
+        RNP_LOG("userid is required for primary key");
+        return false;
+    }
+    return validate();
+}
+
+bool
+KeygenParams::validate(const BindingParams &binding) const noexcept
+{
+    if (!binding.flags) {
+        RNP_LOG("key flags are required");
+        return false;
+    }
+    if (binding.flags & ~pgp_pk_alg_capabilities(alg())) {
+        // check the flags against the alg capabilities
+        RNP_LOG("usage not permitted for pk algorithm");
+        return false;
+    }
+    return validate();
 }
 
 static const id_str_pair pubkey_alg_map[] = {{PGP_PKA_RSA, "RSA (Encrypt or Sign)"},
@@ -79,13 +162,6 @@ static const id_str_pair pubkey_alg_map[] = {{PGP_PKA_RSA, "RSA (Encrypt or Sign
 #endif
                                              {0, NULL}};
 
-static uint8_t
-pk_alg_default_flags(pgp_pubkey_alg_t alg)
-{
-    // just use the full capabilities as the ultimate fallback
-    return pgp_pk_alg_capabilities(alg);
-}
-
 bool
 KeygenParams::generate(pgp_key_pkt_t &seckey, bool primary)
 {
@@ -115,11 +191,11 @@ KeygenParams::generate(pgp_key_pkt_t &seckey, bool primary)
 }
 
 static bool
-load_generated_g10_key(pgp_key_t *           dst,
-                       pgp_key_pkt_t *       newkey,
-                       pgp_key_t *           primary_key,
-                       pgp_key_t *           pubkey,
-                       rnp::SecurityContext &ctx)
+load_generated_g10_key(pgp_key_t *      dst,
+                       pgp_key_pkt_t *  newkey,
+                       pgp_key_t *      primary_key,
+                       pgp_key_t *      pubkey,
+                       SecurityContext &ctx)
 {
     // this should generally be zeroed
     assert(dst->type() == 0);
@@ -131,12 +207,12 @@ load_generated_g10_key(pgp_key_t *           dst,
     assert(pubkey);
 
     // this would be better on the stack but the key store does not allow it
-    std::unique_ptr<rnp::KeyStore> key_store(new (std::nothrow) rnp::KeyStore(ctx));
+    std::unique_ptr<KeyStore> key_store(new (std::nothrow) KeyStore(ctx));
     if (!key_store) {
         return false;
     }
     /* Write g10 seckey */
-    rnp::MemoryDest memdst(NULL, 0);
+    MemoryDest memdst(NULL, 0);
     if (!g10_write_seckey(&memdst.dst(), newkey, NULL, ctx)) {
         RNP_LOG("failed to write generated seckey");
         return false;
@@ -150,8 +226,8 @@ load_generated_g10_key(pgp_key_t *           dst,
     // G10 needs the pubkey for copying some attributes (key version, creation time, etc)
     key_ptrs.push_back(pubkey);
 
-    rnp::MemorySource memsrc(memdst.memory(), memdst.writeb(), false);
-    rnp::KeyProvider  prov(rnp_key_provider_key_ptr_list, &key_ptrs);
+    MemorySource memsrc(memdst.memory(), memdst.writeb(), false);
+    KeyProvider  prov(rnp_key_provider_key_ptr_list, &key_ptrs);
     if (!key_store.get()->load_g10(memsrc.src(), &prov)) {
         return false;
     }
@@ -164,146 +240,22 @@ load_generated_g10_key(pgp_key_t *           dst,
     return true;
 }
 
-static std::string
-default_uid(const KeygenParams &params)
-{
-    char uid[MAX_ID_LENGTH] = {0};
-    snprintf(uid,
-             sizeof(uid),
-             "%s %zu-bit key <%s@localhost>",
-             id_str_pair::lookup(pubkey_alg_map, params.alg()),
-             params.key_params().bits(),
-             getenv_logname());
-    return uid;
-}
-
-static bool
-validate_keygen_primary(const KeygenParams &params, const rnp_selfsig_cert_info_t &cert)
-{
-    /* Confirm that the specified pk alg can certify.
-     * gpg requires this, though the RFC only says that a V4 primary
-     * key SHOULD be a key capable of certification.
-     */
-    if (!(pgp_pk_alg_capabilities(params.alg()) & PGP_KF_CERTIFY)) {
-        RNP_LOG("primary key alg (%d) must be able to sign", params.alg());
-        return false;
-    }
-
-    // check key flags
-    if (!cert.key_flags) {
-        // these are probably not *technically* required
-        RNP_LOG("key flags are required");
-        return false;
-    } else if (cert.key_flags & ~pgp_pk_alg_capabilities(params.alg())) {
-        // check the flags against the alg capabilities
-        RNP_LOG("usage not permitted for pk algorithm");
-        return false;
-    }
-    // require a userid
-    if (cert.userid.empty()) {
-        RNP_LOG("userid is required for primary key");
-        return false;
-    }
-    return true;
-}
-
-static void
-keygen_primary_merge_defaults(KeygenParams &params, rnp_selfsig_cert_info_t &cert)
-{
-    params.check_defaults();
-    cert.prefs.merge_defaults(params.version());
-
-    if (!cert.key_flags) {
-        // set some default key flags if none are provided
-        cert.key_flags = pk_alg_default_flags(params.alg());
-    }
-    if (cert.userid.empty()) {
-        cert.userid = default_uid(params);
-    }
-}
-
-#if defined(ENABLE_PQC)
-static bool
-pgp_check_key_hash_requirements(KeygenParams &params)
-{
-    switch (params.alg()) {
-    case PGP_PKA_SPHINCSPLUS_SHA2:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE: {
-        auto &slhdsa = dynamic_cast<const pgp::SlhdsaKeyParams &>(params.key_params());
-        if (!sphincsplus_hash_allowed(params.alg(), slhdsa.param(), params.hash())) {
-            return false;
-        }
-        break;
-    }
-    case PGP_PKA_DILITHIUM3_ED25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
-        if (!dilithium_hash_allowed(params.hash())) {
-            return false;
-        }
-        break;
-    default:
-        break;
-    }
-    return true;
-}
-#endif
-
-static bool
-validate_keygen_subkey(const KeygenParams &params, const rnp_selfsig_binding_info_t &binding)
-{
-    if (!binding.key_flags) {
-        RNP_LOG("key flags are required");
-        return false;
-    } else if (binding.key_flags & ~pgp_pk_alg_capabilities(params.alg())) {
-        // check the flags against the alg capabilities
-        RNP_LOG("usage not permitted for pk algorithm");
-        return false;
-    }
-    return true;
-}
-
-static void
-keygen_subkey_merge_defaults(KeygenParams &params, rnp_selfsig_binding_info_t &binding)
-{
-    params.check_defaults();
-    if (!binding.key_flags) {
-        // set some default key flags if none are provided
-        binding.key_flags = pk_alg_default_flags(params.alg());
-    }
-}
-
 bool
-KeygenParams::generate(rnp_selfsig_cert_info_t &cert,
-                       pgp_key_t &              primary_sec,
-                       pgp_key_t &              primary_pub,
-                       pgp_key_store_format_t   secformat)
+KeygenParams::generate(CertParams &           cert,
+                       pgp_key_t &            primary_sec,
+                       pgp_key_t &            primary_pub,
+                       pgp_key_store_format_t secformat)
 {
     primary_sec = {};
     primary_pub = {};
 
     // merge some defaults in
-    keygen_primary_merge_defaults(*this, cert);
+    check_defaults();
+    cert.check_defaults(*this);
     // now validate the keygen fields
-    if (!validate_keygen_primary(*this, cert)) {
+    if (!validate(cert)) {
         return false;
     }
-
-#if defined(ENABLE_PQC)
-    // check hash requirements
-    if (!pgp_check_key_hash_requirements(*this)) {
-        RNP_LOG("invalid hash algorithm for the chosen key");
-        return false;
-    }
-#endif
 
     // generate the raw key and fill tag/secret fields
     pgp_key_pkt_t secpkt;
@@ -347,7 +299,7 @@ KeygenParams::generate(rnp_selfsig_cert_info_t &cert,
 }
 
 bool
-KeygenParams::generate(rnp_selfsig_binding_info_t &   binding,
+KeygenParams::generate(BindingParams &                binding,
                        pgp_key_t &                    primary_sec,
                        pgp_key_t &                    primary_pub,
                        pgp_key_t &                    subkey_sec,
@@ -365,23 +317,16 @@ KeygenParams::generate(rnp_selfsig_binding_info_t &   binding,
     subkey_pub = {};
 
     // merge some defaults in
-    keygen_subkey_merge_defaults(*this, binding);
+    check_defaults();
+    binding.check_defaults(*this);
 
     // now validate the keygen fields
-    if (!validate_keygen_subkey(*this, binding)) {
+    if (!validate(binding)) {
         return false;
     }
-
-#if defined(ENABLE_PQC)
-    // check hash requirements
-    if (!pgp_check_key_hash_requirements(*this)) {
-        RNP_LOG("invalid hash algorithm for the chosen key");
-        return false;
-    }
-#endif
 
     /* decrypt the primary seckey if needed (for signatures) */
-    rnp::KeyLocker primlock(primary_sec);
+    KeyLocker primlock(primary_sec);
     if (primary_sec.encrypted() && !primary_sec.unlock(password_provider, PGP_OP_ADD_SUBKEY)) {
         RNP_LOG("Failed to unlock primary key.");
         return false;
@@ -418,6 +363,101 @@ KeygenParams::generate(rnp_selfsig_binding_info_t &   binding,
     subkey_sec.mark_valid();
     return subkey_pub.refresh_data(&primary_pub, ctx()) &&
            subkey_sec.refresh_data(&primary_sec, ctx());
+}
+
+void
+CertParams::check_defaults(const KeygenParams &params)
+{
+    prefs.merge_defaults(params.version());
+
+    if (!flags) {
+        // set some default key flags if none are provided
+        flags = pgp_pk_alg_capabilities(params.alg());
+    }
+    if (userid.empty()) {
+        std::string alg = id_str_pair::lookup(pubkey_alg_map, params.alg());
+        std::string bits = std::to_string(params.key_params().bits());
+        std::string name = getenv_logname() ? getenv_logname() : "";
+        /* Awkward but better then sprintf */
+        userid = alg + " " + bits + "-bit key <" + name + "@localhost>";
+    }
+}
+
+void
+CertParams::populate(pgp_userid_pkt_t &uid) const
+{
+    uid.tag = PGP_PKT_USER_ID;
+    uid.uid_len = userid.size();
+    if (!(uid.uid = (uint8_t *) malloc(uid.uid_len))) {
+        RNP_LOG("alloc failed");
+        throw rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
+    }
+    memcpy(uid.uid, userid.data(), uid.uid_len);
+}
+
+void
+CertParams::populate(pgp_signature_t &sig) const
+{
+    if (expiration) {
+        sig.set_key_expiration(expiration);
+    }
+    if (primary) {
+        sig.set_primary_uid(true);
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if ((sig.version == PGP_V6) && (sig.type() != PGP_SIG_DIRECT)) {
+        /* only set key expiraton and primary uid for v6 self-signatures
+         * since most information is stored in the direct-key signature of the primary key.
+         */
+
+        if (flags && (sig.type() == PGP_SIG_SUBKEY)) {
+            /* for v6 subkeys signatures we also add the key flags */
+            sig.set_key_flags(flags);
+        }
+        return;
+    } else if ((sig.version == PGP_V6) && (sig.type() == PGP_SIG_DIRECT)) {
+        /* set some additional packets for v6 direct-key self signatures */
+        sig.set_key_features(PGP_KEY_FEATURE_MDC | PGP_KEY_FEATURE_SEIPDV2);
+        if (!prefs.aead_prefs.empty()) {
+            sig.set_preferred_aead_algs(prefs.aead_prefs);
+        }
+    }
+#endif
+    if (flags) {
+        sig.set_key_flags(flags);
+    }
+    if (!prefs.symm_algs.empty()) {
+        sig.set_preferred_symm_algs(prefs.symm_algs);
+    }
+    if (!prefs.hash_algs.empty()) {
+        sig.set_preferred_hash_algs(prefs.hash_algs);
+    }
+    if (!prefs.z_algs.empty()) {
+        sig.set_preferred_z_algs(prefs.z_algs);
+    }
+    if (!prefs.ks_prefs.empty()) {
+        sig.set_key_server_prefs(prefs.ks_prefs[0]);
+    }
+    if (!prefs.key_server.empty()) {
+        sig.set_key_server(prefs.key_server);
+    }
+}
+
+void
+CertParams::populate(pgp_userid_pkt_t &uid, pgp_signature_t &sig) const
+{
+    sig.set_type(PGP_CERT_POSITIVE);
+    populate(sig);
+    populate(uid);
+}
+
+void
+BindingParams::check_defaults(const KeygenParams &params)
+{
+    if (!flags) {
+        // set some default key flags if none are provided
+        flags = pgp_pk_alg_capabilities(params.alg());
+    }
 }
 
 } // namespace rnp
