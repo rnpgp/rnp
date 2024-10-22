@@ -121,13 +121,44 @@ class KeygenParams {
                   pgp_key_store_format_t         secformat);
 };
 
+class UserPrefs {
+    void add_uniq(std::vector<uint8_t> &vec, uint8_t val);
+
+  public:
+    // preferred symmetric algs (pgp_symm_alg_t)
+    std::vector<uint8_t> symm_algs;
+    // preferred hash algs (pgp_hash_alg_t)
+    std::vector<uint8_t> hash_algs;
+    // preferred compression algs (pgp_compression_type_t)
+    std::vector<uint8_t> z_algs;
+    // key server preferences (pgp_key_server_prefs_t)
+    std::vector<uint8_t> ks_prefs;
+    // preferred key server
+    std::string key_server;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    std::vector<uint8_t> aead_prefs;
+#endif
+
+    UserPrefs(){};
+    UserPrefs(const pgp_signature_t &sig);
+
+    void add_symm_alg(pgp_symm_alg_t alg);
+    void add_hash_alg(pgp_hash_alg_t alg);
+    void add_z_alg(pgp_compression_type_t alg);
+    void add_ks_pref(pgp_key_server_prefs_t pref);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    void add_aead_prefs(pgp_symm_alg_t sym_alg, pgp_aead_alg_t aead_alg);
+#endif
+    void check_defaults(pgp_version_t version = PGP_V4);
+};
+
 class CertParams {
   public:
-    std::string      userid;       /* userid, required */
-    uint8_t          flags{};      /* key flags */
-    uint32_t         expiration{}; /* key expiration time (sec), 0 = no expiration */
-    pgp_user_prefs_t prefs{};      /* user preferences, optional */
-    bool             primary;      /* mark this as the primary user id */
+    std::string userid;       /* userid, required */
+    uint8_t     flags{};      /* key flags */
+    uint32_t    expiration{}; /* key expiration time (sec), 0 = no expiration */
+    UserPrefs   prefs;        /* user preferences, optional */
+    bool        primary;      /* mark this as the primary user id */
 
     void check_defaults(const KeygenParams &params);
 

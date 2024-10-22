@@ -498,106 +498,6 @@ find_suitable_key(pgp_op_t          op,
     return subkey;
 }
 
-static void
-bytevec_append_uniq(std::vector<uint8_t> &vec, uint8_t val)
-{
-    if (std::find(vec.begin(), vec.end(), val) == vec.end()) {
-        vec.push_back(val);
-    }
-}
-
-void
-pgp_user_prefs_t::set_symm_algs(const std::vector<uint8_t> &algs)
-{
-    symm_algs = algs;
-}
-
-void
-pgp_user_prefs_t::add_symm_alg(pgp_symm_alg_t alg)
-{
-    bytevec_append_uniq(symm_algs, alg);
-}
-
-void
-pgp_user_prefs_t::set_hash_algs(const std::vector<uint8_t> &algs)
-{
-    hash_algs = algs;
-}
-
-void
-pgp_user_prefs_t::add_hash_alg(pgp_hash_alg_t alg)
-{
-    bytevec_append_uniq(hash_algs, alg);
-}
-
-void
-pgp_user_prefs_t::set_z_algs(const std::vector<uint8_t> &algs)
-{
-    z_algs = algs;
-}
-
-void
-pgp_user_prefs_t::add_z_alg(pgp_compression_type_t alg)
-{
-    bytevec_append_uniq(z_algs, alg);
-}
-
-void
-pgp_user_prefs_t::set_ks_prefs(const std::vector<uint8_t> &prefs)
-{
-    ks_prefs = prefs;
-}
-
-void
-pgp_user_prefs_t::add_ks_pref(pgp_key_server_prefs_t pref)
-{
-    bytevec_append_uniq(ks_prefs, pref);
-}
-
-#if defined(ENABLE_CRYPTO_REFRESH)
-void
-pgp_user_prefs_t::set_aead_prefs(const std::vector<uint8_t> &algs)
-{
-    aead_prefs = algs;
-}
-
-void
-pgp_user_prefs_t::add_aead_prefs(pgp_symm_alg_t sym_alg, pgp_aead_alg_t aead_alg)
-{
-    for (size_t i = 0; i < aead_prefs.size(); i += 2) {
-        if (aead_prefs[i] == sym_alg && aead_prefs[i + 1] == aead_alg) {
-            return;
-        }
-    }
-    aead_prefs.push_back(sym_alg);
-    aead_prefs.push_back(aead_alg);
-}
-#endif
-
-void
-pgp_user_prefs_t::merge_defaults(pgp_version_t version)
-{
-    if (symm_algs.empty()) {
-        set_symm_algs({PGP_SA_AES_256, PGP_SA_AES_192, PGP_SA_AES_128});
-    }
-    if (hash_algs.empty()) {
-        set_hash_algs({PGP_HASH_SHA256, PGP_HASH_SHA384, PGP_HASH_SHA512, PGP_HASH_SHA224});
-    }
-    if (z_algs.empty()) {
-        set_z_algs({PGP_C_ZLIB, PGP_C_BZIP2, PGP_C_ZIP, PGP_C_NONE});
-    }
-#if defined(ENABLE_CRYPTO_REFRESH)
-    if (aead_prefs.empty() && version == PGP_V6) {
-        std::vector<uint8_t> algs;
-        for (auto sym_alg : symm_algs) {
-            algs.push_back(sym_alg);
-            algs.push_back(PGP_AEAD_OCB);
-        }
-        set_aead_prefs(algs);
-    }
-#endif
-}
-
 pgp_rawpacket_t::pgp_rawpacket_t(const pgp_signature_t &sig)
 {
     raw = sig.write();
@@ -650,18 +550,8 @@ pgp_subsig_t::pgp_subsig_t(const pgp_signature_t &pkt)
         trustlevel = sig.trust_level();
         trustamount = sig.trust_amount();
     }
-    prefs.set_symm_algs(sig.preferred_symm_algs());
-    prefs.set_hash_algs(sig.preferred_hash_algs());
-    prefs.set_z_algs(sig.preferred_z_algs());
-
     if (sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
         key_flags = sig.key_flags();
-    }
-    if (sig.has_subpkt(PGP_SIG_SUBPKT_KEYSERV_PREFS)) {
-        prefs.set_ks_prefs({sig.key_server_prefs()});
-    }
-    if (sig.has_subpkt(PGP_SIG_SUBPKT_PREF_KEYSERV)) {
-        prefs.key_server = sig.key_server();
     }
     /* add signature rawpacket */
     rawpkt = pgp_rawpacket_t(sig);
