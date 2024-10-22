@@ -52,11 +52,11 @@
 #include "pgp-key.h"
 #include "utils.h"
 #include <librekey/key_store_g10.h>
-#include "crypto.h"
 #include "crypto/s2k.h"
 #include "crypto/mem.h"
 #include "crypto/signatures.h"
 #include "fingerprint.h"
+#include "keygen.hpp"
 
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-key.h>
@@ -479,82 +479,6 @@ find_suitable_key(pgp_op_t op, pgp_key_t *key, rnp::KeyProvider *key_provider, b
     return subkey;
 }
 
-static void
-bytevec_append_uniq(std::vector<uint8_t> &vec, uint8_t val)
-{
-    if (std::find(vec.begin(), vec.end(), val) == vec.end()) {
-        vec.push_back(val);
-    }
-}
-
-void
-pgp_user_prefs_t::set_symm_algs(const std::vector<uint8_t> &algs)
-{
-    symm_algs = algs;
-}
-
-void
-pgp_user_prefs_t::add_symm_alg(pgp_symm_alg_t alg)
-{
-    bytevec_append_uniq(symm_algs, alg);
-}
-
-void
-pgp_user_prefs_t::set_hash_algs(const std::vector<uint8_t> &algs)
-{
-    hash_algs = algs;
-}
-
-void
-pgp_user_prefs_t::add_hash_alg(pgp_hash_alg_t alg)
-{
-    bytevec_append_uniq(hash_algs, alg);
-}
-
-void
-pgp_user_prefs_t::set_z_algs(const std::vector<uint8_t> &algs)
-{
-    z_algs = algs;
-}
-
-void
-pgp_user_prefs_t::add_z_alg(pgp_compression_type_t alg)
-{
-    bytevec_append_uniq(z_algs, alg);
-}
-
-void
-pgp_user_prefs_t::set_ks_prefs(const std::vector<uint8_t> &prefs)
-{
-    ks_prefs = prefs;
-}
-
-void
-pgp_user_prefs_t::add_ks_pref(pgp_key_server_prefs_t pref)
-{
-    bytevec_append_uniq(ks_prefs, pref);
-}
-
-#if defined(ENABLE_CRYPTO_REFRESH)
-void
-pgp_user_prefs_t::set_aead_prefs(const std::vector<uint8_t> &algs)
-{
-    aead_prefs = algs;
-}
-
-void
-pgp_user_prefs_t::add_aead_prefs(pgp_symm_alg_t sym_alg, pgp_aead_alg_t aead_alg)
-{
-    for (size_t i = 0; i < aead_prefs.size(); i += 2) {
-        if (aead_prefs[i] == sym_alg && aead_prefs[i + 1] == aead_alg) {
-            return;
-        }
-    }
-    aead_prefs.push_back(sym_alg);
-    aead_prefs.push_back(aead_alg);
-}
-#endif
-
 pgp_rawpacket_t::pgp_rawpacket_t(const pgp_signature_t &sig)
 {
     raw = sig.write();
@@ -603,23 +527,6 @@ pgp_subsig_t::pgp_subsig_t(const pgp_signature_t &pkt)
 {
     sig = pkt;
     sigid = sig.get_id();
-    if (sig.has_subpkt(PGP_SIG_SUBPKT_TRUST)) {
-        trustlevel = sig.trust_level();
-        trustamount = sig.trust_amount();
-    }
-    prefs.set_symm_algs(sig.preferred_symm_algs());
-    prefs.set_hash_algs(sig.preferred_hash_algs());
-    prefs.set_z_algs(sig.preferred_z_algs());
-
-    if (sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
-        key_flags = sig.key_flags();
-    }
-    if (sig.has_subpkt(PGP_SIG_SUBPKT_KEYSERV_PREFS)) {
-        prefs.set_ks_prefs({sig.key_server_prefs()});
-    }
-    if (sig.has_subpkt(PGP_SIG_SUBPKT_PREF_KEYSERV)) {
-        prefs.key_server = sig.key_server();
-    }
     /* add signature rawpacket */
     rawpkt = pgp_rawpacket_t(sig);
 }
@@ -668,7 +575,7 @@ pgp_userid_t::pgp_userid_t(const pgp_userid_pkt_t &uidpkt)
     rawpkt = pgp_rawpacket_t(uidpkt);
     /* populate uid string */
     if (uidpkt.tag == PGP_PKT_USER_ID) {
-        str = std::string(uidpkt.uid, uidpkt.uid + uidpkt.uid_len);
+        str.assign(uidpkt.uid.data(), uidpkt.uid.data() + uidpkt.uid.size());
     } else {
         str = "(photo)";
     }
@@ -2515,10 +2422,10 @@ pgp_key_t::sign_subkey_binding(pgp_key_t &           sub,
 
 #if defined(ENABLE_CRYPTO_REFRESH)
 void
-pgp_key_t::add_direct_sig(rnp_selfsig_cert_info_t &cert,
-                          pgp_hash_alg_t           hash,
-                          rnp::SecurityContext &   ctx,
-                          pgp_key_t *              pubkey)
+pgp_key_t::add_direct_sig(rnp::CertParams &     cert,
+                          pgp_hash_alg_t        hash,
+                          rnp::SecurityContext &ctx,
+                          pgp_key_t *           pubkey)
 {
     // We only support modifying v4 and newer keys
     if (pkt().version < PGP_V4) {
@@ -2543,10 +2450,10 @@ pgp_key_t::add_direct_sig(rnp_selfsig_cert_info_t &cert,
 #endif
 
 void
-pgp_key_t::add_uid_cert(rnp_selfsig_cert_info_t &cert,
-                        pgp_hash_alg_t           hash,
-                        rnp::SecurityContext &   ctx,
-                        pgp_key_t *              pubkey)
+pgp_key_t::add_uid_cert(rnp::CertParams &     cert,
+                        pgp_hash_alg_t        hash,
+                        rnp::SecurityContext &ctx,
+                        pgp_key_t *           pubkey)
 {
     if (cert.userid.empty()) {
         /* todo: why not to allow empty uid? */
@@ -2603,11 +2510,11 @@ pgp_key_t::add_uid_cert(rnp_selfsig_cert_info_t &cert,
 }
 
 void
-pgp_key_t::add_sub_binding(pgp_key_t &                       subsec,
-                           pgp_key_t &                       subpub,
-                           const rnp_selfsig_binding_info_t &binding,
-                           pgp_hash_alg_t                    hash,
-                           rnp::SecurityContext &            ctx)
+pgp_key_t::add_sub_binding(pgp_key_t &               subsec,
+                           pgp_key_t &               subpub,
+                           const rnp::BindingParams &binding,
+                           pgp_hash_alg_t            hash,
+                           rnp::SecurityContext &    ctx)
 {
     if (!is_primary()) {
         RNP_LOG("must be called on primary key");
@@ -2618,14 +2525,14 @@ pgp_key_t::add_sub_binding(pgp_key_t &                       subsec,
     pgp_signature_t sig;
     sign_init(ctx.rng, sig, hash, ctx.time(), version());
     sig.set_type(PGP_SIG_SUBKEY);
-    if (binding.key_expiration) {
-        sig.set_key_expiration(binding.key_expiration);
+    if (binding.expiration) {
+        sig.set_key_expiration(binding.expiration);
     }
-    if (binding.key_flags) {
-        sig.set_key_flags(binding.key_flags);
+    if (binding.flags) {
+        sig.set_key_flags(binding.flags);
     }
     /* calculate binding */
-    pgp_key_flags_t realkf = (pgp_key_flags_t) binding.key_flags;
+    pgp_key_flags_t realkf = (pgp_key_flags_t) binding.flags;
     if (!realkf) {
         realkf = pgp_pk_alg_capabilities(subsec.alg());
     }
@@ -2696,11 +2603,11 @@ pgp_key_t::refresh_data(const rnp::SecurityContext &ctx)
     }
     /* key flags: check in direct-key sig first, then primary uid, and then latest */
     if (dirsig && dirsig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
-        flags_ = dirsig->key_flags;
+        flags_ = dirsig->sig.key_flags();
     } else if (prisig && prisig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
-        flags_ = prisig->key_flags;
+        flags_ = prisig->sig.key_flags();
     } else if (latest && latest->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
-        flags_ = latest->key_flags;
+        flags_ = latest->sig.key_flags();
     } else {
         flags_ = pgp_pk_alg_capabilities(alg());
     }
@@ -2764,7 +2671,7 @@ pgp_key_t::refresh_data(pgp_key_t *primary, const rnp::SecurityContext &ctx)
     expiration_ = sig ? sig->sig.key_expiration() : 0;
     /* subkey flags */
     if (sig && sig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
-        flags_ = sig->key_flags;
+        flags_ = sig->sig.key_flags();
     } else {
         flags_ = pgp_pk_alg_capabilities(alg());
     }

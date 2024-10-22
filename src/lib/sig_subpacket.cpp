@@ -69,7 +69,7 @@ bool
 Raw::parse(const uint8_t *data, size_t size)
 {
     if (!check_size(size)) {
-        RNP_LOG("wrong len %zu of subpacket type %" PRIu8, size, type_);
+        RNP_LOG("wrong len %zu of subpacket type %" PRIu8, size, raw_type_);
         return false;
     }
     if (!parse_data(data, size)) {
@@ -494,7 +494,7 @@ NotationData::parse_data(const uint8_t *data, size_t size)
 {
     uint16_t nlen = read_uint16(data + 4);
     uint16_t vlen = read_uint16(data + 6);
-    if (size != 8 + nlen + vlen) {
+    if (size != nlen + vlen + 8) {
         return false;
     }
     memcpy(flags_.data(), data, 4);

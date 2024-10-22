@@ -37,7 +37,6 @@
 #include <inttypes.h>
 #include <rnp/rnp_def.h>
 #include "types.h"
-#include "crypto.h"
 #include "crypto/mem.h"
 #include "stream-packet.h"
 #include "stream-key.h"

@@ -24,7 +24,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "crypto.h"
 #include "config.h"
 #include "defaults.h"
 
@@ -35,6 +34,8 @@
 #include <openssl/err.h>
 #include "mem.h"
 #include "utils.h"
+#include "repgp/repgp_def.h"
+#include "symmetric.h"
 
 static const char *
 pgp_sa_to_openssl_string(int alg, bool silent = false)

@@ -44,7 +44,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#include <crypto.h>
 #include <pgp-key.h>
 #include <fstream>
 #include <vector>
