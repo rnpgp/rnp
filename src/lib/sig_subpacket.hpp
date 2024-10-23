@@ -471,7 +471,8 @@ class RevocationKey : public Raw {
 
   public:
     RevocationKey(bool hashed = true, bool critical = false)
-        : Raw(Type::RevocationKey, hashed, critical){};
+        : Raw(Type::RevocationKey, hashed, critical), rev_class_(0),
+          alg_(PGP_PKA_NOTHING), fp_{} {};
 
     uint8_t
     rev_class() const noexcept
@@ -866,7 +867,7 @@ class IssuerFingerprint : public Raw {
 
   public:
     IssuerFingerprint(bool hashed = true, bool critical = false)
-        : Raw(Type::IssuerFingerprint, hashed, critical), version_(0)
+        : Raw(Type::IssuerFingerprint, hashed, critical), version_(0), fp_{}
     {
     }
 
