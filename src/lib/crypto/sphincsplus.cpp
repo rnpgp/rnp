@@ -324,7 +324,7 @@ sphincsplus_signature_size(sphincsplus_parameter_t param)
         return 49856;
     default:
         RNP_LOG("invalid SLH-DSA parameter identifier");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+        return 0;
     }
 }
 

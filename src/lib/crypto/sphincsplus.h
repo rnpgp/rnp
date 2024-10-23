@@ -39,7 +39,7 @@ struct pgp_sphincsplus_key_t;
 struct pgp_sphincsplus_signature_t;
 
 typedef enum { sphincsplus_sha256, sphinscplus_shake256 } sphincsplus_hash_func_t;
-typedef enum {
+typedef enum : uint8_t {
     sphincsplus_simple_128s = 1,
     sphincsplus_simple_128f = 2,
     sphincsplus_simple_192s = 3,
