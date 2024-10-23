@@ -1102,10 +1102,14 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
             RNP_LOG("failed to parse SLH-DSA signature data");
             return false;
         }
+        auto sig_size = sphincsplus_signature_size((sphincsplus_parameter_t) param);
+        if (!sig_size) {
+            RNP_LOG("invalid SLH-DSA param value");
+            return false;
+        }
         material.sphincsplus.param = (sphincsplus_parameter_t) param;
-        material.sphincsplus.sig.resize(
-          sphincsplus_signature_size(material.sphincsplus.param));
-        if (!pkt.get(material.sphincsplus.sig.data(), material.sphincsplus.sig.size())) {
+        material.sphincsplus.sig.resize(sig_size);
+        if (!pkt.get(material.sphincsplus.sig.data(), sig_size)) {
             RNP_LOG("failed to parse SLH-DSA signature data");
             return false;
         }
