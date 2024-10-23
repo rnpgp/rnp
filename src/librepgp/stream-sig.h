@@ -53,13 +53,13 @@ typedef struct pgp_signature_t {
     /* common v3 and v4 fields */
     pgp_pubkey_alg_t       palg;
     pgp_hash_alg_t         halg;
-    std::array<uint8_t, 2> lbits;
+    std::array<uint8_t, 2> lbits{};
     std::vector<uint8_t>   hashed_data;
     std::vector<uint8_t>   material_buf; /* raw signature material */
 
     /* v3 - only fields */
     uint32_t     creation_time;
-    pgp_key_id_t signer;
+    pgp_key_id_t signer{};
 
     /* common v4, v5 and v6 fields */
     pgp::pkt::sigsub::List subpkts;

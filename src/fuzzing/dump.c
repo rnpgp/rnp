@@ -44,11 +44,12 @@ LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     rnp_output_destroy(output);
     rnp_input_destroy(input);
 
-    (void) rnp_input_from_memory(&input, data, size, false);
+    rnp_input_t input2 = NULL;
+    (void) rnp_input_from_memory(&input2, data, size, false);
     char *json = NULL;
-    (void) rnp_dump_packets_to_json(input, RNP_DUMP_RAW, &json);
+    (void) rnp_dump_packets_to_json(input2, RNP_DUMP_RAW, &json);
     rnp_buffer_destroy(json);
-    rnp_input_destroy(input);
+    rnp_input_destroy(input2);
 
     return 0;
 }
