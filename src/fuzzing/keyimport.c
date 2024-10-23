@@ -39,58 +39,51 @@ LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     rnp_input_t  input = NULL;
     rnp_result_t ret = 0;
     rnp_ffi_t    ffi = NULL;
+    uint32_t     flags = RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS;
 
     /* try non-permissive import */
     ret = rnp_input_from_memory(&input, data, size, false);
     ret = rnp_ffi_create(&ffi, "GPG", "GPG");
     char *results = NULL;
-    ret = rnp_import_keys(
-      ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS, &results);
+    ret = rnp_import_keys(ffi, input, flags, &results);
     rnp_buffer_destroy(results);
     rnp_input_destroy(input);
     rnp_ffi_destroy(ffi);
 
     /* try permissive import */
-    ret = rnp_input_from_memory(&input, data, size, false);
+    rnp_input_t input2 = NULL;
+    ret = rnp_input_from_memory(&input2, data, size, false);
     ret = rnp_ffi_create(&ffi, "GPG", "GPG");
     results = NULL;
-    ret = rnp_import_keys(ffi,
-                          input,
-                          RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS |
-                            RNP_LOAD_SAVE_PERMISSIVE,
-                          &results);
+    ret = rnp_import_keys(ffi, input2, flags | RNP_LOAD_SAVE_PERMISSIVE, &results);
     rnp_buffer_destroy(results);
-    rnp_input_destroy(input);
+    rnp_input_destroy(input2);
     rnp_ffi_destroy(ffi);
 
     /* try non-permissive iterative import */
-    ret = rnp_input_from_memory(&input, data, size, false);
+    rnp_input_t input3 = NULL;
+    ret = rnp_input_from_memory(&input3, data, size, false);
     ret = rnp_ffi_create(&ffi, "GPG", "GPG");
+    flags |= RNP_LOAD_SAVE_SINGLE;
     do {
         results = NULL;
-        ret = rnp_import_keys(ffi,
-                              input,
-                              RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS |
-                                RNP_LOAD_SAVE_SINGLE,
-                              &results);
+        ret = rnp_import_keys(ffi, input3, flags, &results);
         rnp_buffer_destroy(results);
     } while (!ret);
-    rnp_input_destroy(input);
+    rnp_input_destroy(input3);
     rnp_ffi_destroy(ffi);
 
     /* try permissive iterative import */
-    ret = rnp_input_from_memory(&input, data, size, false);
+    rnp_input_t input4 = NULL;
+    ret = rnp_input_from_memory(&input4, data, size, false);
     ret = rnp_ffi_create(&ffi, "GPG", "GPG");
+    flags |= RNP_LOAD_SAVE_PERMISSIVE;
     do {
         results = NULL;
-        ret = rnp_import_keys(ffi,
-                              input,
-                              RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS |
-                                RNP_LOAD_SAVE_PERMISSIVE | RNP_LOAD_SAVE_SINGLE,
-                              &results);
+        ret = rnp_import_keys(ffi, input4, flags, &results);
         rnp_buffer_destroy(results);
     } while (!ret);
-    rnp_input_destroy(input);
+    rnp_input_destroy(input4);
     rnp_ffi_destroy(ffi);
 
     return 0;
