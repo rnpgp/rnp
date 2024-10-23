@@ -182,7 +182,6 @@ signature_validate(const pgp::pkt::Signature & sig,
 
     /* Finalize hash */
     auto hval = signature_hash_finish(sig, hash, hdr);
-
     /* compare lbits */
     if (memcmp(hval.data(), sig.lbits.data(), 2)) {
         RNP_LOG("wrong lbits");

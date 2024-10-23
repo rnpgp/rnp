@@ -221,10 +221,18 @@ typedef struct pgp_one_pass_sig_t {
     pgp_hash_alg_t   halg{};
     pgp_pubkey_alg_t palg{};
     pgp::KeyID       keyid{};
-    unsigned         nested{};
+#if defined(ENABLE_CRYPTO_REFRESH)
+    pgp_fingerprint_t    fp{};
+    std::vector<uint8_t> salt{};
+#endif
+    unsigned nested{};
 
     void         write(pgp_dest_t &dst) const;
     rnp_result_t parse(pgp_source_t &src);
+
+  private:
+    rnp_result_t parse_v3(pgp_packet_body_t &pkt);
+    rnp_result_t parse_v6(pgp_packet_body_t &pkt);
 } pgp_one_pass_sig_t;
 
 /** Struct to hold userid or userattr packet. We don't parse userattr now, just storing the

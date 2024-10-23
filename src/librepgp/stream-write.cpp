@@ -1444,6 +1444,22 @@ signed_add_signer(pgp_dest_signed_param_t &param, rnp_signer_info_t &signer, boo
         }
     }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+    // Do not create OPS for V6 (currently not implemented)
+    if (sinfo.key->version() == PGP_V6) {
+        sinfo.onepass.version = 0;
+        try {
+            param->siginfos.push_back(sinfo);
+            return RNP_SUCCESS;
+        } catch (const std::exception &e) {
+            /* LCOV_EXCL_START */
+            RNP_LOG("%s", e.what());
+            return RNP_ERROR_OUT_OF_MEMORY;
+            /* LCOV_EXCL_END */
+        }
+    }
+#endif
+
     // Setup and add onepass
     sinfo.onepass.version = 3;
     sinfo.onepass.type = PGP_SIG_BINARY;

@@ -1089,18 +1089,17 @@ TEST_F(rnp_tests, test_ffi_decrypt_v6_pkesk_test_vector)
 #if defined(ENABLE_PQC)
 TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
 {
-    return; // TODO: need new test vectors
     rnp_ffi_t    ffi = NULL;
     rnp_input_t  input = NULL;
     rnp_output_t output = NULL;
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_true(import_all_keys(ffi, "data/draft-ietf-openpgp-pqc/v6-eddsa-mlkem.sec.asc"));
-    assert_true(import_all_keys(ffi, "data/draft-ietf-openpgp-pqc/v4-eddsa-mlkem.sec.asc"));
+    assert_true(import_all_keys(ffi, "data/draft-ietf-openpgp-pqc/v6-eddsa-sample-sk.asc"));
+    assert_true(import_all_keys(ffi, "data/draft-ietf-openpgp-pqc/v6-mldsa-sample-sk.asc"));
 
     assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
     assert_rnp_success(
-      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-seipdv2.asc"));
+      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-eddsa-sample-message.asc"));
     assert_non_null(input);
     assert_rnp_success(rnp_decrypt(ffi, input, output));
     assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
@@ -1110,21 +1109,10 @@ TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
 
     assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
     assert_rnp_success(
-      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v4-seipdv1.asc"));
+      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-mldsa-sample-message.asc"));
     assert_non_null(input);
     assert_rnp_success(rnp_decrypt(ffi, input, output));
     assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
-    assert_int_equal(unlink("decrypted"), 0);
-    rnp_input_destroy(input);
-    rnp_output_destroy(output);
-
-    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v4-seipdv1.asc"));
-    assert_non_null(input);
-    assert_rnp_success(rnp_decrypt(ffi, input, output));
-    assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
-
     assert_int_equal(unlink("decrypted"), 0);
     rnp_input_destroy(input);
     rnp_output_destroy(output);

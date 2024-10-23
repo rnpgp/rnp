@@ -2196,8 +2196,10 @@ Key::sign_init(RNG &                rng,
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     if (version == PGP_V6) {
-        sig.salt.resize(Hash::size(sig.halg) / 2);
-        rng.get(sig.salt.data(), sig.salt.size());
+        size_t tmp_salt_size;
+        assert(pgp::pkt::Signature::v6_salt_size(sig.halg, &tmp_salt_size));
+        sig.salt_size = tmp_salt_size;
+        rng.get(sig.salt, sig.salt_size);
     }
 #endif
 }
