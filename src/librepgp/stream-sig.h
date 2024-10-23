@@ -66,7 +66,11 @@ typedef struct pgp_signature_t {
 
 #if defined(ENABLE_CRYPTO_REFRESH)
     /* v6 - only fields */
-    std::vector<uint8_t> salt;
+    uint8_t salt[PGP_MAX_SALT_SIZE_V6_SIG];
+    uint8_t salt_size;
+
+    /* maps halg to V6 salt size. Returns false if no mapping exists. */
+    static bool v6_salt_size(pgp_hash_alg_t halg, size_t *salt_size);
 #endif
 
     pgp_signature_t()

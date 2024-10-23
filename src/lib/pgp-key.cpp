@@ -2406,8 +2406,10 @@ pgp_key_t::sign_init(rnp::RNG &       rng,
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     if (version == PGP_V6) {
-        sig.salt.resize(rnp::Hash::size(sig.halg) / 2);
-        rng.get(sig.salt.data(), sig.salt.size());
+        size_t tmp_salt_size;
+        assert(pgp_signature_t::v6_salt_size(sig.halg, &tmp_salt_size));
+        sig.salt_size = tmp_salt_size;
+        rng.get(sig.salt, sig.salt_size);
     }
 #endif
 }

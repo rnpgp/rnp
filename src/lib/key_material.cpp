@@ -1730,9 +1730,9 @@ Ed448KeyMaterial::write_secret(pgp_packet_body_t &pkt) const
 }
 
 bool
-Ed448KeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
+Ed448KeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 {
-    if (generate_ed448_native(&params.ctx->rng, key_.priv, key_.pub)) {
+    if (generate_ed448_native(&ctx.rng, key_.priv, key_.pub)) {
         RNP_LOG("failed to generate ED448 key");
         return false;
     }
@@ -1856,9 +1856,9 @@ X448KeyMaterial::write_secret(pgp_packet_body_t &pkt) const
 }
 
 bool
-X448KeyMaterial::generate(const rnp_keygen_crypto_params_t &params)
+X448KeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 {
-    if (generate_x448_native(&params.ctx->rng, key_.priv, key_.pub)) {
+    if (generate_x448_native(&ctx.rng, key_.priv, key_.pub)) {
         RNP_LOG("failed to generate X448 key");
         return false;
     }

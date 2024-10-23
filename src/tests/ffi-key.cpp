@@ -3252,16 +3252,14 @@ TEST_F(rnp_tests, test_ffi_v6_cert_import)
 #if defined(ENABLE_PQC)
 TEST_F(rnp_tests, test_ffi_pqc_certs)
 {
-    return; // TODO: need new test vectors
-
     rnp_ffi_t   ffi = NULL;
     rnp_input_t input = NULL;
     size_t      keycount = 255;
 
-    /* Public Key */
+    /* Public Key 1 */
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_rnp_success(
-      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-eddsa-mlkem.pub.asc"));
+      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-eddsa-sample-pk.asc"));
     assert_rnp_success(
       rnp_import_keys(ffi,
                       input,
@@ -3274,10 +3272,40 @@ TEST_F(rnp_tests, test_ffi_pqc_certs)
     assert_int_equal(keycount, 0);
     rnp_ffi_destroy(ffi);
 
-    /* Private Key */
+    /* Private Key 1 */
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_rnp_success(
-      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-eddsa-mlkem.sec.asc"));
+      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-eddsa-sample-sk.asc"));
+    assert_rnp_success(
+      rnp_import_keys(ffi,
+                      input,
+                      RNP_LOAD_SAVE_SECRET_KEYS | RNP_LOAD_SAVE_SINGLE | RNP_LOAD_SAVE_BASE64,
+                      NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 2);
+    rnp_ffi_destroy(ffi);
+
+    /* Public Key 2 */
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-mldsa-sample-pk.asc"));
+    assert_rnp_success(
+      rnp_import_keys(ffi,
+                      input,
+                      RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SINGLE | RNP_LOAD_SAVE_BASE64,
+                      NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 2);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 0);
+    rnp_ffi_destroy(ffi);
+
+    /* Private Key 2 */
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-mldsa-sample-sk.asc"));
     assert_rnp_success(
       rnp_import_keys(ffi,
                       input,
