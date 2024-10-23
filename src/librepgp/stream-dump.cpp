@@ -1397,7 +1397,19 @@ DumpContextDst::dump_one_pass()
     dst_print_sig_type(dst, NULL, onepass.type);
     dst_print_halg(dst, NULL, onepass.halg);
     dst_print_palg(dst, NULL, onepass.palg);
-    dst_print_keyid(dst, "signing key id", onepass.keyid);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (onepass.version == PGP_OPS_V6) {
+        dst_print_vec(dst, "salt", onepass.salt, false);
+    }
+#endif
+    if (onepass.version == PGP_OPS_V3) {
+        dst_print_keyid(dst, "signing key id", onepass.keyid);
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (onepass.version == PGP_OPS_V6) {
+        dst_print_fp(dst, NULL, onepass.fp);
+    }
+#endif
     dst_printf(dst, "nested: %d\n", (int) onepass.nested);
 
     indent_dest_decrease(dst);
@@ -2457,9 +2469,20 @@ DumpContextJson::dump_one_pass(json_object *pkt)
     if (!obj_add_intstr_json(pkt, "public key algorithm", onepass.palg, pubkey_alg_map)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
-    if (!json_add(pkt, "signer", onepass.keyid)) {
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (onepass.version == PGP_OPS_V6 &&
+        !json_add(pkt, "salt", (const char *) onepass.salt.data(), onepass.salt.size())) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
+#endif
+    if (onepass.version == PGP_OPS_V3 && !json_add(pkt, "signer", onepass.keyid)) {
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (onepass.version == PGP_OPS_V6 && !json_add(pkt, "signer", onepass.fp)) {
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+    }
+#endif
     if (!json_add(pkt, "nested", (bool) onepass.nested)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
