@@ -432,6 +432,9 @@ pgp_signature_t::set_preferred(const std::vector<uint8_t> &data, sigsub::Type ty
 
     auto sub = sigsub::Raw::create(type);
     auto pref = dynamic_cast<sigsub::Preferred *>(sub.get());
+    if (!pref) {
+        return;
+    }
     pref->set_algs(data);
     add_subpkt(std::move(sub));
 }

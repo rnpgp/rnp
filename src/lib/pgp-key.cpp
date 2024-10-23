@@ -2097,7 +2097,7 @@ pgp_key_t::validate_sig(pgp_signature_info_t &      sinfo,
         if (!subpkt->critical() || (subpkt->type() != pgp::pkt::sigsub::Type::NotationData)) {
             continue;
         }
-        auto notation = dynamic_cast<pgp::pkt::sigsub::NotationData &>(*subpkt);
+        auto &notation = dynamic_cast<pgp::pkt::sigsub::NotationData &>(*subpkt);
         RNP_LOG("unknown critical notation: %s", notation.name().c_str());
         sinfo.valid = false;
     }

@@ -672,11 +672,11 @@ bool
 EmbeddedSignature::parse_data(const uint8_t *data, size_t size)
 {
     pgp_packet_body_t pkt(data, size);
-    pgp_signature_t   sig{};
+    pgp_signature_t   sig;
     if (sig.parse(pkt)) {
         return false;
     }
-    signature_ = std::unique_ptr<pgp_signature_t>(new pgp_signature_t(sig));
+    signature_ = std::unique_ptr<pgp_signature_t>(new pgp_signature_t(std::move(sig)));
     return true;
 }
 
