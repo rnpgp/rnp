@@ -1823,7 +1823,12 @@ SlhdsaKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
         return false;
     }
     sphincsplus_parameter_t param = (sphincsplus_parameter_t) bt;
-    std::vector<uint8_t>    buf(sphincsplus_pubkey_size(param));
+    auto                    size = sphincsplus_pubkey_size(param);
+    if (!size) {
+        RNP_LOG("invalid SLH-DSA param");
+        return false;
+    }
+    std::vector<uint8_t> buf(size);
     if (!pkt.get(buf.data(), buf.size())) {
         RNP_LOG("failed to parse SLH-DSA public key data");
         return false;
