@@ -370,6 +370,7 @@ add_library(librnp-obj OBJECT
   pass-provider.cpp
   sig_subpacket.cpp
   key_material.cpp
+  enc_material.cpp
   keygen.cpp
   pgp-key.cpp
   rnp.cpp
