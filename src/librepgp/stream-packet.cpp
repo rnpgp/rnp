@@ -1170,7 +1170,7 @@ pgp_pk_sesskey_t::parse(pgp_source_t &src)
     /* symmetric algorithm */
     salg = PGP_SA_UNKNOWN;
 
-    /* raw signature material */
+    /* raw encrypted material */
     if (!pkt.left()) {
         RNP_LOG("No encrypted material");
         return RNP_ERROR_BAD_FORMAT;
