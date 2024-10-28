@@ -328,11 +328,11 @@ def rnp_genkey_rsa(userid, bits=2048, pswd=PASSWORD):
     if ret != 0:
         raise_err('rsa key generation failed', err)
 
-def rnp_genkey_pqc(userid, algo_cli_nr, algo_param = None, pswd=PASSWORD):
+def rnp_genkey_pqc(userid, algo_cli_nr, homedir, algo_param = None, pswd=PASSWORD):
     algo_pipe = str(algo_cli_nr)
     if algo_param:
         algo_pipe += "\n" + str(algo_param)
-    ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', pswd,
+    ret, out, err = run_proc(RNPK, ['--homedir', homedir, '--password', pswd,
                                   '--notty', '--userid', userid, '--generate-key', '--expert'], algo_pipe)
     #os.close(algo_pipe)
     if ret != 0:
@@ -383,8 +383,10 @@ def rnp_encrypt_file_ex(src, dst, recipients=None, passwords=None, aead=None, ci
         raise_err('rnp encryption failed with ' + cipher, err)
 
 def rnp_encrypt_and_sign_file(src, dst, recipients, encrpswd, signers, signpswd,
-                              aead=None, cipher=None, z=None, armor=False):
-    params = ['--homedir', RNPDIR, '--sign', '--encrypt', src, '--output', dst]
+                              aead=None, cipher=None, z=None, armor=False, homedir=None):
+    if not homedir:
+        homedir = RNPDIR
+    params = ['--homedir', homedir, '--sign', '--encrypt', src, '--output', dst]
     pipe = pswd_pipe('\n'.join(encrpswd + signpswd))
     params[2:2] = ['--pass-fd', str(pipe)]
 
@@ -409,10 +411,12 @@ def rnp_encrypt_and_sign_file(src, dst, recipients, encrpswd, signers, signpswd,
     if ret != 0:
         raise_err('rnp encrypt-and-sign failed', err)
 
-def rnp_decrypt_file(src, dst, password = PASSWORD):
+def rnp_decrypt_file(src, dst, password = PASSWORD, homedir = None):
+    if not homedir:
+        homedir = RNPDIR
     pipe = pswd_pipe(password)
     ret, out, err = run_proc(
-        RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--decrypt', src, '--output', dst])
+        RNP, ['--homedir', homedir, '--pass-fd', str(pipe), '--decrypt', src, '--output', dst])
     os.close(pipe)
     if ret != 0:
         raise_err('rnp decryption failed', out + err)
@@ -4536,7 +4540,7 @@ class Encryption(unittest.TestCase):
                     gpg_decrypt_file(dst, dec, pswd)
                     gpg_agent_clear_cache()
                     remove_files(dec)
-                rnp_decrypt_file(dst, dec, '\n'.join([pswd] * 5))
+                rnp_decrypt_file(dst, dec, password='\n'.join([pswd] * 5))
                 remove_files(dec)
 
             # Decrypt file with each of the passwords (with gpg only first password is checked)
@@ -4550,7 +4554,7 @@ class Encryption(unittest.TestCase):
                     gpg_decrypt_file(dst, dec, pswd)
                     gpg_agent_clear_cache()
                     remove_files(dec)
-                rnp_decrypt_file(dst, dec, '\n'.join([pswd] * 5))
+                rnp_decrypt_file(dst, dec, password='\n'.join([pswd] * 5))
                 remove_files(dec)
 
             remove_files(dst, dec)
@@ -4600,7 +4604,7 @@ class Encryption(unittest.TestCase):
                     gpg_decrypt_file(dst, dec, pswd)
                     gpg_agent_clear_cache()
                     remove_files(dec)
-                rnp_decrypt_file(dst, dec, '\n'.join([pswd] * 5))
+                rnp_decrypt_file(dst, dec, password='\n'.join([pswd] * 5))
                 remove_files(dec)
 
             # GPG decrypts only with first password, see T3795
@@ -4615,7 +4619,7 @@ class Encryption(unittest.TestCase):
                     gpg_decrypt_file(dst, dec, pswd)
                     gpg_agent_clear_cache()
                     remove_files(dec)
-                rnp_decrypt_file(dst, dec, '\n'.join([pswd] * 5))
+                rnp_decrypt_file(dst, dec, password='\n'.join([pswd] * 5))
                 remove_files(dec)
 
             remove_files(dst, dec)
@@ -4637,12 +4641,11 @@ class Encryption(unittest.TestCase):
             if not found_this_entry:
                 raise RuntimeError("did not match the expected UI choice for algorithm: " + expected_line)
 
-    """ zzz_ prefix makes it the last test. This is a workaround against a gnupg import error with the
-    pqc keys in other member function tests that would otherwise follow this one.
-    """
-    def test_zzz_encryption_and_signing_pqc(self):
+    def test_encryption_and_signing_pqc(self):
         if not RNP_PQC:
             return
+        RNPDIR_PQC = RNPDIR + 'PQC'
+        os.mkdir(RNPDIR_PQC, 0o700)
         algo_ui_exp_strs = [ "(24) Ed25519Legacy + Curve25519Legacy + (ML-KEM-768 + X25519)",
                              "(25) (ML-DSA-65 + Ed25519) + (ML-KEM-768 + X25519)",
                              "(27) (ML-DSA-65 + ECDSA-NIST-P-256) + (ML-KEM-768 + ECDH-NIST-P-256)",
@@ -4663,18 +4666,14 @@ class Encryption(unittest.TestCase):
         for x in range(len(ALGO)): passwds.append('testpw' if x % 1 == 0 else '')
         for x in range(len(ALGO)): aead_list.append(None if x % 3 == 0 else ('ocb' if x % 3 == 1 else 'eax' ))
         if any(len(USERIDS) != len(x) for x in [ALGO, ALGO_PARAM]):
-            raise  RuntimeError("test_zzz_encryption_and_signing_pqc: internal error: lengths of test data arrays matching")
+            raise  RuntimeError("test_encryption_and_signing_pqc: internal error: lengths of test data arrays matching")
         # Generate multiple keys and import to GnuPG
         verified_algo_nums = False
         for uid, algo, param, passwd in zip(USERIDS, ALGO, ALGO_PARAM, passwds):
-            stdout = rnp_genkey_pqc(uid, algo, param, passwd)
+            stdout = rnp_genkey_pqc(uid, algo, RNPDIR_PQC, param, passwd)
             if not verified_algo_nums:
                 self.verify_pqc_algo_ui_nb_to_algo_ui_str(stdout, algo_ui_exp_strs)
                 verified_algo_nums = True
-
-        #gpg_import_pubring()
-        #gpg_import_secring()
-
 
         src, dst, dec = reg_workfiles('cleartext', '.txt', '.rnp', '.dec')
         # Generate random file of required size
@@ -4689,14 +4688,14 @@ class Encryption(unittest.TestCase):
             signerpws = [passwds[i]]
 
             rnp_encrypt_and_sign_file(src, dst, recipients, passwords, signers,
-                                      signerpws, aead=[aead_list[i]])
+                                      signerpws, aead=[aead_list[i]], homedir=RNPDIR_PQC)
             # Decrypt file with each of the keys, we have different password for each key
-            rnp_decrypt_file(dst, dec, passwds[i])
-            remove_files(dec)
-
-
-
+            rnp_decrypt_file(dst, dec, password=passwds[i], homedir=RNPDIR_PQC)
             remove_files(dst, dec)
+
+        clear_workfiles()
+        shutil.rmtree(RNPDIR_PQC, ignore_errors=True)
+
 
     def test_encryption_weird_userids_special_1(self):
         uid = WEIRD_USERID_SPECIAL_CHARS
@@ -4707,7 +4706,7 @@ class Encryption(unittest.TestCase):
         dst, dec = reg_workfiles('weird_userids_special_1', '.rnp', '.dec')
         rnp_encrypt_file_ex(src, dst, [uid], None, None)
         # Decrypt
-        rnp_decrypt_file(dst, dec, pswd)
+        rnp_decrypt_file(dst, dec, password=pswd)
         compare_files(src, dec, RNP_DATA_DIFFERS)
         clear_workfiles()
 
@@ -4724,7 +4723,7 @@ class Encryption(unittest.TestCase):
         # Decrypt file with each of the passwords
         for pswd in KEYPASS:
             multiple_pass_attempts = (pswd + '\n') * len(KEYPASS)
-            rnp_decrypt_file(dst, dec, multiple_pass_attempts)
+            rnp_decrypt_file(dst, dec, password=multiple_pass_attempts)
             compare_files(src, dec, RNP_DATA_DIFFERS)
             remove_files(dec)
         # Cleanup
@@ -4750,7 +4749,7 @@ class Encryption(unittest.TestCase):
         # Decrypt file with each of the passwords
         for pswd in KEYPASS:
             multiple_pass_attempts = (pswd + '\n') * len(KEYPASS)
-            rnp_decrypt_file(dst, dec, multiple_pass_attempts)
+            rnp_decrypt_file(dst, dec, password=multiple_pass_attempts)
             compare_files(src, dec, RNP_DATA_DIFFERS)
             remove_files(dec)
         # Cleanup
@@ -4812,7 +4811,7 @@ class Encryption(unittest.TestCase):
         ret, out, _ = run_proc(RNP, ['--homedir', RNPDIR, '-es', '-r', 'eddsa_25519', '-u',
                                      'eddsa_25519', '--password', PASSWORD, src, '--output', dst, '--armor'])
         # Decrypt and verify with RNP
-        rnp_decrypt_file(dst, dec, 'password')
+        rnp_decrypt_file(dst, dec, password='password')
         self.assertEqual(file_text(src), file_text(dec))
         remove_files(dec)
         # Decrypt and verify with GPG
@@ -4824,7 +4823,7 @@ class Encryption(unittest.TestCase):
                              '-u', 'eddsa_25519', '--output', dst, '-es', src])
         self.assertEqual(ret, 0)
         # Decrypt and verify with RNP
-        rnp_decrypt_file(dst, dec, 'password')
+        rnp_decrypt_file(dst, dec, password='password')
         self.assertEqual(file_text(src), file_text(dec))
         # Encrypt/decrypt using the p256 key, making sure message is not displayed
         key = data_path('test_stream_key_load/ecc-p256-sec.asc')

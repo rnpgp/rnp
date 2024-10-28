@@ -104,7 +104,7 @@ typedef uint32_t rnp_result_t;
  * Flags for default key selection.
  */
 #define RNP_KEY_SUBKEYS_ONLY (1U << 0)
-#if defined(RNP_EXPERIMENTAL_CRYPTO_REFRESH)
+#if defined(RNP_EXPERIMENTAL_PQC)
 #define RNP_KEY_PREFER_PQC_ENC_SUBKEY (1U << 1)
 #endif
 
