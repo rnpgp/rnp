@@ -111,7 +111,7 @@ typedef struct rnp_ctx_t {
 #if defined(ENABLE_CRYPTO_REFRESH)
     bool enable_pkesk_v6{}; /* allows pkesk v6 if list of recipients is suitable */
 #endif
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_PQC)
     bool pref_pqc_enc_subkey{}; /* prefer to encrypt to PQC subkey */
 #endif
     std::list<pgp_key_t *> recipients{};              /* recipients of the encrypted message */
