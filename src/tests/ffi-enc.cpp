@@ -1086,6 +1086,69 @@ TEST_F(rnp_tests, test_ffi_decrypt_v6_pkesk_test_vector)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_verify_v2_seipd_test_vector)
+{
+    rnp_ffi_t       ffi = NULL;
+    rnp_input_t     input = NULL;
+    rnp_output_t    output = NULL;
+    rnp_op_verify_t verify = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_all_keys(ffi, "data/test_v6_valid_data/transferable_seckey_v6.asc"));
+
+    assert_rnp_success(rnp_input_from_path(
+      &input, "data/test_v6_valid_data/a7-sample-inline-signed-message.asc"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+
+    /* dash-escaped */
+    assert_string_equal(
+      file_to_str("decrypted").c_str(),
+      "What we need from the grocery store:\n\n- tofu\n- vegetables\n- noodles\n");
+    assert_int_equal(unlink("decrypted"), 0);
+
+    // cleanup
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    rnp_op_verify_destroy(verify);
+    rnp_ffi_destroy(ffi);
+}
+
+/* RNP currently skips v6 signatures on cleartext signatures.
+This test expects the failure. Eventually, if v6 signatures are supported, the test should be
+adapted */
+TEST_F(rnp_tests, test_ffi_verify_v2_seipd_cleartext_test_vector)
+{
+    rnp_ffi_t       ffi = NULL;
+    rnp_input_t     input = NULL;
+    rnp_output_t    output = NULL;
+    rnp_op_verify_t verify = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_all_keys(ffi, "data/test_v6_valid_data/transferable_seckey_v6.asc"));
+
+    assert_rnp_success(rnp_input_from_path(
+      &input, "data/test_v6_valid_data/a6-sample-cleartext-signed-message.asc"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_int_equal(RNP_ERROR_SIGNATURE_INVALID, rnp_op_verify_execute(verify));
+
+    // /* dash-escaped */
+    // assert_string_equal(
+    //   file_to_str("decrypted").c_str(),
+    //   "What we need from the grocery store:\n\n- tofu\n- vegetables\n- noodles\n");
+    // assert_int_equal(unlink("decrypted"), 0);
+
+    // cleanup
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    rnp_op_verify_destroy(verify);
+    rnp_ffi_destroy(ffi);
+}
+
 #if defined(ENABLE_PQC)
 TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
 {

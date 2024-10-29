@@ -141,6 +141,9 @@ typedef struct pgp_dest_signer_info_t {
     pgp_hash_alg_t     halg;
     int64_t            sigcreate;
     uint64_t           sigexpire;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    std::vector<uint8_t> salt;
+#endif
 } pgp_dest_signer_info_t;
 
 typedef struct pgp_dest_signed_param_t {
@@ -1251,7 +1254,16 @@ signed_fill_signature(pgp_dest_signed_param_t &param,
     sig.set_expiration(signer.sigexpire);
     sig.fill_hashed_data();
 
-    auto listh = param.hashes.get(sig.halg);
+    const rnp::Hash *listh = NULL;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (sig.version == PGP_V6) {
+        listh = param.hashes.get(sig.halg, sig.salt);
+    } else
+#endif
+    {
+        listh = param.hashes.get(sig.halg);
+    }
+
     if (!listh) {
         /* LCOV_EXCL_START */
         RNP_LOG("failed to obtain hash");
@@ -1279,6 +1291,12 @@ signed_write_signature(pgp_dest_signed_param_t *param,
 {
     try {
         pgp::pkt::Signature sig;
+#if defined(ENABLE_CRYPTO_REFRESH)
+        if (signer->key->version() == PGP_V6) {
+            // set salt
+            sig.salt = signer->salt;
+        }
+#endif
         if (signer->onepass.version) {
             signer->key->sign_init(param->ctx->sec_ctx.rng,
                                    sig,
@@ -1399,7 +1417,10 @@ signed_dst_set_literal_hdr(pgp_dest_t &src, const pgp_literal_hdr_t &hdr)
 }
 
 static rnp_result_t
-signed_add_signer(pgp_dest_signed_param_t &param, rnp_signer_info_t &signer, bool last)
+signed_add_signer(pgp_dest_signed_param_t &param,
+                  rnp_signer_info_t &      signer,
+                  rnp::RNG &               rng,
+                  bool                     last)
 {
     pgp_dest_signer_info_t sinfo = {};
 
@@ -1422,7 +1443,21 @@ signed_add_signer(pgp_dest_signed_param_t &param, rnp_signer_info_t &signer, boo
     /* Add hash to the list */
     sinfo.halg = signer.key->material()->adjust_hash(signer.halg);
     try {
-        param.hashes.add_alg(sinfo.halg);
+#if defined(ENABLE_CRYPTO_REFRESH)
+        if (sinfo.key->version() == PGP_V6) {
+            size_t salt_size;
+            if (!pgp::pkt::Signature::v6_salt_size(sinfo.halg, &salt_size)) {
+                RNP_LOG("can't get signature salt size");
+                return RNP_ERROR_BAD_STATE;
+            }
+            sinfo.salt.resize(salt_size);
+            rng.get(sinfo.salt.data(), salt_size);
+            param.hashes.add_alg(sinfo.halg, sinfo.salt);
+        } else
+#endif
+        {
+            param.hashes.add_alg(sinfo.halg);
+        }
     } catch (const std::exception &e) {
         /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
@@ -1444,22 +1479,6 @@ signed_add_signer(pgp_dest_signed_param_t &param, rnp_signer_info_t &signer, boo
         }
     }
 
-#if defined(ENABLE_CRYPTO_REFRESH)
-    // Do not create OPS for V6 (currently not implemented)
-    if (sinfo.key->version() == PGP_V6) {
-        sinfo.onepass.version = 0;
-        try {
-            param->siginfos.push_back(sinfo);
-            return RNP_SUCCESS;
-        } catch (const std::exception &e) {
-            /* LCOV_EXCL_START */
-            RNP_LOG("%s", e.what());
-            return RNP_ERROR_OUT_OF_MEMORY;
-            /* LCOV_EXCL_END */
-        }
-    }
-#endif
-
     // Setup and add onepass
     sinfo.onepass.version = 3;
     sinfo.onepass.type = PGP_SIG_BINARY;
@@ -1467,6 +1486,15 @@ signed_add_signer(pgp_dest_signed_param_t &param, rnp_signer_info_t &signer, boo
     sinfo.onepass.palg = sinfo.key->alg();
     sinfo.onepass.keyid = sinfo.key->keyid();
     sinfo.onepass.nested = false;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (sinfo.key->version() == PGP_V6) {
+        // set version and fingerprint for v6
+        // salt already set above
+        sinfo.onepass.version = (uint8_t) PGP_OPS_V6;
+        sinfo.onepass.salt = sinfo.salt;
+        sinfo.onepass.fp = sinfo.key->fp();
+    }
+#endif
     try {
         param.siginfos.push_back(sinfo);
     } catch (const std::exception &e) {
@@ -1528,7 +1556,8 @@ init_signed_dst(rnp_ctx_t &ctx, pgp_dest_t &dst, pgp_dest_t &writedst)
 
     /* Getting signer's infos, writing one-pass signatures if needed */
     for (auto &sg : ctx.signers) {
-        ret = signed_add_signer(*param, sg, &sg == &ctx.signers.back());
+        ret = signed_add_signer(
+          *param, sg, param->ctx->sec_ctx.rng, &sg == &ctx.signers.back());
         if (ret) {
             RNP_LOG("failed to add one-pass signature for signer");
             goto finish;
@@ -1547,10 +1576,11 @@ init_signed_dst(rnp_ctx_t &ctx, pgp_dest_t &dst, pgp_dest_t &writedst)
         dst_write(param->writedst, ST_CRLF, strlen(ST_CRLF));
         dst_write(param->writedst, ST_HEADER_HASH, strlen(ST_HEADER_HASH));
 
-        for (const auto &hash : param->hashes.hashes) {
-            auto hname = rnp::Hash::name(hash->alg());
+        auto halg_list = param->hashes.hash_algs();
+        for (pgp_hash_alg_t halg : halg_list) {
+            auto hname = rnp::Hash::name(halg);
             dst_write(param->writedst, hname, strlen(hname));
-            if (&hash != &param->hashes.hashes.back()) {
+            if (halg != halg_list.back()) {
                 dst_write(param->writedst, ST_COMMA, 1);
             }
         }
