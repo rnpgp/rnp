@@ -2405,11 +2405,12 @@ pgp_key_t::sign_init(rnp::RNG &       rng,
         sig.set_keyid(keyid());
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if (version == PGP_V6) {
-        size_t tmp_salt_size;
-        assert(pgp_signature_t::v6_salt_size(sig.halg, &tmp_salt_size));
-        sig.salt_size = tmp_salt_size;
-        rng.get(sig.salt, sig.salt_size);
+    if (version == PGP_V6 && sig.salt.empty()) {
+        /* salt is either set (OPS, etc) or empty (key sigs) and needs to be set here */
+        size_t salt_size;
+        assert(pgp_signature_t::v6_salt_size(sig.halg, &salt_size));
+        sig.salt.resize(salt_size);
+        rng.get(sig.salt.data(), salt_size);
     }
 #endif
 }

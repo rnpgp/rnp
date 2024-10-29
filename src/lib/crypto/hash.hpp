@@ -87,11 +87,20 @@ class CRC24 {
 
 class HashList {
   public:
-    std::vector<std::unique_ptr<Hash>> hashes;
+    void                        add(const void *buf, size_t len);
+    std::vector<pgp_hash_alg_t> hash_algs() const;
 
+    /* v3-v5 sigs */
     void        add_alg(pgp_hash_alg_t alg);
     const Hash *get(pgp_hash_alg_t alg) const;
-    void        add(const void *buf, size_t len);
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* v6 sigs with salt */
+    void        add_alg(pgp_hash_alg_t alg, std::vector<uint8_t> salt);
+    const Hash *get(pgp_hash_alg_t alg, std::vector<uint8_t> salt) const;
+#endif
+
+    std::vector<std::pair<std::unique_ptr<Hash>, std::vector<uint8_t>>> hashes;
 };
 
 } // namespace rnp

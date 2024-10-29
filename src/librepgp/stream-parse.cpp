@@ -857,10 +857,33 @@ add_hash_for_sig(pgp_source_signed_param_t *param, pgp_sig_type_t stype, pgp_has
     param->hashes.add_alg(halg);
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+static void
+add_hash_for_sig_v6(pgp_source_signed_param_t *param,
+                    pgp_sig_type_t             stype,
+                    pgp_hash_alg_t             halg,
+                    std::vector<uint8_t>       salt)
+{
+    /* Cleartext always uses param->hashes instead of param->txt_hashes */
+    if (!param->cleartext && (stype == PGP_SIG_TEXT)) {
+        param->txt_hashes.add_alg(halg, salt);
+    }
+    param->hashes.add_alg(halg, salt);
+}
+#endif
+
 static const rnp::Hash *
 get_hash_for_sig(pgp_source_signed_param_t &param, pgp_signature_info_t &sinfo)
 {
     /* Cleartext always uses param->hashes instead of param->txt_hashes */
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (sinfo.sig->version == PGP_V6) {
+        if (!param.cleartext && (sinfo.sig->type() == PGP_SIG_TEXT)) {
+            return param.txt_hashes.get(sinfo.sig->halg, sinfo.sig->salt);
+        }
+        return param.hashes.get(sinfo.sig->halg, sinfo.sig->salt);
+    }
+#endif
     if (!param.cleartext && (sinfo.sig->type() == PGP_SIG_TEXT)) {
         return param.txt_hashes.get(sinfo.sig->halg);
     }
@@ -1178,6 +1201,13 @@ signed_src_finish(pgp_source_t *src)
         if (!sinfo.sig) {
             continue;
         }
+#if defined(ENABLE_CRYPTO_REFRESH)
+        if (sinfo.sig->version == PGP_V6 && param->cleartext) {
+            RNP_LOG("Skipping signature: Cleartext signature verification currently does not "
+                    "support v6 signatures");
+            continue;
+        }
+#endif
         signed_validate_signature(*param, sinfo);
     }
 
@@ -2603,7 +2633,14 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
 
             /* adding hash context */
             try {
-                add_hash_for_sig(param, onepass.type, onepass.halg);
+#if defined(ENABLE_CRYPTO_REFRESH)
+                if (onepass.version == PGP_OPS_V6) {
+                    add_hash_for_sig_v6(param, onepass.type, onepass.halg, onepass.salt);
+                } else
+#endif
+                {
+                    add_hash_for_sig(param, onepass.type, onepass.halg);
+                }
             } catch (const std::exception &e) {
                 RNP_LOG("Failed to create hash %d for onepass %d : %s.",
                         (int) onepass.halg,
@@ -2625,7 +2662,14 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
             /* adding hash context */
             if (sig) {
                 try {
-                    add_hash_for_sig(param, sig->type(), sig->halg);
+#if defined(ENABLE_CRYPTO_REFRESH)
+                    if (sig->version == PGP_V6) {
+                        add_hash_for_sig_v6(param, sig->type(), sig->halg, sig->salt);
+                    } else
+#endif
+                    {
+                        add_hash_for_sig(param, sig->type(), sig->halg);
+                    }
                 } catch (const std::exception &e) {
                     RNP_LOG("Failed to create hash %d for sig %d : %s.",
                             (int) sig->halg,

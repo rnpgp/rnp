@@ -1490,10 +1490,10 @@ pgp_one_pass_sig_t::parse(pgp_source_t &src)
 rnp_result_t
 pgp_one_pass_sig_t::parse_v6(pgp_packet_body_t &pkt)
 {
-    uint8_t buf[32];
+    uint8_t buf[4];
     uint8_t salt_size;
 
-    /* packet can't be smaller fo v6 */
+    /* packet can't be smaller for v6 */
     const size_t min_size = 54;
     if ((pkt.size() < min_size)) {
         return RNP_ERROR_BAD_FORMAT;
