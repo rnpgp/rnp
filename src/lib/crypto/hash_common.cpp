@@ -37,6 +37,7 @@
 #include "hash_ossl.hpp"
 #include "hash_crc24.hpp"
 #endif
+#include <set>
 
 static const struct hash_alg_map_t {
     pgp_hash_alg_t type;
@@ -190,7 +191,7 @@ void
 HashList::add_alg(pgp_hash_alg_t alg)
 {
     if (!get(alg)) {
-        hashes.emplace_back(rnp::Hash::create(alg));
+        hashes.emplace_back(std::make_pair(rnp::Hash::create(alg), std::vector<uint8_t>()));
     }
 }
 
@@ -198,8 +199,8 @@ const Hash *
 HashList::get(pgp_hash_alg_t alg) const
 {
     for (auto &hash : hashes) {
-        if (hash->alg() == alg) {
-            return hash.get();
+        if (hash.first->alg() == alg && hash.second.empty()) {
+            return hash.first.get();
         }
     }
     return nullptr;
@@ -209,8 +210,43 @@ void
 HashList::add(const void *buf, size_t len)
 {
     for (auto &hash : hashes) {
-        hash->add(buf, len);
+        hash.first->add(buf, len);
     }
 }
+
+std::vector<pgp_hash_alg_t>
+HashList::hash_algs() const
+{
+    std::set<pgp_hash_alg_t> algs;
+    for (auto &hash : hashes) {
+        algs.insert(hash.first->alg());
+    }
+
+    std::vector<pgp_hash_alg_t> result;
+    std::copy(algs.begin(), algs.end(), std::back_inserter(result));
+    return result;
+}
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+void
+HashList::add_alg(pgp_hash_alg_t alg, std::vector<uint8_t> salt)
+{
+    if (!get(alg, salt)) {
+        hashes.emplace_back(std::make_pair(rnp::Hash::create(alg), salt));
+        hashes.back().first->add(salt); // consume salt as first input
+    }
+}
+
+const Hash *
+HashList::get(pgp_hash_alg_t alg, std::vector<uint8_t> salt) const
+{
+    for (auto &hash : hashes) {
+        if (hash.first->alg() == alg && hash.second == salt) {
+            return hash.first.get();
+        }
+    }
+    return NULL;
+}
+#endif
 
 } // namespace rnp

@@ -103,11 +103,6 @@
 #define PGP_MARKER_CONTENTS "PGP"
 #define PGP_MARKER_LEN 3
 
-/* V6 Signature Salt */
-#if defined(ENABLE_CRYPTO_REFRESH)
-#define PGP_MAX_SALT_SIZE_V6_SIG 32
-#endif
-
 /** Old Packet Format Lengths.
  * Defines the meanings of the 2 bits for length type in the
  * old packet format.
