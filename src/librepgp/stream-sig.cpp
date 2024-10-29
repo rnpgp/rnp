@@ -740,6 +740,10 @@ Signature::matches_onepass(const pgp_one_pass_sig_t &onepass) const
             return false;
         }
     }
+    /* check keyid (V3) */
+    if (onepass.version == PGP_OPS_V3 && (onepass.keyid != keyid())) {
+        return false;
+    }
 #if defined(ENABLE_CRYPTO_REFRESH)
     /* checks for V6 */
     if (onepass.version == PGP_OPS_V6) {
@@ -751,16 +755,12 @@ Signature::matches_onepass(const pgp_one_pass_sig_t &onepass) const
         if (onepass.fp != keyfp()) {
             return false;
         }
-        /* check salt (V6) */
+        /* check salt */
         if (onepass.salt != salt) {
             return false;
         }
     }
 #endif
-    /* check keyid (V3) */
-    if (onepass.version == PGP_OPS_V3 && (onepass.keyid != keyid())) {
-        return false;
-    }
     /* check the remaining common attributes */
     return (halg == onepass.halg) && (palg == onepass.palg) && (type_ == onepass.type);
 }
@@ -1039,7 +1039,8 @@ Signature::parse(pgp_packet_body_t &pkt)
             RNP_LOG("invalid salt size");
             return RNP_ERROR_BAD_FORMAT;
         }
-        if (!pkt.get(salt, salt_size)) {
+        salt.resize(salt_size);
+        if (!pkt.get(salt.data(), salt_size)) {
             RNP_LOG("not enough data for v6 signature salt");
             return RNP_ERROR_BAD_FORMAT;
         }
