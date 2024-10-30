@@ -891,7 +891,7 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         return RNP_ERROR_BAD_FORMAT;
     }
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
     std::vector<uint8_t> tmpbuf;
 #endif
 

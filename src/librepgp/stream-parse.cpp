@@ -1623,7 +1623,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     }
 #endif
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
     /* If AES is forced then salg must be stored plaintext in material */
     sesskey.salg = encmaterial->salg;
     /* check that AES is used when mandated by the standard */
