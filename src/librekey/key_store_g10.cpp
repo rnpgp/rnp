@@ -386,7 +386,7 @@ parse_pubkey(pgp_key_pkt_t &pubkey, const sexp_list_t *s_exp, pgp_pubkey_alg_t a
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY: {
-        pgp_rsa_key_t rsa{};
+        pgp::rsa::Key rsa;
         if (!read_mpi(s_exp, "n", rsa.n) || !read_mpi(s_exp, "e", rsa.e)) {
             return false;
         }
