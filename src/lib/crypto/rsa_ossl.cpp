@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2024, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -41,9 +41,12 @@
 #endif
 #include "hash_ossl.hpp"
 
+namespace pgp {
+namespace rsa {
+
 #ifndef CRYPTO_BACKEND_OPENSSL3
 static RSA *
-rsa_load_public_key(const pgp_rsa_key_t &key)
+load_public_key(const Key &key)
 {
     rnp::bn n(key.n);
     rnp::bn e(key.e);
@@ -73,7 +76,7 @@ rsa_load_public_key(const pgp_rsa_key_t &key)
 }
 
 static RSA *
-rsa_load_secret_key(const pgp_rsa_key_t &key)
+load_secret_key(const Key &key)
 {
     rnp::bn n(key.n);
     rnp::bn e(key.e);
@@ -115,7 +118,7 @@ rsa_load_secret_key(const pgp_rsa_key_t &key)
 }
 
 static EVP_PKEY_CTX *
-rsa_init_context(const pgp_rsa_key_t &key, bool secret)
+init_context(const Key &key, bool secret)
 {
     EVP_PKEY *evpkey = EVP_PKEY_new();
     if (!evpkey) {
@@ -125,7 +128,7 @@ rsa_init_context(const pgp_rsa_key_t &key, bool secret)
         /* LCOV_EXCL_END */
     }
     EVP_PKEY_CTX *ctx = NULL;
-    RSA *         rsakey = secret ? rsa_load_secret_key(key) : rsa_load_public_key(key);
+    RSA *         rsakey = secret ? load_secret_key(key) : load_public_key(key);
     if (!rsakey) {
         goto done;
     }
@@ -146,7 +149,7 @@ done:
 }
 #else
 static OSSL_PARAM *
-rsa_bld_params(const pgp_rsa_key_t &key, bool secret)
+bld_params(const Key &key, bool secret)
 {
     OSSL_PARAM *    params = NULL;
     OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
@@ -222,10 +225,10 @@ done:
 }
 
 static EVP_PKEY *
-rsa_load_key(const pgp_rsa_key_t &key, bool secret)
+load_key(const Key &key, bool secret)
 {
     /* Build params */
-    OSSL_PARAM *params = rsa_bld_params(key, secret);
+    OSSL_PARAM *params = bld_params(key, secret);
     if (!params) {
         return NULL;
     }
@@ -256,9 +259,9 @@ done:
 }
 
 static EVP_PKEY_CTX *
-rsa_init_context(const pgp_rsa_key_t &key, bool secret)
+init_context(const Key &key, bool secret)
 {
-    EVP_PKEY *pkey = rsa_load_key(key, secret);
+    EVP_PKEY *pkey = load_key(key, secret);
     if (!pkey) {
         return NULL;
     }
@@ -272,10 +275,10 @@ rsa_init_context(const pgp_rsa_key_t &key, bool secret)
 #endif
 
 rnp_result_t
-rsa_validate_key(rnp::RNG &rng, const pgp_rsa_key_t &key, bool secret)
+Key::validate(rnp::RNG &rng, bool secret) const noexcept
 {
 #ifdef CRYPTO_BACKEND_OPENSSL3
-    EVP_PKEY_CTX *ctx = rsa_init_context(key, secret);
+    EVP_PKEY_CTX *ctx = init_context(*this, secret);
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to init context: %s", ossl_latest_err());
@@ -290,7 +293,7 @@ rsa_validate_key(rnp::RNG &rng, const pgp_rsa_key_t &key, bool secret)
     return res > 0 ? RNP_SUCCESS : RNP_ERROR_GENERIC;
 #else
     if (secret) {
-        EVP_PKEY_CTX *ctx = rsa_init_context(key, secret);
+        EVP_PKEY_CTX *ctx = init_context(*this, secret);
         if (!ctx) {
             /* LCOV_EXCL_START */
             RNP_LOG("Failed to init context: %s", ossl_latest_err());
@@ -306,16 +309,16 @@ rsa_validate_key(rnp::RNG &rng, const pgp_rsa_key_t &key, bool secret)
     }
 
     /* OpenSSL 1.1.1 doesn't have RSA public key check function, so let's do some checks */
-    rnp::bn n(key.n);
-    rnp::bn e(key.e);
-    if (!n.get() || !e.get()) {
+    rnp::bn on(n);
+    rnp::bn oe(e);
+    if (!on.get() || !oe.get()) {
         /* LCOV_EXCL_START */
         RNP_LOG("out of memory");
         return RNP_ERROR_OUT_OF_MEMORY;
         /* LCOV_EXCL_END */
     }
-    if ((BN_num_bits(n.get()) < 512) || !BN_is_odd(n.get()) || (BN_num_bits(e.get()) < 2) ||
-        !BN_is_odd(e.get())) {
+    if ((BN_num_bits(on.get()) < 512) || !BN_is_odd(on.get()) || (BN_num_bits(oe.get()) < 2) ||
+        !BN_is_odd(oe.get())) {
         return RNP_ERROR_GENERIC;
     }
     return RNP_SUCCESS;
@@ -323,7 +326,7 @@ rsa_validate_key(rnp::RNG &rng, const pgp_rsa_key_t &key, bool secret)
 }
 
 static bool
-rsa_setup_context(EVP_PKEY_CTX *ctx)
+setup_context(EVP_PKEY_CTX *ctx)
 {
     if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING) <= 0) {
         RNP_LOG("Failed to set padding: %lu", ERR_peek_last_error());
@@ -336,10 +339,10 @@ static const uint8_t PKCS1_SHA1_ENCODING[15] = {
   0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14};
 
 static bool
-rsa_setup_signature_hash(EVP_PKEY_CTX *  ctx,
-                         pgp_hash_alg_t  hash_alg,
-                         const uint8_t *&enc,
-                         size_t &        enc_size)
+setup_signature_hash(EVP_PKEY_CTX *  ctx,
+                     pgp_hash_alg_t  hash_alg,
+                     const uint8_t *&enc,
+                     size_t &        enc_size)
 {
     const char *hash_name = rnp::Hash_OpenSSL::name(hash_alg);
     if (!hash_name) {
@@ -366,14 +369,13 @@ rsa_setup_signature_hash(EVP_PKEY_CTX *  ctx,
 }
 
 rnp_result_t
-rsa_encrypt_pkcs1(rnp::RNG &           rng,
-                  pgp_rsa_encrypted_t &out,
-                  const uint8_t *      in,
-                  size_t               in_len,
-                  const pgp_rsa_key_t &key)
+Key::encrypt_pkcs1(rnp::RNG &     rng,
+                   Encrypted &    out,
+                   const uint8_t *in,
+                   size_t         in_len) const noexcept
 {
     rnp_result_t  ret = RNP_ERROR_GENERIC;
-    EVP_PKEY_CTX *ctx = rsa_init_context(key, false);
+    EVP_PKEY_CTX *ctx = init_context(*this, false);
     if (!ctx) {
         return ret;
     }
@@ -381,7 +383,7 @@ rsa_encrypt_pkcs1(rnp::RNG &           rng,
         RNP_LOG("Failed to initialize encryption: %lu", ERR_peek_last_error());
         goto done;
     }
-    if (!rsa_setup_context(ctx)) {
+    if (!setup_context(ctx)) {
         goto done;
     }
     out.m.len = PGP_MPINT_SIZE;
@@ -397,14 +399,13 @@ done:
 }
 
 rnp_result_t
-rsa_verify_pkcs1(const pgp_rsa_signature_t &sig,
-                 pgp_hash_alg_t             hash_alg,
-                 const uint8_t *            hash,
-                 size_t                     hash_len,
-                 const pgp_rsa_key_t &      key)
+Key::verify_pkcs1(const Signature &sig,
+                  pgp_hash_alg_t   hash_alg,
+                  const uint8_t *  hash,
+                  size_t           hash_len) const noexcept
 {
     rnp_result_t  ret = RNP_ERROR_SIGNATURE_INVALID;
-    EVP_PKEY_CTX *ctx = rsa_init_context(key, false);
+    EVP_PKEY_CTX *ctx = init_context(*this, false);
     if (!ctx) {
         return ret;
     }
@@ -417,8 +418,7 @@ rsa_verify_pkcs1(const pgp_rsa_signature_t &sig,
         RNP_LOG("Failed to initialize verification: %lu", ERR_peek_last_error());
         goto done;
     }
-    if (!rsa_setup_context(ctx) ||
-        !rsa_setup_signature_hash(ctx, hash_alg, hash_enc, hash_enc_size)) {
+    if (!setup_context(ctx) || !setup_signature_hash(ctx, hash_alg, hash_enc, hash_enc_size)) {
         goto done;
     }
     /* Check whether we need to workaround on unsupported SHA1 for RSA signature verification
@@ -430,11 +430,11 @@ rsa_verify_pkcs1(const pgp_rsa_signature_t &sig,
         hash_len += hash_enc_size;
     }
     int res;
-    if (sig.s.len < key.n.len) {
+    if (sig.s.len < n.len) {
         /* OpenSSL doesn't like signatures smaller then N */
         pgp::mpi sn;
-        sn.len = key.n.len;
-        size_t diff = key.n.len - sig.s.len;
+        sn.len = n.len;
+        size_t diff = n.len - sig.s.len;
         memset(sn.mpi, 0, diff);
         memcpy(&sn.mpi[diff], sig.s.mpi, sig.s.len);
         res = EVP_PKEY_verify(ctx, sn.mpi, sn.len, hash, hash_len);
@@ -452,19 +452,18 @@ done:
 }
 
 rnp_result_t
-rsa_sign_pkcs1(rnp::RNG &           rng,
-               pgp_rsa_signature_t &sig,
-               pgp_hash_alg_t       hash_alg,
-               const uint8_t *      hash,
-               size_t               hash_len,
-               const pgp_rsa_key_t &key)
+Key::sign_pkcs1(rnp::RNG &     rng,
+                Signature &    sig,
+                pgp_hash_alg_t hash_alg,
+                const uint8_t *hash,
+                size_t         hash_len) const noexcept
 {
     rnp_result_t ret = RNP_ERROR_GENERIC;
-    if (!key.q.bytes()) {
+    if (!q.bytes()) {
         RNP_LOG("private key not set");
         return ret;
     }
-    EVP_PKEY_CTX *ctx = rsa_init_context(key, true);
+    EVP_PKEY_CTX *ctx = init_context(*this, true);
     if (!ctx) {
         return ret;
     }
@@ -476,8 +475,7 @@ rsa_sign_pkcs1(rnp::RNG &           rng,
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
         goto done;
     }
-    if (!rsa_setup_context(ctx) ||
-        !rsa_setup_signature_hash(ctx, hash_alg, hash_enc, hash_enc_size)) {
+    if (!setup_context(ctx) || !setup_signature_hash(ctx, hash_alg, hash_enc, hash_enc_size)) {
         goto done;
     }
     /* Check whether we need to workaround on unsupported SHA1 for RSA signature verification
@@ -501,18 +499,17 @@ done:
 }
 
 rnp_result_t
-rsa_decrypt_pkcs1(rnp::RNG &                 rng,
-                  uint8_t *                  out,
-                  size_t &                   out_len,
-                  const pgp_rsa_encrypted_t &in,
-                  const pgp_rsa_key_t &      key)
+Key::decrypt_pkcs1(rnp::RNG &       rng,
+                   uint8_t *        out,
+                   size_t &         out_len,
+                   const Encrypted &in) const noexcept
 {
     rnp_result_t ret = RNP_ERROR_GENERIC;
-    if (!key.q.bytes()) {
+    if (!q.bytes()) {
         RNP_LOG("private key not set");
         return ret;
     }
-    EVP_PKEY_CTX *ctx = rsa_init_context(key, true);
+    EVP_PKEY_CTX *ctx = init_context(*this, true);
     if (!ctx) {
         return ret;
     }
@@ -520,7 +517,7 @@ rsa_decrypt_pkcs1(rnp::RNG &                 rng,
         RNP_LOG("Failed to initialize encryption: %lu", ERR_peek_last_error());
         goto done;
     }
-    if (!rsa_setup_context(ctx)) {
+    if (!setup_context(ctx)) {
         goto done;
     }
     out_len = PGP_MPINT_SIZE;
@@ -536,7 +533,7 @@ done:
 }
 
 static bool
-rsa_calculate_pqu(const bignum_t *p, const bignum_t *q, const bignum_t *u, pgp_rsa_key_t &key)
+calculate_pqu(const bignum_t *p, const bignum_t *q, const bignum_t *u, Key &key)
 {
     /* OpenSSL doesn't care whether p < q */
     if (BN_cmp(p, q) > 0) {
@@ -578,7 +575,7 @@ rsa_calculate_pqu(const bignum_t *p, const bignum_t *q, const bignum_t *u, pgp_r
 }
 
 static bool
-rsa_extract_key(EVP_PKEY *pkey, pgp_rsa_key_t &key)
+extract_key(EVP_PKEY *pkey, Key &key)
 {
 #if defined(CRYPTO_BACKEND_OPENSSL3)
     rnp::bn n;
@@ -594,7 +591,7 @@ rsa_extract_key(EVP_PKEY *pkey, pgp_rsa_key_t &key)
                EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_FACTOR1, p.ptr()) &&
                EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_FACTOR2, q.ptr()) &&
                EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, u.ptr()) &&
-               rsa_calculate_pqu(p.get(), q.get(), u.get(), key);
+               calculate_pqu(p.get(), q.get(), u.get(), key);
     return res && n.mpi(key.n) && e.mpi(key.e) && d.mpi(key.d);
 #else
     const RSA *rsa = EVP_PKEY_get0_RSA(pkey);
@@ -616,7 +613,7 @@ rsa_extract_key(EVP_PKEY *pkey, pgp_rsa_key_t &key)
     if (!n || !e || !d || !p || !q || !u) {
         return false;
     }
-    if (!rsa_calculate_pqu(p, q, u, key)) {
+    if (!calculate_pqu(p, q, u, key)) {
         return false;
     }
     bn2mpi(n, &key.n);
@@ -627,7 +624,7 @@ rsa_extract_key(EVP_PKEY *pkey, pgp_rsa_key_t &key)
 }
 
 rnp_result_t
-rsa_generate(rnp::RNG &rng, pgp_rsa_key_t &key, size_t numbits)
+Key::generate(rnp::RNG &rng, size_t numbits) noexcept
 {
     if ((numbits < 1024) || (numbits > PGP_MPINT_BITS)) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -654,7 +651,7 @@ rsa_generate(rnp::RNG &rng, pgp_rsa_key_t &key, size_t numbits)
         RNP_LOG("RSA keygen failed: %lu", ERR_peek_last_error());
         goto done;
     }
-    if (rsa_extract_key(pkey, key)) {
+    if (extract_key(pkey, *this)) {
         ret = RNP_SUCCESS;
     }
 done:
@@ -662,3 +659,6 @@ done:
     EVP_PKEY_free(pkey);
     return ret;
 }
+
+} // namespace rsa
+} // namespace pgp

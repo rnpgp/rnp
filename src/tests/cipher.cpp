@@ -754,7 +754,7 @@ class RSATestKeyMaterial : public RSAKeyMaterial {
     {
     }
 
-    pgp_rsa_key_t &
+    rsa::Key &
     rsa()
     {
         return key_;

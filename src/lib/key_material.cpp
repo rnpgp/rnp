@@ -444,7 +444,7 @@ KeyMaterial::create(pgp_pubkey_alg_t alg)
 }
 
 std::unique_ptr<KeyMaterial>
-KeyMaterial::create(pgp_pubkey_alg_t alg, const pgp_rsa_key_t &key)
+KeyMaterial::create(pgp_pubkey_alg_t alg, const rsa::Key &key)
 {
     return std::unique_ptr<pgp::KeyMaterial>(new pgp::RSAKeyMaterial(alg, key));
 }
@@ -494,7 +494,7 @@ RSAKeyMaterial::grip_update(rnp::Hash &hash) const
 bool
 RSAKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 {
-    return !rsa_validate_key(ctx.rng, key_, secret_);
+    return !key_.validate(ctx.rng, secret_);
 }
 
 bool
@@ -556,7 +556,7 @@ RSAKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
         RNP_LOG("Unsupported algorithm for key generation: %d", alg_);
         return false;
     }
-    if (rsa_generate(ctx.rng, key_, params.bits())) {
+    if (key_.generate(ctx.rng, params.bits())) {
         RNP_LOG("failed to generate RSA key");
         return false;
     }
@@ -569,7 +569,7 @@ RSAKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                         const uint8_t *           data,
                         size_t                    len) const
 {
-    return rsa_encrypt_pkcs1(ctx.rng, out.rsa, data, len, key_);
+    return key_.encrypt_pkcs1(ctx.rng, out.rsa, data, len);
 }
 
 rnp_result_t
@@ -582,7 +582,7 @@ RSAKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
         RNP_LOG("Non-encrypting RSA algorithm: %d\n", alg());
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    return rsa_decrypt_pkcs1(ctx.rng, out, out_len, in.rsa, key_);
+    return key_.decrypt_pkcs1(ctx.rng, out, out_len, in.rsa);
 }
 
 rnp_result_t
@@ -594,7 +594,7 @@ RSAKeyMaterial::verify(const rnp::SecurityContext &       ctx,
         RNP_LOG("RSA encrypt-only signature considered as invalid.");
         return RNP_ERROR_SIGNATURE_INVALID;
     }
-    return rsa_verify_pkcs1(sig.rsa, sig.halg, hash.data(), hash.size(), key_);
+    return key_.verify_pkcs1(sig.rsa, sig.halg, hash.data(), hash.size());
 }
 
 rnp_result_t
@@ -602,7 +602,7 @@ RSAKeyMaterial::sign(rnp::SecurityContext &             ctx,
                      pgp_signature_material_t &         sig,
                      const rnp::secure_vector<uint8_t> &hash) const
 {
-    return rsa_sign_pkcs1(ctx.rng, sig.rsa, sig.halg, hash.data(), hash.size(), key_);
+    return key_.sign_pkcs1(ctx.rng, sig.rsa, sig.halg, hash.data(), hash.size());
 }
 
 void
