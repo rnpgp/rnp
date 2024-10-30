@@ -47,11 +47,17 @@ mpi2bn(const pgp::mpi *val)
         RNP_LOG("NULL val.");
         return NULL;
     }
+    return mpi2bn(*val);
+}
+
+bignum_t *
+mpi2bn(const pgp::mpi &val)
+{
     bignum_t *res = bn_new();
     if (!res) {
         return NULL;
     }
-    if (!BN_bin2bn(val->mpi, val->len, res)) {
+    if (!BN_bin2bn(val.mpi, val.len, res)) {
         bn_free(res);
         res = NULL;
     }
@@ -61,8 +67,14 @@ mpi2bn(const pgp::mpi *val)
 bool
 bn2mpi(const bignum_t *bn, pgp::mpi *val)
 {
-    val->len = bn_num_bytes(*bn);
-    return bn_bn2bin(bn, val->mpi) == 0;
+    return val && bn2mpi(bn, *val);
+}
+
+bool
+bn2mpi(const bignum_t *bn, pgp::mpi &val)
+{
+    val.len = bn_num_bytes(*bn);
+    return bn_bn2bin(bn, val.mpi) == 0;
 }
 
 bignum_t *
