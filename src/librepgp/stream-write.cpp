@@ -593,7 +593,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
     /* Crypto Refresh: For X25519/X448 PKESKv3, AES is mandated */
     /* PQC: AES is mandated for PKESKv3 */
     if (!do_encrypt_pkesk_v3_alg_id(userkey->alg()) && pkesk_version == PGP_PKSK_V3) {
@@ -629,7 +629,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
 
     pkey.salg = param->ctx->ealg;
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
     if (pkey.version == PGP_PKSK_V3) {
         size_t key_offset;
         if (do_encrypt_pkesk_v3_alg_id(pkey.alg)) {
@@ -650,11 +650,11 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     } else { // PGP_PKSK_V6
         memcpy(&enckey[0], key, keylen);
 #endif
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
     }
 #endif
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
     if (have_pkesk_checksum(pkey.alg))
 #endif
     {

@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "x25519.h"
+#include "x25519_x448.h"
 #include <botan/x25519.h>
 #include <botan/x448.h>
 #include "exdsa_ecdhkem.h"

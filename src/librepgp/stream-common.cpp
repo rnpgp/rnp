@@ -1189,7 +1189,7 @@ dst_write_src(pgp_source_t *src, pgp_dest_t *dst, uint64_t limit)
     return dst->werr;
 }
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
 bool
 have_pkesk_checksum(pgp_pubkey_alg_t alg)
 {

@@ -102,7 +102,7 @@ typedef struct pgp_ec_signature_t {
     pgp::mpi s;
 } pgp_ec_signature_t;
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
 typedef struct pgp_ed25519_key_t {
     std::vector<uint8_t> pub;  // \  native encoding
     std::vector<uint8_t> priv; // /

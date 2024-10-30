@@ -899,9 +899,9 @@ TEST_F(rnp_tests, test_ffi_decrypt_v6_pkesk_test_vector)
     rnp_output_t output = NULL;
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_true(import_all_keys(ffi, "data/test_v6_valid_data/transferable_seckey_v6.asc"));
+    assert_true(import_all_keys(ffi, "data/RFC9580/A.4.transferable-seckey-v6.asc"));
 
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_v6_valid_data/v6pkesk.asc"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/RFC9580/A.8.5-v6pkesk-v2seipd"));
     assert_non_null(input);
     assert_rnp_success(rnp_output_to_null(&output));
     assert_rnp_success(rnp_decrypt(ffi, input, output));
@@ -920,10 +920,10 @@ TEST_F(rnp_tests, test_ffi_verify_v2_seipd_test_vector)
     rnp_op_verify_t verify = NULL;
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_true(import_all_keys(ffi, "data/test_v6_valid_data/transferable_seckey_v6.asc"));
+    assert_true(import_all_keys(ffi, "data/RFC9580/A.4.transferable-seckey-v6.asc"));
 
     assert_rnp_success(rnp_input_from_path(
-      &input, "data/test_v6_valid_data/a7-sample-inline-signed-message.asc"));
+      &input, "data/RFC9580/A.7.-sample-inline-signed-message.asc"));
     assert_non_null(input);
     assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
@@ -953,10 +953,10 @@ TEST_F(rnp_tests, test_ffi_verify_v2_seipd_cleartext_test_vector)
     rnp_op_verify_t verify = NULL;
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_true(import_all_keys(ffi, "data/test_v6_valid_data/transferable_seckey_v6.asc"));
+    assert_true(import_all_keys(ffi, "data/RFC9580/A.4.transferable-seckey-v6.asc"));
 
     assert_rnp_success(rnp_input_from_path(
-      &input, "data/test_v6_valid_data/a6-sample-cleartext-signed-message.asc"));
+      &input, "data/RFC9580/A.6.-sample-cleartext-signed-message.asc"));
     assert_non_null(input);
     assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
@@ -1086,7 +1086,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
     // setup FFI
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
 
-    assert_true(import_all_keys(ffi, "data/test_v6_valid_data/transferable_seckey_v6.asc"));
+    assert_true(import_all_keys(ffi, "data/RFC9580/A.4.transferable-seckey-v6.asc"));
 
     // No other cipher can be used here: the only 128-bit block ciphers in OpenPGP aside from
     // AES are Camellia and TwoFish.

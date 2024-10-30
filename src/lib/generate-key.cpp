@@ -455,7 +455,7 @@ keygen_primary_merge_defaults(rnp_keygen_primary_desc_t &desc)
         desc.cert.userid = uid;
     }
 
-#if defined(ENABLE_CRYPTO_REFRESH) && defined(ENABLE_PQC)
+#if defined(ENABLE_PQC)
     switch (desc.crypto.key_alg) {
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
