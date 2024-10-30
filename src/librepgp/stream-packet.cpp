@@ -1242,7 +1242,7 @@ pgp_one_pass_sig_t::write(pgp_dest_t &dst) const
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     if (version == PGP_OPS_V6) {
-        pktbody.add(fp.fingerprint, fp.length);
+        pktbody.add(fp.vec());
     }
 #endif
     pktbody.add_byte(nested);
@@ -1324,7 +1324,7 @@ pgp_one_pass_sig_t::parse_v6(pgp_packet_body_t &pkt)
         RNP_LOG("failed to get fingerprint");
         return RNP_ERROR_BAD_FORMAT;
     }
-    fp = pgp_fingerprint_t(fp_vec);
+    fp = pgp::Fingerprint(fp_vec.data(), fp_vec.size());
 
     /* nested flag */
     if (!pkt.get(buf, 1)) {
