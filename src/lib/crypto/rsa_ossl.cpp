@@ -43,10 +43,10 @@
 
 #ifndef CRYPTO_BACKEND_OPENSSL3
 static RSA *
-rsa_load_public_key(const pgp_rsa_key_t *key)
+rsa_load_public_key(const pgp_rsa_key_t &key)
 {
-    rnp::bn n(key->n);
-    rnp::bn e(key->e);
+    rnp::bn n(key.n);
+    rnp::bn e(key.e);
 
     if (!n.get() || !e.get()) {
         /* LCOV_EXCL_START */
@@ -73,13 +73,13 @@ rsa_load_public_key(const pgp_rsa_key_t *key)
 }
 
 static RSA *
-rsa_load_secret_key(const pgp_rsa_key_t *key)
+rsa_load_secret_key(const pgp_rsa_key_t &key)
 {
-    rnp::bn n(key->n);
-    rnp::bn e(key->e);
-    rnp::bn p(key->p);
-    rnp::bn q(key->q);
-    rnp::bn d(key->d);
+    rnp::bn n(key.n);
+    rnp::bn e(key.e);
+    rnp::bn p(key.p);
+    rnp::bn q(key.q);
+    rnp::bn d(key.d);
 
     if (!n.get() || !p.get() || !q.get() || !e.get() || !d.get()) {
         /* LCOV_EXCL_START */
@@ -115,7 +115,7 @@ rsa_load_secret_key(const pgp_rsa_key_t *key)
 }
 
 static EVP_PKEY_CTX *
-rsa_init_context(const pgp_rsa_key_t *key, bool secret)
+rsa_init_context(const pgp_rsa_key_t &key, bool secret)
 {
     EVP_PKEY *evpkey = EVP_PKEY_new();
     if (!evpkey) {
@@ -146,12 +146,12 @@ done:
 }
 #else
 static OSSL_PARAM *
-rsa_bld_params(const pgp_rsa_key_t *key, bool secret)
+rsa_bld_params(const pgp_rsa_key_t &key, bool secret)
 {
     OSSL_PARAM *    params = NULL;
     OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
-    rnp::bn         n(key->n);
-    rnp::bn         e(key->e);
+    rnp::bn         n(key.n);
+    rnp::bn         e(key.e);
     rnp::bn         d;
     rnp::bn         p;
     rnp::bn         q;
@@ -174,12 +174,12 @@ rsa_bld_params(const pgp_rsa_key_t *key, bool secret)
         /* LCOV_EXCL_END */
     }
     if (secret) {
-        d.set(key->d);
+        d.set(key.d);
         /* As we have u = p^-1 mod q, and qInv = q^-1 mod p, we need to replace one with
          * another */
-        p.set(key->q);
-        q.set(key->p);
-        u.set(key->u);
+        p.set(key.q);
+        q.set(key.p);
+        u.set(key.u);
         if (!d.get() || !p.get() || !q.get() || !u.get()) {
             goto done;
         }
@@ -222,7 +222,7 @@ done:
 }
 
 static EVP_PKEY *
-rsa_load_key(const pgp_rsa_key_t *key, bool secret)
+rsa_load_key(const pgp_rsa_key_t &key, bool secret)
 {
     /* Build params */
     OSSL_PARAM *params = rsa_bld_params(key, secret);
@@ -256,7 +256,7 @@ done:
 }
 
 static EVP_PKEY_CTX *
-rsa_init_context(const pgp_rsa_key_t *key, bool secret)
+rsa_init_context(const pgp_rsa_key_t &key, bool secret)
 {
     EVP_PKEY *pkey = rsa_load_key(key, secret);
     if (!pkey) {
@@ -272,7 +272,7 @@ rsa_init_context(const pgp_rsa_key_t *key, bool secret)
 #endif
 
 rnp_result_t
-rsa_validate_key(rnp::RNG *rng, const pgp_rsa_key_t *key, bool secret)
+rsa_validate_key(rnp::RNG &rng, const pgp_rsa_key_t &key, bool secret)
 {
 #ifdef CRYPTO_BACKEND_OPENSSL3
     EVP_PKEY_CTX *ctx = rsa_init_context(key, secret);
@@ -306,8 +306,8 @@ rsa_validate_key(rnp::RNG *rng, const pgp_rsa_key_t *key, bool secret)
     }
 
     /* OpenSSL 1.1.1 doesn't have RSA public key check function, so let's do some checks */
-    rnp::bn n(key->n);
-    rnp::bn e(key->e);
+    rnp::bn n(key.n);
+    rnp::bn e(key.e);
     if (!n.get() || !e.get()) {
         /* LCOV_EXCL_START */
         RNP_LOG("out of memory");
@@ -366,11 +366,11 @@ rsa_setup_signature_hash(EVP_PKEY_CTX *  ctx,
 }
 
 rnp_result_t
-rsa_encrypt_pkcs1(rnp::RNG *           rng,
-                  pgp_rsa_encrypted_t *out,
+rsa_encrypt_pkcs1(rnp::RNG &           rng,
+                  pgp_rsa_encrypted_t &out,
                   const uint8_t *      in,
                   size_t               in_len,
-                  const pgp_rsa_key_t *key)
+                  const pgp_rsa_key_t &key)
 {
     rnp_result_t  ret = RNP_ERROR_GENERIC;
     EVP_PKEY_CTX *ctx = rsa_init_context(key, false);
@@ -384,10 +384,10 @@ rsa_encrypt_pkcs1(rnp::RNG *           rng,
     if (!rsa_setup_context(ctx)) {
         goto done;
     }
-    out->m.len = sizeof(out->m.mpi);
-    if (EVP_PKEY_encrypt(ctx, out->m.mpi, &out->m.len, in, in_len) <= 0) {
+    out.m.len = PGP_MPINT_SIZE;
+    if (EVP_PKEY_encrypt(ctx, out.m.mpi, &out.m.len, in, in_len) <= 0) {
         RNP_LOG("Encryption failed: %lu", ERR_peek_last_error());
-        out->m.len = 0;
+        out.m.len = 0;
         goto done;
     }
     ret = RNP_SUCCESS;
@@ -397,11 +397,11 @@ done:
 }
 
 rnp_result_t
-rsa_verify_pkcs1(const pgp_rsa_signature_t *sig,
+rsa_verify_pkcs1(const pgp_rsa_signature_t &sig,
                  pgp_hash_alg_t             hash_alg,
                  const uint8_t *            hash,
                  size_t                     hash_len,
-                 const pgp_rsa_key_t *      key)
+                 const pgp_rsa_key_t &      key)
 {
     rnp_result_t  ret = RNP_ERROR_SIGNATURE_INVALID;
     EVP_PKEY_CTX *ctx = rsa_init_context(key, false);
@@ -430,16 +430,16 @@ rsa_verify_pkcs1(const pgp_rsa_signature_t *sig,
         hash_len += hash_enc_size;
     }
     int res;
-    if (sig->s.len < key->n.len) {
+    if (sig.s.len < key.n.len) {
         /* OpenSSL doesn't like signatures smaller then N */
         pgp::mpi sn;
-        sn.len = key->n.len;
-        size_t diff = key->n.len - sig->s.len;
+        sn.len = key.n.len;
+        size_t diff = key.n.len - sig.s.len;
         memset(sn.mpi, 0, diff);
-        memcpy(&sn.mpi[diff], sig->s.mpi, sig->s.len);
+        memcpy(&sn.mpi[diff], sig.s.mpi, sig.s.len);
         res = EVP_PKEY_verify(ctx, sn.mpi, sn.len, hash, hash_len);
     } else {
-        res = EVP_PKEY_verify(ctx, sig->s.mpi, sig->s.len, hash, hash_len);
+        res = EVP_PKEY_verify(ctx, sig.s.mpi, sig.s.len, hash, hash_len);
     }
     if (res > 0) {
         ret = RNP_SUCCESS;
@@ -452,15 +452,15 @@ done:
 }
 
 rnp_result_t
-rsa_sign_pkcs1(rnp::RNG *           rng,
-               pgp_rsa_signature_t *sig,
+rsa_sign_pkcs1(rnp::RNG &           rng,
+               pgp_rsa_signature_t &sig,
                pgp_hash_alg_t       hash_alg,
                const uint8_t *      hash,
                size_t               hash_len,
-               const pgp_rsa_key_t *key)
+               const pgp_rsa_key_t &key)
 {
     rnp_result_t ret = RNP_ERROR_GENERIC;
-    if (!key->q.bytes()) {
+    if (!key.q.bytes()) {
         RNP_LOG("private key not set");
         return ret;
     }
@@ -488,10 +488,10 @@ rsa_sign_pkcs1(rnp::RNG *           rng,
         hash = hash_enc_buf;
         hash_len += hash_enc_size;
     }
-    sig->s.len = PGP_MPINT_SIZE;
-    if (EVP_PKEY_sign(ctx, sig->s.mpi, &sig->s.len, hash, hash_len) <= 0) {
+    sig.s.len = PGP_MPINT_SIZE;
+    if (EVP_PKEY_sign(ctx, sig.s.mpi, &sig.s.len, hash, hash_len) <= 0) {
         RNP_LOG("Encryption failed: %lu", ERR_peek_last_error());
-        sig->s.len = 0;
+        sig.s.len = 0;
         goto done;
     }
     ret = RNP_SUCCESS;
@@ -501,14 +501,14 @@ done:
 }
 
 rnp_result_t
-rsa_decrypt_pkcs1(rnp::RNG *                 rng,
+rsa_decrypt_pkcs1(rnp::RNG &                 rng,
                   uint8_t *                  out,
-                  size_t *                   out_len,
-                  const pgp_rsa_encrypted_t *in,
-                  const pgp_rsa_key_t *      key)
+                  size_t &                   out_len,
+                  const pgp_rsa_encrypted_t &in,
+                  const pgp_rsa_key_t &      key)
 {
     rnp_result_t ret = RNP_ERROR_GENERIC;
-    if (!key->q.bytes()) {
+    if (!key.q.bytes()) {
         RNP_LOG("private key not set");
         return ret;
     }
@@ -523,10 +523,10 @@ rsa_decrypt_pkcs1(rnp::RNG *                 rng,
     if (!rsa_setup_context(ctx)) {
         goto done;
     }
-    *out_len = PGP_MPINT_SIZE;
-    if (EVP_PKEY_decrypt(ctx, out, out_len, in->m.mpi, in->m.len) <= 0) {
+    out_len = PGP_MPINT_SIZE;
+    if (EVP_PKEY_decrypt(ctx, out, &out_len, in.m.mpi, in.m.len) <= 0) {
         RNP_LOG("Encryption failed: %lu", ERR_peek_last_error());
-        *out_len = 0;
+        out_len = 0;
         goto done;
     }
     ret = RNP_SUCCESS;
@@ -627,7 +627,7 @@ rsa_extract_key(EVP_PKEY *pkey, pgp_rsa_key_t &key)
 }
 
 rnp_result_t
-rsa_generate(rnp::RNG *rng, pgp_rsa_key_t *key, size_t numbits)
+rsa_generate(rnp::RNG &rng, pgp_rsa_key_t &key, size_t numbits)
 {
     if ((numbits < 1024) || (numbits > PGP_MPINT_BITS)) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -654,7 +654,7 @@ rsa_generate(rnp::RNG *rng, pgp_rsa_key_t *key, size_t numbits)
         RNP_LOG("RSA keygen failed: %lu", ERR_peek_last_error());
         goto done;
     }
-    if (rsa_extract_key(pkey, *key)) {
+    if (rsa_extract_key(pkey, key)) {
         ret = RNP_SUCCESS;
     }
 done:
