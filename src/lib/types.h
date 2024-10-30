@@ -170,7 +170,7 @@ typedef struct pgp_validity_t {
  */
 typedef struct pgp_signature_material_t {
     union {
-        pgp_rsa_signature_t rsa;
+        pgp::rsa::Signature rsa;
         pgp_dsa_signature_t dsa;
         pgp_ec_signature_t  ecc;
         pgp_eg_signature_t  eg;
@@ -191,7 +191,7 @@ typedef struct pgp_signature_material_t {
  */
 typedef struct pgp_encrypted_material_t {
     union {
-        pgp_rsa_encrypted_t  rsa;
+        pgp::rsa::Encrypted  rsa;
         pgp_eg_encrypted_t   eg;
         pgp_sm2_encrypted_t  sm2;
         pgp_ecdh_encrypted_t ecdh;
