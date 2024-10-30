@@ -24,57 +24,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*-
- * Copyright (c) 2009 The NetBSD Foundation, Inc.
- * All rights reserved.
- *
- * This code is derived from software contributed to The NetBSD Foundation
- * by Alistair Crooks (agc@NetBSD.org)
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-/*
- * Copyright (c) 2005-2008 Nominet UK (www.nic.uk)
- * All rights reserved.
- * Contributors: Ben Laurie, Rachel Willmer. The Contributors have asserted
- * their moral rights under the UK Copyright Design and Patents Act 1988 to
- * be recorded as the authors of this copyright work.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License.
- *
- * You may obtain a copy of the License at
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/** \file
- */
 #include <string>
 #include <cstring>
 #include <botan/ffi.h>
@@ -85,7 +34,7 @@
 #include "bn.h"
 
 rnp_result_t
-rsa_validate_key(rnp::RNG *rng, const pgp_rsa_key_t *key, bool secret)
+rsa_validate_key(rnp::RNG &rng, const pgp_rsa_key_t &key, bool secret)
 {
     bignum_t *      n = NULL;
     bignum_t *      e = NULL;
@@ -96,7 +45,7 @@ rsa_validate_key(rnp::RNG *rng, const pgp_rsa_key_t *key, bool secret)
     rnp_result_t    ret = RNP_ERROR_GENERIC;
 
     /* load and check public key part */
-    if (!(n = mpi2bn(&key->n)) || !(e = mpi2bn(&key->e))) {
+    if (!(n = mpi2bn(key.n)) || !(e = mpi2bn(key.e))) {
         RNP_LOG("out of memory");
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
@@ -106,7 +55,7 @@ rsa_validate_key(rnp::RNG *rng, const pgp_rsa_key_t *key, bool secret)
         goto done;
     }
 
-    if (botan_pubkey_check_key(bpkey, rng->handle(), 0)) {
+    if (botan_pubkey_check_key(bpkey, rng.handle(), 0)) {
         goto done;
     }
 
@@ -116,7 +65,7 @@ rsa_validate_key(rnp::RNG *rng, const pgp_rsa_key_t *key, bool secret)
     }
 
     /* load and check secret key part */
-    if (!(p = mpi2bn(&key->p)) || !(q = mpi2bn(&key->q))) {
+    if (!(p = mpi2bn(key.p)) || !(q = mpi2bn(key.q))) {
         RNP_LOG("out of memory");
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
@@ -127,7 +76,7 @@ rsa_validate_key(rnp::RNG *rng, const pgp_rsa_key_t *key, bool secret)
         goto done;
     }
 
-    if (botan_privkey_check_key(bskey, rng->handle(), 0)) {
+    if (botan_privkey_check_key(bskey, rng.handle(), 0)) {
         goto done;
     }
     ret = RNP_SUCCESS;
@@ -142,15 +91,15 @@ done:
 }
 
 static bool
-rsa_load_public_key(botan_pubkey_t *bkey, const pgp_rsa_key_t *key)
+rsa_load_public_key(botan_pubkey_t *bkey, const pgp_rsa_key_t &key)
 {
     bignum_t *n = NULL;
     bignum_t *e = NULL;
     bool      res = false;
 
     *bkey = NULL;
-    n = mpi2bn(&key->n);
-    e = mpi2bn(&key->e);
+    n = mpi2bn(key.n);
+    e = mpi2bn(key.e);
 
     if (!n || !e) {
         RNP_LOG("out of memory");
@@ -165,7 +114,7 @@ done:
 }
 
 static bool
-rsa_load_secret_key(botan_privkey_t *bkey, const pgp_rsa_key_t *key)
+rsa_load_secret_key(botan_privkey_t *bkey, const pgp_rsa_key_t &key)
 {
     bignum_t *p = NULL;
     bignum_t *q = NULL;
@@ -173,9 +122,9 @@ rsa_load_secret_key(botan_privkey_t *bkey, const pgp_rsa_key_t *key)
     bool      res = false;
 
     *bkey = NULL;
-    p = mpi2bn(&key->p);
-    q = mpi2bn(&key->q);
-    e = mpi2bn(&key->e);
+    p = mpi2bn(key.p);
+    q = mpi2bn(key.q);
+    e = mpi2bn(key.e);
 
     if (!p || !q || !e) {
         RNP_LOG("out of memory");
@@ -192,11 +141,11 @@ done:
 }
 
 rnp_result_t
-rsa_encrypt_pkcs1(rnp::RNG *           rng,
-                  pgp_rsa_encrypted_t *out,
+rsa_encrypt_pkcs1(rnp::RNG &           rng,
+                  pgp_rsa_encrypted_t &out,
                   const uint8_t *      in,
                   size_t               in_len,
-                  const pgp_rsa_key_t *key)
+                  const pgp_rsa_key_t &key)
 {
     rnp_result_t          ret = RNP_ERROR_GENERIC;
     botan_pubkey_t        rsa_key = NULL;
@@ -211,9 +160,9 @@ rsa_encrypt_pkcs1(rnp::RNG *           rng,
         goto done;
     }
 
-    out->m.len = sizeof(out->m.mpi);
-    if (botan_pk_op_encrypt(enc_op, rng->handle(), out->m.mpi, &out->m.len, in, in_len)) {
-        out->m.len = 0;
+    out.m.len = PGP_MPINT_SIZE;
+    if (botan_pk_op_encrypt(enc_op, rng.handle(), out.m.mpi, &out.m.len, in, in_len)) {
+        out.m.len = 0;
         goto done;
     }
     ret = RNP_SUCCESS;
@@ -224,11 +173,11 @@ done:
 }
 
 rnp_result_t
-rsa_verify_pkcs1(const pgp_rsa_signature_t *sig,
+rsa_verify_pkcs1(const pgp_rsa_signature_t &sig,
                  pgp_hash_alg_t             hash_alg,
                  const uint8_t *            hash,
                  size_t                     hash_len,
-                 const pgp_rsa_key_t *      key)
+                 const pgp_rsa_key_t &      key)
 {
     char                 padding_name[64] = {0};
     botan_pubkey_t       rsa_key = NULL;
@@ -253,7 +202,7 @@ rsa_verify_pkcs1(const pgp_rsa_signature_t *sig,
         goto done;
     }
 
-    if (botan_pk_op_verify_finish(verify_op, sig->s.mpi, sig->s.len) != 0) {
+    if (botan_pk_op_verify_finish(verify_op, sig.s.mpi, sig.s.len) != 0) {
         goto done;
     }
 
@@ -265,14 +214,14 @@ done:
 }
 
 rnp_result_t
-rsa_sign_pkcs1(rnp::RNG *           rng,
-               pgp_rsa_signature_t *sig,
+rsa_sign_pkcs1(rnp::RNG &           rng,
+               pgp_rsa_signature_t &sig,
                pgp_hash_alg_t       hash_alg,
                const uint8_t *      hash,
                size_t               hash_len,
-               const pgp_rsa_key_t *key)
+               const pgp_rsa_key_t &key)
 {
-    if (!key->q.bytes()) {
+    if (!key.q.bytes()) {
         RNP_LOG("private key not set");
         return RNP_ERROR_GENERIC;
     }
@@ -299,8 +248,8 @@ rsa_sign_pkcs1(rnp::RNG *           rng,
         goto done;
     }
 
-    sig->s.len = sizeof(sig->s.mpi);
-    if (botan_pk_op_sign_finish(sign_op, rng->handle(), sig->s.mpi, &sig->s.len)) {
+    sig.s.len = PGP_MPINT_SIZE;
+    if (botan_pk_op_sign_finish(sign_op, rng.handle(), sig.s.mpi, &sig.s.len)) {
         goto done;
     }
 
@@ -312,13 +261,13 @@ done:
 }
 
 rnp_result_t
-rsa_decrypt_pkcs1(rnp::RNG *                 rng,
+rsa_decrypt_pkcs1(rnp::RNG &                 rng,
                   uint8_t *                  out,
-                  size_t *                   out_len,
-                  const pgp_rsa_encrypted_t *in,
-                  const pgp_rsa_key_t *      key)
+                  size_t &                   out_len,
+                  const pgp_rsa_encrypted_t &in,
+                  const pgp_rsa_key_t &      key)
 {
-    if (!key->q.bytes()) {
+    if (!key.q.bytes()) {
         RNP_LOG("private key not set");
         return RNP_ERROR_GENERIC;
     }
@@ -336,11 +285,11 @@ rsa_decrypt_pkcs1(rnp::RNG *                 rng,
         goto done;
     }
     /* Skip trailing zeroes if any as Botan3 doesn't like m.len > e.len */
-    while ((in->m.len - skip > key->e.len) && !in->m.mpi[skip]) {
+    while ((in..m.len - skip > key.e.len) && !in.m.mpi[skip]) {
         skip++;
     }
-    *out_len = PGP_MPINT_SIZE;
-    if (botan_pk_op_decrypt(decrypt_op, out, out_len, in->m.mpi + skip, in->m.len - skip)) {
+    out_len = PGP_MPINT_SIZE;
+    if (botan_pk_op_decrypt(decrypt_op, out, &out_len, in.m.mpi + skip, in.m.len - skip)) {
         goto done;
     }
     ret = RNP_SUCCESS;
@@ -351,7 +300,7 @@ done:
 }
 
 rnp_result_t
-rsa_generate(rnp::RNG *rng, pgp_rsa_key_t *key, size_t numbits)
+rsa_generate(rnp::RNG &rng, pgp_rsa_key_t &key, size_t numbits)
 {
     if ((numbits < 1024) || (numbits > PGP_MPINT_BITS)) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -372,12 +321,11 @@ rsa_generate(rnp::RNG *rng, pgp_rsa_key_t *key, size_t numbits)
         goto end;
     }
 
-    if (botan_privkey_create(
-          &rsa_key, "RSA", std::to_string(numbits).c_str(), rng->handle())) {
+    if (botan_privkey_create(&rsa_key, "RSA", std::to_string(numbits).c_str(), rng.handle())) {
         goto end;
     }
 
-    if (botan_privkey_check_key(rsa_key, rng->handle(), 1) != 0) {
+    if (botan_privkey_check_key(rsa_key, rng.handle(), 1) != 0) {
         goto end;
     }
 
@@ -401,12 +349,12 @@ rsa_generate(rnp::RNG *rng, pgp_rsa_key_t *key, size_t numbits)
         goto end;
     }
 
-    bn2mpi(n, &key->n);
-    bn2mpi(e, &key->e);
-    bn2mpi(p, &key->p);
-    bn2mpi(q, &key->q);
-    bn2mpi(d, &key->d);
-    bn2mpi(u, &key->u);
+    bn2mpi(n, key.n);
+    bn2mpi(e, key.e);
+    bn2mpi(p, key.p);
+    bn2mpi(q, key.q);
+    bn2mpi(d, key.d);
+    bn2mpi(u, key.u);
 
     ret = RNP_SUCCESS;
 end:
