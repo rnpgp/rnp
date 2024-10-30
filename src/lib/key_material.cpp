@@ -446,19 +446,19 @@ KeyMaterial::create(pgp_pubkey_alg_t alg)
 std::unique_ptr<KeyMaterial>
 KeyMaterial::create(pgp_pubkey_alg_t alg, const rsa::Key &key)
 {
-    return std::unique_ptr<pgp::KeyMaterial>(new pgp::RSAKeyMaterial(alg, key));
+    return std::unique_ptr<KeyMaterial>(new RSAKeyMaterial(alg, key));
 }
 
 std::unique_ptr<KeyMaterial>
 KeyMaterial::create(const dsa::Key &key)
 {
-    return std::unique_ptr<pgp::KeyMaterial>(new pgp::DSAKeyMaterial(key));
+    return std::unique_ptr<KeyMaterial>(new DSAKeyMaterial(key));
 }
 
 std::unique_ptr<KeyMaterial>
 KeyMaterial::create(pgp_pubkey_alg_t alg, const eg::Key &key)
 {
-    return std::unique_ptr<pgp::KeyMaterial>(new pgp::EGKeyMaterial(alg, key));
+    return std::unique_ptr<KeyMaterial>(new EGKeyMaterial(alg, key));
 }
 
 std::unique_ptr<KeyMaterial>
@@ -466,13 +466,13 @@ KeyMaterial::create(pgp_pubkey_alg_t alg, const ec::Key &key)
 {
     switch (alg) {
     case PGP_PKA_ECDSA:
-        return std::unique_ptr<pgp::KeyMaterial>(new pgp::ECDSAKeyMaterial(key));
+        return std::unique_ptr<KeyMaterial>(new ECDSAKeyMaterial(key));
     case PGP_PKA_ECDH:
-        return std::unique_ptr<pgp::KeyMaterial>(new pgp::ECDHKeyMaterial(key));
+        return std::unique_ptr<KeyMaterial>(new ECDHKeyMaterial(key));
     case PGP_PKA_EDDSA:
-        return std::unique_ptr<pgp::KeyMaterial>(new pgp::EDDSAKeyMaterial(key));
+        return std::unique_ptr<KeyMaterial>(new EDDSAKeyMaterial(key));
     case PGP_PKA_SM2:
-        return std::unique_ptr<pgp::KeyMaterial>(new pgp::SM2KeyMaterial(key));
+        return std::unique_ptr<KeyMaterial>(new SM2KeyMaterial(key));
     default:
         throw std::invalid_argument("Invalid EC algorithm.");
     }
