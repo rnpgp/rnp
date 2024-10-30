@@ -718,7 +718,7 @@ TEST_F(rnp_tests, sphincsplus_signverify_success)
             auto &                 key1 = *seckey1.material;
             auto &                 key2 = *seckey2.material;
             rnp::secure_bytes      hash(message, message + sizeof(message));
-            pgp::SlhdsaSigMaterial sig(keygen.hash());
+            pgp::SlhdsaSigMaterial sig(algs[i], keygen.hash());
             assert_rnp_success(key1.sign(global_ctx, sig, hash));
             assert_rnp_success(key1.verify(global_ctx, sig, hash));
 

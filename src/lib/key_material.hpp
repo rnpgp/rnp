@@ -526,7 +526,6 @@ class Ed448KeyMaterial : public KeyMaterial {
     Ed448KeyMaterial() : KeyMaterial(PGP_PKA_ED448), key_{} {};
     std::unique_ptr<KeyMaterial> clone() override;
 
-    bool         equals(const KeyMaterial &value) const noexcept override;
     void         clear_secret() noexcept override;
     bool         parse(pgp_packet_body_t &pkt) noexcept override;
     bool         parse_secret(pgp_packet_body_t &pkt) noexcept override;
@@ -534,10 +533,10 @@ class Ed448KeyMaterial : public KeyMaterial {
     void         write_secret(pgp_packet_body_t &pkt) const override;
    bool         generate(rnp::SecurityContext &ctx, const KeyParams &params) override;
     rnp_result_t verify(const rnp::SecurityContext &       ctx,
-                        const pgp_signature_material_t &   sig,
+                        const SigMaterial &   sig,
                         const rnp::secure_vector<uint8_t> &hash) const override;
     rnp_result_t sign(rnp::SecurityContext &             ctx,
-                      pgp_signature_material_t &         sig,
+                      SigMaterial &         sig,
                       const rnp::secure_vector<uint8_t> &hash) const override;
     size_t       bits() const noexcept override;
     pgp_curve_t  curve() const noexcept override;
@@ -557,21 +556,18 @@ class X448KeyMaterial : public KeyMaterial {
     X448KeyMaterial() : KeyMaterial(PGP_PKA_X448), key_{} {};
     std::unique_ptr<KeyMaterial> clone() override;
 
-    bool         equals(const KeyMaterial &value) const noexcept override;
     void         clear_secret() noexcept override;
     bool         parse(pgp_packet_body_t &pkt) noexcept override;
     bool         parse_secret(pgp_packet_body_t &pkt) noexcept override;
     void         write(pgp_packet_body_t &pkt) const override;
     void         write_secret(pgp_packet_body_t &pkt) const override;
     bool         generate(rnp::SecurityContext &ctx, const KeyParams &params) override;
-    rnp_result_t encrypt(rnp::SecurityContext &    ctx,
-                         pgp_encrypted_material_t &out,
-                         const uint8_t *           data,
-                         size_t                    len) const override;
-    rnp_result_t decrypt(rnp::SecurityContext &          ctx,
-                         uint8_t *                       out,
-                         size_t &                        out_len,
-                         const pgp_encrypted_material_t &in) const override;
+    rnp_result_t encrypt(rnp::SecurityContext &   ctx,
+                         EncMaterial &            out,
+                         const rnp::secure_bytes &data) const override;
+    rnp_result_t decrypt(rnp::SecurityContext &ctx,
+                         rnp::secure_bytes &   out,
+                         const EncMaterial &   in) const override;
     size_t       bits() const noexcept override;
     pgp_curve_t  curve() const noexcept override;
 

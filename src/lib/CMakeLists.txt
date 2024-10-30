@@ -31,10 +31,7 @@ find_package(ZLIB REQUIRED)
 
 # required packages
 find_package(JSON-C 0.11 REQUIRED)
-if(ENABLE_PQC)
-  find_package(Botan 3.6.0 REQUIRED)
-  set(CRYPTO_BACKEND_BOTAN3 1)
-elseif(ENABLE_CRYPTO_REFRESH)
+if(ENABLE_CRYPTO_REFRESH)
   find_package(Botan 3.6.0 REQUIRED)
   set(CRYPTO_BACKEND_BOTAN3 1)
 else()
@@ -68,7 +65,7 @@ if(CRYPTO_BACKEND_BOTAN3)
   set(CMAKE_CXX_STANDARD 20)
 endif()
 
-if(ENABLE_PQC)
+if(ENABLE_CRYPTO_REFRESH)
   if (NOT CRYPTO_BACKEND_BOTAN3)
     message(FATAL_ERROR "ENABLE_PQC requires Botan 3 as crypto backend")
   endif()
@@ -77,6 +74,10 @@ endif()
 # check that AEAD is enabled and not turned off for ENABLE_CRYPTO_REFRESH
 if(ENABLE_CRYPTO_REFRESH AND (NOT ENABLE_AEAD))
   message(FATAL_ERROR "ENABLE_CRYPTO_REFRESH requires ENABLE_AEAD, but it's either Off or Auto and got turned off")
+endif()
+# check that ENABLE_CRYPTO_REFRESH is enabled for ENABLE_PQC
+if(ENABLE_PQC AND (NOT ENABLE_CRYPTO_REFRESH))
+  message(FATAL_ERROR "ENABLE_PQC requires ENABLE_CRYPTO_REFRESH")
 endif()
 
 # generate a config.h
@@ -356,14 +357,11 @@ elseif(CRYPTO_BACKEND_BOTAN)
   if(ENABLE_SM2)
     list(APPEND CRYPTO_SOURCES crypto/sm2.cpp)
   endif()
-  if(ENABLE_PQC OR ENABLE_CRYPTO_REFRESH)
-    list(APPEND CRYPTO_SOURCES
-        crypto/exdsa_ecdhkem.cpp
-        crypto/ed25519.cpp
-        crypto/x25519.cpp
-  )
   if(ENABLE_CRYPTO_REFRESH)
     list(APPEND CRYPTO_SOURCES
+        crypto/exdsa_ecdhkem.cpp
+        crypto/ed25519_ed448.cpp
+        crypto/x25519_x448.cpp
         crypto/hkdf.cpp
         crypto/hkdf_botan.cpp
     )
@@ -381,7 +379,6 @@ elseif(CRYPTO_BACKEND_BOTAN)
         crypto/kmac_botan.cpp
     )
     endif()
-  endif()
 else()
   message(FATAL_ERROR "Unknown crypto backend: ${CRYPTO_BACKEND}.")
 endif()

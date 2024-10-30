@@ -32,9 +32,9 @@
 #include "utils.h"
 #include "mem.h"
 #include "botan_utils.hpp"
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
-#include "x25519.h"
-#include "ed25519.h"
+#if defined(ENABLE_CRYPTO_REFRESH)
+#include "x25519_x448.h"
+#include "ed25519_ed448.h"
 #include "botan_utils.hpp"
 #include "botan/bigint.h"
 #include "botan/ecdh.h"
@@ -160,7 +160,7 @@ Key::generate(rnp::RNG &rng, const pgp_pubkey_alg_t alg_id, const pgp_curve_t cu
 } // namespace ec
 } // namespace pgp
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
 static bool
 is_generic_prime_curve(pgp_curve_t curve)
 {

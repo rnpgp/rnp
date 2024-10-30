@@ -165,12 +165,24 @@ X25519EncMaterial::parse(pgp_packet_body_t &pkt) noexcept
     return true;
 }
 
+void
+X25519EncMaterial::write(pgp_packet_body_t &pkt) const
+{
+    uint8_t inc = ((version == PGP_PKSK_V3) ? 1 : 0);
+    pkt.add(enc.eph_key);
+    pkt.add_byte(static_cast<uint8_t>(enc.enc_sess_key.size() + inc));
+    if (version == PGP_PKSK_V3) {
+        pkt.add_byte(salg); /* added as plaintext */
+    }
+    pkt.add(enc.enc_sess_key);
+}
+
 bool
 X448EncMaterial::parse(pgp_packet_body_t &pkt) noexcept
 {
-        const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_448);
-        enc.eph_key.eph_key.resize(BITS_TO_BYTES(ec_desc->bitlen));
-        if (!pkt.get(enc.eph_key.data(), enc.eph_key.eph_key.size())) {
+        auto ec_desc = ec::Curve::get(PGP_CURVE_448);
+        enc.eph_key.resize(BITS_TO_BYTES(ec_desc->bitlen));
+        if (!pkt.get(enc.eph_key.data(), enc.eph_key.size())) {
             RNP_LOG("failed to parse X448 PKESK (eph. pubkey)");
             return false;
         }
@@ -180,7 +192,7 @@ X448EncMaterial::parse(pgp_packet_body_t &pkt) noexcept
             return false;
         }
         /* get plaintext salg if PKESKv3 */
-        if ((version == PGP_PKSK_V3) && !do_encrypt_pkesk_v3_alg_id(alg)) {
+        if (version == PGP_PKSK_V3) {
             uint8_t                bt = 0;
             if (!pkt.get(bt)) {
                 RNP_LOG("failed to get salg");
@@ -194,12 +206,12 @@ X448EncMaterial::parse(pgp_packet_body_t &pkt) noexcept
             RNP_LOG("failed to parse X448 PKESK (enc sesskey)");
             return false;
         }
-        break;
+        return true;
 }
 
 
 void
-X25519EncMaterial::write(pgp_packet_body_t &pkt) const
+X448EncMaterial::write(pgp_packet_body_t &pkt) const
 {
     uint8_t inc = ((version == PGP_PKSK_V3) ? 1 : 0);
     pkt.add(enc.eph_key);
@@ -209,6 +221,7 @@ X25519EncMaterial::write(pgp_packet_body_t &pkt) const
     }
     pkt.add(enc.enc_sess_key);
 }
+
 #endif
 
 #if defined(ENABLE_PQC)

@@ -346,7 +346,7 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
     case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2: {
-        if (const ec_curve_desc_t *curve = get_curve_desc(crypto->ecc.curve)) {
+        if (auto curve = ec::Curve::get(crypto->ecc.curve)) {
             return curve->bitlen;
         } else {
             return 0;
@@ -455,7 +455,7 @@ keygen_primary_merge_defaults(rnp_keygen_primary_desc_t &desc)
         desc.cert.userid = uid;
     }
 
-#if defined(ENABLE_CRYPTO_REFRESH) && defined(ENABLE_PQC)
+#if defined(ENABLE_PQC)
     switch (desc.crypto.key_alg) {
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;

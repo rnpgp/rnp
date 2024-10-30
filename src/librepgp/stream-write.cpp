@@ -591,7 +591,7 @@ encrypted_add_recipient(rnp_ctx_t &              ctx,
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
     /* Crypto Refresh: For X25519/X448 PKESKv3, AES is mandated */
     /* PQC: AES is mandated for PKESKv3 */
     if (!check_enforce_aes_v3_pkesk(userkey->alg(), param->ctx.ealg, pkesk_version)) {
@@ -617,7 +617,7 @@ encrypted_add_recipient(rnp_ctx_t &              ctx,
 
     /* Encrypt the session key */
     rnp::secure_bytes enckey;
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
     if ((pkey.version == PGP_PKSK_V3) && do_encrypt_pkesk_v3_alg_id(pkey.alg)) {
         /* for pre-crypto-refresh algorithms, algorithm ID is part of the session key */
         enckey.push_back(pkey.salg);

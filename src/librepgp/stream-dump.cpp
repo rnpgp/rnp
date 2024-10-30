@@ -335,7 +335,7 @@ dst_print_mpi(pgp_dest_t &dst, const char *name, const pgp::mpi &mpi, bool dumpb
     }
 }
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
 static void
 dst_print_vec(pgp_dest_t &                dst,
               const char *                name,
@@ -910,7 +910,8 @@ DumpContextDst::dump_signature_pkt(const pkt::Signature &sig)
         break;
     }
     case PGP_PKA_ED448: {
-        dst_print_vec(dst, "ed448 sig", material.ed448.sig, ctx->dump_mpi);
+        auto &ed = dynamic_cast<const Ed448SigMaterial &>(*material);
+        dst_print_vec(dst, "ed448 sig", ed.sig.sig, dump_mpi);
         break;
     }
 #endif
@@ -1023,16 +1024,6 @@ DumpContextDst::dump_key_material(const KeyMaterial *material)
     case PGP_PKA_X25519: {
         auto &x25519 = dynamic_cast<const X25519KeyMaterial &>(*material);
         dst_print_vec(dst, "x25519", x25519.pub(), dump_mpi);
-        return;
-    }
-    case PGP_PKA_ED448: {
-        auto &ed448 = dynamic_cast<const pgp::Ed448KeyMaterial &>(*material);
-        dst_print_vec(dst, "ed448", ed448.pub(), dump_mpi);
-        return;
-    }
-    case PGP_PKA_X448: {
-        auto &x448 = dynamic_cast<const pgp::X448KeyMaterial &>(*material);
-        dst_print_vec(dst, "x448", x448.pub(), dump_mpi);
         return;
     }
     case PGP_PKA_ED448: {

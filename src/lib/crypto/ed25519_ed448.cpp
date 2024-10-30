@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "ed25519.h"
+#include "ed25519_ed448.h"
 #include "logging.h"
 #include "utils.h"
 

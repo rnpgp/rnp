@@ -211,7 +211,7 @@ sphincsplus_pubkey_size(pgp_pubkey_alg_t alg)
     case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         return 64;
     default:
-        RNP_LOG("invalid SLH-DSA parameter identifier");
+        RNP_LOG("invalid SLH-DSA algorithm identifier");
         return 0;
     }
 }
@@ -227,7 +227,7 @@ sphincsplus_signature_size(pgp_pubkey_alg_t alg)
     case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         return 29792;
     default:
-        RNP_LOG("invalid SLH-DSA parameter identifier");
+        RNP_LOG("invalid SLH-DSA algorithm identifier");
         return 0;
     }
 }
