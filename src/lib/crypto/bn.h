@@ -140,7 +140,7 @@ class bn {
         return bn2mpi(_bn, &mpi);
     }
 };
-}; // namespace rnp
+} // namespace rnp
 #endif
 
 #endif
