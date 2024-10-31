@@ -28,6 +28,7 @@
 #include <cstring>
 #include <botan/ffi.h>
 #include "hash_botan.hpp"
+#include "botan_utils.hpp"
 #include "crypto/rsa.h"
 #include "config.h"
 #include "utils.h"
@@ -36,112 +37,54 @@
 namespace pgp {
 namespace rsa {
 
-rnp_result_t
-Key::validate(rnp::RNG &rng, bool secret) const noexcept
-{
-    bignum_t *      bn = NULL;
-    bignum_t *      be = NULL;
-    bignum_t *      bp = NULL;
-    bignum_t *      bq = NULL;
-    botan_pubkey_t  bpkey = NULL;
-    botan_privkey_t bskey = NULL;
-    rnp_result_t    ret = RNP_ERROR_GENERIC;
-
-    /* load and check public key part */
-    if (!(bn = mpi2bn(n)) || !(be = mpi2bn(e))) {
-        RNP_LOG("out of memory");
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
-    }
-
-    if (botan_pubkey_load_rsa(&bpkey, bn->mp, BN_HANDLE_PTR(be)) != 0) {
-        goto done;
-    }
-
-    if (botan_pubkey_check_key(bpkey, rng.handle(), 0)) {
-        goto done;
-    }
-
-    if (!secret) {
-        ret = RNP_SUCCESS;
-        goto done;
-    }
-
-    /* load and check secret key part */
-    if (!(bp = mpi2bn(p)) || !(bq = mpi2bn(q))) {
-        RNP_LOG("out of memory");
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
-    }
-
-    /* p and q are reversed from normal usage in PGP */
-    if (botan_privkey_load_rsa(
-          &bskey, BN_HANDLE_PTR(bq), BN_HANDLE_PTR(bp), BN_HANDLE_PTR(be))) {
-        goto done;
-    }
-
-    if (botan_privkey_check_key(bskey, rng.handle(), 0)) {
-        goto done;
-    }
-    ret = RNP_SUCCESS;
-done:
-    botan_pubkey_destroy(bpkey);
-    botan_privkey_destroy(bskey);
-    bn_free(bn);
-    bn_free(be);
-    bn_free(bp);
-    bn_free(bq);
-    return ret;
-}
-
 static bool
-load_public_key(botan_pubkey_t *bkey, const Key &key)
+load_public_key(rnp::botan::Pubkey &bkey, const Key &key)
 {
-    bignum_t *n = NULL;
-    bignum_t *e = NULL;
-    bool      res = false;
-
-    *bkey = NULL;
-    n = mpi2bn(key.n);
-    e = mpi2bn(key.e);
+    rnp::bn n(key.n);
+    rnp::bn e(key.e);
 
     if (!n || !e) {
         RNP_LOG("out of memory");
-        goto done;
+        return false;
     }
-
-    res = !botan_pubkey_load_rsa(bkey, BN_HANDLE_PTR(n), BN_HANDLE_PTR(e));
-done:
-    bn_free(n);
-    bn_free(e);
-    return res;
+    return !botan_pubkey_load_rsa(&bkey.get(), n.get(), e.get());
 }
 
 static bool
-load_secret_key(botan_privkey_t *bkey, const Key &key)
+load_secret_key(rnp::botan::Privkey &bkey, const Key &key)
 {
-    bignum_t *p = NULL;
-    bignum_t *q = NULL;
-    bignum_t *e = NULL;
-    bool      res = false;
-
-    *bkey = NULL;
-    p = mpi2bn(key.p);
-    q = mpi2bn(key.q);
-    e = mpi2bn(key.e);
+    rnp::bn p(key.p);
+    rnp::bn q(key.q);
+    rnp::bn e(key.e);
 
     if (!p || !q || !e) {
         RNP_LOG("out of memory");
-        goto done;
+        return false;
+    }
+    /* p and q are reversed from normal usage in PGP */
+    return !botan_privkey_load_rsa(&bkey.get(), q.get(), p.get(), e.get());
+}
+
+rnp_result_t
+Key::validate(rnp::RNG &rng, bool secret) const noexcept
+{
+    /* load and check public key part */
+    rnp::botan::Pubkey pkey;
+    if (!load_public_key(pkey, *this) || botan_pubkey_check_key(pkey.get(), rng.handle(), 0)) {
+        return RNP_ERROR_GENERIC;
     }
 
-    /* p and q are reversed from normal usage in PGP */
-    res = !botan_privkey_load_rsa(bkey, BN_HANDLE_PTR(q), BN_HANDLE_PTR(p), BN_HANDLE_PTR(e));
-done:
-    bn_free(p);
-    bn_free(q);
-    bn_free(e);
-    return res;
+    if (!secret) {
+        return RNP_SUCCESS;
+    }
+
+    /* load and check secret key part */
+    rnp::botan::Privkey skey;
+    if (!load_secret_key(skey, *this) ||
+        botan_privkey_check_key(skey.get(), rng.handle(), 0)) {
+        return RNP_ERROR_GENERIC;
+    }
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
@@ -150,29 +93,20 @@ Key::encrypt_pkcs1(rnp::RNG &     rng,
                    const uint8_t *in,
                    size_t         in_len) const noexcept
 {
-    rnp_result_t          ret = RNP_ERROR_GENERIC;
-    botan_pubkey_t        rsa_key = NULL;
-    botan_pk_op_encrypt_t enc_op = NULL;
-
-    if (!load_public_key(&rsa_key, *this)) {
+    rnp::botan::Pubkey rsa_key;
+    if (!load_public_key(rsa_key, *this)) {
         RNP_LOG("failed to load key");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    if (botan_pk_op_encrypt_create(&enc_op, rsa_key, "PKCS1v15", 0) != 0) {
-        goto done;
-    }
-
     out.m.len = PGP_MPINT_SIZE;
-    if (botan_pk_op_encrypt(enc_op, rng.handle(), out.m.mpi, &out.m.len, in, in_len)) {
+    rnp::botan::op::Encrypt enc_op;
+    if (botan_pk_op_encrypt_create(&enc_op.get(), rsa_key.get(), "PKCS1v15", 0) ||
+        botan_pk_op_encrypt(enc_op.get(), rng.handle(), out.m.mpi, &out.m.len, in, in_len)) {
         out.m.len = 0;
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    ret = RNP_SUCCESS;
-done:
-    botan_pk_op_encrypt_destroy(enc_op);
-    botan_pubkey_destroy(rsa_key);
-    return ret;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
@@ -181,38 +115,23 @@ Key::verify_pkcs1(const Signature &sig,
                   const uint8_t *  hash,
                   size_t           hash_len) const noexcept
 {
-    char                 padding_name[64] = {0};
-    botan_pubkey_t       rsa_key = NULL;
-    botan_pk_op_verify_t verify_op = NULL;
-    rnp_result_t         ret = RNP_ERROR_SIGNATURE_INVALID;
-
-    if (!load_public_key(&rsa_key, *this)) {
+    rnp::botan::Pubkey rsa_key;
+    if (!load_public_key(rsa_key, *this)) {
         RNP_LOG("failed to load key");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    snprintf(padding_name,
-             sizeof(padding_name),
-             "EMSA-PKCS1-v1_5(Raw,%s)",
-             rnp::Hash_Botan::name_backend(hash_alg));
+    char pad[64] = {0};
+    snprintf(
+      pad, sizeof(pad), "EMSA-PKCS1-v1_5(Raw,%s)", rnp::Hash_Botan::name_backend(hash_alg));
 
-    if (botan_pk_op_verify_create(&verify_op, rsa_key, padding_name, 0) != 0) {
-        goto done;
+    rnp::botan::op::Verify verify_op;
+    if (botan_pk_op_verify_create(&verify_op.get(), rsa_key.get(), pad, 0) ||
+        botan_pk_op_verify_update(verify_op.get(), hash, hash_len) ||
+        botan_pk_op_verify_finish(verify_op.get(), sig.s.mpi, sig.s.len)) {
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
-
-    if (botan_pk_op_verify_update(verify_op, hash, hash_len) != 0) {
-        goto done;
-    }
-
-    if (botan_pk_op_verify_finish(verify_op, sig.s.mpi, sig.s.len) != 0) {
-        goto done;
-    }
-
-    ret = RNP_SUCCESS;
-done:
-    botan_pk_op_verify_destroy(verify_op);
-    botan_pubkey_destroy(rsa_key);
-    return ret;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
@@ -227,38 +146,25 @@ Key::sign_pkcs1(rnp::RNG &     rng,
         return RNP_ERROR_GENERIC;
     }
 
-    botan_privkey_t rsa_key;
-    if (!load_secret_key(&rsa_key, *this)) {
+    rnp::botan::Privkey rsa_key;
+    if (!load_secret_key(rsa_key, *this)) {
         RNP_LOG("failed to load key");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    char padding_name[64] = {0};
-    snprintf(padding_name,
-             sizeof(padding_name),
-             "EMSA-PKCS1-v1_5(Raw,%s)",
-             rnp::Hash_Botan::name_backend(hash_alg));
-
-    rnp_result_t       ret = RNP_ERROR_GENERIC;
-    botan_pk_op_sign_t sign_op;
-    if (botan_pk_op_sign_create(&sign_op, rsa_key, padding_name, 0) != 0) {
-        goto done;
-    }
-
-    if (botan_pk_op_sign_update(sign_op, hash, hash_len)) {
-        goto done;
-    }
+    char pad[64] = {0};
+    snprintf(
+      pad, sizeof(pad), "EMSA-PKCS1-v1_5(Raw,%s)", rnp::Hash_Botan::name_backend(hash_alg));
 
     sig.s.len = PGP_MPINT_SIZE;
-    if (botan_pk_op_sign_finish(sign_op, rng.handle(), sig.s.mpi, &sig.s.len)) {
-        goto done;
+    rnp::botan::op::Sign sign_op;
+    if (botan_pk_op_sign_create(&sign_op.get(), rsa_key.get(), pad, 0) ||
+        botan_pk_op_sign_update(sign_op.get(), hash, hash_len) ||
+        botan_pk_op_sign_finish(sign_op.get(), rng.handle(), sig.s.mpi, &sig.s.len)) {
+        sig.s.len = 0;
+        return RNP_ERROR_GENERIC;
     }
-
-    ret = RNP_SUCCESS;
-done:
-    botan_pk_op_sign_destroy(sign_op);
-    botan_privkey_destroy(rsa_key);
-    return ret;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
@@ -272,31 +178,27 @@ Key::decrypt_pkcs1(rnp::RNG &       rng,
         return RNP_ERROR_GENERIC;
     }
 
-    botan_privkey_t rsa_key = NULL;
-    if (!load_secret_key(&rsa_key, *this)) {
+    rnp::botan::Privkey rsa_key;
+    if (!load_secret_key(rsa_key, *this)) {
         RNP_LOG("failed to load key");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    size_t                skip = 0;
-    botan_pk_op_decrypt_t decrypt_op = NULL;
-    rnp_result_t          ret = RNP_ERROR_GENERIC;
-    if (botan_pk_op_decrypt_create(&decrypt_op, rsa_key, "PKCS1v15", 0)) {
-        goto done;
+    rnp::botan::op::Decrypt decrypt_op;
+    if (botan_pk_op_decrypt_create(&decrypt_op.get(), rsa_key.get(), "PKCS1v15", 0)) {
+        return RNP_ERROR_GENERIC;
     }
     /* Skip trailing zeroes if any as Botan3 doesn't like m.len > e.len */
+    size_t skip = 0;
     while ((in.m.len - skip > e.len) && !in.m.mpi[skip]) {
         skip++;
     }
     out_len = PGP_MPINT_SIZE;
-    if (botan_pk_op_decrypt(decrypt_op, out, &out_len, in.m.mpi + skip, in.m.len - skip)) {
-        goto done;
+    if (botan_pk_op_decrypt(
+          decrypt_op.get(), out, &out_len, in.m.mpi + skip, in.m.len - skip)) {
+        return RNP_ERROR_GENERIC;
     }
-    ret = RNP_SUCCESS;
-done:
-    botan_privkey_destroy(rsa_key);
-    botan_pk_op_decrypt_destroy(decrypt_op);
-    return ret;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
@@ -306,66 +208,50 @@ Key::generate(rnp::RNG &rng, size_t numbits) noexcept
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    botan_privkey_t rsa_key = NULL;
-    rnp_result_t    ret = RNP_ERROR_GENERIC;
-    int             cmp;
-    bignum_t *      bn = bn_new();
-    bignum_t *      be = bn_new();
-    bignum_t *      bp = bn_new();
-    bignum_t *      bq = bn_new();
-    bignum_t *      bd = bn_new();
-    bignum_t *      bu = bn_new();
-
+    rnp::bn bn;
+    rnp::bn be;
+    rnp::bn bp;
+    rnp::bn bq;
+    rnp::bn bd;
+    rnp::bn bu;
     if (!bn || !be || !bp || !bq || !bd || !bu) {
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto end;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    if (botan_privkey_create(&rsa_key, "RSA", std::to_string(numbits).c_str(), rng.handle())) {
-        goto end;
+    rnp::botan::Privkey rsa_key;
+    if (botan_privkey_create(
+          &rsa_key.get(), "RSA", std::to_string(numbits).c_str(), rng.handle()) ||
+        botan_privkey_check_key(rsa_key.get(), rng.handle(), 1)) {
+        return RNP_ERROR_GENERIC;
     }
 
-    if (botan_privkey_check_key(rsa_key, rng.handle(), 1) != 0) {
-        goto end;
-    }
-
-    if (botan_privkey_get_field(BN_HANDLE_PTR(bn), rsa_key, "n") ||
-        botan_privkey_get_field(BN_HANDLE_PTR(be), rsa_key, "e") ||
-        botan_privkey_get_field(BN_HANDLE_PTR(bd), rsa_key, "d") ||
-        botan_privkey_get_field(BN_HANDLE_PTR(bp), rsa_key, "p") ||
-        botan_privkey_get_field(BN_HANDLE_PTR(bq), rsa_key, "q")) {
-        goto end;
+    if (botan_privkey_get_field(bn.get(), rsa_key.get(), "n") ||
+        botan_privkey_get_field(be.get(), rsa_key.get(), "e") ||
+        botan_privkey_get_field(bd.get(), rsa_key.get(), "d") ||
+        botan_privkey_get_field(bp.get(), rsa_key.get(), "p") ||
+        botan_privkey_get_field(bq.get(), rsa_key.get(), "q")) {
+        return RNP_ERROR_GENERIC;
     }
 
     /* RFC 4880, 5.5.3 tells that p < q. GnuPG relies on this. */
-    (void) botan_mp_cmp(&cmp, BN_HANDLE_PTR(bp), BN_HANDLE_PTR(bq));
+    int cmp = 0;
+    (void) botan_mp_cmp(&cmp, bp.get(), bq.get());
     if (cmp > 0) {
-        (void) botan_mp_swap(BN_HANDLE_PTR(bp), BN_HANDLE_PTR(bq));
+        (void) botan_mp_swap(bp.get(), bq.get());
     }
 
-    if (botan_mp_mod_inverse(BN_HANDLE_PTR(bu), BN_HANDLE_PTR(bp), BN_HANDLE_PTR(bq)) != 0) {
+    if (botan_mp_mod_inverse(bu.get(), bp.get(), bq.get()) != 0) {
         RNP_LOG("Error computing RSA u param");
-        ret = RNP_ERROR_BAD_STATE;
-        goto end;
+        return RNP_ERROR_BAD_STATE;
     }
 
-    bn2mpi(bn, n);
-    bn2mpi(be, e);
-    bn2mpi(bp, p);
-    bn2mpi(bq, q);
-    bn2mpi(bd, d);
-    bn2mpi(bu, u);
-
-    ret = RNP_SUCCESS;
-end:
-    botan_privkey_destroy(rsa_key);
-    bn_free(bn);
-    bn_free(be);
-    bn_free(bp);
-    bn_free(bq);
-    bn_free(bd);
-    bn_free(bu);
-    return ret;
+    bn.mpi(n);
+    be.mpi(e);
+    bp.mpi(p);
+    bq.mpi(q);
+    bd.mpi(d);
+    bu.mpi(u);
+    return RNP_SUCCESS;
 }
 
 } // namespace rsa
