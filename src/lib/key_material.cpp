@@ -195,14 +195,14 @@ void
 DSAKeyParams::check_defaults() noexcept
 {
     if (!qbits_) {
-        qbits_ = dsa_choose_qsize_by_psize(bits());
+        qbits_ = dsa::Key::choose_qsize(bits());
     }
 }
 
 pgp_hash_alg_t
 DSAKeyParams::min_hash() const noexcept
 {
-    return dsa_get_min_hash(qbits_);
+    return dsa::Key::get_min_hash(qbits_);
 }
 
 size_t
@@ -450,7 +450,7 @@ KeyMaterial::create(pgp_pubkey_alg_t alg, const rsa::Key &key)
 }
 
 std::unique_ptr<KeyMaterial>
-KeyMaterial::create(const pgp_dsa_key_t &key)
+KeyMaterial::create(const dsa::Key &key)
 {
     return std::unique_ptr<pgp::KeyMaterial>(new pgp::DSAKeyMaterial(key));
 }
@@ -675,7 +675,7 @@ DSAKeyMaterial::grip_update(rnp::Hash &hash) const
 bool
 DSAKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 {
-    return !dsa_validate_key(&ctx.rng, &key_, secret_);
+    return !key_.validate(ctx.rng, secret_);
 }
 
 bool
@@ -733,7 +733,7 @@ bool
 DSAKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 {
     auto &dsa = dynamic_cast<const DSAKeyParams &>(params);
-    if (dsa_generate(&ctx.rng, &key_, dsa.bits(), dsa.qbits())) {
+    if (key_.generate(ctx.rng, dsa.bits(), dsa.qbits())) {
         RNP_LOG("failed to generate DSA key");
         return false;
     }
@@ -745,7 +745,7 @@ DSAKeyMaterial::verify(const rnp::SecurityContext &       ctx,
                        const pgp_signature_material_t &   sig,
                        const rnp::secure_vector<uint8_t> &hash) const
 {
-    return dsa_verify(&sig.dsa, hash.data(), hash.size(), &key_);
+    return key_.verify(sig.dsa, hash.data(), hash.size());
 }
 
 rnp_result_t
@@ -753,13 +753,13 @@ DSAKeyMaterial::sign(rnp::SecurityContext &             ctx,
                      pgp_signature_material_t &         sig,
                      const rnp::secure_vector<uint8_t> &hash) const
 {
-    return dsa_sign(&ctx.rng, &sig.dsa, hash.data(), hash.size(), &key_);
+    return key_.sign(ctx.rng, sig.dsa, hash.data(), hash.size());
 }
 
 pgp_hash_alg_t
 DSAKeyMaterial::adjust_hash(pgp_hash_alg_t hash) const
 {
-    pgp_hash_alg_t hash_min = dsa_get_min_hash(key_.q.bits());
+    pgp_hash_alg_t hash_min = dsa::Key::get_min_hash(key_.q.bits());
     if (rnp::Hash::size(hash) < rnp::Hash::size(hash_min)) {
         return hash_min;
     }

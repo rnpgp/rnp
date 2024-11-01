@@ -375,7 +375,7 @@ parse_pubkey(pgp_key_pkt_t &pubkey, const sexp_list_t *s_exp, pgp_pubkey_alg_t a
     pubkey.alg = alg;
     switch (alg) {
     case PGP_PKA_DSA: {
-        pgp_dsa_key_t dsa{};
+        pgp::dsa::Key dsa;
         if (!read_mpi(s_exp, "p", dsa.p) || !read_mpi(s_exp, "q", dsa.q) ||
             !read_mpi(s_exp, "g", dsa.g) || !read_mpi(s_exp, "y", dsa.y)) {
             return false;
