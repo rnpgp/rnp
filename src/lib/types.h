@@ -171,7 +171,7 @@ typedef struct pgp_validity_t {
 typedef struct pgp_signature_material_t {
     union {
         pgp::rsa::Signature rsa;
-        pgp_dsa_signature_t dsa;
+        pgp::dsa::Signature dsa;
         pgp_ec_signature_t  ecc;
         pgp_eg_signature_t  eg;
     };
