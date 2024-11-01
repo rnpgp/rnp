@@ -68,7 +68,7 @@ KMAC256::Input_X(const std::vector<uint8_t> &ecc_ciphertext,
     std::vector<uint8_t> res;
 
 #if defined(ENABLE_PQC_DBG_LOG)
-    RNP_LOG_NO_POS_INFO("KMAC256 Key_K: ");
+    RNP_LOG_NO_POS_INFO("KMAC256 Input_X: ");
     RNP_LOG_U8VEC(" - eccCipherText: %s", ecc_ciphertext);
     RNP_LOG_U8VEC(" - mlkemCipherText: %s", kyber_ciphertext);
     RNP_LOG_U8VEC(" - ecdhPublicKey: %s", ecc_pub);
