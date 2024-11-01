@@ -658,6 +658,7 @@ class DilithiumEccKeyMaterial : public KeyMaterial {
                         pgp_signature_material_t &         sig,
                         const rnp::secure_vector<uint8_t> &hash) const override;
     pgp_hash_alg_t adjust_hash(pgp_hash_alg_t hash) const override;
+    bool           sig_hash_allowed(pgp_hash_alg_t hash) const override;
     size_t         bits() const noexcept override;
 
     const pgp_dilithium_exdsa_composite_public_key_t & pub() const noexcept;

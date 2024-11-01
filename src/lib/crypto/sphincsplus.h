@@ -105,8 +105,6 @@ class pgp_sphincsplus_public_key_t {
 
     bool is_valid(rnp::RNG *rng) const;
 
-    bool validate_signature_hash_requirements(pgp_hash_alg_t hash_alg) const;
-
     pgp_pubkey_alg_t
     alg() const
     {

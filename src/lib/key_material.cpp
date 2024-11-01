@@ -2131,7 +2131,13 @@ DilithiumEccKeyMaterial::sign(rnp::SecurityContext &             ctx,
 pgp_hash_alg_t
 DilithiumEccKeyMaterial::adjust_hash(pgp_hash_alg_t hash) const
 {
-    return dilithium_default_hash_alg();
+    return dilithium_default_hash_alg(alg());
+}
+
+bool
+DilithiumEccKeyMaterial::sig_hash_allowed(pgp_hash_alg_t hash) const
+{
+    return dilithium_hash_allowed(alg(), hash);
 }
 
 size_t
@@ -2266,7 +2272,7 @@ SlhdsaKeyMaterial::adjust_hash(pgp_hash_alg_t hash) const
 bool
 SlhdsaKeyMaterial::sig_hash_allowed(pgp_hash_alg_t hash) const
 {
-    return key_.pub.validate_signature_hash_requirements(hash);
+    return sphincsplus_hash_allowed(alg(), hash);
 }
 
 size_t
