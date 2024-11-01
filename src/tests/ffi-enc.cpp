@@ -922,8 +922,8 @@ TEST_F(rnp_tests, test_ffi_verify_v2_seipd_test_vector)
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_true(import_all_keys(ffi, "data/RFC9580/A.4.transferable-seckey-v6.asc"));
 
-    assert_rnp_success(rnp_input_from_path(
-      &input, "data/RFC9580/A.7.-sample-inline-signed-message.asc"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/RFC9580/A.7.-sample-inline-signed-message.asc"));
     assert_non_null(input);
     assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
@@ -955,8 +955,8 @@ TEST_F(rnp_tests, test_ffi_verify_v2_seipd_cleartext_test_vector)
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_true(import_all_keys(ffi, "data/RFC9580/A.4.transferable-seckey-v6.asc"));
 
-    assert_rnp_success(rnp_input_from_path(
-      &input, "data/RFC9580/A.6.-sample-cleartext-signed-message.asc"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/RFC9580/A.6.-sample-cleartext-signed-message.asc"));
     assert_non_null(input);
     assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
@@ -978,35 +978,31 @@ TEST_F(rnp_tests, test_ffi_verify_v2_seipd_cleartext_test_vector)
 #if defined(ENABLE_PQC)
 TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
 {
-    rnp_ffi_t    ffi = NULL;
-    rnp_input_t  input = NULL;
-    rnp_output_t output = NULL;
+    std::vector<std::pair<std::string, std::string>> key_msg_pairs = {
+      {"data/draft-ietf-openpgp-pqc/v6-eddsa-sample-sk.asc",
+       "data/draft-ietf-openpgp-pqc/v6-eddsa-sample-message.asc"},
+      {"data/draft-ietf-openpgp-pqc/v6-mldsa-65-sample-sk.asc",
+       "data/draft-ietf-openpgp-pqc/v6-mldsa-65-sample-message.asc"},
+      {"data/draft-ietf-openpgp-pqc/v6-mldsa-87-sample-sk.asc",
+       "data/draft-ietf-openpgp-pqc/v6-mldsa-87-sample-message.asc"}};
 
-    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_true(import_all_keys(ffi, "data/draft-ietf-openpgp-pqc/v6-eddsa-sample-sk.asc"));
-    assert_true(import_all_keys(ffi, "data/draft-ietf-openpgp-pqc/v6-mldsa-sample-sk.asc"));
+    for (auto key_msg_pair : key_msg_pairs) {
+        rnp_ffi_t    ffi = NULL;
+        rnp_input_t  input = NULL;
+        rnp_output_t output = NULL;
+        assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
 
-    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-eddsa-sample-message.asc"));
-    assert_non_null(input);
-    assert_rnp_success(rnp_decrypt(ffi, input, output));
-    assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
-    assert_int_equal(unlink("decrypted"), 0);
-    rnp_input_destroy(input);
-    rnp_output_destroy(output);
+        assert_true(import_all_keys(ffi, key_msg_pair.first.c_str()));
 
-    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-mldsa-sample-message.asc"));
-    assert_non_null(input);
-    assert_rnp_success(rnp_decrypt(ffi, input, output));
-    assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
-    assert_int_equal(unlink("decrypted"), 0);
-    rnp_input_destroy(input);
-    rnp_output_destroy(output);
-
-    rnp_ffi_destroy(ffi);
+        assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+        assert_rnp_success(rnp_input_from_path(&input, key_msg_pair.second.c_str()));
+        assert_non_null(input);
+        assert_rnp_success(rnp_decrypt(ffi, input, output));
+        assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
+        assert_int_equal(unlink("decrypted"), 0);
+        rnp_input_destroy(input);
+        rnp_output_destroy(output);
+    }
 }
 
 TEST_F(rnp_tests, test_ffi_pqc_default_enc_subkey)
