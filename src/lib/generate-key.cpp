@@ -232,7 +232,7 @@ pgp_check_key_hash_requirements(const rnp_keygen_crypto_params_t &crypto)
     case PGP_PKA_DILITHIUM3_BP256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
-        if (!dilithium_hash_allowed(crypto.hash_alg)) {
+        if (!dilithium_hash_allowed(crypto.key_alg, crypto.hash_alg)) {
             return false;
         }
         break;
