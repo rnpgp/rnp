@@ -767,7 +767,7 @@ class DSATestKeyMaterial : public DSAKeyMaterial {
     {
     }
 
-    pgp_dsa_key_t &
+    pgp::dsa::Key &
     dsa()
     {
         return key_;

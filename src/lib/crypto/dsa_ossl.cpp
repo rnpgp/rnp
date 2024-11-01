@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2023 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2024 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -35,14 +35,15 @@
 #include <openssl/dh.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
-#include "dsa_common.h"
 #if defined(CRYPTO_BACKEND_OPENSSL3)
 #include <openssl/core_names.h>
 #include <openssl/param_build.h>
 #endif
 
+namespace pgp {
+namespace dsa {
 static bool
-dsa_decode_sig(const uint8_t *data, size_t len, pgp_dsa_signature_t &sig)
+decode_sig(const uint8_t *data, size_t len, Signature &sig)
 {
     DSA_SIG *dsig = d2i_DSA_SIG(NULL, &data, len);
     if (!dsig) {
@@ -58,7 +59,7 @@ dsa_decode_sig(const uint8_t *data, size_t len, pgp_dsa_signature_t &sig)
 }
 
 static bool
-dsa_encode_sig(uint8_t *data, size_t *len, const pgp_dsa_signature_t &sig)
+encode_sig(uint8_t *data, size_t *len, const Signature &sig)
 {
     bool     res = false;
     DSA_SIG *dsig = DSA_SIG_new();
@@ -88,7 +89,7 @@ done:
 
 #if defined(CRYPTO_BACKEND_OPENSSL3)
 static OSSL_PARAM *
-dsa_build_params(bignum_t *p, bignum_t *q, bignum_t *g, bignum_t *y, bignum_t *x)
+build_params(bignum_t *p, bignum_t *q, bignum_t *g, bignum_t *y, bignum_t *x)
 {
     OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
     if (!bld) {
@@ -111,14 +112,14 @@ dsa_build_params(bignum_t *p, bignum_t *q, bignum_t *g, bignum_t *y, bignum_t *x
 #endif
 
 static EVP_PKEY *
-dsa_load_key(const pgp_dsa_key_t *key, bool secret = false)
+load_key(const Key &key, bool secret = false)
 {
     EVP_PKEY *evpkey = NULL;
-    rnp::bn   p(mpi2bn(&key->p));
-    rnp::bn   q(mpi2bn(&key->q));
-    rnp::bn   g(mpi2bn(&key->g));
-    rnp::bn   y(mpi2bn(&key->y));
-    rnp::bn   x(secret ? mpi2bn(&key->x) : NULL);
+    rnp::bn   p(mpi2bn(key.p));
+    rnp::bn   q(mpi2bn(key.q));
+    rnp::bn   g(mpi2bn(key.g));
+    rnp::bn   y(mpi2bn(key.y));
+    rnp::bn   x(secret ? mpi2bn(key.x) : NULL);
 
     if (!p.get() || !q.get() || !g.get() || !y.get() || (secret && !x.get())) {
         /* LCOV_EXCL_START */
@@ -128,7 +129,7 @@ dsa_load_key(const pgp_dsa_key_t *key, bool secret = false)
     }
 
 #if defined(CRYPTO_BACKEND_OPENSSL3)
-    OSSL_PARAM *params = dsa_build_params(p.get(), q.get(), g.get(), y.get(), x.get());
+    OSSL_PARAM *params = build_params(p.get(), q.get(), g.get(), y.get(), x.get());
     if (!params) {
         /* LCOV_EXCL_START */
         RNP_LOG("failed to build dsa params");
@@ -194,33 +195,29 @@ done:
 }
 
 rnp_result_t
-dsa_validate_key(rnp::RNG *rng, const pgp_dsa_key_t *key, bool secret)
+Key::validate(rnp::RNG &rng, bool secret) const noexcept
 {
     /* OpenSSL doesn't implement key checks for the DSA, however we may use DL via DH */
-    EVP_PKEY *pkey = dl_load_key(key->p, &key->q, key->g, key->y, secret ? &key->x : NULL);
+    EVP_PKEY *pkey = dl_load_key(p, &q, g, y, secret ? &x : NULL);
     if (!pkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    rnp_result_t ret = dl_validate_key(pkey, secret ? &key->x : NULL);
+    rnp_result_t ret = dl_validate_key(pkey, secret ? &x : NULL);
     EVP_PKEY_free(pkey);
     return ret;
 }
 
 rnp_result_t
-dsa_sign(rnp::RNG *           rng,
-         pgp_dsa_signature_t *sig,
-         const uint8_t *      hash,
-         size_t               hash_len,
-         const pgp_dsa_key_t *key)
+Key::sign(rnp::RNG &rng, Signature &sig, const uint8_t *hash, size_t hash_len) const
 {
-    if (!key->x.bytes()) {
+    if (!x.bytes()) {
         RNP_LOG("private key not set");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     /* Load secret key to DSA structure*/
-    EVP_PKEY *evpkey = dsa_load_key(key, true);
+    EVP_PKEY *evpkey = load_key(*this, true);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -239,13 +236,13 @@ dsa_sign(rnp::RNG *           rng,
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
         goto done;
     }
-    sig->s.len = PGP_MPINT_SIZE;
-    if (EVP_PKEY_sign(ctx, sig->s.mpi, &sig->s.len, hash, hash_len) <= 0) {
+    sig.s.len = PGP_MPINT_SIZE;
+    if (EVP_PKEY_sign(ctx, sig.s.mpi, &sig.s.len, hash, hash_len) <= 0) {
         RNP_LOG("Signing failed: %lu", ERR_peek_last_error());
-        sig->s.len = 0;
+        sig.s.len = 0;
         goto done;
     }
-    if (!dsa_decode_sig(&sig->s.mpi[0], sig->s.len, *sig)) {
+    if (!decode_sig(&sig.s.mpi[0], sig.s.len, sig)) {
         RNP_LOG("Failed to parse DSA sig: %lu", ERR_peek_last_error());
         goto done;
     }
@@ -257,13 +254,10 @@ done:
 }
 
 rnp_result_t
-dsa_verify(const pgp_dsa_signature_t *sig,
-           const uint8_t *            hash,
-           size_t                     hash_len,
-           const pgp_dsa_key_t *      key)
+Key::verify(const Signature &sig, const uint8_t *hash, size_t hash_len) const
 {
     /* Load secret key to DSA structure*/
-    EVP_PKEY *evpkey = dsa_load_key(key, false);
+    EVP_PKEY *evpkey = load_key(*this, false);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -283,7 +277,7 @@ dsa_verify(const pgp_dsa_signature_t *sig,
         goto done;
     }
     pgp::mpi sigbuf;
-    if (!dsa_encode_sig(sigbuf.mpi, &sigbuf.len, *sig)) {
+    if (!encode_sig(sigbuf.mpi, &sigbuf.len, sig)) {
         goto done;
     }
     if (EVP_PKEY_verify(ctx, sigbuf.mpi, sigbuf.len, hash, hash_len) <= 0) {
@@ -298,7 +292,7 @@ done:
 }
 
 static bool
-dsa_extract_key(EVP_PKEY *pkey, pgp_dsa_key_t &key)
+extract_key(EVP_PKEY *pkey, Key &key)
 {
 #if defined(CRYPTO_BACKEND_OPENSSL3)
     rnp::bn p;
@@ -335,7 +329,7 @@ dsa_extract_key(EVP_PKEY *pkey, pgp_dsa_key_t &key)
 }
 
 rnp_result_t
-dsa_generate(rnp::RNG *rng, pgp_dsa_key_t *key, size_t keylen, size_t qbits)
+Key::generate(rnp::RNG &rng, size_t keylen, size_t qbits)
 {
     if ((keylen < 1024) || (keylen > 3072) || (qbits < 160) || (qbits > 256)) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -393,7 +387,7 @@ dsa_generate(rnp::RNG *rng, pgp_dsa_key_t *key, size_t keylen, size_t qbits)
         goto done;
     }
 
-    if (dsa_extract_key(pkey, *key)) {
+    if (extract_key(pkey, *this)) {
         ret = RNP_SUCCESS;
     }
 done:
@@ -402,3 +396,5 @@ done:
     EVP_PKEY_free(pkey);
     return ret;
 }
+} // namespace dsa
+} // namespace pgp
