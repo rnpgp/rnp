@@ -232,7 +232,7 @@ class KeyMaterial {
     static std::unique_ptr<KeyMaterial> create(pgp_pubkey_alg_t alg);
     static std::unique_ptr<KeyMaterial> create(pgp_pubkey_alg_t alg, const rsa::Key &key);
     static std::unique_ptr<KeyMaterial> create(const dsa::Key &key);
-    static std::unique_ptr<KeyMaterial> create(pgp_pubkey_alg_t alg, const pgp_eg_key_t &key);
+    static std::unique_ptr<KeyMaterial> create(pgp_pubkey_alg_t alg, const eg::Key &key);
     static std::unique_ptr<KeyMaterial> create(pgp_pubkey_alg_t alg, const pgp_ec_key_t &key);
 };
 
@@ -322,14 +322,14 @@ class DSAKeyMaterial : public KeyMaterial {
 
 class EGKeyMaterial : public KeyMaterial {
   protected:
-    pgp_eg_key_t key_;
+    eg::Key key_;
 
     void grip_update(rnp::Hash &hash) const override;
     bool validate_material(rnp::SecurityContext &ctx, bool reset) override;
 
   public:
     EGKeyMaterial(pgp_pubkey_alg_t kalg) : KeyMaterial(kalg), key_{} {};
-    EGKeyMaterial(pgp_pubkey_alg_t kalg, const pgp_eg_key_t &key, bool secret = false)
+    EGKeyMaterial(pgp_pubkey_alg_t kalg, const eg::Key &key, bool secret = false)
         : KeyMaterial(kalg, secret), key_(key){};
     std::unique_ptr<KeyMaterial> clone() override;
 

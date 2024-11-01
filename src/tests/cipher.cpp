@@ -207,25 +207,25 @@ TEST_F(rnp_tests, rnp_test_x25519)
 }
 
 static void
-elgamal_roundtrip(pgp_eg_key_t *key, rnp::RNG &rng)
+elgamal_roundtrip(const pgp::eg::Key &key, rnp::RNG &rng)
 {
     const uint8_t      in_b[] = {0x01, 0x02, 0x03, 0x04, 0x17};
-    pgp_eg_encrypted_t enc = {{{0}}};
+    pgp::eg::Encrypted enc = {{{0}}};
     uint8_t            res[1024];
     size_t             res_len = 0;
 
-    assert_int_equal(elgamal_encrypt_pkcs1(&rng, &enc, in_b, sizeof(in_b), key), RNP_SUCCESS);
-    assert_int_equal(elgamal_decrypt_pkcs1(&rng, res, &res_len, &enc, key), RNP_SUCCESS);
+    assert_rnp_success(key.encrypt_pkcs1(rng, enc, in_b, sizeof(in_b)));
+    assert_rnp_success(key.decrypt_pkcs1(rng, res, &res_len, enc));
     assert_int_equal(res_len, sizeof(in_b));
     assert_true(bin_eq_hex(res, res_len, "0102030417"));
 }
 
 TEST_F(rnp_tests, raw_elgamal_random_key_test_success)
 {
-    pgp_eg_key_t key;
+    pgp::eg::Key key;
 
-    assert_int_equal(elgamal_generate(&global_ctx.rng, &key, 1024), RNP_SUCCESS);
-    elgamal_roundtrip(&key, global_ctx.rng);
+    assert_rnp_success(key.generate(global_ctx.rng, 1024));
+    elgamal_roundtrip(key, global_ctx.rng);
 }
 
 TEST_F(rnp_tests, ecdsa_signverify_success)
@@ -767,7 +767,7 @@ class DSATestKeyMaterial : public DSAKeyMaterial {
     {
     }
 
-    pgp::dsa::Key &
+    dsa::Key &
     dsa()
     {
         return key_;
@@ -780,7 +780,7 @@ class EGTestKeyMaterial : public EGKeyMaterial {
     {
     }
 
-    pgp_eg_key_t &
+    eg::Key &
     eg()
     {
         return key_;

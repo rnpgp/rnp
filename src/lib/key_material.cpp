@@ -456,7 +456,7 @@ KeyMaterial::create(const dsa::Key &key)
 }
 
 std::unique_ptr<KeyMaterial>
-KeyMaterial::create(pgp_pubkey_alg_t alg, const pgp_eg_key_t &key)
+KeyMaterial::create(pgp_pubkey_alg_t alg, const eg::Key &key)
 {
     return std::unique_ptr<pgp::KeyMaterial>(new pgp::EGKeyMaterial(alg, key));
 }
@@ -832,7 +832,7 @@ EGKeyMaterial::grip_update(rnp::Hash &hash) const
 bool
 EGKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 {
-    return elgamal_validate_key(&key_, secret_);
+    return key_.validate(secret_);
 }
 
 bool
@@ -892,7 +892,7 @@ EGKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
         RNP_LOG("Unsupported algorithm for key generation: %d", alg_);
         return false;
     }
-    if (elgamal_generate(&ctx.rng, &key_, params.bits())) {
+    if (key_.generate(ctx.rng, params.bits())) {
         RNP_LOG("failed to generate ElGamal key");
         return false;
     }
@@ -905,7 +905,7 @@ EGKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                        const uint8_t *           data,
                        size_t                    len) const
 {
-    return elgamal_encrypt_pkcs1(&ctx.rng, &out.eg, data, len, &key_);
+    return key_.encrypt_pkcs1(ctx.rng, out.eg, data, len);
 }
 
 rnp_result_t
@@ -914,7 +914,7 @@ EGKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
                        size_t &                        out_len,
                        const pgp_encrypted_material_t &in) const
 {
-    return elgamal_decrypt_pkcs1(&ctx.rng, out, &out_len, &in.eg, &key_);
+    return key_.decrypt_pkcs1(ctx.rng, out, &out_len, in.eg);
 }
 
 rnp_result_t

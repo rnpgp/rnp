@@ -46,8 +46,11 @@
 // Max supported key byte size
 #define ELGAMAL_MAX_P_BYTELEN BITS_TO_BYTES(PGP_MPINT_BITS)
 
+namespace pgp {
+namespace eg {
+
 bool
-elgamal_validate_key(const pgp_eg_key_t *key, bool secret)
+Key::validate(bool secret) const noexcept
 {
     BN_CTX *ctx = BN_CTX_new();
     if (!ctx) {
@@ -58,25 +61,25 @@ elgamal_validate_key(const pgp_eg_key_t *key, bool secret)
     }
     BN_CTX_start(ctx);
     bool         res = false;
-    bignum_t *   p = mpi2bn(&key->p);
-    bignum_t *   g = mpi2bn(&key->g);
+    bignum_t *   op = mpi2bn(p);
+    bignum_t *   og = mpi2bn(g);
     bignum_t *   p1 = BN_CTX_get(ctx);
     bignum_t *   r = BN_CTX_get(ctx);
-    bignum_t *   y = NULL;
-    bignum_t *   x = NULL;
+    bignum_t *   oy = NULL;
+    bignum_t *   ox = NULL;
     BN_RECP_CTX *rctx = NULL;
 
-    if (!p || !g || !p1 || !r) {
+    if (!op || !og || !p1 || !r) {
         goto done;
     }
 
     /* 1 < g < p */
-    if ((BN_cmp(g, BN_value_one()) != 1) || (BN_cmp(g, p) != -1)) {
+    if ((BN_cmp(og, BN_value_one()) != 1) || (BN_cmp(og, op) != -1)) {
         RNP_LOG("Invalid g value.");
         goto done;
     }
     /* g ^ (p - 1) = 1 mod p */
-    if (!BN_copy(p1, p) || !BN_sub_word(p1, 1) || !BN_mod_exp(r, g, p1, p, ctx)) {
+    if (!BN_copy(p1, op) || !BN_sub_word(p1, 1) || !BN_mod_exp(r, og, p1, op, ctx)) {
         RNP_LOG("g exp failed.");
         goto done;
     }
@@ -86,12 +89,12 @@ elgamal_validate_key(const pgp_eg_key_t *key, bool secret)
     }
     /* check for small order subgroups */
     rctx = BN_RECP_CTX_new();
-    if (!rctx || !BN_RECP_CTX_set(rctx, p, ctx) || !BN_copy(r, g)) {
+    if (!rctx || !BN_RECP_CTX_set(rctx, op, ctx) || !BN_copy(r, og)) {
         RNP_LOG("Failed to init RECP context.");
         goto done;
     }
     for (size_t i = 2; i < (1 << 17); i++) {
-        if (!BN_mod_mul_reciprocal(r, r, g, rctx, ctx)) {
+        if (!BN_mod_mul_reciprocal(r, r, og, rctx, ctx)) {
             /* LCOV_EXCL_START */
             RNP_LOG("Multiplication failed.");
             goto done;
@@ -107,19 +110,19 @@ elgamal_validate_key(const pgp_eg_key_t *key, bool secret)
         goto done;
     }
     /* check that g ^ x = y (mod p) */
-    x = mpi2bn(&key->x);
-    y = mpi2bn(&key->y);
-    if (!x || !y) {
+    ox = mpi2bn(x);
+    oy = mpi2bn(y);
+    if (!ox || !oy) {
         goto done;
     }
-    res = BN_mod_exp(r, g, x, p, ctx) && !BN_cmp(r, y);
+    res = BN_mod_exp(r, og, ox, op, ctx) && !BN_cmp(r, oy);
 done:
     BN_CTX_free(ctx);
     BN_RECP_CTX_free(rctx);
-    bn_free(p);
-    bn_free(g);
-    bn_free(y);
-    bn_free(x);
+    bn_free(op);
+    bn_free(og);
+    bn_free(oy);
+    bn_free(ox);
     return res;
 }
 
@@ -177,14 +180,10 @@ pkcs1v15_unpad(size_t *padlen, const uint8_t *in, size_t in_len, bool skip0)
 }
 
 rnp_result_t
-elgamal_encrypt_pkcs1(rnp::RNG *          rng,
-                      pgp_eg_encrypted_t *out,
-                      const uint8_t *     in,
-                      size_t              in_len,
-                      const pgp_eg_key_t *key)
+Key::encrypt_pkcs1(rnp::RNG &rng, Encrypted &out, const uint8_t *in, size_t in_len) const
 {
-    pgp::mpi mm = {};
-    mm.len = key->p.len;
+    mpi mm{};
+    mm.len = p.len;
     if (!pkcs1v15_pad(mm.mpi, mm.len, in, in_len)) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to add PKCS1 v1.5 padding.");
@@ -202,13 +201,13 @@ elgamal_encrypt_pkcs1(rnp::RNG *          rng,
     BN_CTX_start(ctx);
     BN_MONT_CTX *mctx = BN_MONT_CTX_new();
     bignum_t *   m = mpi2bn(&mm);
-    bignum_t *   p = mpi2bn(&key->p);
-    bignum_t *   g = mpi2bn(&key->g);
-    bignum_t *   y = mpi2bn(&key->y);
+    bignum_t *   op = mpi2bn(p);
+    bignum_t *   og = mpi2bn(g);
+    bignum_t *   oy = mpi2bn(y);
     bignum_t *   c1 = BN_CTX_get(ctx);
     bignum_t *   c2 = BN_CTX_get(ctx);
     bignum_t *   k = BN_secure_new();
-    if (!mctx || !m || !p || !g || !y || !c1 || !c2 || !k) {
+    if (!mctx || !m || !op || !og || !oy || !c1 || !c2 || !k) {
         /* LCOV_EXCL_START */
         RNP_LOG("Allocation failed.");
         ret = RNP_ERROR_OUT_OF_MEMORY;
@@ -216,7 +215,7 @@ elgamal_encrypt_pkcs1(rnp::RNG *          rng,
         /* LCOV_EXCL_END */
     }
     /* initialize Montgomery context */
-    if (BN_MONT_CTX_set(mctx, p, ctx) < 1) {
+    if (BN_MONT_CTX_set(mctx, op, ctx) < 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to setup Montgomery context.");
         goto done;
@@ -224,7 +223,7 @@ elgamal_encrypt_pkcs1(rnp::RNG *          rng,
     }
     int res;
     /* must not fail */
-    res = BN_rshift1(c1, p);
+    res = BN_rshift1(c1, op);
     assert(res == 1);
     if (res < 1) {
         /* LCOV_EXCL_START */
@@ -240,47 +239,43 @@ elgamal_encrypt_pkcs1(rnp::RNG *          rng,
         /* LCOV_EXCL_END */
     }
     /* calculate c1 = g ^ k (mod p) */
-    if (BN_mod_exp_mont_consttime(c1, g, k, p, ctx, mctx) < 1) {
+    if (BN_mod_exp_mont_consttime(c1, og, k, op, ctx, mctx) < 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Exponentiation 1 failed");
         goto done;
         /* LCOV_EXCL_END */
     }
     /* calculate c2 = m * y ^ k (mod p)*/
-    if (BN_mod_exp_mont_consttime(c2, y, k, p, ctx, mctx) < 1) {
+    if (BN_mod_exp_mont_consttime(c2, oy, k, op, ctx, mctx) < 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Exponentiation 2 failed");
         goto done;
         /* LCOV_EXCL_END */
     }
-    if (BN_mod_mul(c2, c2, m, p, ctx) < 1) {
+    if (BN_mod_mul(c2, c2, m, op, ctx) < 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Multiplication failed");
         goto done;
         /* LCOV_EXCL_END */
     }
-    res = bn2mpi(c1, &out->g) && bn2mpi(c2, &out->m);
+    res = bn2mpi(c1, &out.g) && bn2mpi(c2, &out.m);
     assert(res == 1);
     ret = RNP_SUCCESS;
 done:
     BN_MONT_CTX_free(mctx);
     BN_CTX_free(ctx);
     bn_free(m);
-    bn_free(p);
-    bn_free(g);
-    bn_free(y);
+    bn_free(op);
+    bn_free(og);
+    bn_free(oy);
     bn_free(k);
     return ret;
 }
 
 rnp_result_t
-elgamal_decrypt_pkcs1(rnp::RNG *                rng,
-                      uint8_t *                 out,
-                      size_t *                  out_len,
-                      const pgp_eg_encrypted_t *in,
-                      const pgp_eg_key_t *      key)
+Key::decrypt_pkcs1(rnp::RNG &rng, uint8_t *out, size_t *out_len, const Encrypted &in) const
 {
-    if (!key->x.bytes()) {
+    if (!x.bytes()) {
         RNP_LOG("Secret key not set.");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -296,14 +291,14 @@ elgamal_decrypt_pkcs1(rnp::RNG *                rng,
     rnp_result_t ret = RNP_ERROR_GENERIC;
     BN_CTX_start(ctx);
     BN_MONT_CTX *mctx = BN_MONT_CTX_new();
-    bignum_t *   p = mpi2bn(&key->p);
-    bignum_t *   g = mpi2bn(&key->g);
-    bignum_t *   x = mpi2bn(&key->x);
-    bignum_t *   c1 = mpi2bn(&in->g);
-    bignum_t *   c2 = mpi2bn(&in->m);
+    bignum_t *   op = mpi2bn(p);
+    bignum_t *   og = mpi2bn(g);
+    bignum_t *   ox = mpi2bn(x);
+    bignum_t *   c1 = mpi2bn(in.g);
+    bignum_t *   c2 = mpi2bn(in.m);
     bignum_t *   s = BN_CTX_get(ctx);
     bignum_t *   m = BN_secure_new();
-    if (!mctx || !p || !g || !x || !c1 || !c2 || !m) {
+    if (!mctx || !op || !og || !ox || !c1 || !c2 || !m) {
         /* LCOV_EXCL_START */
         RNP_LOG("Allocation failed.");
         ret = RNP_ERROR_OUT_OF_MEMORY;
@@ -311,14 +306,14 @@ elgamal_decrypt_pkcs1(rnp::RNG *                rng,
         /* LCOV_EXCL_END */
     }
     /* initialize Montgomery context */
-    if (BN_MONT_CTX_set(mctx, p, ctx) < 1) {
+    if (BN_MONT_CTX_set(mctx, op, ctx) < 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to setup Montgomery context.");
         goto done;
         /* LCOV_EXCL_END */
     }
     /* calculate s = c1 ^ x (mod p) */
-    if (BN_mod_exp_mont_consttime(s, c1, x, p, ctx, mctx) < 1) {
+    if (BN_mod_exp_mont_consttime(s, c1, ox, op, ctx, mctx) < 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Exponentiation 1 failed");
         goto done;
@@ -326,14 +321,14 @@ elgamal_decrypt_pkcs1(rnp::RNG *                rng,
     }
     /* calculate s^-1 (mod p) */
     BN_set_flags(s, BN_FLG_CONSTTIME);
-    if (!BN_mod_inverse(s, s, p, ctx)) {
+    if (!BN_mod_inverse(s, s, op, ctx)) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to calculate inverse.");
         goto done;
         /* LCOV_EXCL_END */
     }
     /* calculate m = c2 * s ^ -1 (mod p)*/
-    if (BN_mod_mul(m, c2, s, p, ctx) < 1) {
+    if (BN_mod_mul(m, c2, s, op, ctx) < 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Multiplication failed");
         goto done;
@@ -349,7 +344,7 @@ elgamal_decrypt_pkcs1(rnp::RNG *                rng,
         /* LCOV_EXCL_END */
     }
     /* unpad, handling skipped leftmost 0 case */
-    if (!pkcs1v15_unpad(&padlen, mm.mpi, mm.len, mm.len == key->p.len - 1)) {
+    if (!pkcs1v15_unpad(&padlen, mm.mpi, mm.len, mm.len == p.len - 1)) {
         RNP_LOG("Unpad failed.");
         goto done;
     }
@@ -360,9 +355,9 @@ done:
     secure_clear(mm.mpi, PGP_MPINT_SIZE);
     BN_MONT_CTX_free(mctx);
     BN_CTX_free(ctx);
-    bn_free(p);
-    bn_free(g);
-    bn_free(x);
+    bn_free(op);
+    bn_free(og);
+    bn_free(ox);
     bn_free(c1);
     bn_free(c2);
     bn_free(m);
@@ -370,7 +365,7 @@ done:
 }
 
 rnp_result_t
-elgamal_generate(rnp::RNG *rng, pgp_eg_key_t *key, size_t keybits)
+Key::generate(rnp::RNG &rng, size_t keybits)
 {
     if ((keybits < 1024) || (keybits > PGP_MPINT_BITS)) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -442,14 +437,14 @@ start:
     }
 #if defined(CRYPTO_BACKEND_OPENSSL3)
     {
-        rnp::bn y;
-        if (!EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_PUB_KEY, y.ptr())) {
+        rnp::bn oy;
+        if (!EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_PUB_KEY, oy.ptr())) {
             /* LCOV_EXCL_START */
             RNP_LOG("Failed to retrieve ElGamal public key: %lu", ERR_peek_last_error());
             goto done;
             /* LCOV_EXCL_END */
         }
-        if (y.bytes() != BITS_TO_BYTES(keybits)) {
+        if (oy.bytes() != BITS_TO_BYTES(keybits)) {
             /* This code chunk is rarely hit, so ignoring it for the coverage report:
              * LCOV_EXCL_START */
             EVP_PKEY_CTX_free(ctx);
@@ -460,13 +455,13 @@ start:
             /* LCOV_EXCL_END */
         }
 
-        rnp::bn p;
-        rnp::bn g;
-        rnp::bn x;
-        bool    res = EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_FFC_P, p.ptr()) &&
-                   EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_FFC_G, g.ptr()) &&
-                   EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_PRIV_KEY, x.ptr());
-        if (res && p.mpi(key->p) && g.mpi(key->g) && y.mpi(key->y) && x.mpi(key->x)) {
+        rnp::bn op;
+        rnp::bn og;
+        rnp::bn ox;
+        bool    res = EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_FFC_P, op.ptr()) &&
+                   EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_FFC_G, og.ptr()) &&
+                   EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_PRIV_KEY, ox.ptr());
+        if (res && op.mpi(p) && og.mpi(g) && oy.mpi(y) && ox.mpi(x)) {
             ret = RNP_SUCCESS;
         }
     }
@@ -489,24 +484,24 @@ start:
         /* LCOV_EXCL_END */
     }
 
-    const bignum_t *p;
-    const bignum_t *g;
-    const bignum_t *y;
-    const bignum_t *x;
-    p = DH_get0_p(dh);
-    g = DH_get0_g(dh);
-    y = DH_get0_pub_key(dh);
-    x = DH_get0_priv_key(dh);
-    if (!p || !g || !y || !x) {
+    const bignum_t *op;
+    const bignum_t *og;
+    const bignum_t *oy;
+    const bignum_t *ox;
+    op = DH_get0_p(dh);
+    og = DH_get0_g(dh);
+    oy = DH_get0_pub_key(dh);
+    ox = DH_get0_priv_key(dh);
+    if (!op || !og || !oy || !ox) {
         /* LCOV_EXCL_START */
         ret = RNP_ERROR_BAD_STATE;
         goto done;
         /* LCOV_EXCL_END */
     }
-    bn2mpi(p, &key->p);
-    bn2mpi(g, &key->g);
-    bn2mpi(y, &key->y);
-    bn2mpi(x, &key->x);
+    bn2mpi(op, p);
+    bn2mpi(og, g);
+    bn2mpi(oy, y);
+    bn2mpi(ox, x);
     ret = RNP_SUCCESS;
 #endif
 done:
@@ -515,3 +510,6 @@ done:
     EVP_PKEY_free(pkey);
     return ret;
 }
+
+} // namespace eg
+} // namespace pgp

@@ -173,7 +173,7 @@ typedef struct pgp_signature_material_t {
         pgp::rsa::Signature rsa;
         pgp::dsa::Signature dsa;
         pgp_ec_signature_t  ecc;
-        pgp_eg_signature_t  eg;
+        pgp::eg::Signature  eg;
     };
 #if defined(ENABLE_CRYPTO_REFRESH)
     pgp_ed25519_signature_t ed25519; // non-trivial type cannot be member in union
@@ -192,7 +192,7 @@ typedef struct pgp_signature_material_t {
 typedef struct pgp_encrypted_material_t {
     union {
         pgp::rsa::Encrypted  rsa;
-        pgp_eg_encrypted_t   eg;
+        pgp::eg::Encrypted   eg;
         pgp_sm2_encrypted_t  sm2;
         pgp_ecdh_encrypted_t ecdh;
     };

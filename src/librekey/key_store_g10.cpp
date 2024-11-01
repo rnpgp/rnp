@@ -395,7 +395,7 @@ parse_pubkey(pgp_key_pkt_t &pubkey, const sexp_list_t *s_exp, pgp_pubkey_alg_t a
     }
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
-        pgp_eg_key_t eg{};
+        pgp::eg::Key eg;
         if (!read_mpi(s_exp, "p", eg.p) || !read_mpi(s_exp, "g", eg.g) ||
             !read_mpi(s_exp, "y", eg.y)) {
             return false;
