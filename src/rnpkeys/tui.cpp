@@ -348,7 +348,7 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
             break;
         case 26:
             cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DILITHIUM5_ED448);
-            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
+            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_512);
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_X448);
             cfg.set_str(CFG_KG_V6_KEY, "true");
             break;
@@ -360,7 +360,7 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
             break;
         case 28:
             cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DILITHIUM5_P384);
-            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
+            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_512);
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_P384);
             cfg.set_str(CFG_KG_V6_KEY, "true");
             break;
@@ -372,7 +372,7 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
             break;
         case 30:
             cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DILITHIUM5_BP384);
-            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
+            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_512);
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_BP384);
             cfg.set_str(CFG_KG_V6_KEY, "true");
             break;
