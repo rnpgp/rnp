@@ -149,14 +149,6 @@ pgp_sphincsplus_generate(rnp::RNG *rng, pgp_sphincsplus_key_t *material, pgp_pub
 }
 
 bool
-pgp_sphincsplus_public_key_t::validate_signature_hash_requirements(
-  pgp_hash_alg_t hash_alg) const
-{
-    /* check if key is allowed with the hash algorithm */
-    return sphincsplus_hash_allowed(pk_alg_, hash_alg);
-}
-
-bool
 pgp_sphincsplus_public_key_t::is_valid(rnp::RNG *rng) const
 {
     if (!is_initialized_) {
@@ -244,7 +236,7 @@ sphincsplus_hash_allowed(pgp_pubkey_alg_t pk_alg, pgp_hash_alg_t hash_alg)
         return hash_alg == PGP_HASH_SHA3_512;
     default:
         RNP_LOG("invalid algorithm ID given");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
 }
 
@@ -260,6 +252,6 @@ sphincsplus_default_hash_alg(pgp_pubkey_alg_t alg)
         return PGP_HASH_SHA3_512;
     default:
         RNP_LOG("invalid algorithm ID given");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
 }
