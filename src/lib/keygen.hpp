@@ -154,11 +154,11 @@ class UserPrefs {
 
 class CertParams {
   public:
-    std::string userid;       /* userid, required */
-    uint8_t     flags{};      /* key flags */
-    uint32_t    expiration{}; /* key expiration time (sec), 0 = no expiration */
-    UserPrefs   prefs;        /* user preferences, optional */
-    bool        primary;      /* mark this as the primary user id */
+    std::string userid;           /* userid, required */
+    uint8_t     flags{};          /* key flags */
+    uint32_t    key_expiration{}; /* key expiration time (sec), 0 = no expiration */
+    UserPrefs   prefs;            /* user preferences, optional */
+    bool        primary;          /* mark this as the primary user id */
 
     void check_defaults(const KeygenParams &params);
 
@@ -174,7 +174,7 @@ class CertParams {
 class BindingParams {
   public:
     uint8_t  flags{};
-    uint32_t expiration{};
+    uint32_t key_expiration{};
 
     void check_defaults(const KeygenParams &params);
 };
