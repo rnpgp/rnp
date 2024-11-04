@@ -67,7 +67,7 @@ TEST_F(rnp_tests, test_key_add_userid)
     rnp::CertParams selfsig0;
     selfsig0.userid = "added0";
     selfsig0.flags = 0x2;
-    selfsig0.expiration = base_expiry;
+    selfsig0.key_expiration = base_expiry;
     selfsig0.primary = false;
     auto curtime = global_ctx.time();
     global_ctx.set_time(curtime > SHA1_KEY_FROM ? SHA1_KEY_FROM - 100 : 0);
@@ -100,7 +100,7 @@ TEST_F(rnp_tests, test_key_add_userid)
     rnp::CertParams selfsig1;
     selfsig1.userid = "added1";
     selfsig1.flags = 0xAB;
-    selfsig1.expiration = base_expiry + 1;
+    selfsig1.key_expiration = base_expiry + 1;
     selfsig1.primary = 1;
     key->add_uid_cert(selfsig1, PGP_HASH_SHA256, global_ctx);
 

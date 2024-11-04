@@ -4562,7 +4562,7 @@ parse_keygen_primary(rnp_ffi_t                    ffi,
         return nullptr;
     }
     /* Parse common key/subkey fields */
-    if (!parse_keygen_common_fields(jso, cert.flags, cert.expiration, prot)) {
+    if (!parse_keygen_common_fields(jso, cert.flags, cert.key_expiration, prot)) {
         return nullptr;
     }
     /* UserID */
@@ -4597,7 +4597,7 @@ parse_keygen_sub(rnp_ffi_t                    ffi,
         return nullptr;
     }
     /* Parse common with primary key fields */
-    if (!parse_keygen_common_fields(jso, binding.flags, binding.expiration, prot)) {
+    if (!parse_keygen_common_fields(jso, binding.flags, binding.key_expiration, prot)) {
         return nullptr;
     }
     /* Do not allow unknown extra fields */
@@ -4650,7 +4650,7 @@ gen_json_primary_key(rnp_ffi_t                    ffi,
                      bool                         protect)
 {
     rnp::CertParams cert;
-    cert.expiration = DEFAULT_KEY_EXPIRATION;
+    cert.key_expiration = DEFAULT_KEY_EXPIRATION;
 
     auto keygen = parse_keygen_primary(ffi, jsoparams, cert, prot);
     if (!keygen) {
@@ -4687,7 +4687,7 @@ gen_json_subkey(rnp_ffi_t          ffi,
     rnp::BindingParams          binding;
     rnp_key_protection_params_t prot = {};
 
-    binding.expiration = DEFAULT_KEY_EXPIRATION;
+    binding.key_expiration = DEFAULT_KEY_EXPIRATION;
     auto keygen = parse_keygen_sub(ffi, jsoparams, binding, prot);
     if (!keygen) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -5101,7 +5101,7 @@ try {
     *op = new rnp_op_generate_st(ffi, key_alg);
     (*op)->primary = true;
     (*op)->cert.flags = default_key_flags(key_alg, false);
-    (*op)->cert.expiration = DEFAULT_KEY_EXPIRATION;
+    (*op)->cert.key_expiration = DEFAULT_KEY_EXPIRATION;
 
     return RNP_SUCCESS;
 }
@@ -5134,7 +5134,7 @@ try {
     *op = new rnp_op_generate_st(ffi, key_alg);
     (*op)->primary = false;
     (*op)->binding.flags = default_key_flags(key_alg, true);
-    (*op)->binding.expiration = DEFAULT_KEY_EXPIRATION;
+    (*op)->binding.key_expiration = DEFAULT_KEY_EXPIRATION;
     (*op)->primary_sec = primary->sec;
     (*op)->primary_pub = primary->pub;
 
@@ -5341,9 +5341,9 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
     if (op->primary) {
-        op->cert.expiration = expiration;
+        op->cert.key_expiration = expiration;
     } else {
-        op->binding.expiration = expiration;
+        op->binding.key_expiration = expiration;
     }
     return RNP_SUCCESS;
 }
@@ -5704,7 +5704,7 @@ try {
     rnp::CertParams info;
     info.userid = uid;
     info.flags = key_flags;
-    info.expiration = expiration;
+    info.key_expiration = expiration;
     info.primary = primary;
 
     /* obtain and unlok secret key */

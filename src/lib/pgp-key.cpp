@@ -2579,8 +2579,8 @@ pgp_key_t::add_sub_binding(pgp_key_t &               subsec,
     pgp_signature_t sig;
     sign_init(ctx.rng, sig, hash, ctx.time(), version());
     sig.set_type(PGP_SIG_SUBKEY);
-    if (binding.expiration) {
-        sig.set_key_expiration(binding.expiration);
+    if (binding.key_expiration) {
+        sig.set_key_expiration(binding.key_expiration);
     }
     if (binding.flags) {
         sig.set_key_flags(binding.flags);

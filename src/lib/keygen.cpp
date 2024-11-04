@@ -477,8 +477,8 @@ CertParams::populate(pgp_userid_pkt_t &uid) const
 void
 CertParams::populate(pgp_signature_t &sig) const
 {
-    if (expiration) {
-        sig.set_key_expiration(expiration);
+    if (key_expiration) {
+        sig.set_key_expiration(key_expiration);
     }
     if (primary) {
         sig.set_primary_uid(true);

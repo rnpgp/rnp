@@ -669,7 +669,7 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
     rnp::CertParams selfsig1 = {};
     const char *    boris = "Boris <boris@rnp>";
     selfsig1.userid = boris;
-    selfsig1.expiration = 100;
+    selfsig1.key_expiration = 100;
     selfsig1.primary = true;
     key->add_uid_cert(selfsig1, PGP_HASH_SHA256, global_ctx);
     key->revalidate(*secring);
@@ -704,7 +704,7 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
     /* add primary userid with 0 expiration */
     selfsig1 = {};
     selfsig1.userid = boris;
-    selfsig1.expiration = 0;
+    selfsig1.key_expiration = 0;
     selfsig1.primary = true;
     key->add_uid_cert(selfsig1, PGP_HASH_SHA256, global_ctx);
     key->revalidate(*secring);
