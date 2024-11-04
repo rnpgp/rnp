@@ -84,7 +84,7 @@ class DSAKeyParams : public BitsKeyParams {
     size_t qbits_;
 
   public:
-    DSAKeyParams();
+    DSAKeyParams() : BitsKeyParams(DSA_DEFAULT_P_BITLEN), qbits_(0){};
 
     size_t
     qbits() const noexcept
