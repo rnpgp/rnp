@@ -127,6 +127,14 @@ jobs:
 
       - name: Test
         run: |
+          # Add mt.exe (manifest tool) to the PATH
+          win_sdk=$(reg query "HKLM\SOFTWARE\Microsoft\Windows Kits\Installed Roots" | sort -r | head -n 1 | sed 's/.*\\//')
+          echo "Windows SDK: $win_sdk"
+          export PATH="/c/Program Files (x86)/Windows Kits/10/bin/$win_sdk/x64/":$PATH
+          # Add manifest which forces utf-8 encoding
+          for exe in "tests/rnp_tests" "rnp/rnp" "rnpkeys/rnpkeys"; do
+            mt.exe -manifest ./ci/utf8-manifest "-outputresource:./build/src/${exe}.exe;1" > /dev/null
+          done
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
           export PATH="$PWD/build/src/lib:$PATH"
