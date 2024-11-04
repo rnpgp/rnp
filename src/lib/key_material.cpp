@@ -191,10 +191,6 @@ KeyParams::create(pgp_pubkey_alg_t alg)
     }
 }
 
-DSAKeyParams::DSAKeyParams() : BitsKeyParams(DSA_DEFAULT_P_BITLEN), qbits_(0)
-{
-}
-
 void
 DSAKeyParams::check_defaults() noexcept
 {
