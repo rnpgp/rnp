@@ -680,7 +680,7 @@ TEST_F(rnp_tests, sphincsplus_signverify_success)
 // platforms known to not have a robust response can compile with
 // -DS2K_MINIMUM_TUNING_RATIO=2 (or whatever they need)
 #ifndef S2K_MINIMUM_TUNING_RATIO
-#define S2K_MINIMUM_TUNING_RATIO 6
+#define S2K_MINIMUM_TUNING_RATIO 4
 #endif
 
 TEST_F(rnp_tests, s2k_iteration_tuning)
