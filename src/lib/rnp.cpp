@@ -4434,7 +4434,7 @@ parse_preferences(json_object *jso, rnp::UserPrefs &prefs)
     /* Preferred key server */
     std::string key_server;
     if (json_get_str(jso, "key server", key_server)) {
-        prefs.key_server = key_server;
+        prefs.key_server = std::move(key_server);
     }
     /* Do not allow extra unknown keys */
     return !json_object_object_length(jso);
@@ -4571,7 +4571,7 @@ parse_keygen_primary(rnp_ffi_t                    ffi,
         if (str.size() > MAX_ID_LENGTH) {
             return nullptr;
         }
-        cert.userid = str;
+        cert.userid = std::move(str);
     }
     /* Preferences */
     auto obj = json_get_obj(jso, "preferences");
