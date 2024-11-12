@@ -38,6 +38,7 @@
 #include "hash_crc24.hpp"
 #endif
 #include <set>
+#include <iterator>
 
 static const struct hash_alg_map_t {
     pgp_hash_alg_t type;

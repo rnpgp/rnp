@@ -178,6 +178,8 @@ adjust_hash_alg(rnp_keygen_crypto_params_t &crypto)
         case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
             crypto.hash_alg = PGP_HASH_SHA3_256;
             break;
+        case PGP_PKA_DILITHIUM5_ED448:
+            FALLTHROUGH_STATEMENT;
         case PGP_PKA_DILITHIUM5_BP384:
             FALLTHROUGH_STATEMENT;
         case PGP_PKA_DILITHIUM5_P384:
@@ -461,9 +463,11 @@ keygen_primary_merge_defaults(rnp_keygen_primary_desc_t &desc)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_BP256:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
+    case PGP_PKA_DILITHIUM5_Ed448:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         FALLTHROUGH_STATEMENT;
