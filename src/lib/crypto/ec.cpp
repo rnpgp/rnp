@@ -116,7 +116,7 @@ ec_generate(rnp::RNG *             rng,
 
     const char *ec_algo = id_str_pair::lookup(ec_algo_to_botan, alg_id, NULL);
     assert(ec_algo);
-    const ec_curve_desc_t *ec_desc = get_curve_desc(curve);
+    auto ec_desc = get_curve_desc(curve);
     if (!ec_desc) {
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto end;
@@ -229,8 +229,8 @@ ec_generate_generic_native(rnp::RNG *            rng,
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    const ec_curve_desc_t *ec_desc = get_curve_desc(curve);
-    const size_t           curve_order = BITS_TO_BYTES(ec_desc->bitlen);
+    auto         ec_desc = get_curve_desc(curve);
+    const size_t curve_order = BITS_TO_BYTES(ec_desc->bitlen);
 
     Botan::ECDH_PrivateKey privkey_botan(*(rng->obj()), Botan::EC_Group(ec_desc->botan_name));
     Botan::BigInt          pub_x = privkey_botan.public_point().get_affine_x();
