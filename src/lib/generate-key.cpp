@@ -476,8 +476,11 @@ keygen_primary_merge_defaults(rnp_keygen_primary_desc_t &desc)
     case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
-        // set the correct key version for PQC primary keys
+        /* set the correct key version for PQC primary keys */
         desc.pgp_version = PGP_V6;
+        /* also indicate SHA3 support since it's required for PQC anyway */
+        desc.cert.prefs.add_hash_alg(PGP_HASH_SHA3_256);
+        desc.cert.prefs.add_hash_alg(PGP_HASH_SHA3_512);
     default:
         break;
     }
@@ -578,6 +581,43 @@ validate_keygen_subkey(rnp_keygen_subkey_desc_t &desc)
     if (!pgp_check_key_hash_requirements(desc.crypto)) {
         RNP_LOG("invalid hash algorithm for the chosen key");
         return false;
+    }
+    switch (desc.crypto.key_alg) {
+    case PGP_PKA_KYBER768_X25519:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER768_P256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_P384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER768_BP256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_BP384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_ED25519:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_P256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_P384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_BP256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_BP384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
+        if (desc.pgp_version != PGP_V6) {
+            RNP_LOG("PQC subkey requires this to be a v6 certificate");
+            return false;
+        }
+    default:
+        break;
     }
 #endif
     return true;
