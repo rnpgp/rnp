@@ -248,7 +248,7 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
           "\t(23) ED25519 + X25519 (v6 key) \n"
 #endif
 #if defined(ENABLE_PQC)
-          "\t(24) Ed25519Legacy + Curve25519Legacy + (ML-KEM-768 + X25519)\n"
+          "\t(24) Ed25519 + X25519 + (ML-KEM-768 + X25519)\n"
 #if defined(ENABLE_CRYPTO_REFRESH) // PQC primary keys only for v6
           "\t(25) (ML-DSA-65 + Ed25519) + (ML-KEM-768 + X25519)\n"
           "\t(26) (ML-DSA-87 + Ed448) + (ML-KEM-1024 + X448)\n"
@@ -334,10 +334,10 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
 #endif
 #if defined(ENABLE_PQC)
         case 24:
-            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_EDDSA);
-            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_ECDH);
-            cfg.set_str(CFG_KG_SUBKEY_CURVE, "Curve25519");
+            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_ED25519);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_X25519);
             cfg.set_str(CFG_KG_SUBKEY_2_ALG, RNP_ALGNAME_KYBER768_X25519);
+            cfg.set_str(CFG_KG_V6_KEY, "true");
             break;
 #if defined(ENABLE_CRYPTO_REFRESH) // PQC primary keys only for v6
         case 25:
