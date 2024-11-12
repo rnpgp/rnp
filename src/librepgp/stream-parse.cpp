@@ -1589,6 +1589,8 @@ do_enforce_aes_v3pkesk(pgp_pubkey_alg_t alg)
 #endif
     case PGP_PKA_X25519:
         return true;
+    case PGP_PKA_X448:
+        return true;
     default:
         return false;
     }

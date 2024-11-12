@@ -1246,6 +1246,11 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
         dst_print_vec(
           dst, "x25519 encrypted session key", material.x25519.enc_sess_key, ctx->dump_mpi);
         break;
+    case PGP_PKA_X448:
+        dst_print_vec(dst, "x448 ephemeral public key", material.x448.eph_key, ctx->dump_mpi);
+        dst_print_vec(
+          dst, "x448 encrypted session key", material.x448.enc_sess_key, ctx->dump_mpi);
+        break;
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
