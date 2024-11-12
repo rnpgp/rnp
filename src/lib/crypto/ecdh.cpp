@@ -83,7 +83,7 @@ ecdh_load_public_key(botan_pubkey_t *pubkey, const pgp_ec_key_t *key)
 {
     bool res = false;
 
-    const ec_curve_desc_t *curve = get_curve_desc(key->curve);
+    auto curve = get_curve_desc(key->curve);
     if (!curve) {
         RNP_LOG("unknown curve");
         return false;
@@ -125,8 +125,7 @@ end:
 static bool
 ecdh_load_secret_key(botan_privkey_t *seckey, const pgp_ec_key_t *key)
 {
-    const ec_curve_desc_t *curve = get_curve_desc(key->curve);
-
+    auto curve = get_curve_desc(key->curve);
     if (!curve) {
         return false;
     }
@@ -160,7 +159,7 @@ ecdh_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret)
     botan_privkey_t bskey = NULL;
     rnp_result_t    ret = RNP_ERROR_BAD_PARAMETERS;
 
-    const ec_curve_desc_t *curve_desc = get_curve_desc(key->curve);
+    auto curve_desc = get_curve_desc(key->curve);
     if (!curve_desc) {
         return RNP_ERROR_NOT_SUPPORTED;
     }
@@ -210,7 +209,7 @@ ecdh_encrypt_pkcs5(rnp::RNG *               rng,
         return RNP_ERROR_NOT_IMPLEMENTED;
     }
 #endif
-    const ec_curve_desc_t *curve_desc = get_curve_desc(key->curve);
+    auto curve_desc = get_curve_desc(key->curve);
     if (!curve_desc) {
         RNP_LOG("unsupported curve");
         return RNP_ERROR_NOT_SUPPORTED;
@@ -306,7 +305,7 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    const ec_curve_desc_t *curve_desc = get_curve_desc(key->curve);
+    auto curve_desc = get_curve_desc(key->curve);
     if (!curve_desc) {
         RNP_LOG("unknown curve");
         return RNP_ERROR_NOT_SUPPORTED;
