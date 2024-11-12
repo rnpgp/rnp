@@ -148,6 +148,10 @@ KeyParams::create(pgp_pubkey_alg_t alg)
         return std::unique_ptr<KeyParams>(new ECCKeyParams(PGP_CURVE_ED25519));
     case PGP_PKA_X25519:
         return std::unique_ptr<KeyParams>(new ECCKeyParams(PGP_CURVE_25519));
+    case PGP_PKA_ED448:
+        return std::unique_ptr<KeyParams>(new ECCKeyParams(PGP_CURVE_ED448));
+    case PGP_PKA_X448:
+        return std::unique_ptr<KeyParams>(new ECCKeyParams(PGP_CURVE_448));
 #endif
     case PGP_PKA_DSA:
         return std::unique_ptr<KeyParams>(new DSAKeyParams());
@@ -399,6 +403,10 @@ KeyMaterial::create(pgp_pubkey_alg_t alg)
         return std::unique_ptr<KeyMaterial>(new Ed25519KeyMaterial());
     case PGP_PKA_X25519:
         return std::unique_ptr<KeyMaterial>(new X25519KeyMaterial());
+    case PGP_PKA_ED448:
+        return std::unique_ptr<KeyMaterial>(new Ed448KeyMaterial());
+    case PGP_PKA_X448:
+        return std::unique_ptr<KeyMaterial>(new X448KeyMaterial());
 #endif
     case PGP_PKA_SM2:
         return std::unique_ptr<KeyMaterial>(new SM2KeyMaterial());
