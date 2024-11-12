@@ -804,7 +804,7 @@ pgp_packet_body_t::add_subpackets(const pgp_signature_t &sig, bool hashed)
 void
 pgp_packet_body_t::add(const pgp_curve_t curve)
 {
-    const ec_curve_desc_t *desc = get_curve_desc(curve);
+    auto desc = get_curve_desc(curve);
     if (!desc) {
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
@@ -1244,8 +1244,8 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material)
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_X25519: {
-        uint8_t                bt = 0;
-        const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_25519);
+        uint8_t bt = 0;
+        auto    ec_desc = get_curve_desc(PGP_CURVE_25519);
         material.x25519.eph_key.resize(BITS_TO_BYTES(ec_desc->bitlen));
         if (!pkt.get(material.x25519.eph_key.data(), material.x25519.eph_key.size())) {
             RNP_LOG("failed to parse X25519 PKESK (eph. pubkey)");

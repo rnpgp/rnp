@@ -59,7 +59,7 @@ ec_generate_pkey(const pgp_pubkey_alg_t alg_id, const pgp_curve_t curve)
     if (!alg_allows_curve(alg_id, curve)) {
         return NULL;
     }
-    const ec_curve_desc_t *ec_desc = get_curve_desc(curve);
+    auto ec_desc = get_curve_desc(curve);
     if (!ec_desc) {
         return NULL;
     }
@@ -288,7 +288,7 @@ ec_load_key_openssl3(const pgp::mpi &       keyp,
 EVP_PKEY *
 ec_load_key(const pgp::mpi &keyp, const pgp::mpi *keyx, pgp_curve_t curve)
 {
-    const ec_curve_desc_t *curv_desc = get_curve_desc(curve);
+    auto curv_desc = get_curve_desc(curve);
     if (!curv_desc) {
         RNP_LOG("unknown curve");
         return NULL;
@@ -447,7 +447,7 @@ ec_write_pubkey(EVP_PKEY *pkey, pgp::mpi &mpi, pgp_curve_t curve)
         return true;
     }
 #if defined(CRYPTO_BACKEND_OPENSSL3)
-    const ec_curve_desc_t *ec_desc = get_curve_desc(curve);
+    auto ec_desc = get_curve_desc(curve);
     if (!ec_desc) {
         return false;
     }

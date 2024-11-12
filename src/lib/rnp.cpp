@@ -397,7 +397,7 @@ curve_str_to_type(const char *str, pgp_curve_t *value)
 static bool
 curve_type_to_str(pgp_curve_t type, const char **str)
 {
-    const ec_curve_desc_t *desc = get_curve_desc(type);
+    auto desc = get_curve_desc(type);
     if (!desc) {
         return false;
     }
@@ -1134,7 +1134,7 @@ try {
     } else if (rnp::str_case_eq(type, RNP_FEATURE_CURVE)) {
         for (pgp_curve_t curve = PGP_CURVE_NIST_P_256; curve < PGP_CURVE_MAX;
              curve = (pgp_curve_t)(curve + 1)) {
-            const ec_curve_desc_t *desc = get_curve_desc(curve);
+            auto desc = get_curve_desc(curve);
             if (!desc) {
                 return RNP_ERROR_BAD_STATE; // LCOV_EXCL_LINE
             }

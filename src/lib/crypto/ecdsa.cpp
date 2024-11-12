@@ -37,7 +37,7 @@ ecdsa_load_public_key(botan_pubkey_t *pubkey, const pgp_ec_key_t *keydata)
     botan_mp_t py = NULL;
     bool       res = false;
 
-    const ec_curve_desc_t *curve = get_curve_desc(keydata->curve);
+    auto curve = get_curve_desc(keydata->curve);
     if (!curve) {
         RNP_LOG("unknown curve");
         return false;
@@ -67,16 +67,17 @@ end:
 static bool
 ecdsa_load_secret_key(botan_privkey_t *seckey, const pgp_ec_key_t *keydata)
 {
-    const ec_curve_desc_t *curve;
-    bignum_t *             x = NULL;
-    bool                   res = false;
+    auto curve = get_curve_desc(keydata->curve);
+    if (!curve) {
+        return false;
+    }
 
-    if (!(curve = get_curve_desc(keydata->curve))) {
+    bignum_t *x = mpi2bn(&keydata->x);
+    if (!x) {
         return false;
     }
-    if (!(x = mpi2bn(&keydata->x))) {
-        return false;
-    }
+
+    bool res = false;
     if (!(res = !botan_privkey_load_ecdsa(seckey, BN_HANDLE_PTR(x), curve->botan_name))) {
         RNP_LOG("Can't load private key");
     }
@@ -150,12 +151,12 @@ ecdsa_sign(rnp::RNG *          rng,
            size_t              hash_len,
            const pgp_ec_key_t *key)
 {
-    botan_pk_op_sign_t     signer = NULL;
-    botan_privkey_t        b_key = NULL;
-    rnp_result_t           ret = RNP_ERROR_GENERIC;
-    uint8_t                out_buf[2 * MAX_CURVE_BYTELEN] = {0};
-    const ec_curve_desc_t *curve = get_curve_desc(key->curve);
-    const char *           padding_str = ecdsa_padding_str_for(hash_alg);
+    botan_pk_op_sign_t signer = NULL;
+    botan_privkey_t    b_key = NULL;
+    rnp_result_t       ret = RNP_ERROR_GENERIC;
+    uint8_t            out_buf[2 * MAX_CURVE_BYTELEN] = {0};
+    auto               curve = get_curve_desc(key->curve);
+    const char *       padding_str = ecdsa_padding_str_for(hash_alg);
 
     if (!curve) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -206,7 +207,7 @@ ecdsa_verify(const pgp_ec_signature_t *sig,
     size_t               r_blen, s_blen;
     const char *         padding_str = ecdsa_padding_str_for(hash_alg);
 
-    const ec_curve_desc_t *curve = get_curve_desc(key->curve);
+    auto curve = get_curve_desc(key->curve);
     if (!curve) {
         RNP_LOG("unknown curve");
         return RNP_ERROR_BAD_PARAMETERS;

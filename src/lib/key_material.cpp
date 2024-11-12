@@ -81,7 +81,7 @@ grip_hash_ecc_hex(rnp::Hash &hash, const char *hex, char name)
 void
 grip_hash_ec(rnp::Hash &hash, const pgp_ec_key_t &key)
 {
-    const ec_curve_desc_t *desc = get_curve_desc(key.curve);
+    auto desc = get_curve_desc(key.curve);
     if (!desc) {
         RNP_LOG("unknown curve %d", (int) key.curve);
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -989,7 +989,7 @@ ECKeyMaterial::clear_secret() noexcept
 rnp_result_t
 ECKeyMaterial::check_curve(size_t hash_len) const
 {
-    const ec_curve_desc_t *curve = get_curve_desc(key_.curve);
+    auto curve = get_curve_desc(key_.curve);
     if (!curve) {
         RNP_LOG("Unknown curve");
         return RNP_ERROR_BAD_PARAMETERS;

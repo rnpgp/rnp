@@ -318,6 +318,6 @@ alg_allows_curve(pgp_pubkey_alg_t alg, pgp_curve_t curve)
 bool
 curve_supported(pgp_curve_t curve)
 {
-    const ec_curve_desc_t *info = get_curve_desc(curve);
+    auto info = get_curve_desc(curve);
     return info && info->supported;
 }

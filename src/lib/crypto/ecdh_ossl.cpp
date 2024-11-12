@@ -59,7 +59,7 @@ ecdh_derive_kek(uint8_t *                x,
                 uint8_t *                kek,
                 const size_t             kek_len)
 {
-    const ec_curve_desc_t *curve_desc = get_curve_desc(key.curve);
+    auto curve_desc = get_curve_desc(key.curve);
     if (!curve_desc) {
         RNP_LOG("unsupported curve");
         return RNP_ERROR_NOT_SUPPORTED;
