@@ -538,6 +538,9 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
     case OPT_EXPIRATION:
         cfg.set_str(CFG_KG_PRIMARY_EXPIRATION, arg);
         cfg.set_str(CFG_KG_SUBKEY_EXPIRATION, arg);
+#if defined(ENABLE_PQC)
+        cfg.set_str(CFG_KG_SUBKEY_2_EXPIRATION, arg);
+#endif
         return true;
     case OPT_S2K_MSEC: {
         int msec = 0;
