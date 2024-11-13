@@ -66,7 +66,6 @@ ecdh_derive_kek(uint8_t *                x,
     }
 
     // Serialize other info, see 13.5 of RFC 4880 bis
-    uint8_t      other_info[MAX_SP800_56A_OTHER_INFO];
     const size_t hash_len = rnp::Hash::size(key.kdf_hash_alg);
     if (!hash_len) {
         // must not assert here as kdf/hash algs are not checked during key parsing
@@ -75,10 +74,10 @@ ecdh_derive_kek(uint8_t *                x,
         return RNP_ERROR_NOT_SUPPORTED;
         /* LCOV_EXCL_END */
     }
-    size_t other_len = kdf_other_info_serialize(
-      other_info, curve_desc, fingerprint, key.kdf_hash_alg, key.key_wrap_alg);
+    auto other_info =
+      kdf_other_info_serialize(curve_desc, fingerprint, key.kdf_hash_alg, key.key_wrap_alg);
     // Self-check
-    assert(other_len == curve_desc->OID.size() + 46);
+    assert(other_info.size() == curve_desc->OID.size() + 46);
     // Derive KEK, using the KDF from SP800-56A
     rnp::secure_array<uint8_t, PGP_MAX_HASH_SIZE> dgst;
     assert(hash_len <= PGP_MAX_HASH_SIZE);
@@ -91,24 +90,17 @@ ecdh_derive_kek(uint8_t *                x,
         /* LCOV_EXCL_END */
     }
     size_t have = 0;
-    try {
-        for (size_t i = 1; i <= reps; i++) {
-            auto hash = rnp::Hash::create(key.kdf_hash_alg);
-            hash->add(i);
-            hash->add(x, xlen);
-            hash->add(other_info, other_len);
-            hash->finish(dgst.data());
-            size_t bytes = std::min(hash_len, kek_len - have);
-            memcpy(kek + have, dgst.data(), bytes);
-            have += bytes;
-        }
-        return RNP_SUCCESS;
-    } catch (const std::exception &e) {
-        /* LCOV_EXCL_START */
-        RNP_LOG("Failed to derive kek: %s", e.what());
-        return RNP_ERROR_GENERIC;
-        /* LCOV_EXCL_END */
+    for (size_t i = 1; i <= reps; i++) {
+        auto hash = rnp::Hash::create(key.kdf_hash_alg);
+        hash->add(i);
+        hash->add(x, xlen);
+        hash->add(other_info);
+        hash->finish(dgst.data());
+        size_t bytes = std::min(hash_len, kek_len - have);
+        memcpy(kek + have, dgst.data(), bytes);
+        have += bytes;
     }
+    return RNP_SUCCESS;
 }
 
 static rnp_result_t
