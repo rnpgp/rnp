@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Ribose Inc.
+ * Copyright (c) 2017-2024 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ typedef struct pgp_ecdh_encrypted_t {
     const pgp_fingerprint_t *fp;
 } pgp_ecdh_encrypted_t;
 
-rnp_result_t ecdh_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret);
+rnp_result_t ecdh_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret);
 
 /*
  * @brief   Sets hash algorithm and key wrapping algo
@@ -58,7 +58,7 @@ rnp_result_t ecdh_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secr
  *
  * @returns false if curve is not supported, otherwise true
  */
-bool ecdh_set_params(pgp_ec_key_t *key, pgp_curve_t curve_id);
+bool ecdh_set_params(pgp::ec::Key &key, pgp_curve_t curve_id);
 
 /*
  * Encrypts session key with a KEK agreed during ECDH as specified in
@@ -83,11 +83,11 @@ bool ecdh_set_params(pgp_ec_key_t *key, pgp_curve_t curve_id);
  * @return RNP_ERROR_SHORT_BUFFER `wrapped_key_len' to small to store result
  * @return RNP_ERROR_GENERIC implementation error
  */
-rnp_result_t ecdh_encrypt_pkcs5(rnp::RNG *               rng,
-                                pgp_ecdh_encrypted_t *   out,
+rnp_result_t ecdh_encrypt_pkcs5(rnp::RNG &               rng,
+                                pgp_ecdh_encrypted_t &   out,
                                 const uint8_t *const     in,
                                 size_t                   in_len,
-                                const pgp_ec_key_t *     key,
+                                const pgp::ec::Key &     key,
                                 const pgp_fingerprint_t &fingerprint);
 
 /*
@@ -112,8 +112,8 @@ rnp_result_t ecdh_encrypt_pkcs5(rnp::RNG *               rng,
  */
 rnp_result_t ecdh_decrypt_pkcs5(uint8_t *                   out,
                                 size_t *                    out_len,
-                                const pgp_ecdh_encrypted_t *in,
-                                const pgp_ec_key_t *        key,
+                                const pgp_ecdh_encrypted_t &in,
+                                const pgp::ec::Key &        key,
                                 const pgp_fingerprint_t &   fingerprint);
 
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)

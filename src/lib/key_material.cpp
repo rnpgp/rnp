@@ -79,9 +79,9 @@ grip_hash_ecc_hex(rnp::Hash &hash, const char *hex, char name)
 }
 
 void
-grip_hash_ec(rnp::Hash &hash, const pgp_ec_key_t &key)
+grip_hash_ec(rnp::Hash &hash, const pgp::ec::Key &key)
 {
-    auto desc = get_curve_desc(key.curve);
+    auto desc = pgp::ec::Curve::get(key.curve);
     if (!desc) {
         RNP_LOG("unknown curve %d", (int) key.curve);
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -208,7 +208,7 @@ DSAKeyParams::min_hash() const noexcept
 size_t
 ECCKeyParams::bits() const noexcept
 {
-    auto curve = get_curve_desc(curve_);
+    auto curve = ec::Curve::get(curve_);
     return curve ? curve->bitlen : 0;
 }
 
@@ -462,7 +462,7 @@ KeyMaterial::create(pgp_pubkey_alg_t alg, const eg::Key &key)
 }
 
 std::unique_ptr<KeyMaterial>
-KeyMaterial::create(pgp_pubkey_alg_t alg, const pgp_ec_key_t &key)
+KeyMaterial::create(pgp_pubkey_alg_t alg, const ec::Key &key)
 {
     switch (alg) {
     case PGP_PKA_ECDSA:
@@ -989,17 +989,17 @@ ECKeyMaterial::clear_secret() noexcept
 rnp_result_t
 ECKeyMaterial::check_curve(size_t hash_len) const
 {
-    auto curve = get_curve_desc(key_.curve);
+    auto curve = ec::Curve::get(key_.curve);
     if (!curve) {
         RNP_LOG("Unknown curve");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!curve_supported(key_.curve)) {
+    if (!curve->supported) {
         RNP_LOG("EC sign: curve %s is not supported.", curve->pgp_name);
         return RNP_ERROR_NOT_SUPPORTED;
     }
     /* "-2" because ECDSA on P-521 must work with SHA-512 digest */
-    if (BITS_TO_BYTES(curve->bitlen) - 2 > hash_len) {
+    if (curve->bytes() - 2 > hash_len) {
         RNP_LOG("Message hash too small");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1044,11 +1044,11 @@ bool
 ECKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 {
     auto &ecc = dynamic_cast<const ECCKeyParams &>(params);
-    if (!curve_supported(ecc.curve())) {
+    if (!ec::Curve::is_supported(ecc.curve())) {
         RNP_LOG("EC generate: curve %d is not supported.", ecc.curve());
         return false;
     }
-    if (ec_generate(&ctx.rng, &key_, alg_, ecc.curve())) {
+    if (key_.generate(ctx.rng, alg_, ecc.curve())) {
         RNP_LOG("failed to generate EC key");
         return false;
     }
@@ -1066,7 +1066,7 @@ ECKeyMaterial::set_secret(const mpi &x)
 size_t
 ECKeyMaterial::bits() const noexcept
 {
-    auto curve_desc = get_curve_desc(key_.curve);
+    auto curve_desc = ec::Curve::get(key_.curve);
     return curve_desc ? curve_desc->bitlen : 0;
 }
 
@@ -1091,12 +1091,12 @@ ECKeyMaterial::x() const noexcept
 bool
 ECDSAKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 {
-    if (!curve_supported(key_.curve)) {
+    if (!ec::Curve::is_supported(key_.curve)) {
         /* allow to import key if curve is not supported */
         RNP_LOG("ECDSA validate: curve %d is not supported.", key_.curve);
         return true;
     }
-    return !ecdsa_validate_key(&ctx.rng, &key_, secret_);
+    return !ecdsa_validate_key(ctx.rng, key_, secret_);
 }
 
 std::unique_ptr<KeyMaterial>
@@ -1110,11 +1110,11 @@ ECDSAKeyMaterial::verify(const rnp::SecurityContext &       ctx,
                          const pgp_signature_material_t &   sig,
                          const rnp::secure_vector<uint8_t> &hash) const
 {
-    if (!curve_supported(key_.curve)) {
+    if (!ec::Curve::is_supported(key_.curve)) {
         RNP_LOG("Curve %d is not supported.", key_.curve);
         return RNP_ERROR_NOT_SUPPORTED;
     }
-    return ecdsa_verify(&sig.ecc, sig.halg, hash.data(), hash.size(), &key_);
+    return ecdsa_verify(sig.ecc, sig.halg, hash.data(), hash.size(), key_);
 }
 
 rnp_result_t
@@ -1126,7 +1126,7 @@ ECDSAKeyMaterial::sign(rnp::SecurityContext &             ctx,
     if (ret) {
         return ret;
     }
-    return ecdsa_sign(&ctx.rng, &sig.ecc, sig.halg, hash.data(), hash.size(), &key_);
+    return ecdsa_sign(ctx.rng, sig.ecc, sig.halg, hash.data(), hash.size(), key_);
 }
 
 pgp_hash_alg_t
@@ -1142,12 +1142,12 @@ ECDSAKeyMaterial::adjust_hash(pgp_hash_alg_t hash) const
 bool
 ECDHKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 {
-    if (!curve_supported(key_.curve)) {
+    if (!ec::Curve::is_supported(key_.curve)) {
         /* allow to import key if curve is not supported */
         RNP_LOG("ECDH validate: curve %d is not supported.", key_.curve);
         return true;
     }
-    return !ecdh_validate_key(&ctx.rng, &key_, secret_);
+    return !ecdh_validate_key(ctx.rng, key_, secret_);
 }
 
 std::unique_ptr<KeyMaterial>
@@ -1193,13 +1193,13 @@ bool
 ECDHKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 {
     auto &ecc = dynamic_cast<const ECCKeyParams &>(params);
-    if (!ecdh_set_params(&key_, ecc.curve())) {
+    if (!ecdh_set_params(key_, ecc.curve())) {
         RNP_LOG("Unsupported curve [ID=%d]", ecc.curve());
         return false;
     }
     /* Special case for x25519*/
     if (ecc.curve() == PGP_CURVE_25519) {
-        if (x25519_generate(&ctx.rng, &key_)) {
+        if (key_.generate_x25519(ctx.rng)) {
             RNP_LOG("failed to generate x25519 key");
             return false;
         }
@@ -1216,12 +1216,12 @@ ECDHKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                          const uint8_t *           data,
                          size_t                    len) const
 {
-    if (!curve_supported(key_.curve)) {
+    if (!ec::Curve::is_supported(key_.curve)) {
         RNP_LOG("ECDH encrypt: curve %d is not supported.", key_.curve);
         return RNP_ERROR_NOT_SUPPORTED;
     }
     assert(out.ecdh.fp);
-    return ecdh_encrypt_pkcs5(&ctx.rng, &out.ecdh, data, len, &key_, *out.ecdh.fp);
+    return ecdh_encrypt_pkcs5(ctx.rng, out.ecdh, data, len, key_, *out.ecdh.fp);
 }
 
 rnp_result_t
@@ -1230,14 +1230,14 @@ ECDHKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
                          size_t &                        out_len,
                          const pgp_encrypted_material_t &in) const
 {
-    if (!curve_supported(key_.curve)) {
+    if (!ec::Curve::is_supported(key_.curve)) {
         RNP_LOG("ECDH decrypt: curve %d is not supported.", key_.curve);
         return RNP_ERROR_BAD_PARAMETERS;
     }
     if ((key_.curve == PGP_CURVE_25519) && !x25519_bits_tweaked()) {
         RNP_LOG("Warning: bits of 25519 secret key are not tweaked.");
     }
-    return ecdh_decrypt_pkcs5(out, &out_len, &in.ecdh, &key_, *in.ecdh.fp);
+    return ecdh_decrypt_pkcs5(out, &out_len, in.ecdh, key_, *in.ecdh.fp);
 }
 
 pgp_hash_alg_t
@@ -1267,7 +1267,7 @@ ECDHKeyMaterial::x25519_tweak_bits() noexcept
 bool
 EDDSAKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 {
-    return !eddsa_validate_key(&ctx.rng, &key_, secret_);
+    return !eddsa_validate_key(ctx.rng, key_, secret_);
 }
 
 std::unique_ptr<KeyMaterial>
@@ -1279,7 +1279,7 @@ EDDSAKeyMaterial::clone()
 bool
 EDDSAKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 {
-    if (eddsa_generate(&ctx.rng, &key_)) {
+    if (eddsa_generate(ctx.rng, key_)) {
         RNP_LOG("failed to generate EDDSA key");
         return false;
     }
@@ -1291,7 +1291,7 @@ EDDSAKeyMaterial::verify(const rnp::SecurityContext &       ctx,
                          const pgp_signature_material_t &   sig,
                          const rnp::secure_vector<uint8_t> &hash) const
 {
-    return eddsa_verify(&sig.ecc, hash.data(), hash.size(), &key_);
+    return eddsa_verify(sig.ecc, hash.data(), hash.size(), key_);
 }
 
 rnp_result_t
@@ -1299,14 +1299,14 @@ EDDSAKeyMaterial::sign(rnp::SecurityContext &             ctx,
                        pgp_signature_material_t &         sig,
                        const rnp::secure_vector<uint8_t> &hash) const
 {
-    return eddsa_sign(&ctx.rng, &sig.ecc, hash.data(), hash.size(), &key_);
+    return eddsa_sign(ctx.rng, sig.ecc, hash.data(), hash.size(), key_);
 }
 
 bool
 SM2KeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 {
 #if defined(ENABLE_SM2)
-    return !sm2_validate_key(&ctx.rng, &key_, secret_);
+    return !sm2_validate_key(ctx.rng, key_, secret_);
 #else
     RNP_LOG("SM2 key validation is not available.");
     return false;
@@ -1326,7 +1326,7 @@ SM2KeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                         size_t                    len) const
 {
 #if defined(ENABLE_SM2)
-    return sm2_encrypt(&ctx.rng, &out.sm2, data, len, PGP_HASH_SM3, &key_);
+    return sm2_encrypt(ctx.rng, out.sm2, data, len, PGP_HASH_SM3, key_);
 #else
     RNP_LOG("sm2_encrypt is not available");
     return RNP_ERROR_NOT_IMPLEMENTED;
@@ -1340,7 +1340,7 @@ SM2KeyMaterial::decrypt(rnp::SecurityContext &          ctx,
                         const pgp_encrypted_material_t &in) const
 {
 #if defined(ENABLE_SM2)
-    return sm2_decrypt(out, &out_len, &in.sm2, &key_);
+    return sm2_decrypt(out, &out_len, in.sm2, key_);
 #else
     RNP_LOG("SM2 decryption is not available.");
     return RNP_ERROR_NOT_IMPLEMENTED;
@@ -1353,7 +1353,7 @@ SM2KeyMaterial::verify(const rnp::SecurityContext &       ctx,
                        const rnp::secure_vector<uint8_t> &hash) const
 {
 #if defined(ENABLE_SM2)
-    return sm2_verify(&sig.ecc, sig.halg, hash.data(), hash.size(), &key_);
+    return sm2_verify(sig.ecc, sig.halg, hash.data(), hash.size(), key_);
 #else
     RNP_LOG("SM2 verification is not available.");
     return RNP_ERROR_NOT_IMPLEMENTED;
@@ -1370,7 +1370,7 @@ SM2KeyMaterial::sign(rnp::SecurityContext &             ctx,
     if (ret) {
         return ret;
     }
-    return sm2_sign(&ctx.rng, &sig.ecc, sig.halg, hash.data(), hash.size(), &key_);
+    return sm2_sign(ctx.rng, sig.ecc, sig.halg, hash.data(), hash.size(), key_);
 #else
     RNP_LOG("SM2 signing is not available.");
     return RNP_ERROR_NOT_IMPLEMENTED;
@@ -1433,8 +1433,8 @@ bool
 Ed25519KeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 {
     secret_ = false;
-    auto                 ec_desc = get_curve_desc(PGP_CURVE_ED25519);
-    std::vector<uint8_t> buf(BITS_TO_BYTES(ec_desc->bitlen));
+    auto                 ec_desc = pgp::ec::Curve::get(PGP_CURVE_ED25519);
+    std::vector<uint8_t> buf(ec_desc->bytes());
     if (!pkt.get(buf.data(), buf.size())) {
         RNP_LOG("failed to parse Ed25519 public key data");
         return false;
@@ -1446,8 +1446,8 @@ Ed25519KeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 bool
 Ed25519KeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 {
-    auto                 ec_desc = get_curve_desc(PGP_CURVE_ED25519);
-    std::vector<uint8_t> buf(BITS_TO_BYTES(ec_desc->bitlen));
+    auto                 ec_desc = pgp::ec::Curve::get(PGP_CURVE_ED25519);
+    std::vector<uint8_t> buf(ec_desc->bytes());
     if (!pkt.get(buf.data(), buf.size())) {
         RNP_LOG("failed to parse Ed25519 secret key data");
         return false;
@@ -1559,8 +1559,8 @@ bool
 X25519KeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 {
     secret_ = false;
-    auto                 ec_desc = get_curve_desc(PGP_CURVE_25519);
-    std::vector<uint8_t> buf(BITS_TO_BYTES(ec_desc->bitlen));
+    auto                 ec_desc = pgp::ec::Curve::get(PGP_CURVE_25519);
+    std::vector<uint8_t> buf(ec_desc->bytes());
     if (!pkt.get(buf.data(), buf.size())) {
         RNP_LOG("failed to parse X25519 public key data");
         return false;
@@ -1572,8 +1572,8 @@ X25519KeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 bool
 X25519KeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 {
-    auto                 ec_desc = get_curve_desc(PGP_CURVE_25519);
-    std::vector<uint8_t> buf(BITS_TO_BYTES(ec_desc->bitlen));
+    auto                 ec_desc = pgp::ec::Curve::get(PGP_CURVE_25519);
+    std::vector<uint8_t> buf(ec_desc->bytes());
     if (!pkt.get(buf.data(), buf.size())) {
         RNP_LOG("failed to parse X25519 secret key data");
         return false;

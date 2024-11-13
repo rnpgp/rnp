@@ -172,7 +172,7 @@ typedef struct pgp_signature_material_t {
     union {
         pgp::rsa::Signature rsa;
         pgp::dsa::Signature dsa;
-        pgp_ec_signature_t  ecc;
+        pgp::ec::Signature  ecc;
         pgp::eg::Signature  eg;
     };
 #if defined(ENABLE_CRYPTO_REFRESH)

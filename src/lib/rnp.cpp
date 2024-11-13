@@ -390,14 +390,14 @@ z_alg_supported(int alg)
 static bool
 curve_str_to_type(const char *str, pgp_curve_t *value)
 {
-    *value = find_curve_by_name(str);
-    return curve_supported(*value);
+    *value = pgp::ec::Curve::by_name(str);
+    return pgp::ec::Curve::is_supported(*value);
 }
 
 static bool
 curve_type_to_str(pgp_curve_t type, const char **str)
 {
-    auto desc = get_curve_desc(type);
+    auto desc = pgp::ec::Curve::get(type);
     if (!desc) {
         return false;
     }
@@ -1134,7 +1134,7 @@ try {
     } else if (rnp::str_case_eq(type, RNP_FEATURE_CURVE)) {
         for (pgp_curve_t curve = PGP_CURVE_NIST_P_256; curve < PGP_CURVE_MAX;
              curve = (pgp_curve_t)(curve + 1)) {
-            auto desc = get_curve_desc(curve);
+            auto desc = pgp::ec::Curve::get(curve);
             if (!desc) {
                 return RNP_ERROR_BAD_STATE; // LCOV_EXCL_LINE
             }

@@ -1,10 +1,6 @@
-/*
- * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
+/*-
+ * Copyright (c) 2017-2024 Ribose Inc.
  * All rights reserved.
- *
- * This code is originally derived from software contributed to
- * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
- * carried further by Ribose Inc (https://www.ribose.com).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,16 +32,20 @@
 #include "crypto/rng.h"
 #include "crypto/mpi.h"
 #include "crypto/mem.h"
+#include "utils.h"
 #include <vector>
 
 #define MAX_CURVE_BIT_SIZE 521 // secp521r1
 /* Maximal byte size of elliptic curve order (NIST P-521) */
 #define MAX_CURVE_BYTELEN ((MAX_CURVE_BIT_SIZE + 7) / 8)
 
+namespace pgp {
+namespace ec {
 /**
  * Structure holds description of elliptic curve
  */
-typedef struct ec_curve_desc_t {
+class Curve {
+  public:
     const pgp_curve_t          rnp_curve_id;
     const size_t               bitlen;
     const std::vector<uint8_t> OID;
@@ -66,9 +66,52 @@ typedef struct ec_curve_desc_t {
     const char *gx;
     const char *gy;
     const char *h;
-} ec_curve_desc_t;
 
-typedef struct pgp_ec_key_t {
+    /**
+     * @brief   Finds curve ID by hex representation of OID
+     * @param   oid       buffer with OID in hex
+     * @returns success curve ID
+     *          failure PGP_CURVE_MAX is returned
+     * @remarks see RFC 4880 bis 01 - 9.2 ECC Curve OID
+     */
+    static pgp_curve_t by_OID(const std::vector<uint8_t> &oid);
+
+    static pgp_curve_t by_name(const char *name);
+
+    /**
+     * @brief   Returns pointer to the curve descriptor
+     *
+     * @param   Valid curve ID
+     *
+     * @returns NULL if wrong ID provided, otherwise descriptor
+     *
+     */
+    static const Curve *get(const pgp_curve_t curve_id);
+
+    static bool alg_allows(pgp_pubkey_alg_t alg, pgp_curve_t curve);
+
+    /**
+     * @brief Check whether curve is supported for operations.
+     *        All available curves are supported for reading/parsing key data, however some of
+     * them may be disabled for use, i.e. for key generation/signing/encryption.
+     */
+    static bool is_supported(pgp_curve_t curve);
+
+    size_t
+    bytes() const noexcept
+    {
+        return BITS_TO_BYTES(bitlen);
+    }
+};
+
+class Signature {
+  public:
+    pgp::mpi r;
+    pgp::mpi s;
+};
+
+class Key {
+  public:
     pgp_curve_t curve;
     pgp::mpi    p;
     /* secret mpi */
@@ -83,16 +126,58 @@ typedef struct pgp_ec_key_t {
         x.forget();
     }
 
-    ~pgp_ec_key_t()
+    ~Key()
     {
         clear_secret();
     }
-} pgp_ec_key_t;
 
-typedef struct pgp_ec_signature_t {
-    pgp::mpi r;
-    pgp::mpi s;
-} pgp_ec_signature_t;
+    /**
+     * @brief   Generates EC key in uncompressed format
+     *
+     * @param   rng initialized rnp::RNG context
+     * @param   alg_id ID of EC algorithm
+     * @param   curve underlying ECC curve ID
+     *
+     * @pre     alg_id MUST be supported algorithm
+     *
+     * @returns RNP_ERROR_BAD_PARAMETERS unknown curve_id
+     * @returns RNP_ERROR_OUT_OF_MEMORY memory allocation failed
+     * @returns RNP_ERROR_KEY_GENERATION implementation error
+     */
+    rnp_result_t generate(rnp::RNG &             rng,
+                          const pgp_pubkey_alg_t alg_id,
+                          const pgp_curve_t      curve);
+
+    /**
+     * @brief   Generates x25519 ECDH key in x25519-specific format
+     *
+     * @param   rng initialized rnp::RNG context*
+     *
+     * @returns RNP_ERROR_KEY_GENERATION implementation error
+     */
+    rnp_result_t generate_x25519(rnp::RNG &rng);
+};
+
+} // namespace ec
+} // namespace pgp
+
+/**
+ * @brief Set least significant/most significant bits of the 25519 secret key as per
+ *        specification.
+ *
+ * @param key secret key.
+ * @return true on success or false otherwise.
+ */
+bool x25519_tweak_bits(pgp::ec::Key &key);
+
+/**
+ * @brief Check whether least significant/most significant bits of 25519 secret key are
+ *        correctly tweaked.
+ *
+ * @param key secret key.
+ * @return true if bits are set correctly, and false otherwise.
+ */
+bool x25519_bits_tweaked(const pgp::ec::Key &key);
 
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 typedef struct pgp_ed25519_key_t {
@@ -137,84 +222,6 @@ typedef struct pgp_x25519_encrypted_t {
     std::vector<uint8_t> eph_key;
     std::vector<uint8_t> enc_sess_key;
 } pgp_x25519_encrypted_t;
-#endif
-
-/*
- * @brief   Finds curve ID by hex representation of OID
- * @param   oid       buffer with OID in hex
- * @returns success curve ID
- *          failure PGP_CURVE_MAX is returned
- * @remarks see RFC 4880 bis 01 - 9.2 ECC Curve OID
- */
-pgp_curve_t find_curve_by_OID(const std::vector<uint8_t> &oid);
-
-pgp_curve_t find_curve_by_name(const char *name);
-
-/*
- * @brief   Returns pointer to the curve descriptor
- *
- * @param   Valid curve ID
- *
- * @returns NULL if wrong ID provided, otherwise descriptor
- *
- */
-const ec_curve_desc_t *get_curve_desc(const pgp_curve_t curve_id);
-
-bool alg_allows_curve(pgp_pubkey_alg_t alg, pgp_curve_t curve);
-
-/**
- * @brief Check whether curve is supported for operations.
- *        All available curves are supported for reading/parsing key data, however some of them
- *        may be disabled for use, i.e. for key generation/signing/encryption.
- */
-bool curve_supported(pgp_curve_t curve);
-
-/*
- * @brief   Generates EC key in uncompressed format
- *
- * @param   rng initialized rnp::RNG context*
- * @param   key key data to be generated
- * @param   alg_id ID of EC algorithm
- * @param   curve underlying ECC curve ID
- *
- * @pre     alg_id MUST be supported algorithm
- *
- * @returns RNP_ERROR_BAD_PARAMETERS unknown curve_id
- * @returns RNP_ERROR_OUT_OF_MEMORY memory allocation failed
- * @returns RNP_ERROR_KEY_GENERATION implementation error
- */
-rnp_result_t ec_generate(rnp::RNG *             rng,
-                         pgp_ec_key_t *         key,
-                         const pgp_pubkey_alg_t alg_id,
-                         const pgp_curve_t      curve);
-
-/*
- * @brief   Generates x25519 ECDH key in x25519-specific format
- *
- * @param   rng initialized rnp::RNG context*
- * @param   key key data to be generated
- *
- * @returns RNP_ERROR_KEY_GENERATION implementation error
- */
-rnp_result_t x25519_generate(rnp::RNG *rng, pgp_ec_key_t *key);
-
-/**
- * @brief Set least significant/most significant bits of the 25519 secret key as per
- *        specification.
- *
- * @param key secret key.
- * @return true on success or false otherwise.
- */
-bool x25519_tweak_bits(pgp_ec_key_t &key);
-
-/**
- * @brief Check whether least significant/most significant bits of 25519 secret key are
- *        correctly tweaked.
- *
- * @param key secret key.
- * @return true if bits are set correctly, and false otherwise.
- */
-bool x25519_bits_tweaked(const pgp_ec_key_t &key);
 
 /*
  * @brief   Generates EC keys in "native" or SEC1-encoded uncompressed format
@@ -232,4 +239,6 @@ rnp_result_t ec_generate_native(rnp::RNG *            rng,
                                 std::vector<uint8_t> &pubkey,
                                 pgp_curve_t           curve,
                                 pgp_pubkey_alg_t      alg);
+#endif
+
 #endif
