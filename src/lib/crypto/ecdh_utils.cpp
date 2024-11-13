@@ -51,7 +51,7 @@ static const struct ecdh_params_t {
 
 // returns size of data written to other_info
 std::vector<uint8_t>
-kdf_other_info_serialize(const ec_curve_desc_t *  ec_curve,
+kdf_other_info_serialize(const pgp::ec::Curve *   curve,
                          const pgp_fingerprint_t &fp,
                          const pgp_hash_alg_t     kdf_hash,
                          const pgp_symm_alg_t     wrap_alg)
@@ -61,8 +61,8 @@ kdf_other_info_serialize(const ec_curve_desc_t *  ec_curve,
      *   Current implementation will always use SHA-512 and AES-256 for KEK wrapping
      */
     std::vector<uint8_t> buf;
-    buf.push_back(static_cast<uint8_t>(ec_curve->OID.size()));
-    buf.insert(buf.end(), ec_curve->OID.begin(), ec_curve->OID.end());
+    buf.push_back(static_cast<uint8_t>(curve->OID.size()));
+    buf.insert(buf.end(), curve->OID.begin(), curve->OID.end());
     buf.push_back(PGP_PKA_ECDH);
     // size of following 3 params (each 1 byte)
     buf.push_back(0x03);
@@ -123,12 +123,12 @@ unpad_pkcs7(uint8_t *buf, size_t buf_len, size_t *offset)
 }
 
 bool
-ecdh_set_params(pgp_ec_key_t *key, pgp_curve_t curve_id)
+ecdh_set_params(pgp::ec::Key &key, pgp_curve_t curve_id)
 {
     for (size_t i = 0; i < ARRAY_SIZE(ecdh_params); i++) {
         if (ecdh_params[i].curve == curve_id) {
-            key->kdf_hash_alg = ecdh_params[i].hash;
-            key->key_wrap_alg = ecdh_params[i].wrap_alg;
+            key.kdf_hash_alg = ecdh_params[i].hash;
+            key.key_wrap_alg = ecdh_params[i].wrap_alg;
             return true;
         }
     }
@@ -137,7 +137,7 @@ ecdh_set_params(pgp_ec_key_t *key, pgp_curve_t curve_id)
 }
 
 bool
-x25519_tweak_bits(pgp_ec_key_t &key)
+x25519_tweak_bits(pgp::ec::Key &key)
 {
     if (key.x.len != 32) {
         return false;
@@ -150,7 +150,7 @@ x25519_tweak_bits(pgp_ec_key_t &key)
 }
 
 bool
-x25519_bits_tweaked(const pgp_ec_key_t &key)
+x25519_bits_tweaked(const pgp::ec::Key &key)
 {
     if (key.x.len != 32) {
         return false;

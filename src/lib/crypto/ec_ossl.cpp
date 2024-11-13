@@ -41,25 +41,28 @@
 #include <openssl/param_build.h>
 #endif
 
+namespace pgp {
+namespace ec {
+
 static bool
-ec_is_raw_key(const pgp_curve_t curve)
+is_raw_key(const pgp_curve_t curve)
 {
     return (curve == PGP_CURVE_ED25519) || (curve == PGP_CURVE_25519);
 }
 
 rnp_result_t
-x25519_generate(rnp::RNG *rng, pgp_ec_key_t *key)
+Key::generate_x25519(rnp::RNG &rng)
 {
-    return ec_generate(rng, key, PGP_PKA_ECDH, PGP_CURVE_25519);
+    return generate(rng, PGP_PKA_ECDH, PGP_CURVE_25519);
 }
 
 EVP_PKEY *
-ec_generate_pkey(const pgp_pubkey_alg_t alg_id, const pgp_curve_t curve)
+generate_pkey(const pgp_pubkey_alg_t alg_id, const pgp_curve_t curve)
 {
-    if (!alg_allows_curve(alg_id, curve)) {
+    if (!Curve::alg_allows(alg_id, curve)) {
         return NULL;
     }
-    auto ec_desc = get_curve_desc(curve);
+    auto ec_desc = Curve::get(curve);
     if (!ec_desc) {
         return NULL;
     }
@@ -70,7 +73,7 @@ ec_generate_pkey(const pgp_pubkey_alg_t alg_id, const pgp_curve_t curve)
         return NULL;
         /* LCOV_EXCL_END */
     }
-    bool          raw = ec_is_raw_key(curve);
+    bool          raw = is_raw_key(curve);
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(raw ? nid : EVP_PKEY_EC, NULL);
     if (!ctx) {
         /* LCOV_EXCL_START */
@@ -100,29 +103,29 @@ done:
 }
 
 static bool
-ec_write_raw_seckey(EVP_PKEY *pkey, pgp_ec_key_t *key)
+write_raw_seckey(EVP_PKEY *pkey, pgp::ec::Key &key)
 {
     /* EdDSA and X25519 keys are saved in a different way */
-    static_assert(sizeof(key->x.mpi) > 32, "mpi is too small.");
-    key->x.len = sizeof(key->x.mpi);
-    if (EVP_PKEY_get_raw_private_key(pkey, key->x.mpi, &key->x.len) <= 0) {
+    static_assert(sizeof(key.x.mpi) > 32, "mpi is too small.");
+    key.x.len = sizeof(key.x.mpi);
+    if (EVP_PKEY_get_raw_private_key(pkey, key.x.mpi, &key.x.len) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed get raw private key: %lu", ERR_peek_last_error());
         return false;
         /* LCOV_EXCL_END */
     }
-    assert(key->x.len == 32);
+    assert(key.x.len == 32);
     if (EVP_PKEY_id(pkey) == EVP_PKEY_X25519) {
         /* in OpenSSL private key is exported as little-endian, while MPI is big-endian */
         for (size_t i = 0; i < 16; i++) {
-            std::swap(key->x.mpi[i], key->x.mpi[31 - i]);
+            std::swap(key.x.mpi[i], key.x.mpi[31 - i]);
         }
     }
     return true;
 }
 
 static bool
-ec_write_seckey(EVP_PKEY *pkey, pgp::mpi &key)
+write_seckey(EVP_PKEY *pkey, pgp::mpi &key)
 {
 #if defined(CRYPTO_BACKEND_OPENSSL3)
     rnp::bn x;
@@ -146,30 +149,27 @@ ec_write_seckey(EVP_PKEY *pkey, pgp::mpi &key)
 }
 
 rnp_result_t
-ec_generate(rnp::RNG *             rng,
-            pgp_ec_key_t *         key,
-            const pgp_pubkey_alg_t alg_id,
-            const pgp_curve_t      curve)
+Key::generate(rnp::RNG &rng, const pgp_pubkey_alg_t alg_id, const pgp_curve_t curve)
 {
-    EVP_PKEY *pkey = ec_generate_pkey(alg_id, curve);
+    EVP_PKEY *pkey = generate_pkey(alg_id, curve);
     if (!pkey) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     rnp_result_t ret = RNP_ERROR_GENERIC;
-    if (ec_is_raw_key(curve)) {
-        if (ec_write_pubkey(pkey, key->p, curve) && ec_write_raw_seckey(pkey, key)) {
+    if (is_raw_key(curve)) {
+        if (write_pubkey(pkey, p, curve) && write_raw_seckey(pkey, *this)) {
             ret = RNP_SUCCESS;
         }
         EVP_PKEY_free(pkey);
         return ret;
     }
-    if (!ec_write_pubkey(pkey, key->p, curve)) {
+    if (!write_pubkey(pkey, p, curve)) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to write pubkey.");
         goto done;
         /* LCOV_EXCL_END */
     }
-    if (!ec_write_seckey(pkey, key->x)) {
+    if (!write_seckey(pkey, x)) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to write seckey.");
         goto done;
@@ -182,7 +182,7 @@ done:
 }
 
 static EVP_PKEY *
-ec_load_raw_key(const pgp::mpi &keyp, const pgp::mpi *keyx, int nid)
+load_raw_key(const pgp::mpi &keyp, const pgp::mpi *keyx, int nid)
 {
     if (!keyx) {
         /* as per RFC, EdDSA & 25519 keys must use 0x40 byte for encoding */
@@ -229,7 +229,7 @@ ec_load_raw_key(const pgp::mpi &keyp, const pgp::mpi *keyx, int nid)
 
 #if defined(CRYPTO_BACKEND_OPENSSL3)
 static OSSL_PARAM *
-ec_build_params(const pgp::mpi &p, bignum_t *x, const char *curve)
+build_params(const pgp::mpi &p, bignum_t *x, const char *curve)
 {
     OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
     if (!bld) {
@@ -249,12 +249,10 @@ ec_build_params(const pgp::mpi &p, bignum_t *x, const char *curve)
 }
 
 static EVP_PKEY *
-ec_load_key_openssl3(const pgp::mpi &       keyp,
-                     const pgp::mpi *       keyx,
-                     const ec_curve_desc_t *curv_desc)
+load_key_openssl3(const pgp::mpi &keyp, const pgp::mpi *keyx, const Curve &curv_desc)
 {
     rnp::bn     x(keyx ? mpi2bn(keyx) : NULL);
-    OSSL_PARAM *params = ec_build_params(keyp, x.get(), curv_desc->openssl_name);
+    OSSL_PARAM *params = build_params(keyp, x.get(), curv_desc.openssl_name);
     if (!params) {
         /* LCOV_EXCL_START */
         RNP_LOG("failed to build ec params");
@@ -286,14 +284,14 @@ ec_load_key_openssl3(const pgp::mpi &       keyp,
 #endif
 
 EVP_PKEY *
-ec_load_key(const pgp::mpi &keyp, const pgp::mpi *keyx, pgp_curve_t curve)
+load_key(const pgp::mpi &keyp, const pgp::mpi *keyx, pgp_curve_t curve)
 {
-    auto curv_desc = get_curve_desc(curve);
+    auto curv_desc = Curve::get(curve);
     if (!curv_desc) {
         RNP_LOG("unknown curve");
         return NULL;
     }
-    if (!curve_supported(curve)) {
+    if (!Curve::is_supported(curve)) {
         RNP_LOG("Curve %s is not supported.", curv_desc->pgp_name);
         return NULL;
     }
@@ -305,11 +303,11 @@ ec_load_key(const pgp::mpi &keyp, const pgp::mpi *keyx, pgp_curve_t curve)
         /* LCOV_EXCL_END */
     }
     /* EdDSA and X25519 keys are loaded in a different way */
-    if (ec_is_raw_key(curve)) {
-        return ec_load_raw_key(keyp, keyx, nid);
+    if (is_raw_key(curve)) {
+        return load_raw_key(keyp, keyx, nid);
     }
 #if defined(CRYPTO_BACKEND_OPENSSL3)
-    return ec_load_key_openssl3(keyp, keyx, curv_desc);
+    return load_key_openssl3(keyp, keyx, *curv_desc);
 #else
     EC_KEY *ec = EC_KEY_new_by_curve_name(nid);
     if (!ec) {
@@ -387,7 +385,7 @@ done:
 }
 
 rnp_result_t
-ec_validate_key(const pgp_ec_key_t &key, bool secret)
+validate_key(const Key &key, bool secret)
 {
     if (key.curve == PGP_CURVE_25519) {
         /* No key check implementation for x25519 in the OpenSSL yet, so just basic size checks
@@ -400,7 +398,7 @@ ec_validate_key(const pgp_ec_key_t &key, bool secret)
         }
         return RNP_SUCCESS;
     }
-    EVP_PKEY *evpkey = ec_load_key(key.p, secret ? &key.x : NULL, key.curve);
+    EVP_PKEY *evpkey = load_key(key.p, secret ? &key.x : NULL, key.curve);
     if (!evpkey) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -430,9 +428,9 @@ done:
 }
 
 bool
-ec_write_pubkey(EVP_PKEY *pkey, pgp::mpi &mpi, pgp_curve_t curve)
+write_pubkey(EVP_PKEY *pkey, pgp::mpi &mpi, pgp_curve_t curve)
 {
-    if (ec_is_raw_key(curve)) {
+    if (is_raw_key(curve)) {
         /* EdDSA and X25519 keys are saved in a different way */
         mpi.len = sizeof(mpi.mpi) - 1;
         if (EVP_PKEY_get_raw_public_key(pkey, &mpi.mpi[1], &mpi.len) <= 0) {
@@ -447,11 +445,11 @@ ec_write_pubkey(EVP_PKEY *pkey, pgp::mpi &mpi, pgp_curve_t curve)
         return true;
     }
 #if defined(CRYPTO_BACKEND_OPENSSL3)
-    auto ec_desc = get_curve_desc(curve);
+    auto ec_desc = Curve::get(curve);
     if (!ec_desc) {
         return false;
     }
-    size_t  flen = BITS_TO_BYTES(ec_desc->bitlen);
+    size_t  flen = ec_desc->bytes();
     rnp::bn qx;
     rnp::bn qy;
 
@@ -494,3 +492,6 @@ ec_write_pubkey(EVP_PKEY *pkey, pgp::mpi &mpi, pgp_curve_t curve)
     return mpi.len;
 #endif
 }
+
+} // namespace ec
+} // namespace pgp
