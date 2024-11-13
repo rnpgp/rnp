@@ -41,14 +41,16 @@ class bn {
         botan_mp_init(&bn_);
     }
 
-    bn(const pgp::mpi &val)
+    bn(const uint8_t *val, size_t len)
     {
         botan_mp_init(&bn_);
-        if (bn_ && botan_mp_from_bin(bn_, val.mpi, val.len)) {
+        if (bn_ && botan_mp_from_bin(bn_, val, len)) {
             botan_mp_destroy(bn_);
             bn_ = NULL;
         }
     }
+
+    bn(const pgp::mpi &val) : bn(val.mpi, val.len){};
 
     ~bn()
     {
@@ -75,7 +77,13 @@ class bn {
             val.len = 0;
             return false;
         }
-        return botan_mp_to_bin(bn_, val.mpi) == 0;
+        return !botan_mp_to_bin(bn_, val.mpi);
+    }
+
+    bool
+    bin(uint8_t *b) const noexcept
+    {
+        return b ? !botan_mp_to_bin(bn_, b) : false;
     }
 
     size_t
@@ -118,6 +126,12 @@ class Privkey {
     }
     botan_privkey_t &
     get() noexcept
+    {
+        return key_;
+    };
+
+    const botan_privkey_t &
+    get() const noexcept
     {
         return key_;
     };
@@ -182,6 +196,22 @@ class Sign {
         botan_pk_op_sign_destroy(op_);
     }
     botan_pk_op_sign_t &
+    get() noexcept
+    {
+        return op_;
+    };
+};
+
+class KeyAgreement {
+    botan_pk_op_ka_t op_;
+
+  public:
+    KeyAgreement() : op_(NULL){};
+    ~KeyAgreement()
+    {
+        botan_pk_op_key_agreement_destroy(op_);
+    }
+    botan_pk_op_ka_t &
     get() noexcept
     {
         return op_;

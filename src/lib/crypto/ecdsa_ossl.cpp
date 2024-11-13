@@ -34,7 +34,7 @@
 #include <openssl/ec.h>
 
 static bool
-ecdsa_decode_sig(const uint8_t *data, size_t len, pgp_ec_signature_t &sig)
+ecdsa_decode_sig(const uint8_t *data, size_t len, pgp::ec::Signature &sig)
 {
     ECDSA_SIG *esig = d2i_ECDSA_SIG(NULL, &data, len);
     if (!esig) {
@@ -50,7 +50,7 @@ ecdsa_decode_sig(const uint8_t *data, size_t len, pgp_ec_signature_t &sig)
 }
 
 static bool
-ecdsa_encode_sig(uint8_t *data, size_t *len, const pgp_ec_signature_t &sig)
+ecdsa_encode_sig(uint8_t *data, size_t *len, const pgp::ec::Signature &sig)
 {
     bool       res = false;
     ECDSA_SIG *dsig = ECDSA_SIG_new();
@@ -79,26 +79,26 @@ done:
 }
 
 rnp_result_t
-ecdsa_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret)
+ecdsa_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
 {
-    return ec_validate_key(*key, secret);
+    return pgp::ec::validate_key(key, secret);
 }
 
 rnp_result_t
-ecdsa_sign(rnp::RNG *          rng,
-           pgp_ec_signature_t *sig,
+ecdsa_sign(rnp::RNG &          rng,
+           pgp::ec::Signature &sig,
            pgp_hash_alg_t      hash_alg,
            const uint8_t *     hash,
            size_t              hash_len,
-           const pgp_ec_key_t *key)
+           const pgp::ec::Key &key)
 {
-    if (!key->x.bytes()) {
+    if (!key.x.bytes()) {
         RNP_LOG("private key not set");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     /* Load secret key to DSA structure*/
-    EVP_PKEY *evpkey = ec_load_key(key->p, &key->x, key->curve);
+    EVP_PKEY *evpkey = pgp::ec::load_key(key.p, &key.x, key.curve);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -115,13 +115,13 @@ ecdsa_sign(rnp::RNG *          rng,
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
         goto done;
     }
-    sig->s.len = PGP_MPINT_SIZE;
-    if (EVP_PKEY_sign(ctx, sig->s.mpi, &sig->s.len, hash, hash_len) <= 0) {
+    sig.s.len = PGP_MPINT_SIZE;
+    if (EVP_PKEY_sign(ctx, sig.s.mpi, &sig.s.len, hash, hash_len) <= 0) {
         RNP_LOG("Signing failed: %lu", ERR_peek_last_error());
-        sig->s.len = 0;
+        sig.s.len = 0;
         goto done;
     }
-    if (!ecdsa_decode_sig(&sig->s.mpi[0], sig->s.len, *sig)) {
+    if (!ecdsa_decode_sig(&sig.s.mpi[0], sig.s.len, sig)) {
         RNP_LOG("Failed to parse ECDSA sig: %lu", ERR_peek_last_error());
         goto done;
     }
@@ -133,14 +133,14 @@ done:
 }
 
 rnp_result_t
-ecdsa_verify(const pgp_ec_signature_t *sig,
+ecdsa_verify(const pgp::ec::Signature &sig,
              pgp_hash_alg_t            hash_alg,
              const uint8_t *           hash,
              size_t                    hash_len,
-             const pgp_ec_key_t *      key)
+             const pgp::ec::Key &      key)
 {
     /* Load secret key to DSA structure*/
-    EVP_PKEY *evpkey = ec_load_key(key->p, NULL, key->curve);
+    EVP_PKEY *evpkey = pgp::ec::load_key(key.p, NULL, key.curve);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -158,7 +158,7 @@ ecdsa_verify(const pgp_ec_signature_t *sig,
         goto done;
     }
     pgp::mpi sigbuf;
-    if (!ecdsa_encode_sig(sigbuf.mpi, &sigbuf.len, *sig)) {
+    if (!ecdsa_encode_sig(sigbuf.mpi, &sigbuf.len, sig)) {
         goto done;
     }
     if (EVP_PKEY_verify(ctx, sigbuf.mpi, sigbuf.len, hash, hash_len) > 0) {
