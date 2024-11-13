@@ -39,12 +39,11 @@
  * values in pgp_curve_t enum.
  */
 static const ec_curve_desc_t ec_curves[] = {
-  {PGP_CURVE_UNKNOWN, 0, {0}, 0, NULL, NULL},
+  {PGP_CURVE_UNKNOWN, 0, {0}, NULL, NULL},
 
   {PGP_CURVE_NIST_P_256,
    256,
    {0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07},
-   8,
 #if defined(CRYPTO_BACKEND_BOTAN)
    "secp256r1",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -62,7 +61,6 @@ static const ec_curve_desc_t ec_curves[] = {
   {PGP_CURVE_NIST_P_384,
    384,
    {0x2B, 0x81, 0x04, 0x00, 0x22},
-   5,
 #if defined(CRYPTO_BACKEND_BOTAN)
    "secp384r1",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -86,7 +84,6 @@ static const ec_curve_desc_t ec_curves[] = {
   {PGP_CURVE_NIST_P_521,
    521,
    {0x2B, 0x81, 0x04, 0x00, 0x23},
-   5,
 #if defined(CRYPTO_BACKEND_BOTAN)
    "secp521r1",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -110,7 +107,6 @@ static const ec_curve_desc_t ec_curves[] = {
   {PGP_CURVE_ED25519,
    255,
    {0x2b, 0x06, 0x01, 0x04, 0x01, 0xda, 0x47, 0x0f, 0x01},
-   9,
 #if defined(CRYPTO_BACKEND_BOTAN)
    "Ed25519",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -129,7 +125,6 @@ static const ec_curve_desc_t ec_curves[] = {
   {PGP_CURVE_25519,
    255,
    {0x2b, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01},
-   10,
 #if defined(CRYPTO_BACKEND_BOTAN)
    "curve25519",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -147,7 +142,6 @@ static const ec_curve_desc_t ec_curves[] = {
   {PGP_CURVE_BP256,
    256,
    {0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07},
-   9,
 #if defined(CRYPTO_BACKEND_BOTAN)
    "brainpool256r1",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -169,7 +163,6 @@ static const ec_curve_desc_t ec_curves[] = {
   {PGP_CURVE_BP384,
    384,
    {0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0B},
-   9,
 #if defined(CRYPTO_BACKEND_BOTAN)
    "brainpool384r1",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -197,7 +190,6 @@ static const ec_curve_desc_t ec_curves[] = {
   {PGP_CURVE_BP512,
    512,
    {0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0D},
-   9,
 #if defined(CRYPTO_BACKEND_BOTAN)
    "brainpool512r1",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -225,7 +217,6 @@ static const ec_curve_desc_t ec_curves[] = {
   {PGP_CURVE_P256K1,
    256,
    {0x2B, 0x81, 0x04, 0x00, 0x0A},
-   5,
 #if defined(CRYPTO_BACKEND_BOTAN)
    "secp256k1",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -244,7 +235,6 @@ static const ec_curve_desc_t ec_curves[] = {
     PGP_CURVE_SM2_P_256,
     256,
     {0x2A, 0x81, 0x1C, 0xCF, 0x55, 0x01, 0x82, 0x2D},
-    8,
 #if defined(CRYPTO_BACKEND_BOTAN)
     "sm2p256v1",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -266,15 +256,13 @@ static const ec_curve_desc_t ec_curves[] = {
 };
 
 pgp_curve_t
-find_curve_by_OID(const uint8_t *oid, size_t oid_len)
+find_curve_by_OID(const std::vector<uint8_t> &oid)
 {
     for (size_t i = 0; i < PGP_CURVE_MAX; i++) {
-        if ((oid_len == ec_curves[i].OIDhex_len) &&
-            (!memcmp(oid, ec_curves[i].OIDhex, oid_len))) {
+        if (oid == ec_curves[i].OID) {
             return static_cast<pgp_curve_t>(i);
         }
     }
-
     return PGP_CURVE_MAX;
 }
 

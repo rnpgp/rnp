@@ -611,15 +611,15 @@ pgp_packet_body_t::get(pgp_curve_t &val) noexcept
     if (!get(oidlen)) {
         return false;
     }
-    uint8_t oid[MAX_CURVE_OID_HEX_LEN] = {0};
-    if (!oidlen || (oidlen == 0xff) || (oidlen > sizeof(oid))) {
+    if (!oidlen || (oidlen == 0xff)) {
         RNP_LOG("unsupported curve oid len: %" PRIu8, oidlen);
         return false;
     }
+    std::vector<uint8_t> oid(oidlen, 0);
     if (!get(oid, oidlen)) {
         return false;
     }
-    pgp_curve_t res = find_curve_by_OID(oid, oidlen);
+    pgp_curve_t res = find_curve_by_OID(oid);
     if (res == PGP_CURVE_MAX) {
         RNP_LOG("unsupported curve");
         return false;
@@ -808,8 +808,8 @@ pgp_packet_body_t::add(const pgp_curve_t curve)
     if (!desc) {
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    add_byte((uint8_t) desc->OIDhex_len);
-    add(desc->OIDhex, (uint8_t) desc->OIDhex_len);
+    add_byte((uint8_t) desc->OID.size());
+    add(desc->OID.data(), desc->OID.size());
 }
 
 void

@@ -43,20 +43,12 @@
 #define MAX_CURVE_BYTELEN ((MAX_CURVE_BIT_SIZE + 7) / 8)
 
 /**
- * Maximal length of the OID in hex representation.
- *
- * \see RFC4880 bis01 - 9.2 ECC Curve OID
- */
-#define MAX_CURVE_OID_HEX_LEN 10U
-
-/**
  * Structure holds description of elliptic curve
  */
 typedef struct ec_curve_desc_t {
-    const pgp_curve_t rnp_curve_id;
-    const size_t      bitlen;
-    const uint8_t     OIDhex[MAX_CURVE_OID_HEX_LEN];
-    const size_t      OIDhex_len;
+    const pgp_curve_t          rnp_curve_id;
+    const size_t               bitlen;
+    const std::vector<uint8_t> OID;
 #if defined(CRYPTO_BACKEND_BOTAN)
     const char *botan_name;
 #endif
@@ -149,16 +141,12 @@ typedef struct pgp_x25519_encrypted_t {
 
 /*
  * @brief   Finds curve ID by hex representation of OID
- *
  * @param   oid       buffer with OID in hex
- * @param   oid_len   length of oid buffer
- *
  * @returns success curve ID
  *          failure PGP_CURVE_MAX is returned
- *
  * @remarks see RFC 4880 bis 01 - 9.2 ECC Curve OID
  */
-pgp_curve_t find_curve_by_OID(const uint8_t *oid, size_t oid_len);
+pgp_curve_t find_curve_by_OID(const std::vector<uint8_t> &oid);
 
 pgp_curve_t find_curve_by_name(const char *name);
 

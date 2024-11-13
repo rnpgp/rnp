@@ -68,9 +68,9 @@ kdf_other_info_serialize(uint8_t                  other_info[MAX_SP800_56A_OTHER
     /* KDF-OtherInfo: AlgorithmID
      *   Current implementation will always use SHA-512 and AES-256 for KEK wrapping
      */
-    *(buf_ptr++) = ec_curve->OIDhex_len;
-    memcpy(buf_ptr, ec_curve->OIDhex, ec_curve->OIDhex_len);
-    buf_ptr += ec_curve->OIDhex_len;
+    *(buf_ptr++) = static_cast<uint8_t>(ec_curve->OID.size());
+    memcpy(buf_ptr, ec_curve->OID.data(), ec_curve->OID.size() & 0xff);
+    buf_ptr += static_cast<uint8_t>(ec_curve->OID.size());
     *(buf_ptr++) = PGP_PKA_ECDH;
     // size of following 3 params (each 1 byte)
     *(buf_ptr++) = 0x03;
