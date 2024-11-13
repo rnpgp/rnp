@@ -37,44 +37,44 @@
 #include <openssl/ec.h>
 
 rnp_result_t
-eddsa_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret)
+eddsa_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
 {
     /* Not implemented in the OpenSSL, so just do basic size checks. */
-    if ((key->p.bytes() != 33) || (key->p.mpi[0] != 0x40)) {
+    if ((key.p.bytes() != 33) || (key.p.mpi[0] != 0x40)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (secret && key->x.bytes() > 32) {
+    if (secret && key.x.bytes() > 32) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     return RNP_SUCCESS;
 }
 
 rnp_result_t
-eddsa_generate(rnp::RNG *rng, pgp_ec_key_t *key)
+eddsa_generate(rnp::RNG &rng, pgp::ec::Key &key)
 {
-    rnp_result_t ret = ec_generate(rng, key, PGP_PKA_EDDSA, PGP_CURVE_ED25519);
+    rnp_result_t ret = key.generate(rng, PGP_PKA_EDDSA, PGP_CURVE_ED25519);
     if (!ret) {
-        key->curve = PGP_CURVE_ED25519;
+        key.curve = PGP_CURVE_ED25519;
     }
     return ret;
 }
 
 rnp_result_t
-eddsa_verify(const pgp_ec_signature_t *sig,
+eddsa_verify(const pgp::ec::Signature &sig,
              const uint8_t *           hash,
              size_t                    hash_len,
-             const pgp_ec_key_t *      key)
+             const pgp::ec::Key &      key)
 {
-    if ((sig->r.bytes() > 32) || (sig->s.bytes() > 32)) {
+    if ((sig.r.bytes() > 32) || (sig.s.bytes() > 32)) {
         RNP_LOG("Invalid EdDSA signature.");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if ((key->p.bytes() != 33) || (key->p.mpi[0] != 0x40)) {
+    if ((key.p.bytes() != 33) || (key.p.mpi[0] != 0x40)) {
         RNP_LOG("Invalid EdDSA public key.");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    EVP_PKEY *evpkey = ec_load_key(key->p, NULL, PGP_CURVE_ED25519);
+    EVP_PKEY *evpkey = pgp::ec::load_key(key.p, NULL, PGP_CURVE_ED25519);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -93,8 +93,8 @@ eddsa_verify(const pgp_ec_signature_t *sig,
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
         goto done;
     }
-    sig->r.to_mem(&sigbuf[32 - sig->r.bytes()]);
-    sig->s.to_mem(&sigbuf[64 - sig->s.bytes()]);
+    sig.r.to_mem(&sigbuf[32 - sig.r.bytes()]);
+    sig.s.to_mem(&sigbuf[64 - sig.s.bytes()]);
 
     if (EVP_DigestVerify(md, sigbuf, 64, hash, hash_len) > 0) {
         ret = RNP_SUCCESS;
@@ -107,17 +107,17 @@ done:
 }
 
 rnp_result_t
-eddsa_sign(rnp::RNG *          rng,
-           pgp_ec_signature_t *sig,
+eddsa_sign(rnp::RNG &          rng,
+           pgp::ec::Signature &sig,
            const uint8_t *     hash,
            size_t              hash_len,
-           const pgp_ec_key_t *key)
+           const pgp::ec::Key &key)
 {
-    if (!key->x.bytes()) {
+    if (!key.x.bytes()) {
         RNP_LOG("private key not set");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    EVP_PKEY *evpkey = ec_load_key(key->p, &key->x, PGP_CURVE_ED25519);
+    EVP_PKEY *evpkey = pgp::ec::load_key(key.p, &key.x, PGP_CURVE_ED25519);
     if (!evpkey) {
         RNP_LOG("Failed to load private key: %lu", ERR_peek_last_error());
         return RNP_ERROR_BAD_PARAMETERS;
@@ -135,18 +135,18 @@ eddsa_sign(rnp::RNG *          rng,
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
         goto done;
     }
-    static_assert((sizeof(sig->r.mpi) == PGP_MPINT_SIZE) && (PGP_MPINT_SIZE >= 64),
+    static_assert((sizeof(sig.r.mpi) == PGP_MPINT_SIZE) && (PGP_MPINT_SIZE >= 64),
                   "invalid mpi type/size");
-    sig->r.len = PGP_MPINT_SIZE;
-    if (EVP_DigestSign(md, sig->r.mpi, &sig->r.len, hash, hash_len) <= 0) {
+    sig.r.len = PGP_MPINT_SIZE;
+    if (EVP_DigestSign(md, sig.r.mpi, &sig.r.len, hash, hash_len) <= 0) {
         RNP_LOG("Signing failed: %lu", ERR_peek_last_error());
-        sig->r.len = 0;
+        sig.r.len = 0;
         goto done;
     }
-    assert(sig->r.len == 64);
-    sig->r.len = 32;
-    sig->s.len = 32;
-    memcpy(sig->s.mpi, &sig->r.mpi[32], 32);
+    assert(sig.r.len == 64);
+    sig.r.len = 32;
+    sig.s.len = 32;
+    memcpy(sig.s.mpi, &sig.r.mpi[32], 32);
     ret = RNP_SUCCESS;
 done:
     /* line below will also free ctx */

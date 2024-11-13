@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Ribose Inc.
+ * Copyright (c) 2017-2024 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,20 +29,20 @@
 
 #include "crypto/ec.h"
 
-rnp_result_t ecdsa_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret);
+rnp_result_t ecdsa_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret);
 
-rnp_result_t ecdsa_sign(rnp::RNG *          rng,
-                        pgp_ec_signature_t *sig,
+rnp_result_t ecdsa_sign(rnp::RNG &          rng,
+                        pgp::ec::Signature &sig,
                         pgp_hash_alg_t      hash_alg,
                         const uint8_t *     hash,
                         size_t              hash_len,
-                        const pgp_ec_key_t *key);
+                        const pgp::ec::Key &key);
 
-rnp_result_t ecdsa_verify(const pgp_ec_signature_t *sig,
+rnp_result_t ecdsa_verify(const pgp::ec::Signature &sig,
                           pgp_hash_alg_t            hash_alg,
                           const uint8_t *           hash,
                           size_t                    hash_len,
-                          const pgp_ec_key_t *      key);
+                          const pgp::ec::Key &      key);
 
 const char *ecdsa_padding_str_for(pgp_hash_alg_t hash_alg);
 

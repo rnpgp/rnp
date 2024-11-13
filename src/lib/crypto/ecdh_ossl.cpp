@@ -46,20 +46,20 @@ static const struct ecdh_wrap_alg_map_t {
                          {PGP_SA_AES_256, "aes256-wrap"}};
 
 rnp_result_t
-ecdh_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret)
+ecdh_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
 {
-    return ec_validate_key(*key, secret);
+    return pgp::ec::validate_key(key, secret);
 }
 
 static rnp_result_t
 ecdh_derive_kek(uint8_t *                x,
                 size_t                   xlen,
-                const pgp_ec_key_t &     key,
+                const pgp::ec::Key &     key,
                 const pgp_fingerprint_t &fingerprint,
                 uint8_t *                kek,
                 const size_t             kek_len)
 {
-    auto curve_desc = get_curve_desc(key.curve);
+    auto curve_desc = pgp::ec::Curve::get(key.curve);
     if (!curve_desc) {
         RNP_LOG("unsupported curve");
         return RNP_ERROR_NOT_SUPPORTED;
@@ -255,32 +255,32 @@ ecdh_kek_len(pgp_symm_alg_t wrap_alg)
 }
 
 rnp_result_t
-ecdh_encrypt_pkcs5(rnp::RNG *               rng,
-                   pgp_ecdh_encrypted_t *   out,
+ecdh_encrypt_pkcs5(rnp::RNG &               rng,
+                   pgp_ecdh_encrypted_t &   out,
                    const uint8_t *const     in,
                    size_t                   in_len,
-                   const pgp_ec_key_t *     key,
+                   const pgp::ec::Key &     key,
                    const pgp_fingerprint_t &fingerprint)
 {
-    if (!key || !out || !in || (in_len > MAX_SESSION_KEY_SIZE)) {
+    if (!in || (in_len > MAX_SESSION_KEY_SIZE)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 #if !defined(ENABLE_SM2)
-    if (key->curve == PGP_CURVE_SM2_P_256) {
+    if (key.curve == PGP_CURVE_SM2_P_256) {
         RNP_LOG("SM2 curve support is disabled.");
         return RNP_ERROR_NOT_IMPLEMENTED;
     }
 #endif
     /* check whether we have valid wrap_alg before doing heavy operations */
-    size_t keklen = ecdh_kek_len(key->key_wrap_alg);
+    size_t keklen = ecdh_kek_len(key.key_wrap_alg);
     if (!keklen) {
         /* LCOV_EXCL_START */
-        RNP_LOG("Unsupported key wrap algorithm: %d", (int) key->key_wrap_alg);
+        RNP_LOG("Unsupported key wrap algorithm: %d", (int) key.key_wrap_alg);
         return RNP_ERROR_NOT_SUPPORTED;
         /* LCOV_EXCL_END */
     }
     /* load our public key */
-    EVP_PKEY *pkey = ec_load_key(key->p, NULL, key->curve);
+    EVP_PKEY *pkey = pgp::ec::load_key(key.p, NULL, key.curve);
     if (!pkey) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to load public key.");
@@ -294,7 +294,7 @@ ecdh_encrypt_pkcs5(rnp::RNG *               rng,
     size_t       seclen = sec.size();
     rnp_result_t ret = RNP_ERROR_GENERIC;
     /* generate ephemeral key */
-    EVP_PKEY *ephkey = ec_generate_pkey(PGP_PKA_ECDH, key->curve);
+    EVP_PKEY *ephkey = pgp::ec::generate_pkey(PGP_PKA_ECDH, key.curve);
     if (!ephkey) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to generate ephemeral key.");
@@ -310,7 +310,7 @@ ecdh_encrypt_pkcs5(rnp::RNG *               rng,
         /* LCOV_EXCL_END */
     }
     /* here we got x value in sec, deriving kek */
-    ret = ecdh_derive_kek(sec.data(), seclen, *key, fingerprint, kek.data(), keklen);
+    ret = ecdh_derive_kek(sec.data(), seclen, key, fingerprint, kek.data(), keklen);
     if (ret) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to derive KEK.");
@@ -328,10 +328,10 @@ ecdh_encrypt_pkcs5(rnp::RNG *               rng,
         /* LCOV_EXCL_END */
     }
     /* do RFC 3394 AES key wrap */
-    static_assert(sizeof(out->m) == ECDH_WRAPPED_KEY_SIZE, "Wrong ECDH wrapped key size.");
-    out->mlen = ECDH_WRAPPED_KEY_SIZE;
+    static_assert(sizeof(out.m) == ECDH_WRAPPED_KEY_SIZE, "Wrong ECDH wrapped key size.");
+    out.mlen = ECDH_WRAPPED_KEY_SIZE;
     ret = ecdh_rfc3394_wrap(
-      out->m, &out->mlen, mpad.data(), m_padded_len, kek.data(), key->key_wrap_alg);
+      out.m, &out.mlen, mpad.data(), m_padded_len, kek.data(), key.key_wrap_alg);
     if (ret) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to wrap key.");
@@ -339,7 +339,7 @@ ecdh_encrypt_pkcs5(rnp::RNG *               rng,
         /* LCOV_EXCL_END */
     }
     /* write ephemeral public key */
-    if (!ec_write_pubkey(ephkey, out->p, key->curve)) {
+    if (!pgp::ec::write_pubkey(ephkey, out.p, key.curve)) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to write ec key.");
         goto done;
@@ -355,22 +355,22 @@ done:
 rnp_result_t
 ecdh_decrypt_pkcs5(uint8_t *                   out,
                    size_t *                    out_len,
-                   const pgp_ecdh_encrypted_t *in,
-                   const pgp_ec_key_t *        key,
+                   const pgp_ecdh_encrypted_t &in,
+                   const pgp::ec::Key &        key,
                    const pgp_fingerprint_t &   fingerprint)
 {
-    if (!out || !out_len || !in || !key || !key->x.bytes()) {
+    if (!out || !out_len || !key.x.bytes()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     /* check whether we have valid wrap_alg before doing heavy operations */
-    size_t keklen = ecdh_kek_len(key->key_wrap_alg);
+    size_t keklen = ecdh_kek_len(key.key_wrap_alg);
     if (!keklen) {
-        RNP_LOG("Unsupported key wrap algorithm: %d", (int) key->key_wrap_alg);
+        RNP_LOG("Unsupported key wrap algorithm: %d", (int) key.key_wrap_alg);
         return RNP_ERROR_NOT_SUPPORTED;
     }
     /* load ephemeral public key */
-    EVP_PKEY *ephkey = ec_load_key(in->p, NULL, key->curve);
+    EVP_PKEY *ephkey = pgp::ec::load_key(in.p, NULL, key.curve);
     if (!ephkey) {
         RNP_LOG("Failed to load ephemeral public key.");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -383,7 +383,7 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
     size_t       seclen = sec.size();
     size_t       mpadlen = mpad.size();
     rnp_result_t ret = RNP_ERROR_GENERIC;
-    EVP_PKEY *   pkey = ec_load_key(key->p, &key->x, key->curve);
+    EVP_PKEY *   pkey = pgp::ec::load_key(key.p, &key.x, key.curve);
     if (!pkey) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to load secret key.");
@@ -399,7 +399,7 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
         /* LCOV_EXCL_END */
     }
     /* here we got x value in sec, deriving kek */
-    ret = ecdh_derive_kek(sec.data(), seclen, *key, fingerprint, kek.data(), keklen);
+    ret = ecdh_derive_kek(sec.data(), seclen, key, fingerprint, kek.data(), keklen);
     if (ret) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to derive KEK.");
@@ -407,8 +407,8 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
         /* LCOV_EXCL_END */
     }
     /* do RFC 3394 AES key unwrap */
-    ret = ecdh_rfc3394_unwrap(
-      mpad.data(), &mpadlen, in->m, in->mlen, kek.data(), key->key_wrap_alg);
+    ret =
+      ecdh_rfc3394_unwrap(mpad.data(), &mpadlen, in.m, in.mlen, kek.data(), key.key_wrap_alg);
     if (ret) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to unwrap key.");

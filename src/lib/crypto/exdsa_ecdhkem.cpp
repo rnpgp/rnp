@@ -69,7 +69,7 @@ Botan::ECDH_PrivateKey
 ecdh_kem_private_key_t::botan_key_ecdh(rnp::RNG *rng) const
 {
     assert(curve_ >= PGP_CURVE_NIST_P_256 && curve_ <= PGP_CURVE_P256K1);
-    auto ec_desc = get_curve_desc(curve_);
+    auto ec_desc = pgp::ec::Curve::get(curve_);
     return Botan::ECDH_PrivateKey(
       *(rng->obj()), Botan::EC_Group(ec_desc->botan_name), Botan::BigInt(key_));
 }
@@ -79,9 +79,9 @@ ecdh_kem_public_key_t::botan_key_ecdh(rnp::RNG *rng) const
 {
     assert(curve_ >= PGP_CURVE_NIST_P_256 && curve_ <= PGP_CURVE_P256K1);
 
-    auto            ec_desc = get_curve_desc(curve_);
+    auto            ec_desc = pgp::ec::Curve::get(curve_);
     Botan::EC_Group group(ec_desc->botan_name);
-    const size_t    curve_order = BITS_TO_BYTES(ec_desc->bitlen);
+    const size_t    curve_order = ec_desc->bytes();
     Botan::BigInt   x(key_.data() + 1, curve_order);
     Botan::BigInt   y(key_.data() + 1 + curve_order, curve_order);
     return Botan::ECDH_PublicKey(group, group.point(x, y));
@@ -124,7 +124,7 @@ ecdh_kem_public_key_t::encapsulate(rnp::RNG *            rng,
         Botan::PK_Key_Agreement key_agreement(eph_prv_key, *(rng->obj()), "Raw");
         symmetric_key = Botan::unlock(key_agreement.derive_key(0, key_).bits_of());
     } else {
-        auto curve_desc = get_curve_desc(curve_);
+        auto curve_desc = pgp::ec::Curve::get(curve_);
         if (!curve_desc) {
             RNP_LOG("unknown curve");
             return RNP_ERROR_NOT_SUPPORTED;
@@ -211,7 +211,7 @@ ec_key_t::generate_exdsa_key_pair(rnp::RNG *rng, exdsa_key_t *out, pgp_curve_t c
 Botan::ECDSA_PrivateKey
 exdsa_private_key_t::botan_key(rnp::RNG *rng) const
 {
-    auto                    ec_desc = get_curve_desc(curve_);
+    auto                    ec_desc = pgp::ec::Curve::get(curve_);
     Botan::ECDSA_PrivateKey priv_key(
       *(rng->obj()), Botan::EC_Group(ec_desc->botan_name), Botan::BigInt(key_));
     return priv_key;
@@ -221,9 +221,9 @@ Botan::ECDSA_PublicKey
 exdsa_public_key_t::botan_key() const
 {
     // format: 04 | X | Y
-    auto            ec_desc = get_curve_desc(curve_);
+    auto            ec_desc = pgp::ec::Curve::get(curve_);
     Botan::EC_Group group(ec_desc->botan_name);
-    const size_t    curve_order = BITS_TO_BYTES(ec_desc->bitlen);
+    const size_t    curve_order = ec_desc->bytes();
     Botan::BigInt   x(key_.data() + 1, curve_order);
     Botan::BigInt   y(key_.data() + 1 + curve_order, curve_order);
     return Botan::ECDSA_PublicKey(group, group.point(x, y));

@@ -31,12 +31,18 @@
 #include "ec.h"
 #include <openssl/evp.h>
 
-EVP_PKEY *ec_load_key(const pgp::mpi &keyp, const pgp::mpi *keyx, pgp_curve_t curve);
+namespace pgp {
+namespace ec {
 
-rnp_result_t ec_validate_key(const pgp_ec_key_t &key, bool secret);
+EVP_PKEY *load_key(const pgp::mpi &keyp, const pgp::mpi *keyx, pgp_curve_t curve);
 
-EVP_PKEY *ec_generate_pkey(const pgp_pubkey_alg_t alg_id, const pgp_curve_t curve);
+rnp_result_t validate_key(const pgp::ec::Key &key, bool secret);
 
-bool ec_write_pubkey(EVP_PKEY *key, pgp::mpi &mpi, pgp_curve_t curve);
+EVP_PKEY *generate_pkey(const pgp_pubkey_alg_t alg_id, const pgp_curve_t curve);
+
+bool write_pubkey(EVP_PKEY *key, pgp::mpi &mpi, pgp_curve_t curve);
+
+} // namespace ec
+} // namespace pgp
 
 #endif

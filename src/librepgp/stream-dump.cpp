@@ -941,14 +941,14 @@ stream_dump_key_material(rnp_dump_ctx_t &        ctx,
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2: {
         auto &ec = dynamic_cast<const pgp::ECKeyMaterial &>(*material);
-        auto  cdesc = get_curve_desc(ec.curve());
+        auto  cdesc = pgp::ec::Curve::get(ec.curve());
         dst_print_mpi(dst, "ecc p", ec.p(), ctx.dump_mpi);
         dst_printf(dst, "ecc curve: %s\n", cdesc ? cdesc->pgp_name : "unknown");
         return;
     }
     case PGP_PKA_ECDH: {
         auto &ec = dynamic_cast<const pgp::ECDHKeyMaterial &>(*material);
-        auto  cdesc = get_curve_desc(ec.curve());
+        auto  cdesc = pgp::ec::Curve::get(ec.curve());
         /* Common EC fields */
         dst_print_mpi(dst, "ecdh p", ec.p(), ctx.dump_mpi);
         dst_printf(dst, "ecdh curve: %s\n", cdesc ? cdesc->pgp_name : "unknown");
@@ -2156,7 +2156,7 @@ stream_dump_key_material_json(rnp_dump_ctx_t &        ctx,
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH: {
         auto &ec = dynamic_cast<const pgp::ECKeyMaterial &>(*material);
-        auto  cdesc = get_curve_desc(ec.curve());
+        auto  cdesc = pgp::ec::Curve::get(ec.curve());
         /* Common EC fields */
         if (!obj_add_mpi_json(jso, "p", ec.p(), ctx.dump_mpi)) {
             return false; // LCOV_EXCL_LINE

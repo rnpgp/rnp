@@ -33,7 +33,7 @@
 #define MAX_SESSION_KEY_SIZE 40
 #define MAX_AES_KEY_SIZE 32
 
-std::vector<uint8_t> kdf_other_info_serialize(const ec_curve_desc_t *  ec_curve,
+std::vector<uint8_t> kdf_other_info_serialize(const pgp::ec::Curve *   curve,
                                               const pgp_fingerprint_t &fp,
                                               const pgp_hash_alg_t     kdf_hash,
                                               const pgp_symm_alg_t     wrap_alg);

@@ -302,7 +302,7 @@ read_mpi(const sexp_list_t *list, const std::string &name, pgp::mpi &val) noexce
 }
 
 static bool
-read_curve(const sexp_list_t *list, const std::string &name, pgp_ec_key_t &key) noexcept
+read_curve(const sexp_list_t *list, const std::string &name, pgp::ec::Key &key) noexcept
 {
     const sexp_string_t *data = lookup_var_data(list, name);
     if (!data) {
@@ -406,7 +406,7 @@ parse_pubkey(pgp_key_pkt_t &pubkey, const sexp_list_t *s_exp, pgp_pubkey_alg_t a
     case PGP_PKA_ECDSA:
     case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA: {
-        pgp_ec_key_t ec{};
+        pgp::ec::Key ec{};
         if (!read_curve(s_exp, "curve", ec) || !read_mpi(s_exp, "q", ec.p)) {
             return false;
         }

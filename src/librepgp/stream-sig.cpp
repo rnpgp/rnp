@@ -1073,8 +1073,8 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519: {
-        auto ec_desc = get_curve_desc(PGP_CURVE_25519);
-        material.ed25519.sig.resize(2 * BITS_TO_BYTES(ec_desc->bitlen));
+        auto ec_desc = pgp::ec::Curve::get(PGP_CURVE_25519);
+        material.ed25519.sig.resize(2 * ec_desc->bytes());
         if (!pkt.get(material.ed25519.sig.data(), material.ed25519.sig.size())) {
             RNP_LOG("failed to parse ED25519 signature data");
             return false;

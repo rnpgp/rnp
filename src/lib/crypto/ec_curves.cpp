@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2024, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,8 @@
 #include "utils.h"
 #include "str-utils.h"
 
+namespace pgp {
+namespace ec {
 /**
  * EC Curves definition used by implementation
  *
@@ -38,7 +40,7 @@
  * Order of the elements in this array corresponds to
  * values in pgp_curve_t enum.
  */
-static const ec_curve_desc_t ec_curves[] = {
+static const Curve ec_curves[] = {
   {PGP_CURVE_UNKNOWN, 0, {0}, NULL, NULL},
 
   {PGP_CURVE_NIST_P_256,
@@ -256,7 +258,7 @@ static const ec_curve_desc_t ec_curves[] = {
 };
 
 pgp_curve_t
-find_curve_by_OID(const std::vector<uint8_t> &oid)
+Curve::by_OID(const std::vector<uint8_t> &oid)
 {
     for (size_t i = 0; i < PGP_CURVE_MAX; i++) {
         if (oid == ec_curves[i].OID) {
@@ -267,7 +269,7 @@ find_curve_by_OID(const std::vector<uint8_t> &oid)
 }
 
 pgp_curve_t
-find_curve_by_name(const char *name)
+Curve::by_name(const char *name)
 {
     for (size_t i = 1; i < PGP_CURVE_MAX; i++) {
         if (rnp::str_case_eq(ec_curves[i].pgp_name, name)) {
@@ -278,14 +280,14 @@ find_curve_by_name(const char *name)
     return PGP_CURVE_MAX;
 }
 
-const ec_curve_desc_t *
-get_curve_desc(const pgp_curve_t curve_id)
+const Curve *
+Curve::get(const pgp_curve_t curve_id)
 {
     return (curve_id < PGP_CURVE_MAX && curve_id > 0) ? &ec_curves[curve_id] : NULL;
 }
 
 bool
-alg_allows_curve(pgp_pubkey_alg_t alg, pgp_curve_t curve)
+Curve::alg_allows(pgp_pubkey_alg_t alg, pgp_curve_t curve)
 {
     /* SM2 curve is only for SM2 algo */
     if ((alg == PGP_PKA_SM2) || (curve == PGP_CURVE_SM2_P_256)) {
@@ -304,8 +306,11 @@ alg_allows_curve(pgp_pubkey_alg_t alg, pgp_curve_t curve)
 }
 
 bool
-curve_supported(pgp_curve_t curve)
+Curve::is_supported(pgp_curve_t curve)
 {
-    auto info = get_curve_desc(curve);
+    auto info = Curve::get(curve);
     return info && info->supported;
 }
+
+} // namespace ec
+} // namespace pgp
