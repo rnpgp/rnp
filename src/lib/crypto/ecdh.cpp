@@ -25,6 +25,7 @@
  */
 
 #include <string.h>
+#include <cassert>
 #include <botan/ffi.h>
 #include "hash_botan.hpp"
 #include "ecdh.h"
@@ -38,14 +39,13 @@
 
 // Produces kek of size kek_len which corresponds to length of wrapping key
 static bool
-compute_kek(uint8_t *              kek,
-            size_t                 kek_len,
-            const uint8_t *        other_info,
-            size_t                 other_info_size,
-            const ec_curve_desc_t *curve_desc,
-            const pgp::mpi *       ec_pubkey,
-            const botan_privkey_t  ec_prvkey,
-            const pgp_hash_alg_t   hash_alg)
+compute_kek(uint8_t *                   kek,
+            size_t                      kek_len,
+            const std::vector<uint8_t> &other_info,
+            const ec_curve_desc_t *     curve_desc,
+            const pgp::mpi *            ec_pubkey,
+            const botan_privkey_t       ec_prvkey,
+            const pgp_hash_alg_t        hash_alg)
 {
     const uint8_t *p = ec_pubkey->mpi;
     uint8_t        p_len = ec_pubkey->len;
@@ -73,7 +73,7 @@ compute_kek(uint8_t *              kek,
     snprintf(
       kdf_name, sizeof(kdf_name), "SP800-56A(%s)", rnp::Hash_Botan::name_backend(hash_alg));
     ret = !botan_kdf(
-      kdf_name, kek, kek_len, s.data(), s_len, NULL, 0, other_info, other_info_size);
+      kdf_name, kek, kek_len, s.data(), s_len, NULL, 0, other_info.data(), other_info.size());
 end:
     return ret && !botan_pk_op_key_agreement_destroy(op_key_agreement);
 }
@@ -194,7 +194,6 @@ ecdh_encrypt_pkcs5(rnp::RNG *               rng,
 {
     botan_privkey_t eph_prv_key = NULL;
     rnp_result_t    ret = RNP_ERROR_GENERIC;
-    uint8_t         other_info[MAX_SP800_56A_OTHER_INFO];
     uint8_t         kek[32] = {0}; // Size of SHA-256 or smaller
     // 'm' is padded to the 8-byte granularity
     uint8_t      m[MAX_SESSION_KEY_SIZE];
@@ -220,16 +219,11 @@ ecdh_encrypt_pkcs5(rnp::RNG *               rng,
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    // See 13.5 of RFC 4880 for definition of other_info_size
-    const size_t other_info_size = curve_desc->OID.size() + 46;
+    // See 13.5 of RFC 4880 for definition of other_info size
     const size_t kek_len = pgp_key_size(key->key_wrap_alg);
-    size_t       tmp_len = kdf_other_info_serialize(
-      other_info, curve_desc, fingerprint, key->kdf_hash_alg, key->key_wrap_alg);
-
-    if (tmp_len != other_info_size) {
-        RNP_LOG("Serialization of other info failed");
-        return RNP_ERROR_GENERIC;
-    }
+    auto         other_info =
+      kdf_other_info_serialize(curve_desc, fingerprint, key->kdf_hash_alg, key->key_wrap_alg);
+    assert(other_info.size() == curve_desc->OID.size() + 46);
 
     if (!strcmp(curve_desc->botan_name, "curve25519")) {
         if (botan_privkey_create(&eph_prv_key, "Curve25519", "", rng->handle())) {
@@ -242,14 +236,8 @@ ecdh_encrypt_pkcs5(rnp::RNG *               rng,
         }
     }
 
-    if (!compute_kek(kek,
-                     kek_len,
-                     other_info,
-                     other_info_size,
-                     curve_desc,
-                     &key->p,
-                     eph_prv_key,
-                     key->kdf_hash_alg)) {
+    if (!compute_kek(
+          kek, kek_len, other_info, curve_desc, &key->p, eph_prv_key, key->kdf_hash_alg)) {
         RNP_LOG("KEK computation failed");
         goto end;
     }
@@ -321,15 +309,8 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
     }
 
     // See 13.5 of RFC 4880 for definition of other_info_size
-    uint8_t      other_info[MAX_SP800_56A_OTHER_INFO];
-    const size_t other_info_size = curve_desc->OID.size() + 46;
-    const size_t tmp_len =
-      kdf_other_info_serialize(other_info, curve_desc, fingerprint, kdf_hash, wrap_alg);
-
-    if (other_info_size != tmp_len) {
-        RNP_LOG("Serialization of other info failed");
-        return RNP_ERROR_GENERIC;
-    }
+    auto other_info = kdf_other_info_serialize(curve_desc, fingerprint, kdf_hash, wrap_alg);
+    assert(other_info.size() == curve_desc->OID.size() + 46);
 
     botan_privkey_t prv_key = NULL;
     if (!ecdh_load_secret_key(&prv_key, key)) {
@@ -349,14 +330,7 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
      *           botan_key_unwrap3394 or unpad_pkcs7 fails
      */
     size_t kek_len = pgp_key_size(wrap_alg);
-    if (!compute_kek(kek.data(),
-                     kek_len,
-                     other_info,
-                     other_info_size,
-                     curve_desc,
-                     &in->p,
-                     prv_key,
-                     kdf_hash)) {
+    if (!compute_kek(kek.data(), kek_len, other_info, curve_desc, &in->p, prv_key, kdf_hash)) {
         goto end;
     }
 
