@@ -221,7 +221,7 @@ ecdh_encrypt_pkcs5(rnp::RNG *               rng,
     }
 
     // See 13.5 of RFC 4880 for definition of other_info_size
-    const size_t other_info_size = curve_desc->OIDhex_len + 46;
+    const size_t other_info_size = curve_desc->OID.size() + 46;
     const size_t kek_len = pgp_key_size(key->key_wrap_alg);
     size_t       tmp_len = kdf_other_info_serialize(
       other_info, curve_desc, fingerprint, key->kdf_hash_alg, key->key_wrap_alg);
@@ -322,7 +322,7 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
 
     // See 13.5 of RFC 4880 for definition of other_info_size
     uint8_t      other_info[MAX_SP800_56A_OTHER_INFO];
-    const size_t other_info_size = curve_desc->OIDhex_len + 46;
+    const size_t other_info_size = curve_desc->OID.size() + 46;
     const size_t tmp_len =
       kdf_other_info_serialize(other_info, curve_desc, fingerprint, kdf_hash, wrap_alg);
 

@@ -78,7 +78,7 @@ ecdh_derive_kek(uint8_t *                x,
     size_t other_len = kdf_other_info_serialize(
       other_info, curve_desc, fingerprint, key.kdf_hash_alg, key.key_wrap_alg);
     // Self-check
-    assert(other_len == curve_desc->OIDhex_len + 46);
+    assert(other_len == curve_desc->OID.size() + 46);
     // Derive KEK, using the KDF from SP800-56A
     rnp::secure_array<uint8_t, PGP_MAX_HASH_SIZE> dgst;
     assert(hash_len <= PGP_MAX_HASH_SIZE);
