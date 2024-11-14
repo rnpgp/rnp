@@ -31,6 +31,7 @@
 #include "mpi.h"
 #include "utils.h"
 
+/* Self-destructing wrappers around the Botan's FFI objects */
 namespace rnp {
 class bn {
     botan_mp_t bn_;
@@ -45,8 +46,10 @@ class bn {
     {
         botan_mp_init(&bn_);
         if (bn_ && botan_mp_from_bin(bn_, val, len)) {
+            /* LCOV_EXCL_START */
             botan_mp_destroy(bn_);
             bn_ = NULL;
+            /* LCOV_EXCL_END */
         }
     }
 

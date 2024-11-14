@@ -272,7 +272,6 @@ if(CRYPTO_BACKEND_OPENSSL)
   endif()
 elseif(CRYPTO_BACKEND_BOTAN)
   set(CRYPTO_SOURCES
-    crypto/bn.cpp
     crypto/dsa_common.cpp
     crypto/dsa.cpp
     crypto/ec_curves.cpp

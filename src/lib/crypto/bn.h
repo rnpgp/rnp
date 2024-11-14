@@ -37,19 +37,11 @@
 
 #define bignum_t BIGNUM
 #elif defined(CRYPTO_BACKEND_BOTAN)
-typedef struct botan_mp_struct *botan_mp_t;
-typedef struct bignum_t_st {
-    botan_mp_t mp;
-} bignum_t;
-
-#define BN_HANDLE(x) ((x).mp)
-#define BN_HANDLE_PTR(x) ((x)->mp)
 #else
 #error "Unknown crypto backend."
 #endif
 
-/*********************************/
-
+#if defined(CRYPTO_BACKEND_OPENSSL)
 bignum_t *bn_new(void);
 void      bn_free(bignum_t * /*a*/);
 
@@ -65,7 +57,6 @@ bool bn2mpi(const bignum_t *bn, pgp::mpi &val);
 
 size_t bn_num_bytes(const bignum_t &a);
 
-#if defined(CRYPTO_BACKEND_OPENSSL)
 namespace rnp {
 class bn {
     BIGNUM *_bn;
