@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2024 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -31,14 +31,15 @@
 #include "config.h"
 #include <rnp/rnp_def.h>
 #include "mpi.h"
+#include "bn.h"
 #include <openssl/evp.h>
 
-EVP_PKEY *dl_load_key(const pgp::mpi &mp,
-                      const pgp::mpi *mq,
-                      const pgp::mpi &mg,
-                      const pgp::mpi &my,
-                      const pgp::mpi *mx);
+rnp::ossl::evp::PKey dl_load_key(const pgp::mpi &mp,
+                                 const pgp::mpi *mq,
+                                 const pgp::mpi &mg,
+                                 const pgp::mpi &my,
+                                 const pgp::mpi *mx);
 
-rnp_result_t dl_validate_key(EVP_PKEY *pkey, const pgp::mpi *mx);
+rnp_result_t dl_validate_key(rnp::ossl::evp::PKey &pkey, const pgp::mpi *x);
 
 #endif
