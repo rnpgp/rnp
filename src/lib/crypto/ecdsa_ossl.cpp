@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2024, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -41,10 +41,10 @@ ecdsa_decode_sig(const uint8_t *data, size_t len, pgp::ec::Signature &sig)
         RNP_LOG("Failed to parse ECDSA sig: %lu", ERR_peek_last_error());
         return false;
     }
-    const BIGNUM *r, *s;
-    ECDSA_SIG_get0(esig, &r, &s);
-    bn2mpi(r, &sig.r);
-    bn2mpi(s, &sig.s);
+    rnp::bn r, s;
+    ECDSA_SIG_get0(esig, r.cptr(), s.cptr());
+    r.mpi(sig.r);
+    s.mpi(sig.s);
     ECDSA_SIG_free(esig);
     return true;
 }
@@ -52,30 +52,23 @@ ecdsa_decode_sig(const uint8_t *data, size_t len, pgp::ec::Signature &sig)
 static bool
 ecdsa_encode_sig(uint8_t *data, size_t *len, const pgp::ec::Signature &sig)
 {
-    bool       res = false;
     ECDSA_SIG *dsig = ECDSA_SIG_new();
-    BIGNUM *   r = mpi2bn(&sig.r);
-    BIGNUM *   s = mpi2bn(&sig.s);
+    rnp::bn    r(sig.r);
+    rnp::bn    s(sig.s);
     if (!dsig || !r || !s) {
         RNP_LOG("Allocation failed.");
-        goto done;
+        ECDSA_SIG_free(dsig);
+        return false;
     }
-    ECDSA_SIG_set0(dsig, r, s);
-    r = NULL;
-    s = NULL;
-    int outlen;
-    outlen = i2d_ECDSA_SIG(dsig, &data);
+    ECDSA_SIG_set0(dsig, r.own(), s.own());
+    int outlen = i2d_ECDSA_SIG(dsig, &data);
+    ECDSA_SIG_free(dsig);
     if (outlen < 0) {
         RNP_LOG("Failed to encode signature.");
-        goto done;
+        return false;
     }
     *len = outlen;
-    res = true;
-done:
-    ECDSA_SIG_free(dsig);
-    BN_free(r);
-    BN_free(s);
-    return res;
+    return true;
 }
 
 rnp_result_t
@@ -98,38 +91,33 @@ ecdsa_sign(rnp::RNG &          rng,
     }
 
     /* Load secret key to DSA structure*/
-    EVP_PKEY *evpkey = pgp::ec::load_key(key.p, &key.x, key.curve);
+    auto evpkey = pgp::ec::load_key(key.p, &key.x, key.curve);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp_result_t ret = RNP_ERROR_GENERIC;
     /* init context and sign */
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evpkey, NULL);
+    rnp::ossl::evp::Ctx ctx(evpkey);
     if (!ctx) {
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    if (EVP_PKEY_sign_init(ctx) <= 0) {
+    if (EVP_PKEY_sign_init(ctx.get()) <= 0) {
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
     sig.s.len = PGP_MPINT_SIZE;
-    if (EVP_PKEY_sign(ctx, sig.s.mpi, &sig.s.len, hash, hash_len) <= 0) {
+    if (EVP_PKEY_sign(ctx.get(), sig.s.mpi, &sig.s.len, hash, hash_len) <= 0) {
         RNP_LOG("Signing failed: %lu", ERR_peek_last_error());
         sig.s.len = 0;
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    if (!ecdsa_decode_sig(&sig.s.mpi[0], sig.s.len, sig)) {
+    if (!ecdsa_decode_sig(sig.s.mpi, sig.s.len, sig)) {
         RNP_LOG("Failed to parse ECDSA sig: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    ret = RNP_SUCCESS;
-done:
-    EVP_PKEY_CTX_free(ctx);
-    EVP_PKEY_free(evpkey);
-    return ret;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
@@ -140,32 +128,27 @@ ecdsa_verify(const pgp::ec::Signature &sig,
              const pgp::ec::Key &      key)
 {
     /* Load secret key to DSA structure*/
-    EVP_PKEY *evpkey = pgp::ec::load_key(key.p, NULL, key.curve);
+    auto evpkey = pgp::ec::load_key(key.p, NULL, key.curve);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-
-    rnp_result_t ret = RNP_ERROR_SIGNATURE_INVALID;
     /* init context and sign */
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evpkey, NULL);
+    rnp::ossl::evp::Ctx ctx(evpkey);
     if (!ctx) {
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
-    if (EVP_PKEY_verify_init(ctx) <= 0) {
+    if (EVP_PKEY_verify_init(ctx.get()) <= 0) {
         RNP_LOG("Failed to initialize verify: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
     pgp::mpi sigbuf;
     if (!ecdsa_encode_sig(sigbuf.mpi, &sigbuf.len, sig)) {
-        goto done;
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
-    if (EVP_PKEY_verify(ctx, sigbuf.mpi, sigbuf.len, hash, hash_len) > 0) {
-        ret = RNP_SUCCESS;
+    if (EVP_PKEY_verify(ctx.get(), sigbuf.mpi, sigbuf.len, hash, hash_len) < 1) {
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
-done:
-    EVP_PKEY_CTX_free(ctx);
-    EVP_PKEY_free(evpkey);
-    return ret;
+    return RNP_SUCCESS;
 }
