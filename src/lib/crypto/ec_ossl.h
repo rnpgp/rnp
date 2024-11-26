@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2024, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,17 +30,18 @@
 #include "types.h"
 #include "ec.h"
 #include <openssl/evp.h>
+#include "bn.h"
 
 namespace pgp {
 namespace ec {
 
-EVP_PKEY *load_key(const pgp::mpi &keyp, const pgp::mpi *keyx, pgp_curve_t curve);
+rnp::ossl::evp::PKey load_key(const pgp::mpi &keyp, const pgp::mpi *keyx, pgp_curve_t curve);
 
 rnp_result_t validate_key(const pgp::ec::Key &key, bool secret);
 
-EVP_PKEY *generate_pkey(const pgp_pubkey_alg_t alg_id, const pgp_curve_t curve);
+rnp::ossl::evp::PKey generate_pkey(const pgp_pubkey_alg_t alg_id, const pgp_curve_t curve);
 
-bool write_pubkey(EVP_PKEY *key, pgp::mpi &mpi, pgp_curve_t curve);
+bool write_pubkey(rnp::ossl::evp::PKey &key, pgp::mpi &mpi, pgp_curve_t curve);
 
 } // namespace ec
 } // namespace pgp

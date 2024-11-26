@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2024, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -207,38 +207,37 @@ ecdh_rfc3394_unwrap(uint8_t *            out,
 }
 
 static bool
-ecdh_derive_secret(EVP_PKEY *sec, EVP_PKEY *peer, uint8_t *x, size_t *xlen)
+ecdh_derive_secret(rnp::ossl::evp::PKey &sec,
+                   rnp::ossl::evp::PKey &peer,
+                   uint8_t *             x,
+                   size_t *              xlen)
 {
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(sec, NULL);
+    rnp::ossl::evp::Ctx ctx(sec);
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
         return false;
         /* LCOV_EXCL_END */
     }
-    bool res = false;
-    if (EVP_PKEY_derive_init(ctx) <= 0) {
+    if (EVP_PKEY_derive_init(ctx.get()) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Key derivation init failed: %lu", ERR_peek_last_error());
-        goto done;
+        return false;
         /* LCOV_EXCL_END */
     }
-    if (EVP_PKEY_derive_set_peer(ctx, peer) <= 0) {
+    if (EVP_PKEY_derive_set_peer(ctx.get(), peer.get()) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Peer setting failed: %lu", ERR_peek_last_error());
-        goto done;
+        return false;
         /* LCOV_EXCL_END */
     }
-    if (EVP_PKEY_derive(ctx, x, xlen) <= 0) {
+    if (EVP_PKEY_derive(ctx.get(), x, xlen) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to obtain shared secret size: %lu", ERR_peek_last_error());
-        goto done;
+        return false;
         /* LCOV_EXCL_END */
     }
-    res = true;
-done:
-    EVP_PKEY_CTX_free(ctx);
-    return res;
+    return true;
 }
 
 static size_t
@@ -280,51 +279,48 @@ ecdh_encrypt_pkcs5(rnp::RNG &               rng,
         /* LCOV_EXCL_END */
     }
     /* load our public key */
-    EVP_PKEY *pkey = pgp::ec::load_key(key.p, NULL, key.curve);
+    auto pkey = pgp::ec::load_key(key.p, NULL, key.curve);
     if (!pkey) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to load public key.");
         return RNP_ERROR_BAD_PARAMETERS;
         /* LCOV_EXCL_END */
     }
-    rnp::secure_array<uint8_t, MAX_CURVE_BYTELEN + 1> sec;
-    rnp::secure_array<uint8_t, MAX_AES_KEY_SIZE>      kek;
-    rnp::secure_array<uint8_t, MAX_SESSION_KEY_SIZE>  mpad;
+    rnp::secure_vector<uint8_t>                      sec(MAX_CURVE_BYTELEN + 1, 0);
+    rnp::secure_array<uint8_t, MAX_AES_KEY_SIZE>     kek;
+    rnp::secure_array<uint8_t, MAX_SESSION_KEY_SIZE> mpad;
 
-    size_t       seclen = sec.size();
-    rnp_result_t ret = RNP_ERROR_GENERIC;
+    size_t seclen = sec.size();
     /* generate ephemeral key */
-    EVP_PKEY *ephkey = pgp::ec::generate_pkey(PGP_PKA_ECDH, key.curve);
+    auto ephkey = pgp::ec::generate_pkey(PGP_PKA_ECDH, key.curve);
     if (!ephkey) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to generate ephemeral key.");
-        ret = RNP_ERROR_KEY_GENERATION;
-        goto done;
+        return RNP_ERROR_KEY_GENERATION;
         /* LCOV_EXCL_END */
     }
     /* do ECDH derivation */
     if (!ecdh_derive_secret(ephkey, pkey, sec.data(), &seclen)) {
         /* LCOV_EXCL_START */
         RNP_LOG("ECDH derivation failed.");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
     /* here we got x value in sec, deriving kek */
-    ret = ecdh_derive_kek(sec.data(), seclen, key, fingerprint, kek.data(), keklen);
+    auto ret = ecdh_derive_kek(sec.data(), seclen, key, fingerprint, kek.data(), keklen);
     if (ret) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to derive KEK.");
-        goto done;
+        return ret;
         /* LCOV_EXCL_END */
     }
     /* add PKCS#7 padding */
-    size_t m_padded_len;
-    m_padded_len = ((in_len / 8) + 1) * 8;
+    size_t m_padded_len = ((in_len / 8) + 1) * 8;
     memcpy(mpad.data(), in, in_len);
     if (!pad_pkcs7(mpad.data(), m_padded_len, in_len)) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to add PKCS #7 padding.");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
     /* do RFC 3394 AES key wrap */
@@ -335,21 +331,17 @@ ecdh_encrypt_pkcs5(rnp::RNG &               rng,
     if (ret) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to wrap key.");
-        goto done;
+        return ret;
         /* LCOV_EXCL_END */
     }
     /* write ephemeral public key */
     if (!pgp::ec::write_pubkey(ephkey, out.p, key.curve)) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to write ec key.");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    ret = RNP_SUCCESS;
-done:
-    EVP_PKEY_free(ephkey);
-    EVP_PKEY_free(pkey);
-    return ret;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
@@ -370,7 +362,7 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
         return RNP_ERROR_NOT_SUPPORTED;
     }
     /* load ephemeral public key */
-    EVP_PKEY *ephkey = pgp::ec::load_key(in.p, NULL, key.curve);
+    auto ephkey = pgp::ec::load_key(in.p, NULL, key.curve);
     if (!ephkey) {
         RNP_LOG("Failed to load ephemeral public key.");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -380,30 +372,28 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
     rnp::secure_array<uint8_t, MAX_AES_KEY_SIZE>      kek;
     rnp::secure_array<uint8_t, MAX_SESSION_KEY_SIZE>  mpad;
 
-    size_t       seclen = sec.size();
-    size_t       mpadlen = mpad.size();
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-    EVP_PKEY *   pkey = pgp::ec::load_key(key.p, &key.x, key.curve);
+    size_t seclen = sec.size();
+    size_t mpadlen = mpad.size();
+    auto   pkey = pgp::ec::load_key(key.p, &key.x, key.curve);
     if (!pkey) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to load secret key.");
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto done;
+        return RNP_ERROR_BAD_PARAMETERS;
         /* LCOV_EXCL_END */
     }
     /* do ECDH derivation */
     if (!ecdh_derive_secret(pkey, ephkey, sec.data(), &seclen)) {
         /* LCOV_EXCL_START */
         RNP_LOG("ECDH derivation failed.");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
     /* here we got x value in sec, deriving kek */
-    ret = ecdh_derive_kek(sec.data(), seclen, key, fingerprint, kek.data(), keklen);
+    auto ret = ecdh_derive_kek(sec.data(), seclen, key, fingerprint, kek.data(), keklen);
     if (ret) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to derive KEK.");
-        goto done;
+        return ret;
         /* LCOV_EXCL_END */
     }
     /* do RFC 3394 AES key unwrap */
@@ -412,22 +402,18 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
     if (ret) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to unwrap key.");
-        goto done;
+        return ret;
         /* LCOV_EXCL_END */
     }
     /* remove PKCS#7 padding */
     if (!unpad_pkcs7(mpad.data(), mpadlen, &mpadlen)) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to unpad key.");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
     assert(mpadlen <= *out_len);
     *out_len = mpadlen;
     memcpy(out, mpad.data(), mpadlen);
-    ret = RNP_SUCCESS;
-done:
-    EVP_PKEY_free(ephkey);
-    EVP_PKEY_free(pkey);
-    return ret;
+    return RNP_SUCCESS;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2024, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -74,36 +74,32 @@ eddsa_verify(const pgp::ec::Signature &sig,
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    EVP_PKEY *evpkey = pgp::ec::load_key(key.p, NULL, PGP_CURVE_ED25519);
+    auto evpkey = pgp::ec::load_key(key.p, NULL, PGP_CURVE_ED25519);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp_result_t ret = RNP_ERROR_SIGNATURE_INVALID;
-    uint8_t      sigbuf[64] = {0};
     /* init context and sign */
-    EVP_PKEY_CTX *ctx = NULL;
-    EVP_MD_CTX *  md = EVP_MD_CTX_new();
+    rnp::ossl::evp::MDCtx md;
     if (!md) {
         RNP_LOG("Failed to allocate MD ctx: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
-    if (EVP_DigestVerifyInit(md, &ctx, NULL, NULL, evpkey) <= 0) {
+    /* ctx will be destroyed together with md */
+    EVP_PKEY_CTX *ctx = NULL;
+    if (EVP_DigestVerifyInit(md.get(), &ctx, NULL, NULL, evpkey.get()) <= 0) {
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
+    uint8_t sigbuf[64] = {0};
     sig.r.to_mem(&sigbuf[32 - sig.r.bytes()]);
     sig.s.to_mem(&sigbuf[64 - sig.s.bytes()]);
 
-    if (EVP_DigestVerify(md, sigbuf, 64, hash, hash_len) > 0) {
-        ret = RNP_SUCCESS;
+    if (EVP_DigestVerify(md.get(), sigbuf, 64, hash, hash_len) < 1) {
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
-done:
-    /* line below will also free ctx */
-    EVP_MD_CTX_free(md);
-    EVP_PKEY_free(evpkey);
-    return ret;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
@@ -117,40 +113,35 @@ eddsa_sign(rnp::RNG &          rng,
         RNP_LOG("private key not set");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    EVP_PKEY *evpkey = pgp::ec::load_key(key.p, &key.x, PGP_CURVE_ED25519);
+    auto evpkey = pgp::ec::load_key(key.p, &key.x, PGP_CURVE_ED25519);
     if (!evpkey) {
         RNP_LOG("Failed to load private key: %lu", ERR_peek_last_error());
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp_result_t ret = RNP_ERROR_GENERIC;
     /* init context and sign */
-    EVP_PKEY_CTX *ctx = NULL;
-    EVP_MD_CTX *  md = EVP_MD_CTX_new();
+    rnp::ossl::evp::MDCtx md;
     if (!md) {
         RNP_LOG("Failed to allocate MD ctx: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    if (EVP_DigestSignInit(md, &ctx, NULL, NULL, evpkey) <= 0) {
+    /* ctx will be destroyed together with md */
+    EVP_PKEY_CTX *ctx = NULL;
+    if (EVP_DigestSignInit(md.get(), &ctx, NULL, NULL, evpkey.get()) <= 0) {
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
     static_assert((sizeof(sig.r.mpi) == PGP_MPINT_SIZE) && (PGP_MPINT_SIZE >= 64),
                   "invalid mpi type/size");
     sig.r.len = PGP_MPINT_SIZE;
-    if (EVP_DigestSign(md, sig.r.mpi, &sig.r.len, hash, hash_len) <= 0) {
+    if (EVP_DigestSign(md.get(), sig.r.mpi, &sig.r.len, hash, hash_len) <= 0) {
         RNP_LOG("Signing failed: %lu", ERR_peek_last_error());
         sig.r.len = 0;
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
     assert(sig.r.len == 64);
     sig.r.len = 32;
     sig.s.len = 32;
     memcpy(sig.s.mpi, &sig.r.mpi[32], 32);
-    ret = RNP_SUCCESS;
-done:
-    /* line below will also free ctx */
-    EVP_MD_CTX_free(md);
-    EVP_PKEY_free(evpkey);
-    return ret;
+    return RNP_SUCCESS;
 }
