@@ -104,10 +104,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          rm -f '/usr/local/bin/2to3'   '/usr/local/bin/2to3-3.12' '/usr/local/bin/idle3'   '/usr/local/bin/idle3.12'        \
-                '/usr/local/bin/pydoc3' '/usr/local/bin/pydoc3.12' '/usr/local/bin/python3' '/usr/local/bin/python3-config'  \
-                '/usr/local/bin/python3.12' '/usr/local/bin/python3.12-config'
-          brew bundle
+          brew bundle -f
 
       - name: Botan2 cache
         id: cache
