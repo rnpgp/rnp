@@ -1780,7 +1780,11 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
                 continue;
             }
             keyavail = true;
-        } else if (skey.version == PGP_SKSK_V5) {
+        } else if (skey.version == PGP_SKSK_V5
+#if defined(ENABLE_CRYPTO_REFRESH)
+                   || skey.version == PGP_SKSK_V6
+#endif
+        ) {
 #if !defined(ENABLE_AEAD)
             continue;
 #else
@@ -1794,6 +1798,31 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
             alg = skey.alg;
 
             /* initialize cipher */
+#if defined(ENABLE_CRYPTO_REFRESH)
+            if (skey.version == PGP_SKSK_V6) {
+                /* For v6 SKESK, we use the S2K derived key as input to the KDF */
+                auto kdf = rnp::Hkdf::create(PGP_HASH_SHA256);
+
+                std::vector<uint8_t> kdf_info;
+                kdf_info.push_back(PGP_PKT_SK_SESSION_KEY | PGP_PTAG_ALWAYS_SET |
+                                   PGP_PTAG_NEW_FORMAT);
+                kdf_info.push_back(skey.version);
+                kdf_info.push_back(skey.alg);
+                kdf_info.push_back(skey.aalg);
+
+                std::vector<uint8_t> kdf_input(keybuf.data(),
+                                               keybuf.data() + pgp_key_size(skey.alg));
+
+                kdf->extract_expand(NULL,
+                                    0, // no salt
+                                    kdf_input.data(),
+                                    kdf_input.size(),
+                                    kdf_info.data(),
+                                    kdf_info.size(),
+                                    keybuf.data(),
+                                    keybuf.size());
+            }
+#endif
             if (!pgp_cipher_aead_init(&crypt, skey.alg, skey.aalg, keybuf.data(), true)) {
                 continue;
             }
@@ -2241,14 +2270,12 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
         }
 #ifdef ENABLE_CRYPTO_REFRESH
         else if (SEIPD_version == PGP_SE_IP_DATA_V2) {
-            /*  SKESK v6 is not yet implemented, thus we must not attempt to decrypt
-               SEIPDv2 here
-                TODO: Once SKESK v6 is implemented, replace this check with a check for
-               consistency between SEIPD and SKESK version
-            */
-            if (param->symencs.size() > 0) {
-                RNP_LOG("SEIPDv2 not usable with SKESK version");
-                return RNP_ERROR_BAD_FORMAT;
+            for (auto symenc : param->symencs) {
+                // consistency check if SEIPDv2 is only coupled with SKESKv6
+                if (symenc.version != PGP_SKSK_V6) {
+                    RNP_LOG("SEIPDv2 not usable with SKESK version");
+                    return RNP_ERROR_BAD_FORMAT;
+                }
             }
 
             param->auth_type = rnp::AuthType::AEADv2;

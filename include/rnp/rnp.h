@@ -3619,6 +3619,17 @@ RNP_API rnp_result_t rnp_op_encrypt_add_recipient(rnp_op_encrypt_t op, rnp_key_h
  * @return RNP_SUCCESS or errorcode if failed.
  */
 RNP_API rnp_result_t rnp_op_encrypt_enable_pkesk_v6(rnp_op_encrypt_t op);
+
+/**
+ * @brief Enables the creation of SKESK v6 (instead of v4) which results in the use of SEIPDv2.
+ *        The actually created version depends on whether an AEAD algorithm has been chosen.
+ *        NOTE: This is an experimental feature and this function can be replaced (or removed)
+ *        at any time.
+ *
+ * @param op opaque encrypting context. Must be allocated and initialized.
+ * @return RNP_SUCCESS or errorcode if failed.
+ */
+RNP_API rnp_result_t rnp_op_encrypt_enable_skesk_v6(rnp_op_encrypt_t op);
 #endif
 
 #if defined(RNP_EXPERIMENTAL_PQC)

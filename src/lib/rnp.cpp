@@ -2623,6 +2623,18 @@ try {
     return RNP_SUCCESS;
 }
 FFI_GUARD
+
+rnp_result_t
+rnp_op_encrypt_enable_skesk_v6(rnp_op_encrypt_t op)
+try {
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    op->rnpctx.enable_skesk_v6 = true;
+    return RNP_SUCCESS;
+}
+FFI_GUARD
 #endif
 
 #if defined(RNP_EXPERIMENTAL_PQC)
@@ -2767,7 +2779,7 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 #ifdef ENABLE_CRYPTO_REFRESH
-    if (op->rnpctx.aalg == PGP_AEAD_NONE && op->rnpctx.enable_pkesk_v6) {
+    if (op->rnpctx.aalg == PGP_AEAD_NONE && (op->rnpctx.enable_pkesk_v6)) {
         FFI_LOG(op->ffi,
                 "Setting AEAD algorithm to PGP_AEAD_NONE (%s) would contradict the previously "
                 "enabled PKESKv6 setting",
