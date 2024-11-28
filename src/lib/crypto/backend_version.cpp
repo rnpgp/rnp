@@ -31,12 +31,12 @@
 #elif defined(CRYPTO_BACKEND_OPENSSL)
 #include <openssl/opensslv.h>
 #include <openssl/crypto.h>
-#include "ossl_common.h"
 #if defined(CRYPTO_BACKEND_OPENSSL3)
 #include <openssl/provider.h>
 #endif
 #include <string.h>
 #include "config.h"
+#include "ossl_utils.hpp"
 #ifndef RNP_USE_STD_REGEX
 #include <regex.h>
 #else
@@ -142,7 +142,7 @@ backend_init(void **param)
     /* Load default crypto provider */
     state->def = OSSL_PROVIDER_load(NULL, "default");
     if (!state->def) {
-        RNP_LOG("Failed to load default crypto provider: %s", ossl_latest_err());
+        RNP_LOG("Failed to load default crypto provider: %s", rnp::ossl::latest_err());
         free(state);
         return false;
     }
@@ -150,7 +150,7 @@ backend_init(void **param)
 #if defined(OPENSSL_LOAD_LEGACY)
     state->legacy = OSSL_PROVIDER_load(NULL, "legacy");
     if (!state->legacy) {
-        RNP_LOG("Failed to load legacy crypto provider: %s", ossl_latest_err());
+        RNP_LOG("Failed to load legacy crypto provider: %s", rnp::ossl::latest_err());
         OSSL_PROVIDER_unload(state->def);
         free(state);
         return false;
