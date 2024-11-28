@@ -662,6 +662,41 @@ cli_rnp_t::init(const rnp_cfg &cfg)
                               RNP_SECURITY_DEFAULT);
     }
 
+    if (cfg_.has(CFG_ALLOW_OLD_CIPHERS)) {
+        auto     now = time(NULL);
+        uint64_t from = 0;
+        uint32_t level = 0;
+        rnp_get_security_rule(ffi, RNP_FEATURE_SYMM_ALG, "CAST5", now, NULL, &from, &level);
+        rnp_add_security_rule(ffi,
+                              RNP_FEATURE_SYMM_ALG,
+                              "CAST5",
+                              RNP_SECURITY_OVERRIDE,
+                              from,
+                              RNP_SECURITY_DEFAULT);
+        rnp_get_security_rule(
+          ffi, RNP_FEATURE_SYMM_ALG, "TRIPLEDES", now, NULL, &from, &level);
+        rnp_add_security_rule(ffi,
+                              RNP_FEATURE_SYMM_ALG,
+                              "TRIPLEDES",
+                              RNP_SECURITY_OVERRIDE,
+                              from,
+                              RNP_SECURITY_DEFAULT);
+        rnp_get_security_rule(ffi, RNP_FEATURE_SYMM_ALG, "IDEA", now, NULL, &from, &level);
+        rnp_add_security_rule(ffi,
+                              RNP_FEATURE_SYMM_ALG,
+                              "IDEA",
+                              RNP_SECURITY_OVERRIDE,
+                              from,
+                              RNP_SECURITY_DEFAULT);
+        rnp_get_security_rule(ffi, RNP_FEATURE_SYMM_ALG, "BLOWFISH", now, NULL, &from, &level);
+        rnp_add_security_rule(ffi,
+                              RNP_FEATURE_SYMM_ALG,
+                              "BLOWFISH",
+                              RNP_SECURITY_OVERRIDE,
+                              from,
+                              RNP_SECURITY_DEFAULT);
+    }
+
     // by default use stdin password provider
     if (rnp_ffi_set_pass_provider(ffi, ffi_pass_callback_stdin, this)) {
         goto done;
@@ -2905,6 +2940,36 @@ cli_rnp_check_weak_hash(cli_rnp_t *rnp)
     if (security_level < RNP_SECURITY_DEFAULT) {
         ERR_MSG("Hash algorithm \'%s\' is cryptographically weak!",
                 rnp->cfg().get_hashalg().c_str());
+        return false;
+    }
+    /* TODO: check other weak algorithms and key sizes */
+    return true;
+}
+
+bool
+cli_rnp_check_old_ciphers(cli_rnp_t *rnp)
+{
+    if (rnp->cfg().has(CFG_ALLOW_OLD_CIPHERS)) {
+        return true;
+    }
+
+    uint32_t security_level = 0;
+
+    if (rnp_get_security_rule(rnp->ffi,
+                              RNP_FEATURE_SYMM_ALG,
+                              rnp->cfg().get_cipher().c_str(),
+                              rnp->cfg().time(),
+                              NULL,
+                              NULL,
+                              &security_level)) {
+        ERR_MSG("Failed to get security rules for cipher algorithm \'%s\'!",
+                rnp->cfg().get_cipher().c_str());
+        return false;
+    }
+
+    if (security_level < RNP_SECURITY_DEFAULT) {
+        ERR_MSG("Cipher algorithm \'%s\' is cryptographically weak!",
+                rnp->cfg().get_cipher().c_str());
         return false;
     }
     /* TODO: check other weak algorithms and key sizes */

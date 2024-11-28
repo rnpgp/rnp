@@ -1161,19 +1161,32 @@ get_feature_sec_value(
   rnp_ffi_t ffi, const char *stype, const char *sname, rnp::FeatureType &type, int &value)
 {
     /* check type */
-    if (!rnp::str_case_eq(stype, RNP_FEATURE_HASH_ALG)) {
-        FFI_LOG(ffi, "Unsupported feature type: %s", stype);
-        return false;
+    if (rnp::str_case_eq(stype, RNP_FEATURE_HASH_ALG)) {
+        type = rnp::FeatureType::Hash;
+        /* check feature name */
+        pgp_hash_alg_t alg = PGP_HASH_UNKNOWN;
+        if (sname && !str_to_hash_alg(sname, &alg)) {
+            FFI_LOG(ffi, "Unknown hash algorithm: %s", sname);
+            return false;
+        }
+        value = alg;
+        return true;
     }
-    type = rnp::FeatureType::Hash;
-    /* check feature name */
-    pgp_hash_alg_t alg = PGP_HASH_UNKNOWN;
-    if (sname && !str_to_hash_alg(sname, &alg)) {
-        FFI_LOG(ffi, "Unknown hash algorithm: %s", sname);
-        return false;
+
+    if (rnp::str_case_eq(stype, RNP_FEATURE_SYMM_ALG)) {
+        type = rnp::FeatureType::Cipher;
+        /* check feature name */
+        pgp_symm_alg_t alg = PGP_SA_UNKNOWN;
+        if (sname && !str_to_cipher(sname, &alg)) {
+            FFI_LOG(ffi, "Unknown cipher: %s", sname);
+            return false;
+        }
+        value = alg;
+        return true;
     }
-    value = alg;
-    return true;
+
+    FFI_LOG(ffi, "Unsupported feature type: %s", stype);
+    return false;
 }
 
 static bool
@@ -2740,12 +2753,40 @@ try {
 }
 FFI_GUARD
 
+static bool
+rnp_check_old_ciphers(rnp_ffi_t ffi, const char *cipher)
+{
+    uint32_t security_level = 0;
+
+    if (rnp_get_security_rule(ffi,
+                              RNP_FEATURE_SYMM_ALG,
+                              cipher,
+                              ffi->context.time(),
+                              NULL,
+                              NULL,
+                              &security_level)) {
+        FFI_LOG(ffi, "Failed to get security rules for cipher algorithm \'%s\'!", cipher);
+        return false;
+    }
+
+    if (security_level < RNP_SECURITY_DEFAULT) {
+        FFI_LOG(ffi, "Cipher algorithm \'%s\' is cryptographically weak!", cipher);
+        return false;
+    }
+    /* TODO: check other weak algorithms and key sizes */
+    return true;
+}
+
 rnp_result_t
 rnp_op_encrypt_set_cipher(rnp_op_encrypt_t op, const char *cipher)
 try {
     // checks
     if (!op || !cipher) {
         return RNP_ERROR_NULL_POINTER;
+    }
+    if (!rnp_check_old_ciphers(op->ffi, cipher)) {
+        FFI_LOG(op->ffi, "Deprecated cipher: %s", cipher);
+        return RNP_ERROR_BAD_PARAMETERS;
     }
     if (!str_to_cipher(cipher, &op->rnpctx.ealg)) {
         FFI_LOG(op->ffi, "Invalid cipher: %s", cipher);

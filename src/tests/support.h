@@ -313,5 +313,6 @@ bool test_load_gpg_check_key(rnp::KeyStore *pub, rnp::KeyStore *sec, const char 
 #define MD5_FROM 1325376000
 #define SHA1_DATA_FROM 1547856000
 #define SHA1_KEY_FROM 1705629600
+#define CAST5_3DES_IDEA_BLOWFISH_FROM 1727730000
 
 #endif /* SUPPORT_H_ */
