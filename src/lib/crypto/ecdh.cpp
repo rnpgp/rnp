@@ -36,7 +36,6 @@
 #include "types.h"
 #include "utils.h"
 #include "mem.h"
-#include "bn.h"
 
 // Produces kek of size kek_len which corresponds to length of wrapping key
 static bool
