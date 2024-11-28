@@ -28,7 +28,6 @@
 #include "utils.h"
 #include <botan/ffi.h>
 #include <string.h>
-#include "bn.h"
 #include "botan_utils.hpp"
 
 static bool

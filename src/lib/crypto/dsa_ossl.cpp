@@ -27,7 +27,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <rnp/rnp_def.h>
-#include "bn.h"
 #include "dsa.h"
 #include "dl_ossl.h"
 #include "utils.h"

@@ -27,12 +27,9 @@
 #ifndef DL_OSSL_H_
 #define DL_OSSL_H_
 
-#include "types.h"
-#include "config.h"
-#include <rnp/rnp_def.h>
 #include "mpi.h"
-#include "bn.h"
-#include <openssl/evp.h>
+#include <rnp/rnp_def.h>
+#include "ossl_utils.hpp"
 
 rnp::ossl::evp::PKey dl_load_key(const pgp::mpi &mp,
                                  const pgp::mpi *mq,

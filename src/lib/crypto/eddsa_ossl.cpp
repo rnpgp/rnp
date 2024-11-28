@@ -30,7 +30,7 @@
 #include "ec.h"
 #include "ec_ossl.h"
 #include "utils.h"
-#include "bn.h"
+#include "ossl_utils.hpp"
 #include <openssl/evp.h>
 #include <openssl/objects.h>
 #include <openssl/err.h>

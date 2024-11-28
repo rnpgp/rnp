@@ -30,8 +30,7 @@
 #include "crypto/rsa.h"
 #include "config.h"
 #include "utils.h"
-#include "bn.h"
-#include "ossl_common.h"
+#include "ossl_utils.hpp"
 #include <openssl/rsa.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -157,7 +156,7 @@ bld_params(const Key &key, bool secret)
         auto params = bld.to_param();
         if (!params) {
             RNP_LOG("Failed to build RSA pub params: %s.",
-                    ossl_latest_err()); // LCOV_EXCL_LINE
+                    rnp::ossl::latest_err()); // LCOV_EXCL_LINE
         }
         return params;
     }
@@ -202,7 +201,7 @@ bld_params(const Key &key, bool secret)
     }
     auto params = bld.to_param();
     if (!params) {
-        RNP_LOG("Failed to build RSA params: %s.", ossl_latest_err()); // LCOV_EXCL_LINE
+        RNP_LOG("Failed to build RSA params: %s.", rnp::ossl::latest_err()); // LCOV_EXCL_LINE
     }
     return params;
 }
@@ -219,14 +218,14 @@ load_key(const Key &key, bool secret)
     rnp::ossl::evp::Ctx ctx(EVP_PKEY_RSA);
     if (!ctx) {
         /* LCOV_EXCL_START */
-        RNP_LOG("Context allocation failed: %s", ossl_latest_err());
+        RNP_LOG("Context allocation failed: %s", rnp::ossl::latest_err());
         return NULL;
         /* LCOV_EXCL_END */
     }
     /* Create key */
     if (EVP_PKEY_fromdata_init(ctx.get()) <= 0) {
         /* LCOV_EXCL_START */
-        RNP_LOG("Failed to initialize key creation: %s", ossl_latest_err());
+        RNP_LOG("Failed to initialize key creation: %s", rnp::ossl::latest_err());
         return NULL;
         /* LCOV_EXCL_END */
     }
@@ -235,7 +234,7 @@ load_key(const Key &key, bool secret)
                           res.ptr(),
                           secret ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY,
                           params.get()) <= 0) {
-        RNP_LOG("Failed to create RSA key: %s", ossl_latest_err()); // LCOV_EXCL_LINE
+        RNP_LOG("Failed to create RSA key: %s", rnp::ossl::latest_err()); // LCOV_EXCL_LINE
     }
     return res;
 }
@@ -249,7 +248,7 @@ init_context(const Key &key, bool secret)
     }
     rnp::ossl::evp::Ctx ctx(pkey);
     if (!ctx) {
-        RNP_LOG("Context allocation failed: %s", ossl_latest_err()); // LCOV_EXCL_LINE
+        RNP_LOG("Context allocation failed: %s", rnp::ossl::latest_err()); // LCOV_EXCL_LINE
     }
     return ctx;
 }
@@ -262,13 +261,13 @@ Key::validate(rnp::RNG &rng, bool secret) const noexcept
     auto ctx = init_context(*this, secret);
     if (!ctx) {
         /* LCOV_EXCL_START */
-        RNP_LOG("Failed to init context: %s", ossl_latest_err());
+        RNP_LOG("Failed to init context: %s", rnp::ossl::latest_err());
         return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
     int res = secret ? EVP_PKEY_pairwise_check(ctx.get()) : EVP_PKEY_public_check(ctx.get());
     if (res <= 0) {
-        RNP_LOG("Key validation error: %s", ossl_latest_err()); // LCOV_EXCL_LINE
+        RNP_LOG("Key validation error: %s", rnp::ossl::latest_err()); // LCOV_EXCL_LINE
     }
     return res > 0 ? RNP_SUCCESS : RNP_ERROR_GENERIC;
 #else
@@ -276,13 +275,13 @@ Key::validate(rnp::RNG &rng, bool secret) const noexcept
         rnp::ossl::evp::Ctx ctx(init_context(*this, secret));
         if (!ctx) {
             /* LCOV_EXCL_START */
-            RNP_LOG("Failed to init context: %s", ossl_latest_err());
+            RNP_LOG("Failed to init context: %s", rnp::ossl::latest_err());
             return RNP_ERROR_GENERIC;
             /* LCOV_EXCL_END */
         }
         int res = EVP_PKEY_check(ctx.get());
         if (res <= 0) {
-            RNP_LOG("Key validation error: %s", ossl_latest_err()); // LCOV_EXCL_LINE
+            RNP_LOG("Key validation error: %s", rnp::ossl::latest_err()); // LCOV_EXCL_LINE
         }
         return res > 0 ? RNP_SUCCESS : RNP_ERROR_GENERIC;
     }
@@ -335,7 +334,7 @@ setup_signature_hash(rnp::ossl::evp::Ctx &ctx,
     }
     if (EVP_PKEY_CTX_set_signature_md(ctx.get(), hash_tp) <= 0) {
         if ((hash_alg != PGP_HASH_SHA1)) {
-            RNP_LOG("Failed to set digest %s: %s", hash_name, ossl_latest_err());
+            RNP_LOG("Failed to set digest %s: %s", hash_name, rnp::ossl::latest_err());
             return false;
         }
         enc = &PKCS1_SHA1_ENCODING[0];
@@ -412,7 +411,7 @@ Key::verify_pkcs1(const Signature &sig,
         res = EVP_PKEY_verify(ctx.get(), sig.s.mpi, sig.s.len, hash, hash_len);
     }
     if (res <= 0) {
-        RNP_LOG("RSA verification failure: %s", ossl_latest_err());
+        RNP_LOG("RSA verification failure: %s", rnp::ossl::latest_err());
         return RNP_ERROR_SIGNATURE_INVALID;
     }
     return RNP_SUCCESS;

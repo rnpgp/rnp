@@ -35,7 +35,6 @@
 #include <rnp/rnp_def.h>
 #include "elgamal.h"
 #include "utils.h"
-#include "bn.h"
 
 // Max supported key byte size
 #define ELGAMAL_MAX_P_BYTELEN BITS_TO_BYTES(PGP_MPINT_BITS)

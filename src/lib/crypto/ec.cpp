@@ -31,7 +31,6 @@
 #include "types.h"
 #include "utils.h"
 #include "mem.h"
-#include "bn.h"
 #include "botan_utils.hpp"
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 #include "x25519.h"

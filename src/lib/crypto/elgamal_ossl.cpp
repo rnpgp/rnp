@@ -25,14 +25,14 @@
  */
 
 #include <cstdlib>
-#include <string>
+#include <cstring>
 #include <cassert>
 #include <rnp/rnp_def.h>
 #include "elgamal.h"
 #include "dl_ossl.h"
 #include "utils.h"
-#include "bn.h"
 #include "mem.h"
+#include "ossl_utils.hpp"
 #include <openssl/bn.h>
 #include <openssl/dh.h>
 #include <openssl/err.h>

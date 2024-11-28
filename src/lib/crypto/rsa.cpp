@@ -32,7 +32,6 @@
 #include "crypto/rsa.h"
 #include "config.h"
 #include "utils.h"
-#include "bn.h"
 
 namespace pgp {
 namespace rsa {

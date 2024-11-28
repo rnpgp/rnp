@@ -27,7 +27,6 @@
 #include "ecdsa.h"
 #include "utils.h"
 #include <string.h>
-#include "bn.h"
 #include "ec_ossl.h"
 #include <openssl/evp.h>
 #include <openssl/err.h>

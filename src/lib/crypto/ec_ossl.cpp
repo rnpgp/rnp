@@ -28,11 +28,10 @@
 #include <cassert>
 #include "ec.h"
 #include "ec_ossl.h"
-#include "bn.h"
-#include "ossl_common.h"
 #include "types.h"
 #include "mem.h"
 #include "utils.h"
+#include "ossl_utils.hpp"
 #include <openssl/evp.h>
 #include <openssl/objects.h>
 #include <openssl/err.h>
@@ -297,7 +296,7 @@ load_key(const pgp::mpi &keyp, const pgp::mpi *keyx, pgp_curve_t curve)
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to create EC key with group %s: %s",
                 curv_desc->openssl_name,
-                ossl_latest_err());
+                rnp::ossl::latest_err());
         return NULL;
         /* LCOV_EXCL_END */
     }
