@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2023 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2024 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -52,78 +52,66 @@ namespace eg {
 bool
 Key::validate(bool secret) const noexcept
 {
-    BN_CTX *ctx = BN_CTX_new();
-    if (!ctx) {
+    rnp::ossl::BNCtx ctx;
+    if (!ctx.get()) {
         /* LCOV_EXCL_START */
         RNP_LOG("Allocation failed.");
         return false;
         /* LCOV_EXCL_END */
     }
-    BN_CTX_start(ctx);
-    bool         res = false;
-    bignum_t *   op = mpi2bn(p);
-    bignum_t *   og = mpi2bn(g);
-    bignum_t *   p1 = BN_CTX_get(ctx);
-    bignum_t *   r = BN_CTX_get(ctx);
-    bignum_t *   oy = NULL;
-    bignum_t *   ox = NULL;
-    BN_RECP_CTX *rctx = NULL;
+    rnp::bn op(p);
+    rnp::bn og(g);
+    auto    p1 = ctx.bn();
+    auto    r = ctx.bn();
 
     if (!op || !og || !p1 || !r) {
-        goto done;
+        return false;
     }
 
     /* 1 < g < p */
-    if ((BN_cmp(og, BN_value_one()) != 1) || (BN_cmp(og, op) != -1)) {
+    if ((BN_cmp(og.get(), BN_value_one()) != 1) || (BN_cmp(og.get(), op.get()) != -1)) {
         RNP_LOG("Invalid g value.");
-        goto done;
+        return false;
     }
     /* g ^ (p - 1) = 1 mod p */
-    if (!BN_copy(p1, op) || !BN_sub_word(p1, 1) || !BN_mod_exp(r, og, p1, op, ctx)) {
+    if (!BN_copy(p1, op.get()) || !BN_sub_word(p1, 1) ||
+        !BN_mod_exp(r, og.get(), p1, op.get(), ctx.get())) {
         RNP_LOG("g exp failed.");
-        goto done;
+        return false;
     }
     if (BN_cmp(r, BN_value_one()) != 0) {
         RNP_LOG("Wrong g exp value.");
-        goto done;
+        return false;
     }
     /* check for small order subgroups */
-    rctx = BN_RECP_CTX_new();
-    if (!rctx || !BN_RECP_CTX_set(rctx, op, ctx) || !BN_copy(r, og)) {
+    rnp::ossl::BNRecpCtx rctx;
+    if (!rctx.get() || !BN_RECP_CTX_set(rctx.get(), op.get(), ctx.get()) ||
+        !BN_copy(r, og.get())) {
         RNP_LOG("Failed to init RECP context.");
-        goto done;
+        return false;
     }
     for (size_t i = 2; i < (1 << 17); i++) {
-        if (!BN_mod_mul_reciprocal(r, r, og, rctx, ctx)) {
+        if (!BN_mod_mul_reciprocal(r, r, og.get(), rctx.get(), ctx.get())) {
             /* LCOV_EXCL_START */
             RNP_LOG("Multiplication failed.");
-            goto done;
+            return false;
             /* LCOV_EXCL_END */
         }
         if (BN_cmp(r, BN_value_one()) == 0) {
             RNP_LOG("Small subgroup detected. Order %zu", i);
-            goto done;
+            return false;
         }
     }
     if (!secret) {
-        res = true;
-        goto done;
+        return true;
     }
     /* check that g ^ x = y (mod p) */
-    ox = mpi2bn(x);
-    oy = mpi2bn(y);
+    rnp::bn ox(x);
+    rnp::bn oy(y);
     if (!ox || !oy) {
-        goto done;
+        return false;
     }
-    res = BN_mod_exp(r, og, ox, op, ctx) && !BN_cmp(r, oy);
-done:
-    BN_CTX_free(ctx);
-    BN_RECP_CTX_free(rctx);
-    bn_free(op);
-    bn_free(og);
-    bn_free(oy);
-    bn_free(ox);
-    return res;
+    return BN_mod_exp(r, og.get(), ox.get(), op.get(), ctx.get()) && !BN_cmp(r, oy.get());
 }
 
 static bool
@@ -190,86 +178,75 @@ Key::encrypt_pkcs1(rnp::RNG &rng, Encrypted &out, const uint8_t *in, size_t in_l
         return RNP_ERROR_BAD_PARAMETERS;
         /* LCOV_EXCL_END */
     }
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-    BN_CTX *     ctx = BN_CTX_new();
-    if (!ctx) {
+    rnp::ossl::BNCtx ctx;
+    if (!ctx.get()) {
         /* LCOV_EXCL_START */
         RNP_LOG("Allocation failed.");
         return RNP_ERROR_OUT_OF_MEMORY;
         /* LCOV_EXCL_END */
     }
-    BN_CTX_start(ctx);
-    BN_MONT_CTX *mctx = BN_MONT_CTX_new();
-    bignum_t *   m = mpi2bn(&mm);
-    bignum_t *   op = mpi2bn(p);
-    bignum_t *   og = mpi2bn(g);
-    bignum_t *   oy = mpi2bn(y);
-    bignum_t *   c1 = BN_CTX_get(ctx);
-    bignum_t *   c2 = BN_CTX_get(ctx);
-    bignum_t *   k = BN_secure_new();
-    if (!mctx || !m || !op || !og || !oy || !c1 || !c2 || !k) {
+    rnp::bn m(mm);
+    rnp::bn op(p);
+    rnp::bn og(g);
+    rnp::bn oy(y);
+    auto    c1 = ctx.bn();
+    auto    c2 = ctx.bn();
+    rnp::bn k(BN_secure_new());
+    if (!m || !op || !og || !oy || !c1 || !c2 || !k) {
         /* LCOV_EXCL_START */
         RNP_LOG("Allocation failed.");
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
+        return RNP_ERROR_OUT_OF_MEMORY;
         /* LCOV_EXCL_END */
     }
     /* initialize Montgomery context */
-    if (BN_MONT_CTX_set(mctx, op, ctx) < 1) {
+    rnp::ossl::BNMontCtx mctx;
+    if (!mctx.get() || (BN_MONT_CTX_set(mctx.get(), op.get(), ctx.get()) < 1)) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to setup Montgomery context.");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    int res;
     /* must not fail */
-    res = BN_rshift1(c1, op);
+    int res = BN_rshift1(c1, op.get());
     assert(res == 1);
     if (res < 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("BN_rshift1 failed.");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
     /* generate k */
-    if (BN_rand_range(k, c1) < 1) {
+    if (BN_rand_range(k.get(), c1) < 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to generate k.");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
     /* calculate c1 = g ^ k (mod p) */
-    if (BN_mod_exp_mont_consttime(c1, og, k, op, ctx, mctx) < 1) {
+    if (BN_mod_exp_mont_consttime(c1, og.get(), k.get(), op.get(), ctx.get(), mctx.get()) <
+        1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Exponentiation 1 failed");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
     /* calculate c2 = m * y ^ k (mod p)*/
-    if (BN_mod_exp_mont_consttime(c2, oy, k, op, ctx, mctx) < 1) {
+    if (BN_mod_exp_mont_consttime(c2, oy.get(), k.get(), op.get(), ctx.get(), mctx.get()) <
+        1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Exponentiation 2 failed");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    if (BN_mod_mul(c2, c2, m, op, ctx) < 1) {
+    if (BN_mod_mul(c2, c2, m.get(), op.get(), ctx.get()) < 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Multiplication failed");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    res = bn2mpi(c1, &out.g) && bn2mpi(c2, &out.m);
+    res = rnp::bn::mpi(c1, out.g) && rnp::bn::mpi(c2, out.m);
     assert(res == 1);
-    ret = RNP_SUCCESS;
-done:
-    BN_MONT_CTX_free(mctx);
-    BN_CTX_free(ctx);
-    bn_free(m);
-    bn_free(op);
-    bn_free(og);
-    bn_free(oy);
-    bn_free(k);
-    return ret;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
@@ -279,89 +256,73 @@ Key::decrypt_pkcs1(rnp::RNG &rng, uint8_t *out, size_t *out_len, const Encrypted
         RNP_LOG("Secret key not set.");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    BN_CTX *ctx = BN_CTX_new();
-    if (!ctx) {
+    rnp::ossl::BNCtx ctx;
+    if (!ctx.get()) {
         /* LCOV_EXCL_START */
         RNP_LOG("Allocation failed.");
         return RNP_ERROR_OUT_OF_MEMORY;
         /* LCOV_EXCL_END */
     }
-    pgp::mpi     mm = {};
-    size_t       padlen = 0;
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-    BN_CTX_start(ctx);
-    BN_MONT_CTX *mctx = BN_MONT_CTX_new();
-    bignum_t *   op = mpi2bn(p);
-    bignum_t *   og = mpi2bn(g);
-    bignum_t *   ox = mpi2bn(x);
-    bignum_t *   c1 = mpi2bn(in.g);
-    bignum_t *   c2 = mpi2bn(in.m);
-    bignum_t *   s = BN_CTX_get(ctx);
-    bignum_t *   m = BN_secure_new();
-    if (!mctx || !op || !og || !ox || !c1 || !c2 || !m) {
+    rnp::bn op(p);
+    rnp::bn og(g);
+    rnp::bn ox(x);
+    rnp::bn c1(in.g);
+    rnp::bn c2(in.m);
+    auto    s = ctx.bn();
+    rnp::bn m(BN_secure_new());
+    if (!op || !og || !ox || !c1 || !c2 || !m) {
         /* LCOV_EXCL_START */
         RNP_LOG("Allocation failed.");
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
+        return RNP_ERROR_OUT_OF_MEMORY;
         /* LCOV_EXCL_END */
     }
     /* initialize Montgomery context */
-    if (BN_MONT_CTX_set(mctx, op, ctx) < 1) {
+    rnp::ossl::BNMontCtx mctx;
+    if (BN_MONT_CTX_set(mctx.get(), op.get(), ctx.get()) < 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to setup Montgomery context.");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
     /* calculate s = c1 ^ x (mod p) */
-    if (BN_mod_exp_mont_consttime(s, c1, ox, op, ctx, mctx) < 1) {
+    if (BN_mod_exp_mont_consttime(s, c1.get(), ox.get(), op.get(), ctx.get(), mctx.get()) <
+        1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Exponentiation 1 failed");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
     /* calculate s^-1 (mod p) */
     BN_set_flags(s, BN_FLG_CONSTTIME);
-    if (!BN_mod_inverse(s, s, op, ctx)) {
+    if (!BN_mod_inverse(s, s, op.get(), ctx.get())) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to calculate inverse.");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
     /* calculate m = c2 * s ^ -1 (mod p)*/
-    if (BN_mod_mul(m, c2, s, op, ctx) < 1) {
+    if (BN_mod_mul(m.get(), c2.get(), s, op.get(), ctx.get()) < 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Multiplication failed");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    bool res;
-    res = bn2mpi(m, &mm);
+    pgp::mpi mm = {};
+    bool     res = m.mpi(mm);
     assert(res);
     if (!res) {
-        /* LCOV_EXCL_START */
-        RNP_LOG("bn2mpi failed.");
-        goto done;
-        /* LCOV_EXCL_END */
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     /* unpad, handling skipped leftmost 0 case */
+    size_t padlen = 0;
     if (!pkcs1v15_unpad(&padlen, mm.mpi, mm.len, mm.len == p.len - 1)) {
         RNP_LOG("Unpad failed.");
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
     *out_len = mm.len - padlen;
     memcpy(out, &mm.mpi[padlen], *out_len);
-    ret = RNP_SUCCESS;
-done:
     secure_clear(mm.mpi, PGP_MPINT_SIZE);
-    BN_MONT_CTX_free(mctx);
-    BN_CTX_free(ctx);
-    bn_free(op);
-    bn_free(og);
-    bn_free(ox);
-    bn_free(c1);
-    bn_free(c2);
-    bn_free(m);
-    return ret;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
@@ -371,144 +332,110 @@ Key::generate(rnp::RNG &rng, size_t keybits)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-#if !defined(CRYPTO_BACKEND_OPENSSL3)
-    const DH *dh = NULL;
-#endif
-    EVP_PKEY *    pkey = NULL;
-    EVP_PKEY *    parmkey = NULL;
-    EVP_PKEY_CTX *ctx = NULL;
-
     /* Generate DH params, which usable for ElGamal as well */
-    ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_DH, NULL);
-    if (!ctx) {
+    rnp::ossl::evp::Ctx pctx(EVP_PKEY_DH);
+    if (!pctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to create ctx: %lu", ERR_peek_last_error());
-        return ret;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    if (EVP_PKEY_paramgen_init(ctx) <= 0) {
+    if (EVP_PKEY_paramgen_init(pctx.get()) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to init keygen: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    if (EVP_PKEY_CTX_set_dh_paramgen_prime_len(ctx, keybits) <= 0) {
+    if (EVP_PKEY_CTX_set_dh_paramgen_prime_len(pctx.get(), keybits) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to set key bits: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
     /* OpenSSL correctly handles case with g = 5, making sure that g is primitive root of
      * q-group */
-    if (EVP_PKEY_CTX_set_dh_paramgen_generator(ctx, DH_GENERATOR_5) <= 0) {
+    if (EVP_PKEY_CTX_set_dh_paramgen_generator(pctx.get(), DH_GENERATOR_5) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to set key generator: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    if (EVP_PKEY_paramgen(ctx, &parmkey) <= 0) {
+    rnp::ossl::evp::PKey parmkey;
+    if (EVP_PKEY_paramgen(pctx.get(), parmkey.ptr()) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to generate parameters: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    EVP_PKEY_CTX_free(ctx);
     /* Generate DH (ElGamal) key */
-start:
-    ctx = EVP_PKEY_CTX_new(parmkey, NULL);
-    if (!ctx) {
-        /* LCOV_EXCL_START */
-        RNP_LOG("Failed to create ctx: %lu", ERR_peek_last_error());
-        goto done;
-        /* LCOV_EXCL_END */
-    }
-    if (EVP_PKEY_keygen_init(ctx) <= 0) {
-        /* LCOV_EXCL_START */
-        RNP_LOG("Failed to init keygen: %lu", ERR_peek_last_error());
-        goto done;
-        /* LCOV_EXCL_END */
-    }
-    if (EVP_PKEY_keygen(ctx, &pkey) <= 0) {
-        /* LCOV_EXCL_START */
-        RNP_LOG("ElGamal keygen failed: %lu", ERR_peek_last_error());
-        goto done;
-        /* LCOV_EXCL_END */
-    }
+    do {
+        rnp::ossl::evp::Ctx ctx(parmkey);
+        if (!ctx) {
+            /* LCOV_EXCL_START */
+            RNP_LOG("Failed to create ctx: %lu", ERR_peek_last_error());
+            return RNP_ERROR_GENERIC;
+            /* LCOV_EXCL_END */
+        }
+        if (EVP_PKEY_keygen_init(ctx.get()) <= 0) {
+            /* LCOV_EXCL_START */
+            RNP_LOG("Failed to init keygen: %lu", ERR_peek_last_error());
+            return RNP_ERROR_GENERIC;
+            /* LCOV_EXCL_END */
+        }
+        rnp::ossl::evp::PKey pkey;
+        if (EVP_PKEY_keygen(ctx.get(), pkey.ptr()) <= 0) {
+            /* LCOV_EXCL_START */
+            RNP_LOG("ElGamal keygen failed: %lu", ERR_peek_last_error());
+            return RNP_ERROR_GENERIC;
+            /* LCOV_EXCL_END */
+        }
 #if defined(CRYPTO_BACKEND_OPENSSL3)
-    {
         rnp::bn oy;
-        if (!EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_PUB_KEY, oy.ptr())) {
+        if (!EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_PUB_KEY, oy.ptr())) {
             /* LCOV_EXCL_START */
             RNP_LOG("Failed to retrieve ElGamal public key: %lu", ERR_peek_last_error());
-            goto done;
+            return RNP_ERROR_GENERIC;
             /* LCOV_EXCL_END */
         }
         if (oy.bytes() != BITS_TO_BYTES(keybits)) {
-            /* This code chunk is rarely hit, so ignoring it for the coverage report:
-             * LCOV_EXCL_START */
-            EVP_PKEY_CTX_free(ctx);
-            ctx = NULL;
-            EVP_PKEY_free(pkey);
-            pkey = NULL;
-            goto start;
+            /* This code chunk is rarely hit, so ignoring it for the coverage report: */
+            continue; // LCOV_EXCL_LINE
+        }
+
+        rnp::bn op = pkey.get_bn(OSSL_PKEY_PARAM_FFC_P);
+        rnp::bn og = pkey.get_bn(OSSL_PKEY_PARAM_FFC_G);
+        rnp::bn ox = pkey.get_bn(OSSL_PKEY_PARAM_PRIV_KEY);
+        if (!op || !og || !ox || !op.mpi(p) || !og.mpi(g) || !oy.mpi(y) || !ox.mpi(x)) {
+            return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
+        }
+        return RNP_SUCCESS;
+#else
+        auto dh = EVP_PKEY_get0_DH(pkey.get());
+        if (!dh) {
+            /* LCOV_EXCL_START */
+            RNP_LOG("Failed to retrieve DH key: %lu", ERR_peek_last_error());
+            return RNP_ERROR_GENERIC;
             /* LCOV_EXCL_END */
         }
-
-        rnp::bn op;
-        rnp::bn og;
-        rnp::bn ox;
-        bool    res = EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_FFC_P, op.ptr()) &&
-                   EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_FFC_G, og.ptr()) &&
-                   EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_PRIV_KEY, ox.ptr());
-        if (res && op.mpi(p) && og.mpi(g) && oy.mpi(y) && ox.mpi(x)) {
-            ret = RNP_SUCCESS;
+        if (BITS_TO_BYTES(BN_num_bits(DH_get0_pub_key(dh))) != BITS_TO_BYTES(keybits)) {
+            /* This code chunk is rarely hit, so ignoring it for the coverage report */
+            continue; // LCOV_EXCL_LINE
         }
-    }
-#else
-    dh = EVP_PKEY_get0_DH(pkey);
-    if (!dh) {
-        /* LCOV_EXCL_START */
-        RNP_LOG("Failed to retrieve DH key: %lu", ERR_peek_last_error());
-        goto done;
-        /* LCOV_EXCL_END */
-    }
-    if (BITS_TO_BYTES(BN_num_bits(DH_get0_pub_key(dh))) != BITS_TO_BYTES(keybits)) {
-        /* This code chunk is rarely hit, so ignoring it for the coverage report:
-         * LCOV_EXCL_START */
-        EVP_PKEY_CTX_free(ctx);
-        ctx = NULL;
-        EVP_PKEY_free(pkey);
-        pkey = NULL;
-        goto start;
-        /* LCOV_EXCL_END */
-    }
 
-    const bignum_t *op;
-    const bignum_t *og;
-    const bignum_t *oy;
-    const bignum_t *ox;
-    op = DH_get0_p(dh);
-    og = DH_get0_g(dh);
-    oy = DH_get0_pub_key(dh);
-    ox = DH_get0_priv_key(dh);
-    if (!op || !og || !oy || !ox) {
-        /* LCOV_EXCL_START */
-        ret = RNP_ERROR_BAD_STATE;
-        goto done;
-        /* LCOV_EXCL_END */
-    }
-    bn2mpi(op, p);
-    bn2mpi(og, g);
-    bn2mpi(oy, y);
-    bn2mpi(ox, x);
-    ret = RNP_SUCCESS;
+        rnp::bn op(DH_get0_p(dh));
+        rnp::bn og(DH_get0_g(dh));
+        rnp::bn oy(DH_get0_pub_key(dh));
+        rnp::bn ox(DH_get0_priv_key(dh));
+        if (!op || !og || !oy || !ox) {
+            return RNP_ERROR_BAD_STATE; // LCOV_EXCL_START
+        }
+        op.mpi(p);
+        og.mpi(g);
+        oy.mpi(y);
+        ox.mpi(x);
+        return RNP_SUCCESS;
 #endif
-done:
-    EVP_PKEY_CTX_free(ctx);
-    EVP_PKEY_free(parmkey);
-    EVP_PKEY_free(pkey);
-    return ret;
+    } while (1);
 }
 
 } // namespace eg

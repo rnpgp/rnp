@@ -225,6 +225,7 @@ TEST_F(rnp_tests, raw_elgamal_random_key_test_success)
     pgp::eg::Key key;
 
     assert_rnp_success(key.generate(global_ctx.rng, 1024));
+    assert_true(key.validate(true));
     elgamal_roundtrip(key, global_ctx.rng);
 }
 
