@@ -27,10 +27,9 @@
 #include <cstdlib>
 #include <string>
 #include <cassert>
-#include "bn.h"
 #include "dl_ossl.h"
-#include "ossl_common.h"
 #include "utils.h"
+#include "ossl_utils.hpp"
 #include <openssl/dh.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -206,7 +205,8 @@ dl_validate_key(rnp::ossl::evp::PKey &pkey, const pgp::mpi *x)
     }
     int res = EVP_PKEY_param_check(ctx.get());
     if (res < 0) {
-        RNP_LOG("Param validation error: %lu (%s)", ERR_peek_last_error(), ossl_latest_err());
+        RNP_LOG(
+          "Param validation error: %lu (%s)", ERR_peek_last_error(), rnp::ossl::latest_err());
     }
     if (res < 1) {
         /* ElGamal specification doesn't seem to restrict P to the safe prime */

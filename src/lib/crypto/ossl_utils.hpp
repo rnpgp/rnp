@@ -24,18 +24,17 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef RNP_BN_H_
-#define RNP_BN_H_
+#ifndef RNP_OSSL_UTILS_HPP_
+#define RNP_OSSL_UTILS_HPP_
 
-#include <stdio.h>
-#include <stdint.h>
+#include <cstdio>
+#include <cstdint>
 #include "config.h"
 #include "mpi.h"
-
-#if defined(CRYPTO_BACKEND_OPENSSL)
 #include <cassert>
 #include <openssl/bn.h>
 #include <openssl/evp.h>
+#include <openssl/err.h>
 #if defined(CRYPTO_BACKEND_OPENSSL3)
 #include <openssl/core_names.h>
 #include <openssl/param_build.h>
@@ -44,28 +43,6 @@
 #include <openssl/dsa.h>
 #include <openssl/ec.h>
 #endif
-
-#define bignum_t BIGNUM
-#elif defined(CRYPTO_BACKEND_BOTAN)
-#else
-#error "Unknown crypto backend."
-#endif
-
-#if defined(CRYPTO_BACKEND_OPENSSL)
-bignum_t *bn_new(void);
-void      bn_free(bignum_t * /*a*/);
-
-int bn_bn2bin(const bignum_t * /*a*/, unsigned char * /*b*/);
-
-bignum_t *mpi2bn(const pgp::mpi *val);
-
-bignum_t *mpi2bn(const pgp::mpi &val);
-
-bool bn2mpi(const bignum_t *bn, pgp::mpi *val);
-
-bool bn2mpi(const bignum_t *bn, pgp::mpi &val);
-
-size_t bn_num_bytes(const bignum_t &a);
 
 namespace rnp {
 class bn {
@@ -130,24 +107,11 @@ class bn {
         return c_get();
     }
 
-    void
-    set(BIGNUM *val = NULL) noexcept
-    {
-        BN_free(_bn);
-        _bn = val;
-    }
-
-    void
-    set(const pgp::mpi &val) noexcept
-    {
-        BN_free(_bn);
-        _bn = mpi2bn(&val);
-    }
-
     BIGNUM **
     ptr() noexcept
     {
-        set();
+        BN_free(_bn);
+        _bn = NULL;
         return &_bn;
     }
 
@@ -637,9 +601,15 @@ class ParamBld {
     }
 };
 #endif
+
+inline const char *
+latest_err()
+{
+    return ERR_error_string(ERR_peek_last_error(), NULL);
+}
+
 } // namespace ossl
 
 } // namespace rnp
-#endif
 
 #endif

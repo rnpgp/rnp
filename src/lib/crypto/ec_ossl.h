@@ -30,7 +30,7 @@
 #include "types.h"
 #include "ec.h"
 #include <openssl/evp.h>
-#include "bn.h"
+#include "ossl_utils.hpp"
 
 namespace pgp {
 namespace ec {

@@ -31,7 +31,6 @@
 #include "botan_utils.hpp"
 #include "sm2.h"
 #include "utils.h"
-#include "bn.h"
 
 static bool
 sm2_load_public_key(rnp::botan::Pubkey &pubkey, const pgp::ec::Key &keydata)

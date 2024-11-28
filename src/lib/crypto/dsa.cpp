@@ -31,7 +31,6 @@
 #include "botan_utils.hpp"
 #include <rnp/rnp_def.h>
 #include "dsa.h"
-#include "bn.h"
 #include "utils.h"
 
 namespace pgp {
