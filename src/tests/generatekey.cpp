@@ -242,6 +242,26 @@ cipher_supported(const std::string &cipher)
     return true;
 }
 
+static void
+enable_insecure_ciphers(rnp_ffi_t ffi)
+{
+    // Allow insecure ciphers
+    if (cast5_enabled()) {
+        assert_rnp_success(rnp_remove_security_rule(
+          ffi, RNP_FEATURE_SYMM_ALG, "CAST5", 0, RNP_SECURITY_REMOVE_ALL, 0, nullptr));
+    }
+    assert_rnp_success(rnp_remove_security_rule(
+      ffi, RNP_FEATURE_SYMM_ALG, "TRIPLEDES", 0, RNP_SECURITY_REMOVE_ALL, 0, nullptr));
+    if (idea_enabled()) {
+        assert_rnp_success(rnp_remove_security_rule(
+          ffi, RNP_FEATURE_SYMM_ALG, "IDEA", 0, RNP_SECURITY_REMOVE_ALL, 0, nullptr));
+    }
+    if (blowfish_enabled()) {
+        assert_rnp_success(rnp_remove_security_rule(
+          ffi, RNP_FEATURE_SYMM_ALG, "BLOWFISH", 0, RNP_SECURITY_REMOVE_ALL, 0, nullptr));
+    }
+}
+
 TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
 {
     const char *cipherAlg[] = {
@@ -264,6 +284,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
         for (unsigned int armored = 0; armored <= 1; ++armored) {
             /* Set up rnp and encrypt the dataa */
             assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, NULL));
+            enable_insecure_ciphers(rnp.ffi);
             /* Load keyring */
             assert_true(rnp.load_keyrings(false));
             size_t seccount = 0;

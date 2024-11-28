@@ -196,6 +196,13 @@ SecurityContext::SecurityContext() : time_(0), prov_state_(NULL), rng(RNG::Type:
                       SecurityAction::VerifyKey});
     /* Mark MD5 insecure since 2012-01-01 */
     profile.add_rule({FeatureType::Hash, PGP_HASH_MD5, SecurityLevel::Insecure, 1325376000});
+    /* Mark CAST5, 3DES, IDEA, BLOWFISH insecure since 2024-10-01*/
+    profile.add_rule({FeatureType::Cipher, PGP_SA_CAST5, SecurityLevel::Insecure, 1727730000});
+    profile.add_rule(
+      {FeatureType::Cipher, PGP_SA_TRIPLEDES, SecurityLevel::Insecure, 1727730000});
+    profile.add_rule({FeatureType::Cipher, PGP_SA_IDEA, SecurityLevel::Insecure, 1727730000});
+    profile.add_rule(
+      {FeatureType::Cipher, PGP_SA_BLOWFISH, SecurityLevel::Insecure, 1727730000});
 }
 
 SecurityContext::~SecurityContext()

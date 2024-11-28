@@ -354,7 +354,7 @@ def rnp_params_insert_aead(params, pos, aead):
 
 def rnp_encrypt_file_ex(src, dst, recipients=None, passwords=None, aead=None, cipher=None,
                         z=None, armor=False, s2k_iter=False, s2k_msec=False):
-    params = ['--homedir', RNPDIR, src, '--output', dst]
+    params = ['--homedir', RNPDIR, src, '--output', dst, '--allow-old-ciphers']
     # Recipients. None disables PK encryption, [] to use default key. Otherwise list of ids.
     if recipients != None:
         params[2:2] = ['--encrypt']
@@ -3117,7 +3117,7 @@ class Misc(unittest.TestCase):
         self.assertRegex(out,r'(?s)^.*Symmetric-key encrypted session key packet.*symmetric algorithm: 7 \(AES-128\).*$')
         remove_files(enc)
         # Encrypt file using the 3DES instead of tripledes
-        ret, _, err = run_proc(RNP, ['-c', src, '--cipher', '3DES', '--password', 'password'])
+        ret, _, err = run_proc(RNP, ['-c', src, '--cipher', '3DES', '--password', 'password', "--allow-old-ciphers"])
         self.assertEqual(ret, 0)
         self.assertNotRegex(err, r'(?s)^.*Warning, unsupported encryption algorithm: 3DES.*$')
         self.assertNotRegex(err, r'(?s)^.*Unsupported encryption algorithm: 3DES.*$')
@@ -4226,6 +4226,32 @@ class Misc(unittest.TestCase):
         remove_files(sig)
 
         clear_workfiles()
+
+    def test_allow_old_ciphers(self):
+        RNP2 = RNPDIR + '2'
+        os.mkdir(RNP2, 0o700)
+        if RNP_CAST5:
+            ret, _, err = run_proc(RNPK, ['--cipher', 'CAST5', '--homedir', RNP2, '--password', 'password', '--current-time', '2030-01-01',
+                                          '--userid', 'test_user', '--generate-key'])
+            self.assertNotEqual(ret, 0)
+            self.assertRegex(err, r'(?s)^.*Cipher algorithm \'CAST5\' is cryptographically weak!.*Old cipher detected. Pass --allow-old-ciphers option if you really want to use it\..*')
+            ret, _, err = run_proc(RNPK, ['--cipher', 'CAST5', '--homedir', RNP2, '--password', 'password', '--current-time', '2030-01-01',
+                                          '--userid', 'test_user', '--generate-key', '--allow-old-ciphers'])
+            self.assertEqual(ret, 0)
+
+        src, sig = reg_workfiles('cleartext', '.txt', '.sig')
+        random_text(src, 120)
+
+        if RNP_CAST5:
+            ret, _, err = run_proc(RNP, ['-c', src, '--output', sig, '--cipher', 'CAST5', '--password', 'password', '--current-time', '2030-01-01'])
+            self.assertNotEqual(ret, 0)
+            self.assertRegex(err, r'(?s)^.*Cipher algorithm \'CAST5\' is cryptographically weak!.*Old cipher detected. Pass --allow-old-ciphers option if you really want to use it\..*')
+            ret, _, err = run_proc(RNP, ['-c', src, '--output', sig, '--cipher', 'CAST5', '--password', 'password', '--current-time', '2030-01-01', '--allow-old-ciphers'])
+            self.assertEqual(ret, 0)
+
+        remove_files(sig)
+        clear_workfiles()
+        shutil.rmtree(RNP2, ignore_errors=True)
 
     def test_armored_detection_on_cleartext(self):
         ret, out, err = run_proc(RNP, ['--keyfile', data_path(SECRING_1), '--password', PASSWORD, '--clearsign'], 'Hello\n')
