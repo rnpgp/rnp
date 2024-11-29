@@ -155,8 +155,9 @@ bld_params(const Key &key, bool secret)
     if (!secret) {
         auto params = bld.to_param();
         if (!params) {
-            RNP_LOG("Failed to build RSA pub params: %s.",
-                    rnp::ossl::latest_err()); // LCOV_EXCL_LINE
+            /* LCOV_EXCL_START */
+            RNP_LOG("Failed to build RSA pub params: %s.", rnp::ossl::latest_err());
+            /* LCOV_EXCL_END */
         }
         return params;
     }
@@ -169,7 +170,7 @@ bld_params(const Key &key, bool secret)
     rnp::bn u(key.u);
 
     if (!d || !p || !q || !u) {
-        return NULL;
+        return NULL; // LCOV_EXCL_LINE
     }
     /* We need to calculate exponents manually */
     rnp::ossl::BNCtx bnctx;
@@ -212,7 +213,7 @@ load_key(const Key &key, bool secret)
     /* Build params */
     auto params = bld_params(key, secret);
     if (!params) {
-        return NULL;
+        return NULL; // LCOV_EXCL_LINE
     }
     /* Create context for key creation */
     rnp::ossl::evp::Ctx ctx(EVP_PKEY_RSA);
@@ -244,7 +245,7 @@ init_context(const Key &key, bool secret)
 {
     auto pkey = load_key(key, secret);
     if (!pkey) {
-        return rnp::ossl::evp::Ctx();
+        return rnp::ossl::evp::Ctx(); // LCOV_EXCL_LINE
     }
     rnp::ossl::evp::Ctx ctx(pkey);
     if (!ctx) {
@@ -307,8 +308,10 @@ static bool
 setup_context(rnp::ossl::evp::Ctx &ctx)
 {
     if (EVP_PKEY_CTX_set_rsa_padding(ctx.get(), RSA_PKCS1_PADDING) <= 0) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to set padding: %lu", ERR_peek_last_error());
         return false;
+        /* LCOV_EXCL_END */
     }
     return true;
 }
@@ -329,8 +332,10 @@ setup_signature_hash(rnp::ossl::evp::Ctx &ctx,
     }
     auto hash_tp = EVP_get_digestbyname(hash_name);
     if (!hash_tp) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Error creating hash object for '%s'", hash_name);
         return false;
+        /* LCOV_EXCL_END */
     }
     if (EVP_PKEY_CTX_set_signature_md(ctx.get(), hash_tp) <= 0) {
         if ((hash_alg != PGP_HASH_SHA1)) {
@@ -354,14 +359,16 @@ Key::encrypt_pkcs1(rnp::RNG &     rng,
 {
     rnp::ossl::evp::Ctx ctx = init_context(*this, false);
     if (!ctx) {
-        return RNP_ERROR_GENERIC;
+        return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
     if (EVP_PKEY_encrypt_init(ctx.get()) <= 0) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to initialize encryption: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
+        /* LCOV_EXCL_END */
     }
     if (!setup_context(ctx)) {
-        return RNP_ERROR_GENERIC;
+        return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
     out.m.len = PGP_MPINT_SIZE;
     if (EVP_PKEY_encrypt(ctx.get(), out.m.mpi, &out.m.len, in, in_len) <= 0) {
@@ -380,18 +387,20 @@ Key::verify_pkcs1(const Signature &sig,
 {
     rnp::ossl::evp::Ctx ctx(init_context(*this, false));
     if (!ctx) {
-        return RNP_ERROR_SIGNATURE_INVALID;
+        return RNP_ERROR_SIGNATURE_INVALID; // LCOV_EXCL_LINE
     }
 
     if (EVP_PKEY_verify_init(ctx.get()) <= 0) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to initialize verification: %lu", ERR_peek_last_error());
         return RNP_ERROR_SIGNATURE_INVALID;
+        /* LCOV_EXCL_END */
     }
 
     const uint8_t *hash_enc = NULL;
     size_t         hash_enc_size = 0;
     if (!setup_context(ctx) || !setup_signature_hash(ctx, hash_alg, hash_enc, hash_enc_size)) {
-        return RNP_ERROR_SIGNATURE_INVALID;
+        return RNP_ERROR_SIGNATURE_INVALID; // LCOV_EXCL_LINE
     }
     /* Check whether we need to workaround on unsupported SHA1 for RSA signature verification
      */
@@ -425,22 +434,26 @@ Key::sign_pkcs1(rnp::RNG &     rng,
                 size_t         hash_len) const noexcept
 {
     if (!q.bytes()) {
+        /* LCOV_EXCL_START */
         RNP_LOG("private key not set");
         return RNP_ERROR_GENERIC;
+        /* LCOV_EXCL_END */
     }
     rnp::ossl::evp::Ctx ctx(init_context(*this, true));
     if (!ctx) {
-        return RNP_ERROR_GENERIC;
+        return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
 
     if (EVP_PKEY_sign_init(ctx.get()) <= 0) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
+        /* LCOV_EXCL_END */
     }
     const uint8_t *hash_enc = NULL;
     size_t         hash_enc_size = 0;
     if (!setup_context(ctx) || !setup_signature_hash(ctx, hash_alg, hash_enc, hash_enc_size)) {
-        return RNP_ERROR_GENERIC;
+        return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
     /* Check whether we need to workaround on unsupported SHA1 for RSA signature verification
      */
@@ -452,9 +465,11 @@ Key::sign_pkcs1(rnp::RNG &     rng,
     }
     sig.s.len = PGP_MPINT_SIZE;
     if (EVP_PKEY_sign(ctx.get(), sig.s.mpi, &sig.s.len, hash, hash_len) <= 0) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Signing failed: %lu", ERR_peek_last_error());
         sig.s.len = 0;
         return RNP_ERROR_GENERIC;
+        /* LCOV_EXCL_END */
     }
     return RNP_SUCCESS;
 }
@@ -466,25 +481,31 @@ Key::decrypt_pkcs1(rnp::RNG &       rng,
                    const Encrypted &in) const noexcept
 {
     if (!q.bytes()) {
+        /* LCOV_EXCL_START */
         RNP_LOG("private key not set");
         return RNP_ERROR_GENERIC;
+        /* LCOV_EXCL_END */
     }
     rnp::ossl::evp::Ctx ctx(init_context(*this, true));
     if (!ctx) {
-        return RNP_ERROR_GENERIC;
+        return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
     if (EVP_PKEY_decrypt_init(ctx.get()) <= 0) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to initialize encryption: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
+        /* LCOV_EXCL_END */
     }
     if (!setup_context(ctx)) {
-        return RNP_ERROR_GENERIC;
+        return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
     out_len = PGP_MPINT_SIZE;
     if (EVP_PKEY_decrypt(ctx.get(), out, &out_len, in.m.mpi, in.m.len) <= 0) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Encryption failed: %lu", ERR_peek_last_error());
         out_len = 0;
         return RNP_ERROR_GENERIC;
+        /* LCOV_EXCL_END */
     }
     return RNP_SUCCESS;
 }
@@ -544,8 +565,10 @@ extract_key(rnp::ossl::evp::PKey &pkey, Key &key)
 #else
     const RSA *rsa = EVP_PKEY_get0_RSA(pkey.get());
     if (!rsa) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to retrieve RSA key: %lu", ERR_peek_last_error());
         return false;
+        /* LCOV_EXCL_END */
     }
     if (RSA_check_key(rsa) != 1) {
         RNP_LOG("Key validation error: %lu", ERR_peek_last_error());
@@ -577,24 +600,32 @@ Key::generate(rnp::RNG &rng, size_t numbits) noexcept
 
     rnp::ossl::evp::Ctx ctx(EVP_PKEY_RSA);
     if (!ctx) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to create ctx: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
+        /* LCOV_EXCL_END */
     }
     if (EVP_PKEY_keygen_init(ctx.get()) <= 0) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to init keygen: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
+        /* LCOV_EXCL_END */
     }
     if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx.get(), numbits) <= 0) {
+        /* LCOV_EXCL_START */
         RNP_LOG("Failed to set rsa bits: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
+        /* LCOV_EXCL_END */
     }
     rnp::ossl::evp::PKey pkey;
     if (EVP_PKEY_keygen(ctx.get(), pkey.ptr()) <= 0) {
+        /* LCOV_EXCL_START */
         RNP_LOG("RSA keygen failed: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
+        /* LCOV_EXCL_END */
     }
     if (!extract_key(pkey, *this)) {
-        return RNP_ERROR_GENERIC;
+        return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
     return RNP_SUCCESS;
 }
