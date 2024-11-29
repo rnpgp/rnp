@@ -852,6 +852,86 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 
+TEST_F(rnp_tests, test_ffi_key_upgrade_hash_on_set_expiry)
+{
+    rnp_ffi_t ffi = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    assert_true(import_pub_keys(ffi, "data/keyrings/7/pubring.gpg"));
+    assert_true(import_sec_keys(ffi, "data/keyrings/7/secring.gpg"));
+
+    rnp_key_handle_t key = NULL;
+    rnp_key_handle_t sub = NULL;
+    uint32_t         expiry = 0;
+    const uint32_t   new_expiry = 10 * 365 * 24 * 60 * 60;
+
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "07f90cc9ea074d53", &key));
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, 0);
+    assert_int_equal(key->pub->get_sig(0).sig.halg, PGP_HASH_SHA1);
+    assert_rnp_success(rnp_key_set_expiration(key, new_expiry));
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, new_expiry);
+    assert_int_equal(key->pub->get_sig(0).sig.halg, PGP_HASH_SHA256);
+
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0265f8e2594f8e7b", &sub));
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, 0);
+    assert_int_equal(sub->pub->get_sig(0).sig.halg, PGP_HASH_SHA1);
+    assert_rnp_success(rnp_key_set_expiration(sub, new_expiry));
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, new_expiry);
+    assert_int_equal(sub->pub->get_sig(0).sig.halg, PGP_HASH_SHA256);
+
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_key_handle_destroy(sub));
+
+    rnp_ffi_destroy(ffi);
+
+    /* allow SHA1 and check that hash alg is not changed */
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    // Allow SHA1
+    auto     now = time(NULL);
+    uint64_t from = 0;
+    uint32_t level = 0;
+    rnp_get_security_rule(ffi, RNP_FEATURE_HASH_ALG, "SHA1", now, NULL, &from, &level);
+    rnp_add_security_rule(ffi,
+                          RNP_FEATURE_HASH_ALG,
+                          "SHA1",
+                          RNP_SECURITY_OVERRIDE | RNP_SECURITY_VERIFY_KEY,
+                          from,
+                          RNP_SECURITY_DEFAULT);
+
+    assert_true(import_pub_keys(ffi, "data/keyrings/7/pubring.gpg"));
+    assert_true(import_sec_keys(ffi, "data/keyrings/7/secring.gpg"));
+
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "07f90cc9ea074d53", &key));
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, 0);
+    assert_int_equal(key->pub->get_sig(0).sig.halg, PGP_HASH_SHA1);
+    assert_rnp_success(rnp_key_set_expiration(key, new_expiry));
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, new_expiry);
+    assert_int_equal(key->pub->get_sig(0).sig.halg, PGP_HASH_SHA1);
+
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0265f8e2594f8e7b", &sub));
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, 0);
+    assert_int_equal(sub->pub->get_sig(0).sig.halg, PGP_HASH_SHA1);
+    assert_rnp_success(rnp_key_set_expiration(sub, new_expiry));
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, new_expiry);
+    assert_int_equal(sub->pub->get_sig(0).sig.halg, PGP_HASH_SHA1);
+
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_key_handle_destroy(sub));
+
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_key_get_protection_info)
 {
     rnp_ffi_t ffi = NULL;
