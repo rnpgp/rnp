@@ -1149,7 +1149,7 @@ pgp_pk_sesskey_t::parse(pgp_source_t &src)
             return RNP_ERROR_BAD_FORMAT;
         }
         fp.length = fp_len;
-        if (fp.length && (fp.length != fp_and_key_ver_len - 1)) {
+        if (fp.length && (fp.length + 1 != fp_and_key_ver_len)) {
             RNP_LOG("size mismatch (fingerprint size and fp+key version length field)");
             return RNP_ERROR_BAD_FORMAT;
         }
@@ -1260,7 +1260,7 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material)
         if ((version == PGP_PKSK_V3) && !do_encrypt_pkesk_v3_alg_id(alg)) {
             if (!pkt.get(bt)) {
                 RNP_LOG("failed to get salg");
-                return RNP_ERROR_BAD_FORMAT;
+                return false;
             }
             enc_sesskey_len -= 1;
             salg = (pgp_symm_alg_t) bt;
@@ -1272,11 +1272,41 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material)
         }
         break;
     }
+    case PGP_PKA_X448: {
+        uint8_t                bt = 0;
+        const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_448);
+        material.x448.eph_key.resize(BITS_TO_BYTES(ec_desc->bitlen));
+        if (!pkt.get(material.x448.eph_key.data(), material.x448.eph_key.size())) {
+            RNP_LOG("failed to parse X448 PKESK (eph. pubkey)");
+            return false;
+        }
+        uint8_t enc_sesskey_len;
+        if (!pkt.get(enc_sesskey_len)) {
+            RNP_LOG("failed to parse X448 PKESK (enc sesskey length)");
+            return false;
+        }
+        /* get plaintext salg if PKESKv3 */
+        if ((version == PGP_PKSK_V3) && !do_encrypt_pkesk_v3_alg_id(alg)) {
+            if (!pkt.get(bt)) {
+                RNP_LOG("failed to get salg");
+                return false;
+            }
+            enc_sesskey_len -= 1;
+            salg = (pgp_symm_alg_t) bt;
+        }
+        material.x448.enc_sess_key.resize(enc_sesskey_len);
+        if (!pkt.get(material.x448.enc_sess_key.data(), enc_sesskey_len)) {
+            RNP_LOG("failed to parse X448 PKESK (enc sesskey)");
+            return false;
+        }
+        break;
+    }
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -1301,7 +1331,7 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material)
         if ((version == PGP_PKSK_V3) && !do_encrypt_pkesk_v3_alg_id(alg)) {
             if (!pkt.get(bt)) {
                 RNP_LOG("failed to get salg");
-                return RNP_ERROR_BAD_FORMAT;
+                return false;
             }
             salg = (pgp_symm_alg_t) bt;
             wrapped_key_len--;
@@ -1361,11 +1391,23 @@ pgp_pk_sesskey_t::write_material(const pgp_encrypted_material_t &material)
         pktbody.add(material.x25519.enc_sess_key);
         break;
     }
+    case PGP_PKA_X448: {
+        uint8_t enc_sesskey_length_offset = ((version == PGP_PKSK_V3) ? 1 : 0);
+        pktbody.add(material.x448.eph_key);
+        pktbody.add_byte(
+          static_cast<uint8_t>(material.x448.enc_sess_key.size() + enc_sesskey_length_offset));
+        if (version == PGP_PKSK_V3) {
+            pktbody.add_byte(salg); /* added as plaintext */
+        }
+        pktbody.add(material.x448.enc_sess_key);
+        break;
+    }
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -1399,7 +1441,20 @@ pgp_one_pass_sig_t::write(pgp_dest_t &dst) const
     pktbody.add_byte(type);
     pktbody.add_byte(halg);
     pktbody.add_byte(palg);
-    pktbody.add(keyid);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (version == PGP_OPS_V6) {
+        pktbody.add_byte(salt.size());
+        pktbody.add(salt);
+    }
+#endif
+    if (version == PGP_OPS_V3) {
+        pktbody.add(keyid);
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (version == PGP_OPS_V6) {
+        pktbody.add(fp.fingerprint, fp.length);
+    }
+#endif
     pktbody.add_byte(nested);
     pktbody.write(dst);
 }
@@ -1414,27 +1469,106 @@ pgp_one_pass_sig_t::parse(pgp_source_t &src)
         return res;
     }
 
-    uint8_t buf[13] = {0};
-    if ((pkt.size() != 13) || !pkt.get(buf, 13)) {
+    /* version */
+    if ((pkt.size() < 1) || !pkt.get(version)) {
         return RNP_ERROR_BAD_FORMAT;
     }
-    /* version */
-    if (buf[0] != 3) {
+    switch ((pgp_ops_version_t) version) {
+    case PGP_OPS_V3:
+        return parse_v3(pkt);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_OPS_V6:
+        return parse_v6(pkt);
+#endif
+    default:
         RNP_LOG("wrong packet version");
         return RNP_ERROR_BAD_FORMAT;
     }
-    version = buf[0];
+}
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+rnp_result_t
+pgp_one_pass_sig_t::parse_v6(pgp_packet_body_t &pkt)
+{
+    uint8_t buf[4];
+    uint8_t salt_size;
+
+    /* packet can't be smaller for v6 */
+    const size_t min_size = 54;
+    if ((pkt.size() < min_size)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    /* version */
+    version = PGP_OPS_V6;
+    if (!pkt.get(buf, 4)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
     /* signature type */
-    type = (pgp_sig_type_t) buf[1];
+    type = (pgp_sig_type_t) buf[0];
     /* hash algorithm */
-    halg = (pgp_hash_alg_t) buf[2];
+    halg = (pgp_hash_alg_t) buf[1];
     /* pk algorithm */
-    palg = (pgp_pubkey_alg_t) buf[3];
+    palg = (pgp_pubkey_alg_t) buf[2];
+
+    /* salt */
+    salt_size = buf[3];
+    size_t expect_salt_size;
+    if (!pgp_signature_t::v6_salt_size(halg, &expect_salt_size)) {
+        RNP_LOG("invalid halg");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    if (salt_size != expect_salt_size) {
+        RNP_LOG("invalid salt size");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    salt.resize(salt_size);
+    if (!pkt.get(salt.data(), salt.size())) {
+        RNP_LOG("failed to get salt");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    /* fingerprint */
+    std::vector<uint8_t> fp_vec;
+    fp_vec.resize(PGP_FINGERPRINT_V6_SIZE);
+    if (!pkt.get(fp_vec.data(), fp_vec.size())) {
+        RNP_LOG("failed to get fingerprint");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    fp = pgp_fingerprint_t(fp_vec);
+
+    /* nested flag */
+    if (!pkt.get(buf, 1)) {
+        RNP_LOG("failed to get nested flag");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    nested = buf[0];
+
+    if (pkt.left()) {
+        RNP_LOG("trailing bytes in V6 OPS packet.");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    return RNP_SUCCESS;
+}
+#endif
+
+rnp_result_t
+pgp_one_pass_sig_t::parse_v3(pgp_packet_body_t &pkt)
+{
+    uint8_t buf[12] = {0};
+    if ((pkt.size() != 13) || !pkt.get(buf, 12)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    /* signature type */
+    type = (pgp_sig_type_t) buf[0];
+    /* hash algorithm */
+    halg = (pgp_hash_alg_t) buf[1];
+    /* pk algorithm */
+    palg = (pgp_pubkey_alg_t) buf[2];
     /* key id */
     static_assert(std::tuple_size<decltype(keyid)>::value == PGP_KEY_ID_SIZE,
                   "pgp_one_pass_sig_t.keyid size mismatch");
-    memcpy(keyid.data(), &buf[4], PGP_KEY_ID_SIZE);
+    memcpy(keyid.data(), &buf[3], PGP_KEY_ID_SIZE);
     /* nested flag */
-    nested = buf[12];
+    nested = buf[11];
     return RNP_SUCCESS;
 }

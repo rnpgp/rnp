@@ -160,8 +160,10 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
 
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
+    case PGP_PKA_ED448:
         return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
     case PGP_PKA_X25519:
+    case PGP_PKA_X448:
         return PGP_KF_ENCRYPT;
 #endif
 
@@ -175,7 +177,8 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -187,7 +190,8 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
 
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -196,9 +200,11 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
 #endif
 
@@ -1236,9 +1242,11 @@ pgp_key_t::is_pqc_alg() const
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P384:
-        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_P384:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
         FALLTHROUGH_STATEMENT;
@@ -1246,15 +1254,19 @@ pgp_key_t::is_pqc_alg() const
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
-        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_BP256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_P384:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         return true;
     default:
         return false;
@@ -2397,9 +2409,12 @@ pgp_key_t::sign_init(rnp::RNG &       rng,
         sig.set_keyid(keyid());
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if (version == PGP_V6) {
-        sig.salt.resize(rnp::Hash::size(sig.halg) / 2);
-        rng.get(sig.salt.data(), sig.salt.size());
+    if (version == PGP_V6 && sig.salt.empty()) {
+        /* salt is either set (OPS, etc) or empty (key sigs) and needs to be set here */
+        size_t salt_size;
+        assert(pgp_signature_t::v6_salt_size(sig.halg, &salt_size));
+        sig.salt.resize(salt_size);
+        rng.get(sig.salt.data(), salt_size);
     }
 #endif
 }

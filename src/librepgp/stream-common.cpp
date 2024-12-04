@@ -1189,17 +1189,18 @@ dst_write_src(pgp_source_t *src, pgp_dest_t *dst, uint64_t limit)
     return dst->werr;
 }
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
 bool
 have_pkesk_checksum(pgp_pubkey_alg_t alg)
 {
     switch (alg) {
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_X25519:
+    case PGP_PKA_X448:
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
-    // case PGP_PKA_KYBER1024_X448:
+    case PGP_PKA_KYBER1024_X448:
     case PGP_PKA_KYBER768_P256:
     case PGP_PKA_KYBER1024_P384:
     case PGP_PKA_KYBER768_BP256:

@@ -734,8 +734,35 @@ pgp_signature_t::matches_onepass(const pgp_one_pass_sig_t &onepass) const
     if (!has_keyid()) {
         return false;
     }
-    return (halg == onepass.halg) && (palg == onepass.palg) && (type_ == onepass.type) &&
-           (onepass.keyid == keyid());
+    /* check sig and OPS packet version binding (V3) */
+    if (onepass.version == PGP_OPS_V3) {
+        if (version != PGP_V3 && version != PGP_V4 && version != PGP_V5) {
+            return false;
+        }
+    }
+    /* check keyid (V3) */
+    if (onepass.version == PGP_OPS_V3 && (onepass.keyid != keyid())) {
+        return false;
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* checks for V6 */
+    if (onepass.version == PGP_OPS_V6) {
+        /* check version binding) */
+        if (onepass.version == PGP_OPS_V6 && version != PGP_V6) {
+            return false;
+        }
+        /* check fp */
+        if (onepass.fp != keyfp()) {
+            return false;
+        }
+        /* check salt */
+        if (onepass.salt != salt) {
+            return false;
+        }
+    }
+#endif
+    /* check the remaining common attributes */
+    return (halg == onepass.halg) && (palg == onepass.palg) && (type_ == onepass.type);
 }
 
 bool
@@ -1003,11 +1030,17 @@ pgp_signature_t::parse(pgp_packet_body_t &pkt)
             RNP_LOG("not enough data for v6 salt size octet");
             return RNP_ERROR_BAD_FORMAT;
         }
-        if (salt_size != rnp::Hash::size(halg) / 2) {
+        size_t expect_salt_size;
+        if (!pgp_signature_t::v6_salt_size(halg, &expect_salt_size)) {
+            RNP_LOG("invalid halg");
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        if (salt_size != expect_salt_size) {
             RNP_LOG("invalid salt size");
             return RNP_ERROR_BAD_FORMAT;
         }
-        if (!pkt.get(salt, salt_size)) {
+        salt.resize(salt_size);
+        if (!pkt.get(salt.data(), salt_size)) {
             RNP_LOG("not enough data for v6 signature salt");
             return RNP_ERROR_BAD_FORMAT;
         }
@@ -1073,10 +1106,19 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519: {
-        const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_25519);
+        const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_ED25519);
         material.ed25519.sig.resize(2 * BITS_TO_BYTES(ec_desc->bitlen));
         if (!pkt.get(material.ed25519.sig.data(), material.ed25519.sig.size())) {
             RNP_LOG("failed to parse ED25519 signature data");
+            return false;
+        }
+        break;
+    }
+    case PGP_PKA_ED448: {
+        const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_ED448);
+        material.ed448.sig.resize(2 * BITS_TO_BYTES(ec_desc->bitlen));
+        if (!pkt.get(material.ed448.sig.data(), material.ed448.sig.size())) {
+            RNP_LOG("failed to parse ED448 signature data");
             return false;
         }
         break;
@@ -1085,7 +1127,8 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
 #if defined(ENABLE_PQC)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -1101,22 +1144,13 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
             return false;
         }
         break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE: {
-        uint8_t param;
-        if (!pkt.get(param)) {
-            RNP_LOG("failed to parse SLH-DSA signature data");
-            return false;
-        }
-        auto sig_size = sphincsplus_signature_size((sphincsplus_parameter_t) param);
-        if (!sig_size) {
-            RNP_LOG("invalid SLH-DSA param value");
-            return false;
-        }
-        material.sphincsplus.param = (sphincsplus_parameter_t) param;
-        material.sphincsplus.sig.resize(sig_size);
-        if (!pkt.get(material.sphincsplus.sig.data(), sig_size)) {
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s: {
+        material.sphincsplus.sig.resize(sphincsplus_signature_size(palg));
+        if (!pkt.get(material.sphincsplus.sig.data(), material.sphincsplus.sig.size())) {
             RNP_LOG("failed to parse SLH-DSA signature data");
             return false;
         }
@@ -1207,11 +1241,15 @@ pgp_signature_t::write_material(const pgp_signature_material_t &material)
     case PGP_PKA_ED25519:
         pktbody.add(material.ed25519.sig);
         break;
+    case PGP_PKA_ED448:
+        pktbody.add(material.ed448.sig);
+        break;
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -1221,10 +1259,11 @@ pgp_signature_t::write_material(const pgp_signature_material_t &material)
     case PGP_PKA_DILITHIUM5_BP384:
         pktbody.add(material.dilithium_exdsa.sig);
         break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        pktbody.add_byte((uint8_t) material.sphincsplus.param);
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         pktbody.add(material.sphincsplus.sig);
         break;
 #endif
@@ -1256,3 +1295,34 @@ pgp_signature_t::fill_hashed_data()
     }
     hashed_data.assign(hbody.data(), hbody.data() + hbody.size());
 }
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+bool
+pgp_signature_t::v6_salt_size(pgp_hash_alg_t halg, size_t *salt_size)
+{
+    switch (halg) {
+    case PGP_HASH_SHA256:
+        *salt_size = 16;
+        break;
+    case PGP_HASH_SHA224:
+        *salt_size = 16;
+        break;
+    case PGP_HASH_SHA384:
+        *salt_size = 24;
+        break;
+    case PGP_HASH_SHA512:
+        *salt_size = 32;
+        break;
+    case PGP_HASH_SHA3_256:
+        *salt_size = 16;
+        break;
+    case PGP_HASH_SHA3_512:
+        *salt_size = 32;
+        break;
+    default:
+        RNP_LOG("no V6 salt size for algorithm");
+        return false;
+    }
+    return true;
+}
+#endif

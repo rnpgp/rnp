@@ -145,22 +145,25 @@ static const id_str_pair pubkey_alg_map[] = {
 #if defined(ENABLE_CRYPTO_REFRESH)
   {PGP_PKA_ED25519, "Ed25519"},
   {PGP_PKA_X25519, "X25519"},
+  {PGP_PKA_ED448, "Ed448"},
+  {PGP_PKA_X448, "X448"},
 #endif
 #if defined(ENABLE_PQC)
   {PGP_PKA_KYBER768_X25519, "ML-KEM-768 + X25519"},
-  //{PGP_PKA_KYBER1024_X448, "Kyber1024 + X448"},
+  {PGP_PKA_KYBER1024_X448, "ML-KEM-1024 + X448"},
   {PGP_PKA_KYBER768_P256, "ML-KEM-768 + NIST P-256"},
   {PGP_PKA_KYBER1024_P384, "ML-KEM-1024 + NIST P-384"},
   {PGP_PKA_KYBER768_BP256, "ML-KEM-768 + Brainpool256"},
   {PGP_PKA_KYBER1024_BP384, "ML-KEM-1024 + Brainpool384"},
   {PGP_PKA_DILITHIUM3_ED25519, "ML-DSA-65 + ED25519"},
-  //{PGP_PKA_DILITHIUM5_ED448, "Dilithium + X448"},
+  {PGP_PKA_DILITHIUM5_ED448, "ML-DSA-87 + X448"},
   {PGP_PKA_DILITHIUM3_P256, "ML-DSA-65 + NIST P-256"},
   {PGP_PKA_DILITHIUM5_P384, "ML-DSA-87 + NIST P-384"},
   {PGP_PKA_DILITHIUM3_BP256, "ML-DSA-65 + Brainpool256"},
   {PGP_PKA_DILITHIUM5_BP384, "ML-DSA-87 + Brainpool384"},
-  {PGP_PKA_SPHINCSPLUS_SHA2, "SLH-DSA-SHA2"},
-  {PGP_PKA_SPHINCSPLUS_SHAKE, "SLH-DSA-SHAKE"},
+  {PGP_PKA_SPHINCSPLUS_SHAKE_128f, "SLH-DSA-SHAKE-128f"},
+  {PGP_PKA_SPHINCSPLUS_SHAKE_128s, "SLH-DSA-SHAKE-128s"},
+  {PGP_PKA_SPHINCSPLUS_SHAKE_256s, "SLH-DSA-SHAKE-256s"},
 #endif
   {0x00, NULL},
 };
@@ -339,7 +342,7 @@ dst_print_mpi(pgp_dest_t *dst, const char *name, const pgp::mpi &mpi, bool dumpb
     }
 }
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
 static void
 dst_print_vec(pgp_dest_t *                dst,
               const char *                name,
@@ -851,11 +854,15 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
     case PGP_PKA_ED25519:
         dst_print_vec(dst, "ed25519 sig", material.ed25519.sig, ctx->dump_mpi);
         break;
+    case PGP_PKA_ED448:
+        dst_print_vec(dst, "ed448 sig", material.ed448.sig, ctx->dump_mpi);
+        break;
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -866,9 +873,11 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
         dst_print_vec(
           dst, "mldsa-ecdsa/eddsa sig", material.dilithium_exdsa.sig, ctx->dump_mpi);
         break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         dst_print_vec(dst, "slhdsa sig", material.sphincsplus.sig, ctx->dump_mpi);
         break;
 #endif
@@ -968,11 +977,22 @@ stream_dump_key_material(rnp_dump_ctx_t &        ctx,
         dst_print_vec(dst, "x25519", x25519.pub(), ctx.dump_mpi);
         return;
     }
+    case PGP_PKA_ED448: {
+        auto &ed448 = dynamic_cast<const pgp::Ed448KeyMaterial &>(*material);
+        dst_print_vec(dst, "ed448", ed448.pub(), ctx.dump_mpi);
+        return;
+    }
+    case PGP_PKA_X448: {
+        auto &x448 = dynamic_cast<const pgp::X448KeyMaterial &>(*material);
+        dst_print_vec(dst, "x448", x448.pub(), ctx.dump_mpi);
+        return;
+    }
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -987,7 +1007,8 @@ stream_dump_key_material(rnp_dump_ctx_t &        ctx,
     }
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -1002,9 +1023,11 @@ stream_dump_key_material(rnp_dump_ctx_t &        ctx,
                       ctx.dump_mpi);
         return;
     }
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE: {
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s: {
         auto &sphincs = dynamic_cast<const pgp::SlhdsaKeyMaterial &>(*material);
         dst_print_vec(dst, "slhdsa encoded pubkey", sphincs.pub().get_encoded(), ctx.dump_mpi);
         return;
@@ -1223,11 +1246,17 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
         dst_print_vec(
           dst, "x25519 encrypted session key", material.x25519.enc_sess_key, ctx->dump_mpi);
         break;
+    case PGP_PKA_X448:
+        dst_print_vec(dst, "x448 ephemeral public key", material.x448.eph_key, ctx->dump_mpi);
+        dst_print_vec(
+          dst, "x448 encrypted session key", material.x448.enc_sess_key, ctx->dump_mpi);
+        break;
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -1378,7 +1407,19 @@ stream_dump_one_pass(pgp_source_t *src, pgp_dest_t *dst)
     dst_print_sig_type(dst, NULL, onepass.type);
     dst_print_halg(dst, NULL, onepass.halg);
     dst_print_palg(dst, NULL, onepass.palg);
-    dst_print_keyid(dst, "signing key id", onepass.keyid);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (onepass.version == PGP_OPS_V6) {
+        dst_print_vec(dst, "salt", onepass.salt, false);
+    }
+#endif
+    if (onepass.version == PGP_OPS_V3) {
+        dst_print_keyid(dst, "signing key id", onepass.keyid);
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (onepass.version == PGP_OPS_V6) {
+        dst_print_fp(dst, NULL, onepass.fp);
+    }
+#endif
     dst_printf(dst, "nested: %d\n", (int) onepass.nested);
 
     indent_dest_decrease(dst);
@@ -2065,13 +2106,15 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
+    case PGP_PKA_ED448:
         /* TODO */
         break;
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -2081,9 +2124,11 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
     case PGP_PKA_DILITHIUM5_BP384:
         /* TODO */
         break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         /* TODO */
         break;
 #endif
@@ -2181,13 +2226,16 @@ stream_dump_key_material_json(rnp_dump_ctx_t &        ctx,
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
     case PGP_PKA_X25519:
+    case PGP_PKA_ED448:
+    case PGP_PKA_X448:
         /* TODO */
         return true;
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -2199,7 +2247,8 @@ stream_dump_key_material_json(rnp_dump_ctx_t &        ctx,
         return true;
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
@@ -2209,9 +2258,11 @@ stream_dump_key_material_json(rnp_dump_ctx_t &        ctx,
     case PGP_PKA_DILITHIUM5_BP384:
         /* TODO */
         return true;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         /* TODO */
         return true;
 #endif
@@ -2403,13 +2454,16 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
     case PGP_PKA_X25519:
+    case PGP_PKA_ED448:
+    case PGP_PKA_X448:
         /* TODO */
         break;
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
-    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_X448:
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -2513,9 +2567,20 @@ stream_dump_one_pass_json(pgp_source_t *src, json_object *pkt)
     if (!obj_add_intstr_json(pkt, "public key algorithm", onepass.palg, pubkey_alg_map)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
-    if (!json_add(pkt, "signer", onepass.keyid)) {
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (onepass.version == PGP_OPS_V6 &&
+        !json_add(pkt, "salt", (const char *) onepass.salt.data(), onepass.salt.size())) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
+#endif
+    if (onepass.version == PGP_OPS_V3 && !json_add(pkt, "signer", onepass.keyid)) {
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (onepass.version == PGP_OPS_V6 && !json_add(pkt, "signer", onepass.fp)) {
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+    }
+#endif
     if (!json_add(pkt, "nested", (bool) onepass.nested)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }

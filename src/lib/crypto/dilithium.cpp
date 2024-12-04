@@ -25,6 +25,8 @@
  */
 
 #include "dilithium.h"
+#include "logging.h"
+#include "types.h"
 #include <cassert>
 
 namespace {
@@ -32,9 +34,9 @@ namespace {
 Botan::DilithiumMode
 rnp_dilithium_param_to_botan_dimension(dilithium_parameter_e mode)
 {
-    Botan::DilithiumMode result = Botan::DilithiumMode::Dilithium8x7;
+    Botan::DilithiumMode result = Botan::DilithiumMode::ML_DSA_8x7;
     if (mode == dilithium_parameter_e::dilithium_L3) {
-        result = Botan::DilithiumMode::Dilithium6x5;
+        result = Botan::DilithiumMode::ML_DSA_6x5;
     }
     return result;
 }
@@ -119,19 +121,45 @@ pgp_dilithium_private_key_t::is_valid(rnp::RNG *rng) const
 }
 
 bool
-dilithium_hash_allowed(pgp_hash_alg_t hash_alg)
+dilithium_hash_allowed(pgp_pubkey_alg_t pk_alg, pgp_hash_alg_t hash_alg)
 {
-    switch (hash_alg) {
-    case PGP_HASH_SHA3_256:
-    case PGP_HASH_SHA3_512:
-        return true;
+    switch (pk_alg) {
+    case PGP_PKA_DILITHIUM3_ED25519:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_P256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_BP256:
+        return hash_alg == PGP_HASH_SHA3_256;
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_P384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_BP384:
+        return hash_alg == PGP_HASH_SHA3_512;
     default:
-        return false;
+        RNP_LOG("invalid algorithm ID given");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
 }
 
 pgp_hash_alg_t
-dilithium_default_hash_alg()
+dilithium_default_hash_alg(pgp_pubkey_alg_t pk_alg)
 {
-    return PGP_HASH_SHA3_256;
+    switch (pk_alg) {
+    case PGP_PKA_DILITHIUM3_ED25519:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_P256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_BP256:
+        return PGP_HASH_SHA3_256;
+    case PGP_PKA_DILITHIUM5_ED448:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_P384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_BP384:
+        return PGP_HASH_SHA3_512;
+    default:
+        RNP_LOG("invalid algorithm ID given");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
 }

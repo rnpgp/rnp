@@ -29,17 +29,10 @@
 #include "logging.h"
 
 size_t
-kyber_privkey_size(kyber_parameter_e parameter)
+kyber_privkey_size()
 {
-    switch (parameter) {
-    case kyber_768:
-        return 2400;
-    case kyber_1024:
-        return 3168;
-    default:
-        RNP_LOG("invalid parameter given");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
+    /* seed format */
+    return 64;
 }
 
 size_t
@@ -50,20 +43,6 @@ kyber_pubkey_size(kyber_parameter_e parameter)
         return 1184;
     case kyber_1024:
         return 1568;
-    default:
-        RNP_LOG("invalid parameter given");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
-}
-
-size_t
-kyber_keyshare_size(kyber_parameter_e parameter)
-{
-    switch (parameter) {
-    case kyber_768:
-        return 24;
-    case kyber_1024:
-        return 32;
     default:
         RNP_LOG("invalid parameter given");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);

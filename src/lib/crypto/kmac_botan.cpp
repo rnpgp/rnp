@@ -47,28 +47,28 @@ KMAC256_Botan::create()
 void
 KMAC256_Botan::compute(const std::vector<uint8_t> &ecc_key_share,
                        const std::vector<uint8_t> &ecc_ciphertext,
+                       const std::vector<uint8_t> &ecc_pub,
                        const std::vector<uint8_t> &kyber_key_share,
                        const std::vector<uint8_t> &kyber_ciphertext,
+                       const std::vector<uint8_t> &kyber_pub,
                        const pgp_pubkey_alg_t      alg_id,
                        std::vector<uint8_t> &      out)
 {
     auto kmac = Botan::MessageAuthenticationCode::create_or_throw("KMAC-256(256)");
 
     /* the mapping between the KEM Combiner and the MAC interface is:
-     * key     <> domSeparation
-     * nonce   <> customizationString
-     * message <> encData
+     * key     <> Key_K (key shares)
+     * nonce   <> domSeparation
+     * message <> Input_X (ciphertexts, pubkeys, alg_id)
      */
 
 #if defined(ENABLE_PQC_DBG_LOG)
     RNP_LOG_U8VEC("KMAC256 domSeparation: %s", domSeparation());
-    RNP_LOG_U8VEC("KMAC256 customizationString: %s", customizationString());
 #endif
 
-    kmac->set_key(domSeparation());
-    kmac->start(customizationString()); // set nonce
-    kmac->update(
-      encData(ecc_key_share, ecc_ciphertext, kyber_key_share, kyber_ciphertext, alg_id));
+    kmac->set_key(Key_K(ecc_key_share, kyber_key_share));
+    kmac->start(domSeparation()); // set nonce
+    kmac->update(Input_X(ecc_ciphertext, kyber_ciphertext, ecc_pub, kyber_pub, alg_id));
     out = kmac->final_stdvec();
 
 #if defined(ENABLE_PQC_DBG_LOG)

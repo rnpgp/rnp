@@ -45,8 +45,8 @@
 #include "sphincsplus.h"
 #endif
 #if defined(ENABLE_CRYPTO_REFRESH)
-#include "x25519.h"
-#include "ed25519.h"
+#include "x25519_x448.h"
+#include "ed25519_ed448.h"
 #endif
 /* symmetric crypto */
 #include "symmetric.h"

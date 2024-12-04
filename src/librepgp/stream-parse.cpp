@@ -857,10 +857,33 @@ add_hash_for_sig(pgp_source_signed_param_t *param, pgp_sig_type_t stype, pgp_has
     param->hashes.add_alg(halg);
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+static void
+add_hash_for_sig_v6(pgp_source_signed_param_t *param,
+                    pgp_sig_type_t             stype,
+                    pgp_hash_alg_t             halg,
+                    std::vector<uint8_t>       salt)
+{
+    /* Cleartext always uses param->hashes instead of param->txt_hashes */
+    if (!param->cleartext && (stype == PGP_SIG_TEXT)) {
+        param->txt_hashes.add_alg(halg, salt);
+    }
+    param->hashes.add_alg(halg, salt);
+}
+#endif
+
 static const rnp::Hash *
 get_hash_for_sig(pgp_source_signed_param_t &param, pgp_signature_info_t &sinfo)
 {
     /* Cleartext always uses param->hashes instead of param->txt_hashes */
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (sinfo.sig->version == PGP_V6) {
+        if (!param.cleartext && (sinfo.sig->type() == PGP_SIG_TEXT)) {
+            return param.txt_hashes.get(sinfo.sig->halg, sinfo.sig->salt);
+        }
+        return param.hashes.get(sinfo.sig->halg, sinfo.sig->salt);
+    }
+#endif
     if (!param.cleartext && (sinfo.sig->type() == PGP_SIG_TEXT)) {
         return param.txt_hashes.get(sinfo.sig->halg);
     }
@@ -1178,6 +1201,13 @@ signed_src_finish(pgp_source_t *src)
         if (!sinfo.sig) {
             continue;
         }
+#if defined(ENABLE_CRYPTO_REFRESH)
+        if (sinfo.sig->version == PGP_V6 && param->cleartext) {
+            RNP_LOG("Skipping signature: Cleartext signature verification currently does not "
+                    "support v6 signatures");
+            continue;
+        }
+#endif
         signed_validate_signature(*param, sinfo);
     }
 
@@ -1537,7 +1567,7 @@ encrypted_start_aead(pgp_source_encrypted_param_t *param, pgp_symm_alg_t alg, ui
 #endif
 }
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
 /* The crypto refresh mandates that for a X25519/X448 PKESKv3, AES MUST be used.
    The same is true for the PQC algorithms
  */
@@ -1557,9 +1587,9 @@ do_enforce_aes_v3pkesk(pgp_pubkey_alg_t alg)
     case PGP_PKA_KYBER1024_BP384:
         FALLTHROUGH_STATEMENT;
 #endif
-#if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_X25519:
-#endif
+        return true;
+    case PGP_PKA_X448:
         return true;
     default:
         return false;
@@ -1602,7 +1632,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     }
 #endif
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
     /* check that AES is used when mandated by the standard */
     if (do_enforce_aes_v3pkesk(sesskey.alg) && sesskey.version == PGP_PKSK_V3) {
         switch (sesskey.salg) {
@@ -1633,21 +1663,24 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
 
     uint8_t *decbuf_sesskey = decbuf.data();
     size_t   decbuf_sesskey_len = declen;
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+    size_t   keylen;
+#if defined(ENABLE_CRYPTO_REFRESH)
     if (do_encrypt_pkesk_v3_alg_id(sesskey.alg))
 #endif
     {
         sesskey.salg = static_cast<pgp_symm_alg_t>(decbuf[0]);
     }
-    size_t keylen = pgp_key_size(sesskey.salg);
     if (sesskey.version == PGP_PKSK_V3) {
+        /* salg always set in this case, either from parsing the packet (plaintext salg) or
+         * from parsing the decrypted content (encrypted salg) */
+        keylen = pgp_key_size(sesskey.salg);
         /* Check algorithm and key length */
         if (!pgp_is_sa_supported(sesskey.salg)) {
             RNP_LOG("Unsupported symmetric algorithm %d", (int) sesskey.salg);
             return false;
         }
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
         size_t alg_id_bytes = do_encrypt_pkesk_v3_alg_id(sesskey.alg) ? 1 : 0;
         size_t checksum_bytes = have_pkesk_checksum(sesskey.alg) ? 2 : 0;
 #else
@@ -1665,7 +1698,8 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     else { // V6 PKESK
-        /* compute the expected key length from the decbuf_sesskey_len and check */
+        /* compute the expected key length from the decbuf_sesskey_len and check if it matches
+         * SEIPDv2 header */
         keylen =
           have_pkesk_checksum(sesskey.alg) ? decbuf_sesskey_len - 2 : decbuf_sesskey_len;
         if (pgp_key_size(param->aead_hdr.ealg) != keylen) {
@@ -1680,7 +1714,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
                   std::vector<uint8_t>(decbuf_sesskey, decbuf_sesskey + keylen));
 #endif
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
     if (have_pkesk_checksum(sesskey.alg))
 #endif
     {
@@ -1697,7 +1731,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         }
     }
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
     if (sesskey.version == PGP_PKSK_V3)
 #endif
     {
@@ -2599,7 +2633,14 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
 
             /* adding hash context */
             try {
-                add_hash_for_sig(param, onepass.type, onepass.halg);
+#if defined(ENABLE_CRYPTO_REFRESH)
+                if (onepass.version == PGP_OPS_V6) {
+                    add_hash_for_sig_v6(param, onepass.type, onepass.halg, onepass.salt);
+                } else
+#endif
+                {
+                    add_hash_for_sig(param, onepass.type, onepass.halg);
+                }
             } catch (const std::exception &e) {
                 RNP_LOG("Failed to create hash %d for onepass %d : %s.",
                         (int) onepass.halg,
@@ -2621,7 +2662,14 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
             /* adding hash context */
             if (sig) {
                 try {
-                    add_hash_for_sig(param, sig->type(), sig->halg);
+#if defined(ENABLE_CRYPTO_REFRESH)
+                    if (sig->version == PGP_V6) {
+                        add_hash_for_sig_v6(param, sig->type(), sig->halg, sig->salt);
+                    } else
+#endif
+                    {
+                        add_hash_for_sig(param, sig->type(), sig->halg);
+                    }
                 } catch (const std::exception &e) {
                     RNP_LOG("Failed to create hash %d for sig %d : %s.",
                             (int) sig->halg,

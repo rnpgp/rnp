@@ -58,17 +58,10 @@ pgp_dilithium_private_key_t::pgp_dilithium_private_key_t(
 }
 
 size_t
-dilithium_privkey_size(dilithium_parameter_e parameter)
+dilithium_privkey_size()
 {
-    switch (parameter) {
-    case dilithium_L3:
-        return 4000;
-    case dilithium_L5:
-        return 4864;
-    default:
-        RNP_LOG("invalid parameter given");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
+    /* seed format */
+    return 32;
 }
 
 size_t
@@ -90,9 +83,9 @@ dilithium_signature_size(dilithium_parameter_e parameter)
 {
     switch (parameter) {
     case dilithium_L3:
-        return 3293;
+        return 3309;
     case dilithium_L5:
-        return 4595;
+        return 4627;
     default:
         RNP_LOG("invalid parameter given");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);

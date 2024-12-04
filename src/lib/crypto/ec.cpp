@@ -32,9 +32,9 @@
 #include "utils.h"
 #include "mem.h"
 #include "bn.h"
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
-#include "x25519.h"
-#include "ed25519.h"
+#if defined(ENABLE_CRYPTO_REFRESH)
+#include "x25519_x448.h"
+#include "ed25519_ed448.h"
 #include "botan/bigint.h"
 #include "botan/ecdh.h"
 #include <cassert>
@@ -193,7 +193,7 @@ end:
     return ret;
 }
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+#if defined(ENABLE_CRYPTO_REFRESH)
 static bool
 is_generic_prime_curve(pgp_curve_t curve)
 {
@@ -221,8 +221,7 @@ static rnp_result_t
 ec_generate_generic_native(rnp::RNG *            rng,
                            std::vector<uint8_t> &privkey,
                            std::vector<uint8_t> &pubkey,
-                           pgp_curve_t           curve,
-                           pgp_pubkey_alg_t      alg)
+                           pgp_curve_t           curve)
 {
     if (!is_generic_prime_curve(curve)) {
         RNP_LOG("expected generic prime curve");
@@ -232,21 +231,15 @@ ec_generate_generic_native(rnp::RNG *            rng,
     const ec_curve_desc_t *ec_desc = get_curve_desc(curve);
     const size_t           curve_order = BITS_TO_BYTES(ec_desc->bitlen);
 
-    Botan::ECDH_PrivateKey privkey_botan(*(rng->obj()), Botan::EC_Group(ec_desc->botan_name));
-    Botan::BigInt          pub_x = privkey_botan.public_point().get_affine_x();
-    Botan::BigInt          pub_y = privkey_botan.public_point().get_affine_y();
-    Botan::BigInt          x = privkey_botan.private_value();
+    Botan::ECDH_PrivateKey privkey_botan(*(rng->obj()),
+                                         Botan::EC_Group::from_name(ec_desc->botan_name));
 
     // pubkey: 0x04 || X || Y
-    pubkey = Botan::unlock(Botan::BigInt::encode_fixed_length_int_pair(
-      pub_x, pub_y, curve_order)); // zero-pads to the given size
+    pubkey = Botan::unlock(privkey_botan.public_point().xy_bytes());
     pubkey.insert(pubkey.begin(), 0x04);
 
     privkey = std::vector<uint8_t>(curve_order);
-    x.binary_encode(privkey.data(), privkey.size()); // zero-pads to the given size
-
-    assert(pubkey.size() == 2 * curve_order + 1);
-    assert(privkey.size() == curve_order);
+    privkey_botan.private_value().serialize_to(privkey); // zero-pads to the given size
 
     return RNP_SUCCESS;
 }
@@ -255,22 +248,20 @@ rnp_result_t
 ec_generate_native(rnp::RNG *            rng,
                    std::vector<uint8_t> &privkey,
                    std::vector<uint8_t> &pubkey,
-                   pgp_curve_t           curve,
-                   pgp_pubkey_alg_t      alg)
+                   pgp_curve_t           curve)
 {
-    if (curve == PGP_CURVE_25519) {
+    switch (curve) {
+    case PGP_CURVE_25519:
         return generate_x25519_native(rng, privkey, pubkey);
-    } else if (curve == PGP_CURVE_ED25519) {
+    case PGP_CURVE_ED25519:
         return generate_ed25519_native(rng, privkey, pubkey);
-    } else if (is_generic_prime_curve(curve)) {
-        if (alg != PGP_PKA_ECDH && alg != PGP_PKA_ECDSA) {
-            RNP_LOG("alg and curve mismatch");
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
-        return ec_generate_generic_native(rng, privkey, pubkey, curve, alg);
-    } else {
-        RNP_LOG("invalid curve");
-        return RNP_ERROR_BAD_PARAMETERS;
+    case PGP_CURVE_448:
+        return generate_x448_native(rng, privkey, pubkey);
+    case PGP_CURVE_ED448:
+        return generate_ed448_native(rng, privkey, pubkey);
+    default:
+        break;
     }
+    return ec_generate_generic_native(rng, privkey, pubkey, curve);
 }
 #endif
