@@ -49,47 +49,40 @@ static const struct ecdh_params_t {
   {PGP_CURVE_P256K1, PGP_HASH_SHA256, PGP_SA_AES_128},
 };
 
-// "Anonymous Sender " in hex
-static const unsigned char ANONYMOUS_SENDER[] = {0x41, 0x6E, 0x6F, 0x6E, 0x79, 0x6D, 0x6F,
-                                                 0x75, 0x73, 0x20, 0x53, 0x65, 0x6E, 0x64,
-                                                 0x65, 0x72, 0x20, 0x20, 0x20, 0x20};
-
 // returns size of data written to other_info
-size_t
-kdf_other_info_serialize(uint8_t                  other_info[MAX_SP800_56A_OTHER_INFO],
-                         const ec_curve_desc_t *  ec_curve,
-                         const pgp_fingerprint_t &fingerprint,
+std::vector<uint8_t>
+kdf_other_info_serialize(const pgp::ec::Curve *   curve,
+                         const pgp_fingerprint_t &fp,
                          const pgp_hash_alg_t     kdf_hash,
                          const pgp_symm_alg_t     wrap_alg)
 {
-    assert(fingerprint.length >= 20);
-    uint8_t *buf_ptr = &other_info[0];
-
+    assert(fp.length >= 20);
     /* KDF-OtherInfo: AlgorithmID
      *   Current implementation will always use SHA-512 and AES-256 for KEK wrapping
      */
-    *(buf_ptr++) = ec_curve->OIDhex_len;
-    memcpy(buf_ptr, ec_curve->OIDhex, ec_curve->OIDhex_len);
-    buf_ptr += ec_curve->OIDhex_len;
-    *(buf_ptr++) = PGP_PKA_ECDH;
+    std::vector<uint8_t> buf;
+    buf.push_back(static_cast<uint8_t>(curve->OID.size()));
+    buf.insert(buf.end(), curve->OID.begin(), curve->OID.end());
+    buf.push_back(PGP_PKA_ECDH);
     // size of following 3 params (each 1 byte)
-    *(buf_ptr++) = 0x03;
+    buf.push_back(0x03);
     // Value reserved for future use
-    *(buf_ptr++) = 0x01;
+    buf.push_back(0x01);
     // Hash used with KDF
-    *(buf_ptr++) = kdf_hash;
+    buf.push_back(kdf_hash);
     // Algorithm ID used for key wrapping
-    *(buf_ptr++) = wrap_alg;
+    buf.push_back(wrap_alg);
 
     /* KDF-OtherInfo: PartyUInfo
      *   20 bytes representing "Anonymous Sender "
      */
-    memcpy(buf_ptr, ANONYMOUS_SENDER, sizeof(ANONYMOUS_SENDER));
-    buf_ptr += sizeof(ANONYMOUS_SENDER);
-
+    static const std::array<uint8_t, 20> anonymous = {0x41, 0x6E, 0x6F, 0x6E, 0x79, 0x6D, 0x6F,
+                                                      0x75, 0x73, 0x20, 0x53, 0x65, 0x6E, 0x64,
+                                                      0x65, 0x72, 0x20, 0x20, 0x20, 0x20};
+    buf.insert(buf.end(), anonymous.begin(), anonymous.end());
     // keep 20, as per spec
-    memcpy(buf_ptr, fingerprint.fingerprint, 20);
-    return (buf_ptr - other_info) + 20 /*anonymous_sender*/;
+    buf.insert(buf.end(), fp.fingerprint, fp.fingerprint + fp.length);
+    return buf;
 }
 
 bool
@@ -130,12 +123,12 @@ unpad_pkcs7(uint8_t *buf, size_t buf_len, size_t *offset)
 }
 
 bool
-ecdh_set_params(pgp_ec_key_t *key, pgp_curve_t curve_id)
+ecdh_set_params(pgp::ec::Key &key, pgp_curve_t curve_id)
 {
     for (size_t i = 0; i < ARRAY_SIZE(ecdh_params); i++) {
         if (ecdh_params[i].curve == curve_id) {
-            key->kdf_hash_alg = ecdh_params[i].hash;
-            key->key_wrap_alg = ecdh_params[i].wrap_alg;
+            key.kdf_hash_alg = ecdh_params[i].hash;
+            key.key_wrap_alg = ecdh_params[i].wrap_alg;
             return true;
         }
     }
@@ -144,7 +137,7 @@ ecdh_set_params(pgp_ec_key_t *key, pgp_curve_t curve_id)
 }
 
 bool
-x25519_tweak_bits(pgp_ec_key_t &key)
+x25519_tweak_bits(pgp::ec::Key &key)
 {
     if (key.x.len != 32) {
         return false;
@@ -157,7 +150,7 @@ x25519_tweak_bits(pgp_ec_key_t &key)
 }
 
 bool
-x25519_bits_tweaked(const pgp_ec_key_t &key)
+x25519_bits_tweaked(const pgp::ec::Key &key)
 {
     if (key.x.len != 32) {
         return false;

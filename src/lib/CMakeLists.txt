@@ -241,7 +241,6 @@ configure_file(config.h.in config.h)
 
 if(CRYPTO_BACKEND_OPENSSL)
   set(CRYPTO_SOURCES
-    crypto/bn_ossl.cpp
     crypto/dsa_common.cpp
     crypto/dsa_ossl.cpp
     crypto/ec_curves.cpp
@@ -272,7 +271,6 @@ if(CRYPTO_BACKEND_OPENSSL)
   endif()
 elseif(CRYPTO_BACKEND_BOTAN)
   set(CRYPTO_SOURCES
-    crypto/bn.cpp
     crypto/dsa_common.cpp
     crypto/dsa.cpp
     crypto/ec_curves.cpp

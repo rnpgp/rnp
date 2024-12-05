@@ -230,22 +230,22 @@ class KeyMaterial {
     pgp_key_grip_t         grip() const;
 
     static std::unique_ptr<KeyMaterial> create(pgp_pubkey_alg_t alg);
-    static std::unique_ptr<KeyMaterial> create(pgp_pubkey_alg_t alg, const pgp_rsa_key_t &key);
-    static std::unique_ptr<KeyMaterial> create(const pgp_dsa_key_t &key);
-    static std::unique_ptr<KeyMaterial> create(pgp_pubkey_alg_t alg, const pgp_eg_key_t &key);
-    static std::unique_ptr<KeyMaterial> create(pgp_pubkey_alg_t alg, const pgp_ec_key_t &key);
+    static std::unique_ptr<KeyMaterial> create(pgp_pubkey_alg_t alg, const rsa::Key &key);
+    static std::unique_ptr<KeyMaterial> create(const dsa::Key &key);
+    static std::unique_ptr<KeyMaterial> create(pgp_pubkey_alg_t alg, const eg::Key &key);
+    static std::unique_ptr<KeyMaterial> create(pgp_pubkey_alg_t alg, const ec::Key &key);
 };
 
 class RSAKeyMaterial : public KeyMaterial {
   protected:
-    pgp_rsa_key_t key_;
+    rsa::Key key_;
 
     void grip_update(rnp::Hash &hash) const override;
     bool validate_material(rnp::SecurityContext &ctx, bool reset) override;
 
   public:
     RSAKeyMaterial(pgp_pubkey_alg_t kalg) : KeyMaterial(kalg), key_{} {};
-    RSAKeyMaterial(pgp_pubkey_alg_t kalg, const pgp_rsa_key_t &key, bool secret = false)
+    RSAKeyMaterial(pgp_pubkey_alg_t kalg, const rsa::Key &key, bool secret = false)
         : KeyMaterial(kalg, secret), key_(key){};
     std::unique_ptr<KeyMaterial> clone() override;
 
@@ -284,14 +284,14 @@ class RSAKeyMaterial : public KeyMaterial {
 
 class DSAKeyMaterial : public KeyMaterial {
   protected:
-    pgp_dsa_key_t key_;
+    dsa::Key key_;
 
     void grip_update(rnp::Hash &hash) const override;
     bool validate_material(rnp::SecurityContext &ctx, bool reset) override;
 
   public:
     DSAKeyMaterial() : KeyMaterial(PGP_PKA_DSA), key_{} {};
-    DSAKeyMaterial(const pgp_dsa_key_t &key, bool secret = false)
+    DSAKeyMaterial(const dsa::Key &key, bool secret = false)
         : KeyMaterial(PGP_PKA_DSA, secret), key_(key){};
     std::unique_ptr<KeyMaterial> clone() override;
 
@@ -322,14 +322,14 @@ class DSAKeyMaterial : public KeyMaterial {
 
 class EGKeyMaterial : public KeyMaterial {
   protected:
-    pgp_eg_key_t key_;
+    eg::Key key_;
 
     void grip_update(rnp::Hash &hash) const override;
     bool validate_material(rnp::SecurityContext &ctx, bool reset) override;
 
   public:
     EGKeyMaterial(pgp_pubkey_alg_t kalg) : KeyMaterial(kalg), key_{} {};
-    EGKeyMaterial(pgp_pubkey_alg_t kalg, const pgp_eg_key_t &key, bool secret = false)
+    EGKeyMaterial(pgp_pubkey_alg_t kalg, const eg::Key &key, bool secret = false)
         : KeyMaterial(kalg, secret), key_(key){};
     std::unique_ptr<KeyMaterial> clone() override;
 
@@ -363,14 +363,14 @@ class EGKeyMaterial : public KeyMaterial {
 
 class ECKeyMaterial : public KeyMaterial {
   protected:
-    pgp_ec_key_t key_;
+    ec::Key key_;
 
     void         grip_update(rnp::Hash &hash) const override;
     rnp_result_t check_curve(size_t hash_len) const;
 
   public:
     ECKeyMaterial(pgp_pubkey_alg_t kalg) : KeyMaterial(kalg), key_{} {};
-    ECKeyMaterial(pgp_pubkey_alg_t kalg, const pgp_ec_key_t &key, bool secret = false)
+    ECKeyMaterial(pgp_pubkey_alg_t kalg, const ec::Key &key, bool secret = false)
         : KeyMaterial(kalg, secret), key_(key){};
 
     bool        equals(const KeyMaterial &value) const noexcept override;
@@ -394,7 +394,7 @@ class ECDSAKeyMaterial : public ECKeyMaterial {
 
   public:
     ECDSAKeyMaterial() : ECKeyMaterial(PGP_PKA_ECDSA){};
-    ECDSAKeyMaterial(const pgp_ec_key_t &key, bool secret = false)
+    ECDSAKeyMaterial(const ec::Key &key, bool secret = false)
         : ECKeyMaterial(PGP_PKA_ECDSA, key, secret){};
     std::unique_ptr<KeyMaterial> clone() override;
 
@@ -413,7 +413,7 @@ class ECDHKeyMaterial : public ECKeyMaterial {
 
   public:
     ECDHKeyMaterial() : ECKeyMaterial(PGP_PKA_ECDH){};
-    ECDHKeyMaterial(const pgp_ec_key_t &key, bool secret = false)
+    ECDHKeyMaterial(const ec::Key &key, bool secret = false)
         : ECKeyMaterial(PGP_PKA_ECDH, key, secret){};
     std::unique_ptr<KeyMaterial> clone() override;
 
@@ -441,7 +441,7 @@ class EDDSAKeyMaterial : public ECKeyMaterial {
 
   public:
     EDDSAKeyMaterial() : ECKeyMaterial(PGP_PKA_EDDSA){};
-    EDDSAKeyMaterial(const pgp_ec_key_t &key, bool secret = false)
+    EDDSAKeyMaterial(const ec::Key &key, bool secret = false)
         : ECKeyMaterial(PGP_PKA_EDDSA, key, secret){};
     std::unique_ptr<KeyMaterial> clone() override;
 
@@ -460,7 +460,7 @@ class SM2KeyMaterial : public ECKeyMaterial {
 
   public:
     SM2KeyMaterial() : ECKeyMaterial(PGP_PKA_SM2){};
-    SM2KeyMaterial(const pgp_ec_key_t &key, bool secret = false)
+    SM2KeyMaterial(const ec::Key &key, bool secret = false)
         : ECKeyMaterial(PGP_PKA_SM2, key, secret){};
     std::unique_ptr<KeyMaterial> clone() override;
 

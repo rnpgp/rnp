@@ -39,41 +39,41 @@ class Hash;
 } // namespace rnp
 
 #if defined(ENABLE_SM2)
-rnp_result_t sm2_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret);
+rnp_result_t sm2_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret);
 
 /**
  * Compute the SM2 "ZA" field, and add it to the hash object
  *
  * If ident_field is null, uses the default value
  */
-rnp_result_t sm2_compute_za(const pgp_ec_key_t &key,
+rnp_result_t sm2_compute_za(const pgp::ec::Key &key,
                             rnp::Hash &         hash,
                             const char *        ident_field = NULL);
 
-rnp_result_t sm2_sign(rnp::RNG *          rng,
-                      pgp_ec_signature_t *sig,
+rnp_result_t sm2_sign(rnp::RNG &          rng,
+                      pgp::ec::Signature &sig,
                       pgp_hash_alg_t      hash_alg,
                       const uint8_t *     hash,
                       size_t              hash_len,
-                      const pgp_ec_key_t *key);
+                      const pgp::ec::Key &key);
 
-rnp_result_t sm2_verify(const pgp_ec_signature_t *sig,
+rnp_result_t sm2_verify(const pgp::ec::Signature &sig,
                         pgp_hash_alg_t            hash_alg,
                         const uint8_t *           hash,
                         size_t                    hash_len,
-                        const pgp_ec_key_t *      key);
+                        const pgp::ec::Key &      key);
 
-rnp_result_t sm2_encrypt(rnp::RNG *           rng,
-                         pgp_sm2_encrypted_t *out,
+rnp_result_t sm2_encrypt(rnp::RNG &           rng,
+                         pgp_sm2_encrypted_t &out,
                          const uint8_t *      in,
                          size_t               in_len,
                          pgp_hash_alg_t       hash_algo,
-                         const pgp_ec_key_t * key);
+                         const pgp::ec::Key & key);
 
 rnp_result_t sm2_decrypt(uint8_t *                  out,
                          size_t *                   out_len,
-                         const pgp_sm2_encrypted_t *in,
-                         const pgp_ec_key_t *       key);
+                         const pgp_sm2_encrypted_t &in,
+                         const pgp::ec::Key &       key);
 #endif // defined(ENABLE_SM2)
 
 #endif // SM2_H_

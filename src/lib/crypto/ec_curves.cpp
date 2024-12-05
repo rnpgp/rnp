@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2024, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,8 @@
 #include "utils.h"
 #include "str-utils.h"
 
+namespace pgp {
+namespace ec {
 /**
  * EC Curves definition used by implementation
  *
@@ -38,13 +40,12 @@
  * Order of the elements in this array corresponds to
  * values in pgp_curve_t enum.
  */
-static const ec_curve_desc_t ec_curves[] = {
-  {PGP_CURVE_UNKNOWN, 0, {0}, 0, NULL, NULL},
+static const Curve ec_curves[] = {
+  {PGP_CURVE_UNKNOWN, 0, {0}, NULL, NULL},
 
   {PGP_CURVE_NIST_P_256,
    256,
    {0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07},
-   8,
 #if defined(CRYPTO_BACKEND_BOTAN)
    "secp256r1",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -62,7 +63,6 @@ static const ec_curve_desc_t ec_curves[] = {
   {PGP_CURVE_NIST_P_384,
    384,
    {0x2B, 0x81, 0x04, 0x00, 0x22},
-   5,
 #if defined(CRYPTO_BACKEND_BOTAN)
    "secp384r1",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -86,7 +86,6 @@ static const ec_curve_desc_t ec_curves[] = {
   {PGP_CURVE_NIST_P_521,
    521,
    {0x2B, 0x81, 0x04, 0x00, 0x23},
-   5,
 #if defined(CRYPTO_BACKEND_BOTAN)
    "secp521r1",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -110,7 +109,6 @@ static const ec_curve_desc_t ec_curves[] = {
   {PGP_CURVE_ED25519,
    255,
    {0x2b, 0x06, 0x01, 0x04, 0x01, 0xda, 0x47, 0x0f, 0x01},
-   9,
 #if defined(CRYPTO_BACKEND_BOTAN)
    "Ed25519",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -129,7 +127,6 @@ static const ec_curve_desc_t ec_curves[] = {
   {PGP_CURVE_25519,
    255,
    {0x2b, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01},
-   10,
 #if defined(CRYPTO_BACKEND_BOTAN)
    "curve25519",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -147,7 +144,6 @@ static const ec_curve_desc_t ec_curves[] = {
   {PGP_CURVE_BP256,
    256,
    {0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07},
-   9,
 #if defined(CRYPTO_BACKEND_BOTAN)
    "brainpool256r1",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -169,7 +165,6 @@ static const ec_curve_desc_t ec_curves[] = {
   {PGP_CURVE_BP384,
    384,
    {0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0B},
-   9,
 #if defined(CRYPTO_BACKEND_BOTAN)
    "brainpool384r1",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -197,7 +192,6 @@ static const ec_curve_desc_t ec_curves[] = {
   {PGP_CURVE_BP512,
    512,
    {0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0D},
-   9,
 #if defined(CRYPTO_BACKEND_BOTAN)
    "brainpool512r1",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -225,7 +219,6 @@ static const ec_curve_desc_t ec_curves[] = {
   {PGP_CURVE_P256K1,
    256,
    {0x2B, 0x81, 0x04, 0x00, 0x0A},
-   5,
 #if defined(CRYPTO_BACKEND_BOTAN)
    "secp256k1",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -244,7 +237,6 @@ static const ec_curve_desc_t ec_curves[] = {
     PGP_CURVE_SM2_P_256,
     256,
     {0x2A, 0x81, 0x1C, 0xCF, 0x55, 0x01, 0x82, 0x2D},
-    8,
 #if defined(CRYPTO_BACKEND_BOTAN)
     "sm2p256v1",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
@@ -266,20 +258,18 @@ static const ec_curve_desc_t ec_curves[] = {
 };
 
 pgp_curve_t
-find_curve_by_OID(const uint8_t *oid, size_t oid_len)
+Curve::by_OID(const std::vector<uint8_t> &oid)
 {
     for (size_t i = 0; i < PGP_CURVE_MAX; i++) {
-        if ((oid_len == ec_curves[i].OIDhex_len) &&
-            (!memcmp(oid, ec_curves[i].OIDhex, oid_len))) {
+        if (oid == ec_curves[i].OID) {
             return static_cast<pgp_curve_t>(i);
         }
     }
-
     return PGP_CURVE_MAX;
 }
 
 pgp_curve_t
-find_curve_by_name(const char *name)
+Curve::by_name(const char *name)
 {
     for (size_t i = 1; i < PGP_CURVE_MAX; i++) {
         if (rnp::str_case_eq(ec_curves[i].pgp_name, name)) {
@@ -290,14 +280,14 @@ find_curve_by_name(const char *name)
     return PGP_CURVE_MAX;
 }
 
-const ec_curve_desc_t *
-get_curve_desc(const pgp_curve_t curve_id)
+const Curve *
+Curve::get(const pgp_curve_t curve_id)
 {
     return (curve_id < PGP_CURVE_MAX && curve_id > 0) ? &ec_curves[curve_id] : NULL;
 }
 
 bool
-alg_allows_curve(pgp_pubkey_alg_t alg, pgp_curve_t curve)
+Curve::alg_allows(pgp_pubkey_alg_t alg, pgp_curve_t curve)
 {
     /* SM2 curve is only for SM2 algo */
     if ((alg == PGP_PKA_SM2) || (curve == PGP_CURVE_SM2_P_256)) {
@@ -316,8 +306,11 @@ alg_allows_curve(pgp_pubkey_alg_t alg, pgp_curve_t curve)
 }
 
 bool
-curve_supported(pgp_curve_t curve)
+Curve::is_supported(pgp_curve_t curve)
 {
-    const ec_curve_desc_t *info = get_curve_desc(curve);
+    auto info = Curve::get(curve);
     return info && info->supported;
 }
+
+} // namespace ec
+} // namespace pgp

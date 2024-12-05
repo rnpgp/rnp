@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2024, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -29,39 +29,39 @@
 #include "utils.h"
 
 rnp_result_t
-sm2_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret)
+sm2_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
 {
     return RNP_ERROR_NOT_IMPLEMENTED;
 }
 
 rnp_result_t
-sm2_sign(rnp::RNG *          rng,
-         pgp_ec_signature_t *sig,
+sm2_sign(rnp::RNG &          rng,
+         pgp::ec::Signature &sig,
          pgp_hash_alg_t      hash_alg,
          const uint8_t *     hash,
          size_t              hash_len,
-         const pgp_ec_key_t *key)
+         const pgp::ec::Key &key)
 {
     return RNP_ERROR_NOT_IMPLEMENTED;
 }
 
 rnp_result_t
-sm2_verify(const pgp_ec_signature_t *sig,
+sm2_verify(const pgp::ec::Signature &sig,
            pgp_hash_alg_t            hash_alg,
            const uint8_t *           hash,
            size_t                    hash_len,
-           const pgp_ec_key_t *      key)
+           const pgp::ec::Key &      key)
 {
     return RNP_ERROR_NOT_IMPLEMENTED;
 }
 
 rnp_result_t
-sm2_encrypt(rnp::RNG *           rng,
-            pgp_sm2_encrypted_t *out,
+sm2_encrypt(rnp::RNG &           rng,
+            pgp_sm2_encrypted_t &out,
             const uint8_t *      in,
             size_t               in_len,
             pgp_hash_alg_t       hash_algo,
-            const pgp_ec_key_t * key)
+            const pgp::ec::Key & key)
 {
     return RNP_ERROR_NOT_IMPLEMENTED;
 }
@@ -69,8 +69,8 @@ sm2_encrypt(rnp::RNG *           rng,
 rnp_result_t
 sm2_decrypt(uint8_t *                  out,
             size_t *                   out_len,
-            const pgp_sm2_encrypted_t *in,
-            const pgp_ec_key_t *       key)
+            const pgp_sm2_encrypted_t &in,
+            const pgp::ec::Key &       key)
 {
     return RNP_ERROR_NOT_IMPLEMENTED;
 }

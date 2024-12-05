@@ -611,15 +611,15 @@ pgp_packet_body_t::get(pgp_curve_t &val) noexcept
     if (!get(oidlen)) {
         return false;
     }
-    uint8_t oid[MAX_CURVE_OID_HEX_LEN] = {0};
-    if (!oidlen || (oidlen == 0xff) || (oidlen > sizeof(oid))) {
+    if (!oidlen || (oidlen == 0xff)) {
         RNP_LOG("unsupported curve oid len: %" PRIu8, oidlen);
         return false;
     }
+    std::vector<uint8_t> oid(oidlen, 0);
     if (!get(oid, oidlen)) {
         return false;
     }
-    pgp_curve_t res = find_curve_by_OID(oid, oidlen);
+    pgp_curve_t res = pgp::ec::Curve::by_OID(oid);
     if (res == PGP_CURVE_MAX) {
         RNP_LOG("unsupported curve");
         return false;
@@ -804,12 +804,12 @@ pgp_packet_body_t::add_subpackets(const pgp_signature_t &sig, bool hashed)
 void
 pgp_packet_body_t::add(const pgp_curve_t curve)
 {
-    const ec_curve_desc_t *desc = get_curve_desc(curve);
+    auto desc = pgp::ec::Curve::get(curve);
     if (!desc) {
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    add_byte((uint8_t) desc->OIDhex_len);
-    add(desc->OIDhex, (uint8_t) desc->OIDhex_len);
+    add_byte((uint8_t) desc->OID.size());
+    add(desc->OID.data(), desc->OID.size());
 }
 
 void
@@ -1244,9 +1244,9 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material)
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_X25519: {
-        uint8_t                bt = 0;
-        const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_25519);
-        material.x25519.eph_key.resize(BITS_TO_BYTES(ec_desc->bitlen));
+        uint8_t bt = 0;
+        auto    ec_desc = pgp::ec::Curve::get(PGP_CURVE_25519);
+        material.x25519.eph_key.resize(ec_desc->bytes());
         if (!pkt.get(material.x25519.eph_key.data(), material.x25519.eph_key.size())) {
             RNP_LOG("failed to parse X25519 PKESK (eph. pubkey)");
             return false;
