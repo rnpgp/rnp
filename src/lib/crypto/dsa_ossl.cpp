@@ -82,13 +82,15 @@ encode_sig(uint8_t *data, size_t *len, const Signature &sig)
 static rnp::ossl::Param
 build_params(rnp::bn &p, rnp::bn &q, rnp::bn &g, rnp::bn &y, rnp::bn &x)
 {
-    rnp::ossl::ParamBld bld;
-    if (!bld || !bld.push(OSSL_PKEY_PARAM_FFC_P, p) || !bld.push(OSSL_PKEY_PARAM_FFC_Q, q) ||
-        !bld.push(OSSL_PKEY_PARAM_FFC_G, g) || !bld.push(OSSL_PKEY_PARAM_PUB_KEY, y) ||
-        (x && !bld.push(OSSL_PKEY_PARAM_PRIV_KEY, x))) {
+    rnp::ossl::ParamBld bld(OSSL_PARAM_BLD_new());
+    if (!bld || !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_FFC_P, p.get()) ||
+        !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_FFC_Q, q.get()) ||
+        !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_FFC_G, g.get()) ||
+        !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_PUB_KEY, y.get()) ||
+        (x && !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_PRIV_KEY, x.get()))) {
         return NULL; // LCOV_EXCL_LINE
     }
-    return bld.to_param();
+    return rnp::ossl::Param(OSSL_PARAM_BLD_to_param(bld.get()));
 }
 #endif
 

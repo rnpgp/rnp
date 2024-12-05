@@ -81,7 +81,7 @@ eddsa_verify(const pgp::ec::Signature &sig,
     }
 
     /* init context and sign */
-    rnp::ossl::evp::MDCtx md;
+    rnp::ossl::evp::MDCtx md(EVP_MD_CTX_new());
     if (!md) {
         RNP_LOG("Failed to allocate MD ctx: %lu", ERR_peek_last_error());
         return RNP_ERROR_SIGNATURE_INVALID;
@@ -120,7 +120,7 @@ eddsa_sign(rnp::RNG &          rng,
     }
 
     /* init context and sign */
-    rnp::ossl::evp::MDCtx md;
+    rnp::ossl::evp::MDCtx md(EVP_MD_CTX_new());
     if (!md) {
         RNP_LOG("Failed to allocate MD ctx: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
