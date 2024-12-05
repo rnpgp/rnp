@@ -32,6 +32,7 @@
 #include "config.h"
 #include "mpi.h"
 #include <cassert>
+#include <memory>
 #include <openssl/bn.h>
 #include <openssl/evp.h>
 #include <openssl/err.h>
@@ -173,76 +174,35 @@ class bn {
 
 namespace ossl {
 
-class BNCtx {
-    BN_CTX *ctx_;
-
-  public:
-    BNCtx() : ctx_(BN_CTX_new())
+struct BNCtxDeleter {
+    void
+    operator()(BN_CTX *ptr) const
     {
-        if (ctx_) {
-            BN_CTX_start(ctx_);
-        }
-    }
-
-    BNCtx(const BNCtx &) = delete;
-
-    ~BNCtx()
-    {
-        BN_CTX_free(ctx_);
-    }
-
-    BN_CTX *
-    get()
-    {
-        return ctx_;
-    }
-
-    BIGNUM *
-    bn()
-    {
-        return BN_CTX_get(ctx_);
+        BN_CTX_free(ptr);
     }
 };
 
-class BNRecpCtx {
-    BN_RECP_CTX *ctx_;
+using BNCtx = std::unique_ptr<BN_CTX, BNCtxDeleter>;
 
-  public:
-    BNRecpCtx() : ctx_(BN_RECP_CTX_new()){};
-
-    BNRecpCtx(const BNRecpCtx &) = delete;
-
-    ~BNRecpCtx()
+struct BNRecpCtxDeleter {
+    void
+    operator()(BN_RECP_CTX *ptr) const
     {
-        BN_RECP_CTX_free(ctx_);
-    }
-
-    BN_RECP_CTX *
-    get() noexcept
-    {
-        return ctx_;
+        BN_RECP_CTX_free(ptr);
     }
 };
 
-class BNMontCtx {
-    BN_MONT_CTX *ctx_;
+using BNRecpCtx = std::unique_ptr<BN_RECP_CTX, BNRecpCtxDeleter>;
 
-  public:
-    BNMontCtx() : ctx_(BN_MONT_CTX_new()){};
-
-    BNMontCtx(const BNMontCtx &) = delete;
-
-    ~BNMontCtx()
+struct BNMontCtxDeleter {
+    void
+    operator()(BN_MONT_CTX *ptr) const
     {
-        BN_MONT_CTX_free(ctx_);
-    }
-
-    BN_MONT_CTX *
-    get() noexcept
-    {
-        return ctx_;
+        BN_MONT_CTX_free(ptr);
     }
 };
+
+using BNMontCtx = std::unique_ptr<BN_MONT_CTX, BNMontCtxDeleter>;
 
 namespace evp {
 class PKey {
@@ -381,30 +341,15 @@ class Ctx {
     }
 };
 
-class MDCtx {
-    EVP_MD_CTX *ctx_;
-
-  public:
-    MDCtx() : ctx_(EVP_MD_CTX_new()){};
-
-    MDCtx(const MDCtx &) = delete;
-
-    ~MDCtx()
+struct MDCtxDeleter {
+    void
+    operator()(EVP_MD_CTX *ptr) const
     {
-        EVP_MD_CTX_free(ctx_);
-    }
-
-    explicit operator bool() const
-    {
-        return ctx_;
-    }
-
-    EVP_MD_CTX *
-    get() noexcept
-    {
-        return ctx_;
+        EVP_MD_CTX_free(ptr);
     }
 };
+
+using MDCtx = std::unique_ptr<EVP_MD_CTX, MDCtxDeleter>;
 } // namespace evp
 
 #if !defined(CRYPTO_BACKEND_OPENSSL3)
@@ -532,94 +477,27 @@ class ECPoint {
 };
 
 #else
-class Param {
-    OSSL_PARAM *param_;
 
-  public:
-    Param(OSSL_PARAM *val = NULL) : param_(val)
+struct ParamDeleter {
+    void
+    operator()(OSSL_PARAM *ptr) const
     {
-    }
-
-    Param(Param &&src)
-    {
-        param_ = src.param_;
-        src.param_ = NULL;
-    }
-
-    ~Param()
-    {
-        OSSL_PARAM_free(param_);
-    }
-
-    explicit operator bool() const
-    {
-        return param_;
-    }
-
-    OSSL_PARAM *
-    get() noexcept
-    {
-        return param_;
+        OSSL_PARAM_free(ptr);
     }
 };
 
-class ParamBld {
-    OSSL_PARAM_BLD *bld_;
+using Param = std::unique_ptr<OSSL_PARAM, ParamDeleter>;
 
-  public:
-    ParamBld()
+struct ParamBldDeleter {
+    void
+    operator()(OSSL_PARAM_BLD *ptr) const
     {
-        bld_ = OSSL_PARAM_BLD_new();
-    }
-
-    ParamBld(const ParamBld &) = delete;
-
-    ~ParamBld()
-    {
-        OSSL_PARAM_BLD_free(bld_);
-    }
-
-    explicit operator bool() const
-    {
-        return bld_;
-    }
-
-    bool
-    push(const char *name, const BIGNUM *val) noexcept
-    {
-        return bld_ && OSSL_PARAM_BLD_push_BN(bld_, name, val);
-    }
-
-    bool
-    push(const char *name, const rnp::bn &val) noexcept
-    {
-        return push(name, val.c_get());
-    }
-
-    bool
-    push(const char *name, const char *value) noexcept
-    {
-        return bld_ && OSSL_PARAM_BLD_push_utf8_string(bld_, name, value, 0);
-    }
-
-    bool
-    push(const char *name, const uint8_t *val, size_t len) noexcept
-    {
-        return bld_ && OSSL_PARAM_BLD_push_octet_string(bld_, name, val, len);
-    }
-
-    OSSL_PARAM_BLD *
-    get() noexcept
-    {
-        return bld_;
-    }
-
-    Param
-    to_param()
-    {
-        return Param(OSSL_PARAM_BLD_to_param(bld_));
+        OSSL_PARAM_BLD_free(ptr);
     }
 };
+
+using ParamBld = std::unique_ptr<OSSL_PARAM_BLD, ParamBldDeleter>;
+
 #endif
 
 inline const char *
