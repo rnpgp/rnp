@@ -41,7 +41,7 @@ rnp_result_t validate_key(const pgp::ec::Key &key, bool secret);
 
 rnp::ossl::evp::PKey generate_pkey(const pgp_pubkey_alg_t alg_id, const pgp_curve_t curve);
 
-bool write_pubkey(rnp::ossl::evp::PKey &key, pgp::mpi &mpi, pgp_curve_t curve);
+bool write_pubkey(const rnp::ossl::evp::PKey &key, pgp::mpi &mpi, pgp_curve_t curve);
 
 } // namespace ec
 } // namespace pgp

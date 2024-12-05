@@ -83,22 +83,20 @@ dl_load_key(const pgp::mpi &mp,
         return NULL;
         /* LCOV_EXCL_END */
     }
-    rnp::ossl::evp::Ctx ctx(EVP_PKEY_DH);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_DH, NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("failed to create dl context");
         return NULL;
         /* LCOV_EXCL_END */
     }
-    rnp::ossl::evp::PKey evpkey;
+    EVP_PKEY *rawkey = NULL;
+    int       sel = mx ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY;
     if ((EVP_PKEY_fromdata_init(ctx.get()) != 1) ||
-        (EVP_PKEY_fromdata(ctx.get(),
-                           evpkey.ptr(),
-                           mx ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY,
-                           params.get()) != 1)) {
+        (EVP_PKEY_fromdata(ctx.get(), &rawkey, sel, params.get()) != 1)) {
         RNP_LOG("failed to create key from data"); // LCOV_EXCL_LINE
     }
-    return evpkey;
+    return rnp::ossl::evp::PKey(rawkey);
 #else
     rnp::ossl::DH dh;
     if (!dh.get()) {
@@ -197,7 +195,7 @@ dl_validate_secret_key(rnp::ossl::evp::PKey &dlkey, const pgp::mpi &mx)
 rnp_result_t
 dl_validate_key(rnp::ossl::evp::PKey &pkey, const pgp::mpi *x)
 {
-    rnp::ossl::evp::Ctx ctx(pkey);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new(pkey.get(), NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());

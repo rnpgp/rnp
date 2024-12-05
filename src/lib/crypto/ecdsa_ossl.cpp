@@ -97,7 +97,7 @@ ecdsa_sign(rnp::RNG &          rng,
     }
 
     /* init context and sign */
-    rnp::ossl::evp::Ctx ctx(evpkey);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new(evpkey.get(), NULL));
     if (!ctx) {
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
@@ -133,7 +133,7 @@ ecdsa_verify(const pgp::ec::Signature &sig,
         return RNP_ERROR_BAD_PARAMETERS;
     }
     /* init context and sign */
-    rnp::ossl::evp::Ctx ctx(evpkey);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new(evpkey.get(), NULL));
     if (!ctx) {
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
         return RNP_ERROR_SIGNATURE_INVALID;

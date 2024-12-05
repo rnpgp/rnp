@@ -218,7 +218,7 @@ load_key(const Key &key, bool secret)
         return NULL; // LCOV_EXCL_LINE
     }
     /* Create context for key creation */
-    rnp::ossl::evp::Ctx ctx(EVP_PKEY_RSA);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Context allocation failed: %s", rnp::ossl::latest_err());
@@ -232,24 +232,22 @@ load_key(const Key &key, bool secret)
         return NULL;
         /* LCOV_EXCL_END */
     }
-    rnp::ossl::evp::PKey res;
-    if (EVP_PKEY_fromdata(ctx.get(),
-                          res.ptr(),
-                          secret ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY,
-                          params.get()) <= 0) {
+    EVP_PKEY *res = NULL;
+    int       sel = secret ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY;
+    if (EVP_PKEY_fromdata(ctx.get(), &res, sel, params.get()) <= 0) {
         RNP_LOG("Failed to create RSA key: %s", rnp::ossl::latest_err()); // LCOV_EXCL_LINE
     }
-    return res;
+    return rnp::ossl::evp::PKey(res);
 }
 
-static rnp::ossl::evp::Ctx
+static rnp::ossl::evp::PKeyCtx
 init_context(const Key &key, bool secret)
 {
     auto pkey = load_key(key, secret);
     if (!pkey) {
-        return rnp::ossl::evp::Ctx(); // LCOV_EXCL_LINE
+        return rnp::ossl::evp::PKeyCtx(); // LCOV_EXCL_LINE
     }
-    rnp::ossl::evp::Ctx ctx(pkey);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new(pkey.get(), NULL));
     if (!ctx) {
         RNP_LOG("Context allocation failed: %s", rnp::ossl::latest_err()); // LCOV_EXCL_LINE
     }
@@ -275,7 +273,7 @@ Key::validate(rnp::RNG &rng, bool secret) const noexcept
     return res > 0 ? RNP_SUCCESS : RNP_ERROR_GENERIC;
 #else
     if (secret) {
-        rnp::ossl::evp::Ctx ctx(init_context(*this, secret));
+        auto ctx = init_context(*this, secret);
         if (!ctx) {
             /* LCOV_EXCL_START */
             RNP_LOG("Failed to init context: %s", rnp::ossl::latest_err());
@@ -307,7 +305,7 @@ Key::validate(rnp::RNG &rng, bool secret) const noexcept
 }
 
 static bool
-setup_context(rnp::ossl::evp::Ctx &ctx)
+setup_context(rnp::ossl::evp::PKeyCtx &ctx)
 {
     if (EVP_PKEY_CTX_set_rsa_padding(ctx.get(), RSA_PKCS1_PADDING) <= 0) {
         /* LCOV_EXCL_START */
@@ -322,10 +320,10 @@ static const uint8_t PKCS1_SHA1_ENCODING[15] = {
   0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14};
 
 static bool
-setup_signature_hash(rnp::ossl::evp::Ctx &ctx,
-                     pgp_hash_alg_t       hash_alg,
-                     const uint8_t *&     enc,
-                     size_t &             enc_size)
+setup_signature_hash(rnp::ossl::evp::PKeyCtx &ctx,
+                     pgp_hash_alg_t           hash_alg,
+                     const uint8_t *&         enc,
+                     size_t &                 enc_size)
 {
     auto hash_name = rnp::Hash_OpenSSL::name(hash_alg);
     if (!hash_name) {
@@ -359,7 +357,7 @@ Key::encrypt_pkcs1(rnp::RNG &     rng,
                    const uint8_t *in,
                    size_t         in_len) const noexcept
 {
-    rnp::ossl::evp::Ctx ctx = init_context(*this, false);
+    auto ctx = init_context(*this, false);
     if (!ctx) {
         return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
@@ -387,7 +385,7 @@ Key::verify_pkcs1(const Signature &sig,
                   const uint8_t *  hash,
                   size_t           hash_len) const noexcept
 {
-    rnp::ossl::evp::Ctx ctx(init_context(*this, false));
+    auto ctx = init_context(*this, false);
     if (!ctx) {
         return RNP_ERROR_SIGNATURE_INVALID; // LCOV_EXCL_LINE
     }
@@ -441,7 +439,7 @@ Key::sign_pkcs1(rnp::RNG &     rng,
         return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    rnp::ossl::evp::Ctx ctx(init_context(*this, true));
+    auto ctx = init_context(*this, true);
     if (!ctx) {
         return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
@@ -488,7 +486,7 @@ Key::decrypt_pkcs1(rnp::RNG &       rng,
         return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    rnp::ossl::evp::Ctx ctx(init_context(*this, true));
+    auto ctx = init_context(*this, true);
     if (!ctx) {
         return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
@@ -552,15 +550,14 @@ static bool
 extract_key(rnp::ossl::evp::PKey &pkey, Key &key)
 {
 #if defined(CRYPTO_BACKEND_OPENSSL3)
-    rnp::bn n(pkey.get_bn(OSSL_PKEY_PARAM_RSA_N));
-    rnp::bn e(pkey.get_bn(OSSL_PKEY_PARAM_RSA_E));
-    rnp::bn d(pkey.get_bn(OSSL_PKEY_PARAM_RSA_D));
-    rnp::bn p(pkey.get_bn(OSSL_PKEY_PARAM_RSA_FACTOR1));
-    rnp::bn q(pkey.get_bn(OSSL_PKEY_PARAM_RSA_FACTOR2));
-    rnp::bn u(pkey.get_bn(OSSL_PKEY_PARAM_RSA_COEFFICIENT1));
-
-    return n && e && d && p && q && u && calculate_pqu(p, q, u, key) && n.mpi(key.n) &&
-           e.mpi(key.e) && d.mpi(key.d);
+    rnp::bn n, e, d, p, q, u;
+    return EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_RSA_N, n.ptr()) &&
+           EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_RSA_E, e.ptr()) &&
+           EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_RSA_D, d.ptr()) &&
+           EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_RSA_FACTOR1, p.ptr()) &&
+           EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_RSA_FACTOR2, q.ptr()) &&
+           EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_RSA_COEFFICIENT1, u.ptr()) &&
+           calculate_pqu(p, q, u, key) && n.mpi(key.n) && e.mpi(key.e) && d.mpi(key.d);
 #else
     const RSA *rsa = EVP_PKEY_get0_RSA(pkey.get());
     if (!rsa) {
@@ -597,7 +594,7 @@ Key::generate(rnp::RNG &rng, size_t numbits) noexcept
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp::ossl::evp::Ctx ctx(EVP_PKEY_RSA);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to create ctx: %lu", ERR_peek_last_error());
@@ -616,13 +613,14 @@ Key::generate(rnp::RNG &rng, size_t numbits) noexcept
         return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    rnp::ossl::evp::PKey pkey;
-    if (EVP_PKEY_keygen(ctx.get(), pkey.ptr()) <= 0) {
+    EVP_PKEY *rawkey = NULL;
+    if (EVP_PKEY_keygen(ctx.get(), &rawkey) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("RSA keygen failed: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
+    rnp::ossl::evp::PKey pkey(rawkey);
     if (!extract_key(pkey, *this)) {
         return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
