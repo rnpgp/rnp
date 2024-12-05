@@ -70,11 +70,11 @@ jobs:
       fail-fast: false
       matrix:
 # On MacOS gcc is alias of clang these days
-        os: [ macos-12, macos-13, macos-14 ]
+        os: [ macos-13, macos-14 ]
         backend: [ 'botan' ]
         shared_libs: [ 'on' ]
         include:
-          - { os: 'macos-12', backend: 'openssl@1.1', shared_libs: 'on' }
+          - { os: 'macos-13', backend: 'openssl@1.1', shared_libs: 'on' }
           - { os: 'macos-14', backend: 'openssl@3', shared_libs: 'on' }
           - { os: 'macos-14', backend: 'botan', shared_libs: 'off' }
           - { os: 'macos-14', backend: 'botan3', shared_libs: 'on' }
