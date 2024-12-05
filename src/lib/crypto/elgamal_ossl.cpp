@@ -335,7 +335,7 @@ Key::generate(rnp::RNG &rng, size_t keybits)
     }
 
     /* Generate DH params, which usable for ElGamal as well */
-    rnp::ossl::evp::Ctx pctx(EVP_PKEY_DH);
+    rnp::ossl::evp::PKeyCtx pctx(EVP_PKEY_CTX_new_id(EVP_PKEY_DH, NULL));
     if (!pctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to create ctx: %lu", ERR_peek_last_error());
@@ -362,16 +362,17 @@ Key::generate(rnp::RNG &rng, size_t keybits)
         return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    rnp::ossl::evp::PKey parmkey;
-    if (EVP_PKEY_paramgen(pctx.get(), parmkey.ptr()) <= 0) {
+    EVP_PKEY *rparmkey = NULL;
+    if (EVP_PKEY_paramgen(pctx.get(), &rparmkey) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to generate parameters: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
+    rnp::ossl::evp::PKey parmkey(rparmkey);
     /* Generate DH (ElGamal) key */
     do {
-        rnp::ossl::evp::Ctx ctx(parmkey);
+        rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new(parmkey.get(), NULL));
         if (!ctx) {
             /* LCOV_EXCL_START */
             RNP_LOG("Failed to create ctx: %lu", ERR_peek_last_error());
@@ -384,13 +385,14 @@ Key::generate(rnp::RNG &rng, size_t keybits)
             return RNP_ERROR_GENERIC;
             /* LCOV_EXCL_END */
         }
-        rnp::ossl::evp::PKey pkey;
-        if (EVP_PKEY_keygen(ctx.get(), pkey.ptr()) <= 0) {
+        EVP_PKEY *rpkey = NULL;
+        if (EVP_PKEY_keygen(ctx.get(), &rpkey) <= 0) {
             /* LCOV_EXCL_START */
             RNP_LOG("ElGamal keygen failed: %lu", ERR_peek_last_error());
             return RNP_ERROR_GENERIC;
             /* LCOV_EXCL_END */
         }
+        rnp::ossl::evp::PKey pkey(rpkey);
 #if defined(CRYPTO_BACKEND_OPENSSL3)
         rnp::bn oy;
         if (!EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_PUB_KEY, oy.ptr())) {
@@ -404,13 +406,12 @@ Key::generate(rnp::RNG &rng, size_t keybits)
             continue; // LCOV_EXCL_LINE
         }
 
-        rnp::bn op = pkey.get_bn(OSSL_PKEY_PARAM_FFC_P);
-        rnp::bn og = pkey.get_bn(OSSL_PKEY_PARAM_FFC_G);
-        rnp::bn ox = pkey.get_bn(OSSL_PKEY_PARAM_PRIV_KEY);
-        if (!op || !og || !ox || !op.mpi(p) || !og.mpi(g) || !oy.mpi(y) || !ox.mpi(x)) {
-            return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
-        }
-        return RNP_SUCCESS;
+        rnp::bn op, og, ox;
+        bool    res = EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_FFC_P, op.ptr()) &&
+                   EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_FFC_G, og.ptr()) &&
+                   EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_PRIV_KEY, ox.ptr()) &&
+                   op.mpi(p) && og.mpi(g) && oy.mpi(y) && ox.mpi(x);
+        return res ? RNP_SUCCESS : RNP_ERROR_GENERIC;
 #else
         auto dh = EVP_PKEY_get0_DH(pkey.get());
         if (!dh) {

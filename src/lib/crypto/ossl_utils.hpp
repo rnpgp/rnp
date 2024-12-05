@@ -205,141 +205,26 @@ struct BNMontCtxDeleter {
 using BNMontCtx = std::unique_ptr<BN_MONT_CTX, BNMontCtxDeleter>;
 
 namespace evp {
-class PKey {
-    EVP_PKEY *key_;
 
-  public:
-    PKey(EVP_PKEY *val = NULL) : key_(val)
+struct PKeyDeleter {
+    void
+    operator()(EVP_PKEY *ptr) const
     {
-    }
-
-    PKey(PKey &&src)
-    {
-        key_ = src.key_;
-        src.key_ = NULL;
-    }
-
-    ~PKey()
-    {
-        EVP_PKEY_free(key_);
-    }
-
-    PKey &
-    operator=(PKey &&src)
-    {
-        if (&src == this) {
-            return *this;
-        }
-        EVP_PKEY_free(key_);
-        key_ = src.key_;
-        src.key_ = NULL;
-        return *this;
-    }
-
-    explicit operator bool() const
-    {
-        return key_;
-    }
-
-    EVP_PKEY *
-    get() noexcept
-    {
-        return key_;
-    }
-
-    const EVP_PKEY *
-    get() const noexcept
-    {
-        return key_;
-    }
-
-#if defined(CRYPTO_BACKEND_OPENSSL3)
-    bn
-    get_bn(const char *name) noexcept
-    {
-        bn val;
-        EVP_PKEY_get_bn_param(key_, name, val.ptr());
-        return val;
-    }
-
-    bool
-    get_bn(const char *name, pgp::mpi &bn) noexcept
-    {
-        return get_bn(name).mpi(bn);
-    }
-#endif
-
-    EVP_PKEY *
-    own() noexcept
-    {
-        auto res = key_;
-        key_ = NULL;
-        return res;
-    }
-
-    EVP_PKEY **
-    ptr(bool free = true) noexcept
-    {
-        if (free) {
-            EVP_PKEY_free(key_);
-            key_ = NULL;
-        }
-        return &key_;
+        EVP_PKEY_free(ptr);
     }
 };
 
-class Ctx {
-    EVP_PKEY_CTX *ctx_;
+using PKey = std::unique_ptr<EVP_PKEY, PKeyDeleter>;
 
-  public:
-    Ctx() : ctx_(NULL){};
-
-    Ctx(int id)
+struct PKeyCtxDeleter {
+    void
+    operator()(EVP_PKEY_CTX *ptr) const
     {
-        ctx_ = EVP_PKEY_CTX_new_id(id, NULL);
-    }
-
-    Ctx(PKey &key)
-    {
-        ctx_ = EVP_PKEY_CTX_new(key.get(), NULL);
-    }
-
-    Ctx(Ctx &&src)
-    {
-        ctx_ = src.ctx_;
-        src.ctx_ = NULL;
-    }
-
-    ~Ctx()
-    {
-        EVP_PKEY_CTX_free(ctx_);
-    }
-
-    explicit operator bool() const
-    {
-        return ctx_;
-    }
-
-    EVP_PKEY_CTX *
-    get() noexcept
-    {
-        return ctx_;
-    }
-
-    EVP_PKEY_CTX **
-    ptr() noexcept
-    {
-        return &ctx_;
-    }
-
-    EVP_PKEY_CTX *
-    own() noexcept
-    {
-        auto res = ctx_;
-        ctx_ = NULL;
-        return res;
+        EVP_PKEY_CTX_free(ptr);
     }
 };
+
+using PKeyCtx = std::unique_ptr<EVP_PKEY_CTX, PKeyCtxDeleter>;
 
 struct MDCtxDeleter {
     void

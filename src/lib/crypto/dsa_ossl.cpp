@@ -111,30 +111,30 @@ load_key(const Key &key, bool secret = false)
     }
 
 #if defined(CRYPTO_BACKEND_OPENSSL3)
-    rnp::ossl::Param params = build_params(p, q, g, y, x);
+    auto params = build_params(p, q, g, y, x);
     if (!params) {
         /* LCOV_EXCL_START */
         RNP_LOG("failed to build dsa params");
         return NULL;
         /* LCOV_EXCL_END */
     }
-    rnp::ossl::evp::Ctx ctx(EVP_PKEY_DSA);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_DSA, NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("failed to create dsa context");
         return NULL;
         /* LCOV_EXCL_END */
     }
-    rnp::ossl::evp::PKey evpkey;
+    EVP_PKEY *rawkey = NULL;
     if ((EVP_PKEY_fromdata_init(ctx.get()) != 1) ||
         (EVP_PKEY_fromdata(ctx.get(),
-                           evpkey.ptr(),
+                           &rawkey,
                            secret ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY,
                            params.get()) != 1)) {
         RNP_LOG("failed to create key from data");
         return NULL;
     }
-    return evpkey;
+    return rnp::ossl::evp::PKey(rawkey);
 #else
     rnp::ossl::DSA dsa;
     if (!dsa.get()) {
@@ -194,14 +194,14 @@ Key::sign(rnp::RNG &rng, Signature &sig, const uint8_t *hash, size_t hash_len) c
     }
 
     /* Load secret key to DSA structure*/
-    rnp::ossl::evp::PKey evpkey(load_key(*this, true));
+    auto evpkey = load_key(*this, true);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     /* init context and sign */
-    rnp::ossl::evp::Ctx ctx(evpkey);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new(evpkey.get(), NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
@@ -229,14 +229,14 @@ rnp_result_t
 Key::verify(const Signature &sig, const uint8_t *hash, size_t hash_len) const
 {
     /* Load secret key to EVP key */
-    rnp::ossl::evp::PKey evpkey(load_key(*this, false));
+    auto evpkey = load_key(*this, false);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     /* init context and sign */
-    rnp::ossl::evp::Ctx ctx(evpkey);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new(evpkey.get(), NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
@@ -261,11 +261,13 @@ static bool
 extract_key(rnp::ossl::evp::PKey &pkey, Key &key)
 {
 #if defined(CRYPTO_BACKEND_OPENSSL3)
-    return pkey.get_bn(OSSL_PKEY_PARAM_FFC_P, key.p) &&
-           pkey.get_bn(OSSL_PKEY_PARAM_FFC_Q, key.q) &&
-           pkey.get_bn(OSSL_PKEY_PARAM_FFC_G, key.g) &&
-           pkey.get_bn(OSSL_PKEY_PARAM_PUB_KEY, key.y) &&
-           pkey.get_bn(OSSL_PKEY_PARAM_PRIV_KEY, key.x);
+    rnp::bn p, q, g, y, x;
+    return EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_FFC_P, p.ptr()) &&
+           EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_FFC_Q, q.ptr()) &&
+           EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_FFC_G, g.ptr()) &&
+           EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_PUB_KEY, y.ptr()) &&
+           EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_PRIV_KEY, x.ptr()) &&
+           p.mpi(key.p) && q.mpi(key.q) && g.mpi(key.g) && y.mpi(key.y) && x.mpi(key.x);
 #else
     const DSA *dsa = EVP_PKEY_get0_DSA(pkey.get());
     if (!dsa) {
@@ -294,7 +296,7 @@ Key::generate(rnp::RNG &rng, size_t keylen, size_t qbits)
     }
 
     /* Generate DSA params */
-    rnp::ossl::evp::Ctx ctx(EVP_PKEY_DSA);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_DSA, NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to create ctx: %lu", ERR_peek_last_error());
@@ -324,13 +326,14 @@ Key::generate(rnp::RNG &rng, size_t keylen, size_t qbits)
         return RNP_ERROR_GENERIC;
     }
 #endif
-    rnp::ossl::evp::PKey parmkey;
-    if (EVP_PKEY_paramgen(ctx.get(), parmkey.ptr()) <= 0) {
+    EVP_PKEY *rparmkey = NULL;
+    if (EVP_PKEY_paramgen(ctx.get(), &rparmkey) <= 0) {
         RNP_LOG("Failed to generate parameters: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
     }
+    rnp::ossl::evp::PKey parmkey(rparmkey);
     /* Generate DSA key */
-    rnp::ossl::evp::Ctx genctx(parmkey);
+    rnp::ossl::evp::PKeyCtx genctx(EVP_PKEY_CTX_new(parmkey.get(), NULL));
     if (!genctx) {
         RNP_LOG("Failed to create ctx: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
@@ -339,12 +342,12 @@ Key::generate(rnp::RNG &rng, size_t keylen, size_t qbits)
         RNP_LOG("Failed to init keygen: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
     }
-    rnp::ossl::evp::PKey pkey;
-    if (EVP_PKEY_keygen(genctx.get(), pkey.ptr()) <= 0) {
+    EVP_PKEY *rpkey = NULL;
+    if (EVP_PKEY_keygen(genctx.get(), &rpkey) <= 0) {
         RNP_LOG("DSA keygen failed: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
     }
-
+    rnp::ossl::evp::PKey pkey(rpkey);
     if (!extract_key(pkey, *this)) {
         return RNP_ERROR_GENERIC;
     }
