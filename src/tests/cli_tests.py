@@ -4301,6 +4301,11 @@ class Misc(unittest.TestCase):
 
         shutil.rmtree(RNP2, ignore_errors=True)
 
+    def test_warning_source_path_prefix_cropping(self):
+        ret, _, err = run_proc(RNPK, ['--keyfile', data_path(PUBRING_7), '--notty', '--list-keys'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*\[signature_validate\(\) [/\\]lib[/\\]crypto[/\\]signatures.cpp:[0-9]*\] Insecure hash algorithm [0-9]*, marking signature as invalid.*$')
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:

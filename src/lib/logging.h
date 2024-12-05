@@ -58,13 +58,15 @@ class LogStop {
 };
 } // namespace rnp
 
-#define RNP_LOG_FD(fd, ...)                                                  \
-    do {                                                                     \
-        if (!rnp_log_switch())                                               \
-            break;                                                           \
-        (void) fprintf((fd), "[%s() %s:%d] ", __func__, __FILE__, __LINE__); \
-        (void) fprintf((fd), __VA_ARGS__);                                   \
-        (void) fprintf((fd), "\n");                                          \
+#define __SOURCE_PATH_FILE__ (__FILE__ + SOURCE_PATH_SIZE + 3 /* remove "src" */)
+
+#define RNP_LOG_FD(fd, ...)                                                              \
+    do {                                                                                 \
+        if (!rnp_log_switch())                                                           \
+            break;                                                                       \
+        (void) fprintf((fd), "[%s() %s:%d] ", __func__, __SOURCE_PATH_FILE__, __LINE__); \
+        (void) fprintf((fd), __VA_ARGS__);                                               \
+        (void) fprintf((fd), "\n");                                                      \
     } while (0)
 
 #define RNP_LOG(...) RNP_LOG_FD(stderr, __VA_ARGS__)
