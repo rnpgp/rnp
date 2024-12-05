@@ -186,7 +186,7 @@ HashList::get(pgp_hash_alg_t alg) const
             return hash.get();
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 void

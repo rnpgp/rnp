@@ -86,7 +86,7 @@ build_params(rnp::bn &p, rnp::bn &q, rnp::bn &g, rnp::bn &y, rnp::bn &x)
         !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_FFC_G, g.get()) ||
         !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_PUB_KEY, y.get()) ||
         (x && !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_PRIV_KEY, x.get()))) {
-        return NULL; // LCOV_EXCL_LINE
+        return nullptr; // LCOV_EXCL_LINE
     }
     return rnp::ossl::Param(OSSL_PARAM_BLD_to_param(bld.get()));
 }
@@ -104,7 +104,7 @@ load_key(const Key &key, bool secret = false)
     if (!p || !q || !g || !y || (secret && !x)) {
         /* LCOV_EXCL_START */
         RNP_LOG("out of memory");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
 
@@ -113,14 +113,14 @@ load_key(const Key &key, bool secret = false)
     if (!params) {
         /* LCOV_EXCL_START */
         RNP_LOG("failed to build dsa params");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_DSA, NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("failed to create dsa context");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     EVP_PKEY *rawkey = NULL;
@@ -130,7 +130,7 @@ load_key(const Key &key, bool secret = false)
                            secret ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY,
                            params.get()) != 1)) {
         RNP_LOG("failed to create key from data");
-        return NULL;
+        return nullptr;
     }
     return rnp::ossl::evp::PKey(rawkey);
 #else
@@ -138,19 +138,19 @@ load_key(const Key &key, bool secret = false)
     if (!dsa) {
         /* LCOV_EXCL_START */
         RNP_LOG("Out of memory");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     if (DSA_set0_pqg(dsa.get(), p.own(), q.own(), g.own()) != 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to set pqg. Error: %lu", ERR_peek_last_error());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     if (DSA_set0_key(dsa.get(), y.own(), x.own()) != 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Secret key load error: %lu", ERR_peek_last_error());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
 
@@ -158,13 +158,13 @@ load_key(const Key &key, bool secret = false)
     if (!evpkey) {
         /* LCOV_EXCL_START */
         RNP_LOG("allocation failed");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     if (EVP_PKEY_set1_DSA(evpkey.get(), dsa.get()) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to set key: %lu", ERR_peek_last_error());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     return evpkey;

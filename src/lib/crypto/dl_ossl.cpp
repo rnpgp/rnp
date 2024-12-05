@@ -71,7 +71,7 @@ dl_load_key(const pgp::mpi &mp,
     if (!p || (mq && !q) || !g || !y || (mx && !x)) {
         /* LCOV_EXCL_START */
         RNP_LOG("out of memory");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
 
@@ -80,14 +80,14 @@ dl_load_key(const pgp::mpi &mp,
     if (!params) {
         /* LCOV_EXCL_START */
         RNP_LOG("failed to build dsa params");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_DH, NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("failed to create dl context");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     EVP_PKEY *rawkey = NULL;
@@ -102,33 +102,33 @@ dl_load_key(const pgp::mpi &mp,
     if (!dh) {
         /* LCOV_EXCL_START */
         RNP_LOG("out of memory");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     /* line below must not fail */
     int res = DH_set0_pqg(dh.get(), p.own(), q.own(), g.own());
     assert(res == 1);
     if (res < 1) {
-        return NULL;
+        return nullptr;
     }
     /* line below must not fail */
     res = DH_set0_key(dh.get(), y.own(), x.own());
     assert(res == 1);
     if (res < 1) {
-        return NULL;
+        return nullptr;
     }
 
     rnp::ossl::evp::PKey evpkey(EVP_PKEY_new());
     if (!evpkey) {
         /* LCOV_EXCL_START */
         RNP_LOG("allocation failed");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     if (EVP_PKEY_set1_DH(evpkey.get(), dh.get()) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to set key: %lu", ERR_peek_last_error());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     return evpkey;
