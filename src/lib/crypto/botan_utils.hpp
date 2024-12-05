@@ -55,6 +55,8 @@ class bn {
 
     bn(const pgp::mpi &val) : bn(val.mpi, val.len){};
 
+    bn(const bn &) = delete;
+
     ~bn()
     {
         botan_mp_destroy(bn_);
@@ -101,11 +103,15 @@ class bn {
 };
 
 namespace botan {
+
 class Pubkey {
     botan_pubkey_t key_;
 
   public:
     Pubkey() : key_(NULL){};
+
+    Pubkey(const Pubkey &) = delete;
+
     ~Pubkey()
     {
         botan_pubkey_destroy(key_);
@@ -123,10 +129,14 @@ class Privkey {
 
   public:
     Privkey() : key_(NULL){};
+
+    Privkey(const Privkey &) = delete;
+
     ~Privkey()
     {
         botan_privkey_destroy(key_);
     }
+
     botan_privkey_t &
     get() noexcept
     {
@@ -146,10 +156,14 @@ class Encrypt {
 
   public:
     Encrypt() : op_(NULL){};
+
+    Encrypt(const Encrypt &) = delete;
+
     ~Encrypt()
     {
         botan_pk_op_encrypt_destroy(op_);
     }
+
     botan_pk_op_encrypt_t &
     get() noexcept
     {
@@ -162,10 +176,14 @@ class Decrypt {
 
   public:
     Decrypt() : op_(NULL){};
+
+    Decrypt(const Decrypt &) = delete;
+
     ~Decrypt()
     {
         botan_pk_op_decrypt_destroy(op_);
     }
+
     botan_pk_op_decrypt_t &
     get() noexcept
     {
@@ -178,10 +196,14 @@ class Verify {
 
   public:
     Verify() : op_(NULL){};
+
+    Verify(const Verify &) = delete;
+
     ~Verify()
     {
         botan_pk_op_verify_destroy(op_);
     }
+
     botan_pk_op_verify_t &
     get() noexcept
     {
@@ -194,10 +216,14 @@ class Sign {
 
   public:
     Sign() : op_(NULL){};
+
+    Sign(const Sign &) = delete;
+
     ~Sign()
     {
         botan_pk_op_sign_destroy(op_);
     }
+
     botan_pk_op_sign_t &
     get() noexcept
     {
@@ -210,10 +236,14 @@ class KeyAgreement {
 
   public:
     KeyAgreement() : op_(NULL){};
+
+    KeyAgreement(const KeyAgreement &) = delete;
+
     ~KeyAgreement()
     {
         botan_pk_op_key_agreement_destroy(op_);
     }
+
     botan_pk_op_ka_t &
     get() noexcept
     {
