@@ -49,9 +49,9 @@ load_public_key(const Key &key)
 {
     rnp::bn        n(key.n);
     rnp::bn        e(key.e);
-    rnp::ossl::RSA rsa;
+    rnp::ossl::RSA rsa(RSA_new());
 
-    if (!n || !e || !rsa.get()) {
+    if (!n || !e || !rsa) {
         /* LCOV_EXCL_START */
         RNP_LOG("out of memory");
         return NULL;
@@ -83,9 +83,9 @@ load_secret_key(const Key &key)
     rnp::bn        p(key.p);
     rnp::bn        q(key.q);
     rnp::bn        d(key.d);
-    rnp::ossl::RSA rsa;
+    rnp::ossl::RSA rsa(RSA_new());
 
-    if (!n || !p || !q || !e || !d || !rsa.get()) {
+    if (!n || !p || !q || !e || !d || !rsa) {
         /* LCOV_EXCL_START */
         RNP_LOG("out of memory");
         return NULL;
@@ -117,14 +117,14 @@ load_secret_key(const Key &key)
     return evpkey;
 }
 
-static rnp::ossl::evp::Ctx
+static rnp::ossl::evp::PKeyCtx
 init_context(const Key &key, bool secret)
 {
-    rnp::ossl::evp::PKey evpkey(secret ? load_secret_key(key) : load_public_key(key));
+    auto evpkey = secret ? load_secret_key(key) : load_public_key(key);
     if (!evpkey) {
-        return rnp::ossl::evp::Ctx(); // LCOV_EXCL_LINE
+        return rnp::ossl::evp::PKeyCtx(); // LCOV_EXCL_LINE
     }
-    rnp::ossl::evp::Ctx ctx(evpkey);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new(evpkey.get(), NULL));
     if (!ctx) {
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error()); // LCOV_EXCL_LINE
     }

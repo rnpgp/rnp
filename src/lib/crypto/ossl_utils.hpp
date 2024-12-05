@@ -36,6 +36,7 @@
 #include <openssl/bn.h>
 #include <openssl/evp.h>
 #include <openssl/err.h>
+#include <openssl/dsa.h>
 #if defined(CRYPTO_BACKEND_OPENSSL3)
 #include <openssl/core_names.h>
 #include <openssl/param_build.h>
@@ -237,132 +238,67 @@ struct MDCtxDeleter {
 using MDCtx = std::unique_ptr<EVP_MD_CTX, MDCtxDeleter>;
 } // namespace evp
 
+struct DSASigDeleter {
+    void
+    operator()(DSA_SIG *ptr) const
+    {
+        DSA_SIG_free(ptr);
+    }
+};
+
+using DSASig = std::unique_ptr<DSA_SIG, DSASigDeleter>;
+
 #if !defined(CRYPTO_BACKEND_OPENSSL3)
-class RSA {
-    ::RSA *rsa_;
-
-  public:
-    RSA()
+struct RSADeleter {
+    void
+    operator()(::RSA *ptr) const
     {
-        rsa_ = RSA_new();
-    }
-
-    RSA(const RSA &) = delete;
-
-    ~RSA()
-    {
-        RSA_free(rsa_);
-    }
-
-    ::RSA *
-    get() noexcept
-    {
-        return rsa_;
+        RSA_free(ptr);
     }
 };
 
-class DSA {
-    ::DSA *dsa_;
+using RSA = std::unique_ptr<::RSA, RSADeleter>;
 
-  public:
-    DSA()
+struct DSADeleter {
+    void
+    operator()(::DSA *ptr) const
     {
-        dsa_ = DSA_new();
-    }
-
-    DSA(const DSA &) = delete;
-
-    ~DSA()
-    {
-        DSA_free(dsa_);
-    }
-
-    ::DSA *
-    get() noexcept
-    {
-        return dsa_;
+        DSA_free(ptr);
     }
 };
 
-class DH {
-    ::DH *      dh_;
-    const ::DH *dh_c_;
+using DSA = std::unique_ptr<::DSA, DSADeleter>;
 
-  public:
-    DH() : dh_(DH_new()), dh_c_(NULL)
+struct DHDeleter {
+    void
+    operator()(::DH *ptr) const
     {
-    }
-
-    DH(const ::DH *dh) : dh_(NULL), dh_c_(dh)
-    {
-    }
-
-    DH(const DH &) = delete;
-
-    ~DH()
-    {
-        DH_free(dh_);
-    }
-
-    ::DH *
-    get() noexcept
-    {
-        return dh_;
-    }
-
-    const ::DH *
-    get() const noexcept
-    {
-        return dh_c_ ? dh_c_ : dh_;
+        DH_free(ptr);
     }
 };
 
-class ECKey {
-    ::EC_KEY *key_;
+using DH = std::unique_ptr<::DH, DHDeleter>;
 
-  public:
-    ECKey(int nid) : key_(EC_KEY_new_by_curve_name(nid))
+struct ECKeyDeleter {
+    void
+    operator()(::EC_KEY *ptr) const
     {
-    }
-
-    ECKey(const ECKey &) = delete;
-
-    ~ECKey()
-    {
-        EC_KEY_free(key_);
-    }
-
-    ::EC_KEY *
-    get() noexcept
-    {
-        return key_;
+        EC_KEY_free(ptr);
     }
 };
 
-class ECPoint {
-    ::EC_POINT *pt_;
+using ECKey = std::unique_ptr<::EC_KEY, ECKeyDeleter>;
 
-  public:
-    ECPoint(const EC_GROUP *grp) : pt_(EC_POINT_new(grp))
+struct ECPointDeleter {
+    void
+    operator()(::EC_POINT *ptr) const
     {
-    }
-
-    ECPoint(const ECPoint &) = delete;
-
-    ~ECPoint()
-    {
-        EC_POINT_free(pt_);
-    }
-
-    ::EC_POINT *
-    get() noexcept
-    {
-        return pt_;
+        EC_POINT_free(ptr);
     }
 };
 
+using ECPoint = std::unique_ptr<::EC_POINT, ECPointDeleter>;
 #else
-
 struct ParamDeleter {
     void
     operator()(OSSL_PARAM *ptr) const
@@ -382,7 +318,6 @@ struct ParamBldDeleter {
 };
 
 using ParamBld = std::unique_ptr<OSSL_PARAM_BLD, ParamBldDeleter>;
-
 #endif
 
 inline const char *
@@ -392,7 +327,6 @@ latest_err()
 }
 
 } // namespace ossl
-
 } // namespace rnp
 
 #endif

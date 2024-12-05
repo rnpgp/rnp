@@ -98,8 +98,8 @@ dl_load_key(const pgp::mpi &mp,
     }
     return rnp::ossl::evp::PKey(rawkey);
 #else
-    rnp::ossl::DH dh;
-    if (!dh.get()) {
+    rnp::ossl::DH dh(DH_new());
+    if (!dh) {
         /* LCOV_EXCL_START */
         RNP_LOG("out of memory");
         return NULL;
@@ -139,12 +139,12 @@ dl_load_key(const pgp::mpi &mp,
 static rnp_result_t
 dl_validate_secret_key(rnp::ossl::evp::PKey &dlkey, const pgp::mpi &mx)
 {
-    const rnp::ossl::DH dh(EVP_PKEY_get0_DH(dlkey.get()));
-    assert(dh.get());
-    const rnp::bn p(DH_get0_p(dh.get()));
-    rnp::bn       q(DH_get0_q(dh.get()));
-    const rnp::bn g(DH_get0_g(dh.get()));
-    const rnp::bn y(DH_get0_pub_key(dh.get()));
+    auto dh = EVP_PKEY_get0_DH(dlkey.get());
+    assert(dh);
+    const rnp::bn p(DH_get0_p(dh));
+    rnp::bn       q(DH_get0_q(dh));
+    const rnp::bn g(DH_get0_g(dh));
+    const rnp::bn y(DH_get0_pub_key(dh));
     assert(p && g && y);
 
     rnp::ossl::BNCtx ctx(BN_CTX_new());
@@ -180,8 +180,9 @@ dl_validate_secret_key(rnp::ossl::evp::PKey &dlkey, const pgp::mpi &mx)
         RNP_LOG("x is too large.");
         return RNP_ERROR_GENERIC;
     }
-    BN_CTX_start(ctx);
-    if (BN_mod_exp_mont_consttime(cy.get(), g.c_get(), x.c_get(), p.c_get(), ctx, NULL) < 1) {
+    BN_CTX_start(ctx.get());
+    if (BN_mod_exp_mont_consttime(cy.get(), g.c_get(), x.c_get(), p.c_get(), ctx.get(), NULL) <
+        1) {
         RNP_LOG("Exponentiation failed");
         return RNP_ERROR_GENERIC;
     }
