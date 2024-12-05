@@ -44,32 +44,30 @@ namespace dsa {
 static bool
 decode_sig(const uint8_t *data, size_t len, Signature &sig)
 {
-    DSA_SIG *dsig = d2i_DSA_SIG(NULL, &data, len);
+    rnp::ossl::DSASig dsig(d2i_DSA_SIG(NULL, &data, len));
     if (!dsig) {
         RNP_LOG("Failed to parse DSA sig: %lu", ERR_peek_last_error());
         return false;
     }
     rnp::bn r, s;
-    DSA_SIG_get0(dsig, r.cptr(), s.cptr());
+    DSA_SIG_get0(dsig.get(), r.cptr(), s.cptr());
     r.mpi(sig.r);
     s.mpi(sig.s);
-    DSA_SIG_free(dsig);
     return true;
 }
 
 static bool
 encode_sig(uint8_t *data, size_t *len, const Signature &sig)
 {
-    DSA_SIG *dsig = DSA_SIG_new();
-    rnp::bn  r(sig.r);
-    rnp::bn  s(sig.s);
+    rnp::ossl::DSASig dsig(DSA_SIG_new());
+    rnp::bn           r(sig.r);
+    rnp::bn           s(sig.s);
     if (!dsig || !r || !s) {
         RNP_LOG("Allocation failed.");
         return false;
     }
-    DSA_SIG_set0(dsig, r.own(), s.own());
-    auto outlen = i2d_DSA_SIG(dsig, &data);
-    DSA_SIG_free(dsig);
+    DSA_SIG_set0(dsig.get(), r.own(), s.own());
+    auto outlen = i2d_DSA_SIG(dsig.get(), &data);
     if (outlen < 0) {
         RNP_LOG("Failed to encode signature.");
         return false;
@@ -136,8 +134,8 @@ load_key(const Key &key, bool secret = false)
     }
     return rnp::ossl::evp::PKey(rawkey);
 #else
-    rnp::ossl::DSA dsa;
-    if (!dsa.get()) {
+    rnp::ossl::DSA dsa(DSA_new());
+    if (!dsa) {
         /* LCOV_EXCL_START */
         RNP_LOG("Out of memory");
         return NULL;
