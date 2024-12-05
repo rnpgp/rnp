@@ -221,17 +221,17 @@ load_raw_key(const pgp::mpi &keyp, const pgp::mpi *keyx, int nid)
 static rnp::ossl::Param
 build_params(const pgp::mpi &p, const pgp::mpi *x, const char *curve)
 {
-    rnp::ossl::ParamBld bld;
+    rnp::ossl::ParamBld bld(OSSL_PARAM_BLD_new());
     if (!bld) {
         return NULL;
     }
     rnp::bn bx(x);
-    if (!bld.push(OSSL_PKEY_PARAM_GROUP_NAME, curve) ||
-        !bld.push(OSSL_PKEY_PARAM_PUB_KEY, p.mpi, p.len) ||
-        (x && !bld.push(OSSL_PKEY_PARAM_PRIV_KEY, bx))) {
+    if (!OSSL_PARAM_BLD_push_utf8_string(bld.get(), OSSL_PKEY_PARAM_GROUP_NAME, curve, 0) ||
+        !OSSL_PARAM_BLD_push_octet_string(bld.get(), OSSL_PKEY_PARAM_PUB_KEY, p.mpi, p.len) ||
+        (x && !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_PRIV_KEY, bx.get()))) {
         return NULL; // LCOV_EXCL_LINE
     }
-    return bld.to_param();
+    return rnp::ossl::Param(OSSL_PARAM_BLD_to_param(bld.get()));
 }
 
 static rnp::ossl::evp::PKey

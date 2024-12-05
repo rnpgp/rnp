@@ -134,7 +134,7 @@ init_context(const Key &key, bool secret)
 static rnp::ossl::Param
 bld_params(const Key &key, bool secret)
 {
-    rnp::ossl::ParamBld bld;
+    rnp::ossl::ParamBld bld(OSSL_PARAM_BLD_new());
     rnp::bn             n(key.n);
     rnp::bn             e(key.e);
 
@@ -145,7 +145,8 @@ bld_params(const Key &key, bool secret)
         /* LCOV_EXCL_END */
     }
 
-    if (!bld.push(OSSL_PKEY_PARAM_RSA_N, n) || !bld.push(OSSL_PKEY_PARAM_RSA_E, e)) {
+    if (!OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_RSA_N, n.get()) ||
+        !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_RSA_E, e.get())) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to push RSA params.");
         return NULL;
@@ -153,7 +154,7 @@ bld_params(const Key &key, bool secret)
     }
 
     if (!secret) {
-        auto params = bld.to_param();
+        auto params = rnp::ossl::Param(OSSL_PARAM_BLD_to_param(bld.get()));
         if (!params) {
             /* LCOV_EXCL_START */
             RNP_LOG("Failed to build RSA pub params: %s.", rnp::ossl::latest_err());
@@ -173,34 +174,35 @@ bld_params(const Key &key, bool secret)
         return NULL; // LCOV_EXCL_LINE
     }
     /* We need to calculate exponents manually */
-    rnp::ossl::BNCtx bnctx;
-    if (!bnctx.get()) {
+    rnp::ossl::BNCtx bnctx(BN_CTX_new());
+    if (!bnctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to allocate BN_CTX.");
         return NULL;
         /* LCOV_EXCL_END */
     }
-    auto p1 = bnctx.bn();
-    auto q1 = bnctx.bn();
-    auto dp = bnctx.bn();
-    auto dq = bnctx.bn();
+    auto p1 = BN_CTX_get(bnctx.get());
+    auto q1 = BN_CTX_get(bnctx.get());
+    auto dp = BN_CTX_get(bnctx.get());
+    auto dq = BN_CTX_get(bnctx.get());
     if (!BN_copy(p1, p.get()) || !BN_sub_word(p1, 1) || !BN_copy(q1, q.get()) ||
         !BN_sub_word(q1, 1) || !BN_mod(dp, d.get(), p1, bnctx.get()) ||
         !BN_mod(dq, d.get(), q1, bnctx.get())) {
         RNP_LOG("Failed to calculate dP or dQ."); // LCOV_EXCL_LINE
     }
     /* Push params */
-    if (!bld.push(OSSL_PKEY_PARAM_RSA_D, d) || !bld.push(OSSL_PKEY_PARAM_RSA_FACTOR1, p) ||
-        !bld.push(OSSL_PKEY_PARAM_RSA_FACTOR2, q) ||
-        !bld.push(OSSL_PKEY_PARAM_RSA_EXPONENT1, dp) ||
-        !bld.push(OSSL_PKEY_PARAM_RSA_EXPONENT2, dq) ||
-        !bld.push(OSSL_PKEY_PARAM_RSA_COEFFICIENT1, u)) {
+    if (!OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_RSA_D, d.get()) ||
+        !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_RSA_FACTOR1, p.get()) ||
+        !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_RSA_FACTOR2, q.get()) ||
+        !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_RSA_EXPONENT1, dp) ||
+        !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_RSA_EXPONENT2, dq) ||
+        !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_RSA_COEFFICIENT1, u.get())) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to push RSA secret params.");
         return NULL;
         /* LCOV_EXCL_END */
     }
-    auto params = bld.to_param();
+    auto params = rnp::ossl::Param(OSSL_PARAM_BLD_to_param(bld.get()));
     if (!params) {
         RNP_LOG("Failed to build RSA params: %s.", rnp::ossl::latest_err()); // LCOV_EXCL_LINE
     }
@@ -519,15 +521,16 @@ calculate_pqu(const rnp::bn &p, const rnp::bn &q, const rnp::bn &u, Key &key)
         return q.mpi(key.p) && p.mpi(key.q) && u.mpi(key.u);
     }
 
-    rnp::ossl::BNCtx bnctx;
-    if (!bnctx.get()) {
+    rnp::ossl::BNCtx bnctx(BN_CTX_new());
+    if (!bnctx) {
         return false;
     }
 
     /* we need to calculate u, since we need inverse of p mod q, while OpenSSL has inverse of q
      * mod p, and doesn't care of p < q */
-    auto nu = bnctx.bn();
-    auto nq = bnctx.bn();
+    BN_CTX_start(bnctx.get());
+    auto nu = BN_CTX_get(bnctx.get());
+    auto nq = BN_CTX_get(bnctx.get());
     if (!nu || !nq) {
         return false;
     }
@@ -542,11 +545,7 @@ calculate_pqu(const rnp::bn &p, const rnp::bn &q, const rnp::bn &u, Key &key)
     if (!p.mpi(key.p) || !q.mpi(key.q)) {
         return false;
     }
-    rnp::bn anu(nu);
-    bool    res = anu.mpi(key.u);
-    /* internal BIGNUM is owned by the bnctx */
-    anu.own();
-    return res;
+    return rnp::bn::mpi(nu, key.u);
 }
 
 static bool
