@@ -96,6 +96,10 @@ set_property(CACHE ENABLE_DOC PROPERTY STRINGS ${TRISTATE_VALUES})
 # so we can use our bundled finders
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules")
 
+# add source path prefix length to be able to crop it in logs
+string(LENGTH "${CMAKE_SOURCE_DIR}/" SOURCE_PATH_SIZE)
+add_definitions("-DSOURCE_PATH_SIZE=${SOURCE_PATH_SIZE}")
+
 # required modules
 include(CTest)
 include(FetchContent)
