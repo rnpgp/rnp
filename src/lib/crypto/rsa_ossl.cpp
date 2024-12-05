@@ -54,14 +54,14 @@ load_public_key(const Key &key)
     if (!n || !e || !rsa) {
         /* LCOV_EXCL_START */
         RNP_LOG("out of memory");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     /* OpenSSL set0 function transfers ownership of bignums */
     if (RSA_set0_key(rsa.get(), n.own(), e.own(), NULL) != 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Public key load error: %lu", ERR_peek_last_error());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
 
@@ -69,7 +69,7 @@ load_public_key(const Key &key)
     if (!evpkey || (EVP_PKEY_set1_RSA(evpkey.get(), rsa.get()) <= 0)) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to set key: %lu", ERR_peek_last_error());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     return evpkey;
@@ -88,7 +88,7 @@ load_secret_key(const Key &key)
     if (!n || !p || !q || !e || !d || !rsa) {
         /* LCOV_EXCL_START */
         RNP_LOG("out of memory");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
 
@@ -96,14 +96,14 @@ load_secret_key(const Key &key)
     if (RSA_set0_key(rsa.get(), n.own(), e.own(), d.own()) != 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Secret key load error: %lu", ERR_peek_last_error());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     /* OpenSSL has p < q, as we do */
     if (RSA_set0_factors(rsa.get(), p.own(), q.own()) != 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Factors load error: %lu", ERR_peek_last_error());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
 
@@ -111,7 +111,7 @@ load_secret_key(const Key &key)
     if (!evpkey || (EVP_PKEY_set1_RSA(evpkey.get(), rsa.get()) <= 0)) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to set key: %lu", ERR_peek_last_error());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     return evpkey;
@@ -141,7 +141,7 @@ bld_params(const Key &key, bool secret)
     if (!n || !e || !bld) {
         /* LCOV_EXCL_START */
         RNP_LOG("Out of memory");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
 
@@ -149,7 +149,7 @@ bld_params(const Key &key, bool secret)
         !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_RSA_E, e.get())) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to push RSA params.");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
 
@@ -171,14 +171,14 @@ bld_params(const Key &key, bool secret)
     rnp::bn u(key.u);
 
     if (!d || !p || !q || !u) {
-        return NULL; // LCOV_EXCL_LINE
+        return nullptr; // LCOV_EXCL_LINE
     }
     /* We need to calculate exponents manually */
     rnp::ossl::BNCtx bnctx(BN_CTX_new());
     if (!bnctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to allocate BN_CTX.");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     auto p1 = BN_CTX_get(bnctx.get());
@@ -199,7 +199,7 @@ bld_params(const Key &key, bool secret)
         !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_RSA_COEFFICIENT1, u.get())) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to push RSA secret params.");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     auto params = rnp::ossl::Param(OSSL_PARAM_BLD_to_param(bld.get()));
@@ -215,21 +215,21 @@ load_key(const Key &key, bool secret)
     /* Build params */
     auto params = bld_params(key, secret);
     if (!params) {
-        return NULL; // LCOV_EXCL_LINE
+        return nullptr; // LCOV_EXCL_LINE
     }
     /* Create context for key creation */
     rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Context allocation failed: %s", rnp::ossl::latest_err());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     /* Create key */
     if (EVP_PKEY_fromdata_init(ctx.get()) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to initialize key creation: %s", rnp::ossl::latest_err());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     EVP_PKEY *res = NULL;
