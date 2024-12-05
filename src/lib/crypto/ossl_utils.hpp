@@ -184,6 +184,8 @@ class BNCtx {
         }
     }
 
+    BNCtx(const BNCtx &) = delete;
+
     ~BNCtx()
     {
         BN_CTX_free(ctx_);
@@ -208,6 +210,8 @@ class BNRecpCtx {
   public:
     BNRecpCtx() : ctx_(BN_RECP_CTX_new()){};
 
+    BNRecpCtx(const BNRecpCtx &) = delete;
+
     ~BNRecpCtx()
     {
         BN_RECP_CTX_free(ctx_);
@@ -225,6 +229,8 @@ class BNMontCtx {
 
   public:
     BNMontCtx() : ctx_(BN_MONT_CTX_new()){};
+
+    BNMontCtx(const BNMontCtx &) = delete;
 
     ~BNMontCtx()
     {
@@ -381,6 +387,8 @@ class MDCtx {
   public:
     MDCtx() : ctx_(EVP_MD_CTX_new()){};
 
+    MDCtx(const MDCtx &) = delete;
+
     ~MDCtx()
     {
         EVP_MD_CTX_free(ctx_);
@@ -409,6 +417,8 @@ class RSA {
         rsa_ = RSA_new();
     }
 
+    RSA(const RSA &) = delete;
+
     ~RSA()
     {
         RSA_free(rsa_);
@@ -429,6 +439,8 @@ class DSA {
     {
         dsa_ = DSA_new();
     }
+
+    DSA(const DSA &) = delete;
 
     ~DSA()
     {
@@ -454,6 +466,8 @@ class DH {
     DH(const ::DH *dh) : dh_(NULL), dh_c_(dh)
     {
     }
+
+    DH(const DH &) = delete;
 
     ~DH()
     {
@@ -481,6 +495,8 @@ class ECKey {
     {
     }
 
+    ECKey(const ECKey &) = delete;
+
     ~ECKey()
     {
         EC_KEY_free(key_);
@@ -500,6 +516,8 @@ class ECPoint {
     ECPoint(const EC_GROUP *grp) : pt_(EC_POINT_new(grp))
     {
     }
+
+    ECPoint(const ECPoint &) = delete;
 
     ~ECPoint()
     {
@@ -553,6 +571,8 @@ class ParamBld {
     {
         bld_ = OSSL_PARAM_BLD_new();
     }
+
+    ParamBld(const ParamBld &) = delete;
 
     ~ParamBld()
     {
