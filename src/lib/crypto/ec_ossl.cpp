@@ -291,8 +291,8 @@ load_key(const pgp::mpi &keyp, const pgp::mpi *keyx, pgp_curve_t curve)
 #if defined(CRYPTO_BACKEND_OPENSSL3)
     return load_key_openssl3(keyp, keyx, *curv_desc);
 #else
-    rnp::ossl::ECKey ec(nid);
-    if (!ec.get()) {
+    rnp::ossl::ECKey ec(EC_KEY_new_by_curve_name(nid));
+    if (!ec) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to create EC key with group %s: %s",
                 curv_desc->openssl_name,
@@ -302,8 +302,8 @@ load_key(const pgp::mpi &keyp, const pgp::mpi *keyx, pgp_curve_t curve)
     }
 
     auto               group = EC_KEY_get0_group(ec.get());
-    rnp::ossl::ECPoint p(group);
-    if (!p.get()) {
+    rnp::ossl::ECPoint p(EC_POINT_new(group));
+    if (!p) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to allocate point: %lu", ERR_peek_last_error());
         return NULL;
