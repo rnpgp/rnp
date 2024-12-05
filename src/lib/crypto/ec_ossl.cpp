@@ -60,17 +60,17 @@ rnp::ossl::evp::PKey
 generate_pkey(const pgp_pubkey_alg_t alg_id, const pgp_curve_t curve)
 {
     if (!Curve::alg_allows(alg_id, curve)) {
-        return NULL;
+        return nullptr;
     }
     auto ec_desc = Curve::get(curve);
     if (!ec_desc) {
-        return NULL;
+        return nullptr;
     }
     int nid = OBJ_sn2nid(ec_desc->openssl_name);
     if (nid == NID_undef) {
         /* LCOV_EXCL_START */
         RNP_LOG("Unknown SN: %s", ec_desc->openssl_name);
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     bool                    raw = is_raw_key(curve);
@@ -78,19 +78,19 @@ generate_pkey(const pgp_pubkey_alg_t alg_id, const pgp_curve_t curve)
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to create ctx: %lu", ERR_peek_last_error());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     if (EVP_PKEY_keygen_init(ctx.get()) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to init keygen: %lu", ERR_peek_last_error());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     if (!raw && (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx.get(), nid) <= 0)) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to set curve nid: %lu", ERR_peek_last_error());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     EVP_PKEY *rawkey = NULL;
@@ -179,7 +179,7 @@ load_raw_key(const pgp::mpi &keyp, const pgp::mpi *keyx, int nid)
         /* as per RFC, EdDSA & 25519 keys must use 0x40 byte for encoding */
         if ((keyp.bytes() != 33) || (keyp.mpi[0] != 0x40)) {
             RNP_LOG("Invalid 25519 public key.");
-            return NULL;
+            return nullptr;
         }
         rnp::ossl::evp::PKey evpkey(
           EVP_PKEY_new_raw_public_key(nid, NULL, &keyp.mpi[1], keyp.bytes() - 1));
@@ -193,7 +193,7 @@ load_raw_key(const pgp::mpi &keyp, const pgp::mpi *keyx, int nid)
     if (nid == EVP_PKEY_X25519) {
         if (keyx->len != 32) {
             RNP_LOG("Invalid 25519 secret key");
-            return NULL;
+            return nullptr;
         }
         /* need to reverse byte order since in mpi we have big-endian */
         rnp::secure_array<uint8_t, 32> prkey;
@@ -204,7 +204,7 @@ load_raw_key(const pgp::mpi &keyp, const pgp::mpi *keyx, int nid)
     } else {
         if (keyx->len > 32) {
             RNP_LOG("Invalid Ed25519 secret key");
-            return NULL;
+            return nullptr;
         }
         /* keyx->len may be smaller then 32 as high byte is random and could become 0 */
         rnp::secure_array<uint8_t, 32> prkey{};
@@ -223,13 +223,13 @@ build_params(const pgp::mpi &p, const pgp::mpi *x, const char *curve)
 {
     rnp::ossl::ParamBld bld(OSSL_PARAM_BLD_new());
     if (!bld) {
-        return NULL;
+        return nullptr;
     }
     rnp::bn bx(x);
     if (!OSSL_PARAM_BLD_push_utf8_string(bld.get(), OSSL_PKEY_PARAM_GROUP_NAME, curve, 0) ||
         !OSSL_PARAM_BLD_push_octet_string(bld.get(), OSSL_PKEY_PARAM_PUB_KEY, p.mpi, p.len) ||
         (x && !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_PRIV_KEY, bx.get()))) {
-        return NULL; // LCOV_EXCL_LINE
+        return nullptr; // LCOV_EXCL_LINE
     }
     return rnp::ossl::Param(OSSL_PARAM_BLD_to_param(bld.get()));
 }
@@ -241,14 +241,14 @@ load_key_openssl3(const pgp::mpi &keyp, const pgp::mpi *keyx, const Curve &curv_
     if (!params) {
         /* LCOV_EXCL_START */
         RNP_LOG("failed to build ec params");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("failed to create ec context");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     EVP_PKEY *evpkey = NULL;
@@ -271,17 +271,17 @@ load_key(const pgp::mpi &keyp, const pgp::mpi *keyx, pgp_curve_t curve)
     auto curv_desc = Curve::get(curve);
     if (!curv_desc) {
         RNP_LOG("unknown curve");
-        return NULL;
+        return nullptr;
     }
     if (!Curve::is_supported(curve)) {
         RNP_LOG("Curve %s is not supported.", curv_desc->pgp_name);
-        return NULL;
+        return nullptr;
     }
     int nid = OBJ_sn2nid(curv_desc->openssl_name);
     if (nid == NID_undef) {
         /* LCOV_EXCL_START */
         RNP_LOG("Unknown SN: %s", curv_desc->openssl_name);
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     /* EdDSA and X25519 keys are loaded in a different way */
@@ -297,7 +297,7 @@ load_key(const pgp::mpi &keyp, const pgp::mpi *keyx, pgp_curve_t curve)
         RNP_LOG("Failed to create EC key with group %s: %s",
                 curv_desc->openssl_name,
                 rnp::ossl::latest_err());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
 
@@ -306,19 +306,19 @@ load_key(const pgp::mpi &keyp, const pgp::mpi *keyx, pgp_curve_t curve)
     if (!p) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to allocate point: %lu", ERR_peek_last_error());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     if (EC_POINT_oct2point(group, p.get(), keyp.mpi, keyp.len, NULL) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to decode point: %lu", ERR_peek_last_error());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     if (EC_KEY_set_public_key(ec.get(), p.get()) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to set public key: %lu", ERR_peek_last_error());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
 
@@ -326,12 +326,12 @@ load_key(const pgp::mpi &keyp, const pgp::mpi *keyx, pgp_curve_t curve)
     if (!pkey) {
         /* LCOV_EXCL_START */
         RNP_LOG("EVP_PKEY allocation failed: %lu", ERR_peek_last_error());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
 
     if (EVP_PKEY_set1_EC_KEY(pkey.get(), ec.get()) <= 0) {
-        return NULL;
+        return nullptr;
     }
 
     if (!keyx) {
@@ -342,13 +342,13 @@ load_key(const pgp::mpi &keyp, const pgp::mpi *keyx, pgp_curve_t curve)
     if (!x) {
         /* LCOV_EXCL_START */
         RNP_LOG("allocation failed");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     if (EC_KEY_set_private_key(ec.get(), x.get()) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to set secret key: %lu", ERR_peek_last_error());
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     return pkey;
