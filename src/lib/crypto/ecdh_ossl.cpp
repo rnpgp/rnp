@@ -212,7 +212,7 @@ ecdh_derive_secret(rnp::ossl::evp::PKey &sec,
                    uint8_t *             x,
                    size_t *              xlen)
 {
-    rnp::ossl::evp::Ctx ctx(sec);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new(sec.get(), NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
