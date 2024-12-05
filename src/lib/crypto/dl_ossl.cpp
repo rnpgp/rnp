@@ -43,14 +43,15 @@ static rnp::ossl::Param
 dl_build_params(
   const rnp::bn &p, const rnp::bn &q, const rnp::bn &g, const rnp::bn &y, const rnp::bn &x)
 {
-    rnp::ossl::ParamBld bld;
-    if (!bld || !bld.push(OSSL_PKEY_PARAM_FFC_P, p) ||
-        (q && !bld.push(OSSL_PKEY_PARAM_FFC_Q, q)) || !bld.push(OSSL_PKEY_PARAM_FFC_G, g) ||
-        !bld.push(OSSL_PKEY_PARAM_PUB_KEY, y) ||
-        (x && !bld.push(OSSL_PKEY_PARAM_PRIV_KEY, x))) {
+    rnp::ossl::ParamBld bld(OSSL_PARAM_BLD_new());
+    if (!bld || !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_FFC_P, p.c_get()) ||
+        (q && !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_FFC_Q, q.c_get())) ||
+        !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_FFC_G, g.c_get()) ||
+        !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_PUB_KEY, y.c_get()) ||
+        (x && !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_PRIV_KEY, x.c_get()))) {
         return rnp::ossl::Param(); // LCOV_EXCL_LINE
     }
-    return bld.to_param();
+    return rnp::ossl::Param(OSSL_PARAM_BLD_to_param(bld.get()));
 }
 #endif
 
@@ -148,11 +149,11 @@ dl_validate_secret_key(rnp::ossl::evp::PKey &dlkey, const pgp::mpi &mx)
     const rnp::bn y(DH_get0_pub_key(dh.get()));
     assert(p && g && y);
 
-    rnp::ossl::BNCtx ctx;
+    rnp::ossl::BNCtx ctx(BN_CTX_new());
     rnp::bn          x(mx);
     rnp::bn          cy(BN_new());
 
-    if (!x || !cy || !ctx.get()) {
+    if (!x || !cy || !ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Allocation failed");
         return RNP_ERROR_GENERIC;
@@ -181,8 +182,8 @@ dl_validate_secret_key(rnp::ossl::evp::PKey &dlkey, const pgp::mpi &mx)
         RNP_LOG("x is too large.");
         return RNP_ERROR_GENERIC;
     }
-    if (BN_mod_exp_mont_consttime(cy.get(), g.c_get(), x.c_get(), p.c_get(), ctx.get(), NULL) <
-        1) {
+    BN_CTX_start(ctx);
+    if (BN_mod_exp_mont_consttime(cy.get(), g.c_get(), x.c_get(), p.c_get(), ctx, NULL) < 1) {
         RNP_LOG("Exponentiation failed");
         return RNP_ERROR_GENERIC;
     }

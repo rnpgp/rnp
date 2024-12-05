@@ -52,17 +52,18 @@ namespace eg {
 bool
 Key::validate(bool secret) const noexcept
 {
-    rnp::ossl::BNCtx ctx;
-    if (!ctx.get()) {
+    rnp::ossl::BNCtx ctx(BN_CTX_new());
+    if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Allocation failed.");
         return false;
         /* LCOV_EXCL_END */
     }
+    BN_CTX_start(ctx.get());
     rnp::bn op(p);
     rnp::bn og(g);
-    auto    p1 = ctx.bn();
-    auto    r = ctx.bn();
+    auto    p1 = BN_CTX_get(ctx.get());
+    auto    r = BN_CTX_get(ctx.get());
 
     if (!op || !og || !p1 || !r) {
         return false;
@@ -84,9 +85,8 @@ Key::validate(bool secret) const noexcept
         return false;
     }
     /* check for small order subgroups */
-    rnp::ossl::BNRecpCtx rctx;
-    if (!rctx.get() || !BN_RECP_CTX_set(rctx.get(), op.get(), ctx.get()) ||
-        !BN_copy(r, og.get())) {
+    rnp::ossl::BNRecpCtx rctx(BN_RECP_CTX_new());
+    if (!rctx || !BN_RECP_CTX_set(rctx.get(), op.get(), ctx.get()) || !BN_copy(r, og.get())) {
         RNP_LOG("Failed to init RECP context.");
         return false;
     }
@@ -178,8 +178,8 @@ Key::encrypt_pkcs1(rnp::RNG &rng, Encrypted &out, const uint8_t *in, size_t in_l
         return RNP_ERROR_BAD_PARAMETERS;
         /* LCOV_EXCL_END */
     }
-    rnp::ossl::BNCtx ctx;
-    if (!ctx.get()) {
+    rnp::ossl::BNCtx ctx(BN_CTX_new());
+    if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Allocation failed.");
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -189,8 +189,9 @@ Key::encrypt_pkcs1(rnp::RNG &rng, Encrypted &out, const uint8_t *in, size_t in_l
     rnp::bn op(p);
     rnp::bn og(g);
     rnp::bn oy(y);
-    auto    c1 = ctx.bn();
-    auto    c2 = ctx.bn();
+    BN_CTX_start(ctx.get());
+    auto    c1 = BN_CTX_get(ctx.get());
+    auto    c2 = BN_CTX_get(ctx.get());
     rnp::bn k(BN_secure_new());
     if (!m || !op || !og || !oy || !c1 || !c2 || !k) {
         /* LCOV_EXCL_START */
@@ -199,8 +200,8 @@ Key::encrypt_pkcs1(rnp::RNG &rng, Encrypted &out, const uint8_t *in, size_t in_l
         /* LCOV_EXCL_END */
     }
     /* initialize Montgomery context */
-    rnp::ossl::BNMontCtx mctx;
-    if (!mctx.get() || (BN_MONT_CTX_set(mctx.get(), op.get(), ctx.get()) < 1)) {
+    rnp::ossl::BNMontCtx mctx(BN_MONT_CTX_new());
+    if (!mctx || (BN_MONT_CTX_set(mctx.get(), op.get(), ctx.get()) < 1)) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to setup Montgomery context.");
         return RNP_ERROR_GENERIC;
@@ -256,8 +257,8 @@ Key::decrypt_pkcs1(rnp::RNG &rng, uint8_t *out, size_t *out_len, const Encrypted
         RNP_LOG("Secret key not set.");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    rnp::ossl::BNCtx ctx;
-    if (!ctx.get()) {
+    rnp::ossl::BNCtx ctx(BN_CTX_new());
+    if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Allocation failed.");
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -268,7 +269,8 @@ Key::decrypt_pkcs1(rnp::RNG &rng, uint8_t *out, size_t *out_len, const Encrypted
     rnp::bn ox(x);
     rnp::bn c1(in.g);
     rnp::bn c2(in.m);
-    auto    s = ctx.bn();
+    BN_CTX_start(ctx.get());
+    auto    s = BN_CTX_get(ctx.get());
     rnp::bn m(BN_secure_new());
     if (!op || !og || !ox || !c1 || !c2 || !m) {
         /* LCOV_EXCL_START */
@@ -277,7 +279,7 @@ Key::decrypt_pkcs1(rnp::RNG &rng, uint8_t *out, size_t *out_len, const Encrypted
         /* LCOV_EXCL_END */
     }
     /* initialize Montgomery context */
-    rnp::ossl::BNMontCtx mctx;
+    rnp::ossl::BNMontCtx mctx(BN_MONT_CTX_new());
     if (BN_MONT_CTX_set(mctx.get(), op.get(), ctx.get()) < 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to setup Montgomery context.");
