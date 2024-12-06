@@ -31,7 +31,6 @@
 #include <librekey/key_store_g10.h>
 #include <librepgp/stream-packet.h>
 #include "crypto.h"
-#include "pgp-key.h"
 #include "defaults.h"
 #include "utils.h"
 
