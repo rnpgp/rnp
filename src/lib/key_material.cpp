@@ -2022,7 +2022,7 @@ MlkemEcdhKeyMaterial::decrypt(rnp::SecurityContext &ctx,
     }
     out.resize(PGP_MPINT_SIZE);
     size_t out_size = out.size();
-    auto   ret = key_.priv.decrypt(&ctx.rng, out.data(), &out_size, &mlkem->enc, pub().get_kyber_encoded());
+    auto   ret = key_.priv.decrypt(&ctx.rng, out.data(), &out_size, &mlkem->enc, pub());
     if (!ret) {
         out.resize(out_size);
     }
