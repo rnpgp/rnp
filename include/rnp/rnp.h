@@ -1553,10 +1553,10 @@ RNP_API rnp_result_t rnp_key_get_signature_at(rnp_key_handle_t        key,
 /**
  * @brief Create new direct-key signature over the target, issued by signer. It may be
  *        customized via the rnp_signature_set_* calls, and finalized via the
- *        rnp_signature_sign() call.
+ *        rnp_key_signature_sign() call.
  *
  * @param signer signing key, must be secret, and must exist in the keyring up to the
- *               rnp_signature_sign() call. Cannot be NULL.
+ *               rnp_key_signature_sign() call. Cannot be NULL.
  * @param target target key for which signature should be made. May be NULL, then signature
  *               over the signer (self-signature) will be made.
  *
@@ -1572,10 +1572,10 @@ RNP_API rnp_result_t rnp_key_direct_signature_create(rnp_key_handle_t        sig
  * @brief Create new certification signature, issued by the signer. This could be
  *        self-certification (if uid belongs to the signer key) or certification of the other
  *        key. This signature could be customized by rnp_signature_set_* calls and finalized
- *        via the rnp_signature_sign() call.
+ *        via the rnp_key_signature_sign() call.
  *
  * @param signer signing key, must be secret, and must exist in the keyring up to the
- *               rnp_signature_sign() call. Cannot be NULL.
+ *               rnp_key_signature_sign() call. Cannot be NULL.
  * @param uid user id which should be certified, i.e. bound to the key with signature.
  *            Cannot be NULL.
  * @param type certification type. May be one of the RNP_CERTIFICATION_* values, or NULL
@@ -1596,10 +1596,10 @@ RNP_API rnp_result_t rnp_key_certification_create(rnp_key_handle_t        signer
 /**
  * @brief Create new key or subkey revocation signature. It may be
  *        customized via the rnp_signature_set_* calls, and finalized via the
- *        rnp_signature_sign() call.
+ *        rnp_key_signature_sign() call.
  *
  * @param signer revoker's key, must be secret, and must exist in the keyring up to the
- *               rnp_signature_sign() call. Cannot be NULL.
+ *               rnp_key_signature_sign() call. Cannot be NULL.
  * @param target target key for which signature should be made. May be NULL, then signer will
  *               revoke itself.
  *
