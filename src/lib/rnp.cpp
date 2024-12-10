@@ -2174,7 +2174,7 @@ try {
     if (!output || !path) {
         return RNP_ERROR_NULL_POINTER;
     }
-    ob = (rnp_output_st *) calloc(1, sizeof(*ob));
+    ob = new (std::nothrow) rnp_output_st{};
     if (!ob) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
@@ -2183,7 +2183,7 @@ try {
         ob->dst_directory = strdup(path);
         if (!ob->dst_directory) {
             /* LCOV_EXCL_START */
-            free(ob);
+            delete ob;
             return RNP_ERROR_OUT_OF_MEMORY;
             /* LCOV_EXCL_END */
         }
@@ -2191,7 +2191,7 @@ try {
         // simple output to a file
         rnp_result_t ret = init_file_dest(&ob->dst, path, true);
         if (ret) {
-            free(ob);
+            delete ob;
             return ret;
         }
     }
@@ -2211,7 +2211,7 @@ try {
     if (flags) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    rnp_output_t res = (rnp_output_t) calloc(1, sizeof(*res));
+    rnp_output_t res = new (std::nothrow) rnp_output_st{};
     if (!res) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
@@ -2222,7 +2222,7 @@ try {
         ret = init_file_dest(&res->dst, path, overwrite);
     }
     if (ret) {
-        free(res);
+        delete res;
         return ret;
     }
     *output = res;
@@ -2236,13 +2236,13 @@ try {
     if (!output) {
         return RNP_ERROR_NULL_POINTER;
     }
-    rnp_output_t res = (rnp_output_t) calloc(1, sizeof(*res));
+    rnp_output_t res = new (std::nothrow) rnp_output_st{};
     if (!res) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     rnp_result_t ret = init_stdout_dest(&res->dst);
     if (ret) {
-        free(res);
+        delete res;
         return ret;
     }
     *output = res;
@@ -2258,14 +2258,14 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *output = (rnp_output_t) calloc(1, sizeof(**output));
+    *output = new (std::nothrow) rnp_output_st{};
     if (!*output) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     rnp_result_t ret = init_mem_dest(&(*output)->dst, NULL, max_alloc);
     if (ret) {
         /* LCOV_EXCL_START */
-        free(*output);
+        delete *output;
         *output = NULL;
         /* LCOV_EXCL_END */
     }
@@ -2288,14 +2288,14 @@ try {
             return RNP_ERROR_BAD_PARAMETERS;
         }
     }
-    *output = (rnp_output_t) calloc(1, sizeof(**output));
+    *output = new (std::nothrow) rnp_output_st{};
     if (!*output) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     rnp_result_t ret = init_armored_dst(&(*output)->dst, &base->dst, msgtype);
     if (ret) {
         /* LCOV_EXCL_START */
-        free(*output);
+        delete *output;
         *output = NULL;
         return ret;
         /* LCOV_EXCL_END */
@@ -2359,14 +2359,14 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *output = (rnp_output_t) calloc(1, sizeof(**output));
+    *output = new (std::nothrow) rnp_output_st{};
     if (!*output) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     rnp_result_t ret = init_null_dest(&(*output)->dst);
     if (ret) {
         /* LCOV_EXCL_START */
-        free(*output);
+        delete *output;
         *output = NULL;
         /* LCOV_EXCL_END */
     }
@@ -2407,7 +2407,7 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *output = (rnp_output_t) calloc(1, sizeof(**output));
+    *output = new (std::nothrow) rnp_output_st{};
     if (!*output) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
@@ -2445,7 +2445,7 @@ try {
         }
         dst_close(&output->dst, !output->keep);
         free(output->dst_directory);
-        free(output);
+        delete output;
     }
     return RNP_SUCCESS;
 }
