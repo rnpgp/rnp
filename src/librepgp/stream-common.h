@@ -236,18 +236,24 @@ rnp_result_t read_mem_src(pgp_source_t *src, pgp_source_t *readsrc);
 const void *mem_src_get_memory(pgp_source_t *src, bool own = false);
 
 typedef struct pgp_dest_t {
-    pgp_dest_write_func_t * write;
-    pgp_dest_finish_func_t *finish;
-    pgp_dest_close_func_t * close;
-    pgp_stream_type_t       type;
-    rnp_result_t            werr; /* write function may set this to some error code */
+    pgp_dest_write_func_t * write = nullptr;
+    pgp_dest_finish_func_t *finish = nullptr;
+    pgp_dest_close_func_t * close = nullptr;
+    pgp_stream_type_t       type = PGP_STREAM_NULL;
+    rnp_result_t werr = RNP_SUCCESS; /* write function may set this to some error code */
 
-    size_t   writeb;   /* number of bytes written */
-    void *   param;    /* source-specific additional data */
-    bool     no_cache; /* disable write caching */
-    uint8_t  cache[PGP_OUTPUT_CACHE_SIZE];
-    unsigned clen;     /* number of bytes in cache */
-    bool     finished; /* whether dst_finish was called on dest or not */
+    size_t               writeb = 0;      /* number of bytes written */
+    void *               param = nullptr; /* source-specific additional data */
+    bool                 no_cache = 0;    /* disable write caching */
+    std::vector<uint8_t> cache = std::vector<uint8_t>(PGP_OUTPUT_CACHE_SIZE);
+    unsigned             clen = 0;     /* number of bytes in cache */
+    bool                 finished = 0; /* whether dst_finish was called on dest or not */
+
+    pgp_dest_t(size_t paramsize = 0);
+
+    pgp_dest_t &operator=(const pgp_dest_t &) = delete;
+    pgp_dest_t(const pgp_dest_t &) = delete;
+    pgp_dest_t &operator=(pgp_dest_t &&) = default;
 } pgp_dest_t;
 
 /** @brief helper function to allocate memory for dest's param.
