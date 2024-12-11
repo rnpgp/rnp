@@ -275,7 +275,9 @@ init_indent_dest(pgp_dest_t *dst, pgp_dest_t *origdst)
 {
     pgp_dest_indent_param_t *param;
 
-    if (!init_dst_common(dst, sizeof(*param))) {
+    try {
+        *dst = pgp_dest_t(sizeof(*param));
+    } catch (const std::exception &e) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
@@ -1289,7 +1291,7 @@ stream_dump_sk_session_key(pgp_source_t *src, pgp_dest_t *dst)
 static bool
 stream_dump_get_aead_hdr(pgp_source_t *src, pgp_aead_hdr_t *hdr)
 {
-    pgp_dest_t encdst = {};
+    pgp_dest_t encdst;
     uint8_t    encpkt[64] = {};
 
     if (init_mem_dest(&encdst, &encpkt, sizeof(encpkt))) {

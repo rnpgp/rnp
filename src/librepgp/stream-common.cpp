@@ -603,20 +603,31 @@ mem_src_get_memory(pgp_source_t *src, bool own)
     return param->memory;
 }
 
+pgp_dest_t::pgp_dest_t(size_t paramsize)
+{
+    werr = RNP_SUCCESS;
+    if (!paramsize) {
+        return;
+    }
+    /* allocate param */
+    param = calloc(1, paramsize);
+    if (!param) {
+        RNP_LOG("allocation failed");
+        throw rnp::rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
+    }
+}
+
+// pgp_dest_t constructor do the same job, but we keep this function to preserve api
 bool
 init_dst_common(pgp_dest_t *dst, size_t paramsize)
 {
-    memset(dst, 0, sizeof(*dst));
-    dst->werr = RNP_SUCCESS;
-    if (!paramsize) {
-        return true;
+    try {
+        *dst = pgp_dest_t(paramsize);
+    } catch (const std::exception &e) {
+        return false;
     }
-    /* allocate param */
-    dst->param = calloc(1, paramsize);
-    if (!dst->param) {
-        RNP_LOG("allocation failed");
-    }
-    return dst->param;
+
+    return true;
 }
 
 void
@@ -625,12 +636,12 @@ dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     /* we call write function only if all previous calls succeeded */
     if ((len > 0) && (dst->write) && (dst->werr == RNP_SUCCESS)) {
         /* if cache non-empty and len will overflow it then fill it and write out */
-        if ((dst->clen > 0) && (dst->clen + len > sizeof(dst->cache))) {
-            memcpy(dst->cache + dst->clen, buf, sizeof(dst->cache) - dst->clen);
-            buf = (uint8_t *) buf + sizeof(dst->cache) - dst->clen;
-            len -= sizeof(dst->cache) - dst->clen;
-            dst->werr = dst->write(dst, dst->cache, sizeof(dst->cache));
-            dst->writeb += sizeof(dst->cache);
+        if ((dst->clen > 0) && (dst->clen + len > dst->cache.size())) {
+            memcpy(dst->cache.data() + dst->clen, buf, dst->cache.size() - dst->clen);
+            buf = (uint8_t *) buf + dst->cache.size() - dst->clen;
+            len -= dst->cache.size() - dst->clen;
+            dst->werr = dst->write(dst, dst->cache.data(), dst->cache.size());
+            dst->writeb += dst->cache.size();
             dst->clen = 0;
             if (dst->werr != RNP_SUCCESS) {
                 return;
@@ -638,13 +649,13 @@ dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         }
 
         /* here everything will fit into the cache or cache is empty */
-        if (dst->no_cache || (len > sizeof(dst->cache))) {
+        if (dst->no_cache || (len > dst->cache.size())) {
             dst->werr = dst->write(dst, buf, len);
             if (!dst->werr) {
                 dst->writeb += len;
             }
         } else {
-            memcpy(dst->cache + dst->clen, buf, len);
+            memcpy(dst->cache.data() + dst->clen, buf, len);
             dst->clen += len;
         }
     }
@@ -672,7 +683,7 @@ void
 dst_flush(pgp_dest_t *dst)
 {
     if ((dst->clen > 0) && (dst->write) && (dst->werr == RNP_SUCCESS)) {
-        dst->werr = dst->write(dst, dst->cache, dst->clen);
+        dst->werr = dst->write(dst, dst->cache.data(), dst->clen);
         dst->writeb += dst->clen;
         dst->clen = 0;
     }
@@ -758,11 +769,9 @@ file_dst_close(pgp_dest_t *dst, bool discard)
 static rnp_result_t
 init_fd_dest(pgp_dest_t *dst, int fd, const char *path)
 {
-    if (!init_dst_common(dst, 0)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
     try {
+        *dst = pgp_dest_t(0);
+
         std::unique_ptr<pgp_dest_file_param_t> param(new pgp_dest_file_param_t());
         param->path = path;
         param->fd = fd;
@@ -1008,7 +1017,9 @@ init_mem_dest(pgp_dest_t *dst, void *mem, unsigned len)
 {
     pgp_dest_mem_param_t *param;
 
-    if (!init_dst_common(dst, sizeof(*param))) {
+    try {
+        *dst = pgp_dest_t(sizeof(*param));
+    } catch (const std::exception &e) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
