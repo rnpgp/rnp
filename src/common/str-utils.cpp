@@ -185,14 +185,14 @@ is_slash(char c)
 std::wstring
 wstr_from_utf8(const char *s)
 {
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> utf8conv;
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> utf8conv;
     return utf8conv.from_bytes(s);
 }
 
 std::wstring
 wstr_from_utf8(const char *first, const char *last)
 {
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> utf8conv;
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> utf8conv;
     return utf8conv.from_bytes(first, last);
 }
 
@@ -205,7 +205,7 @@ wstr_from_utf8(const std::string &s)
 std::string
 wstr_to_utf8(const wchar_t *ws)
 {
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> utf8conv;
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> utf8conv;
     return utf8conv.to_bytes(ws);
 }
 
