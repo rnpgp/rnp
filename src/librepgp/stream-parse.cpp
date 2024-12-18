@@ -1537,35 +1537,31 @@ encrypted_start_aead(pgp_source_encrypted_param_t *param, pgp_symm_alg_t alg, ui
 #endif
 }
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
-/* The crypto refresh mandates that for a X25519/X448 PKESKv3, AES MUST be used.
-   The same is true for the PQC algorithms
- */
 static bool
-do_enforce_aes_v3pkesk(pgp_pubkey_alg_t alg)
+check_decrypted_symkey(pgp_pubkey_alg_t alg, size_t keylen, rnp::secure_bytes &decbuf)
 {
-    switch (alg) {
-#if defined(ENABLE_PQC)
-    case PGP_PKA_KYBER768_X25519:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384:
-        FALLTHROUGH_STATEMENT;
-#endif
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_X25519:
-#endif
-        return true;
-    default:
+    /* Validate size */
+    size_t inc = have_pkesk_checksum(alg) ? 2 : 0;
+    if (decbuf.size() != keylen + inc) {
+        RNP_LOG("invalid symmetric key length");
         return false;
     }
+    /* Will be always true for non-experimental pqc/crypto-refresh */
+    if (!have_pkesk_checksum(alg)) {
+        return true;
+    }
+    /* Validate checksum */
+    rnp::secure_array<uint16_t, 1> checksum;
+    for (size_t i = 0; i < decbuf.size() - 2; i++) {
+        checksum[0] += decbuf[i];
+    }
+    if (checksum[0] != (decbuf[keylen + 1] | ((uint16_t) decbuf[keylen] << 8))) {
+        RNP_LOG("wrong checksum");
+        return false;
+    }
+    decbuf.resize(keylen);
+    return true;
 }
-#endif
 
 static bool
 encrypted_try_key(pgp_source_encrypted_param_t *param,
@@ -1604,23 +1600,15 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
 
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
     /* check that AES is used when mandated by the standard */
-    if (do_enforce_aes_v3pkesk(sesskey.alg) && sesskey.version == PGP_PKSK_V3) {
-        switch (sesskey.salg) {
-        case PGP_SA_AES_128:
-        case PGP_SA_AES_192:
-        case PGP_SA_AES_256:
-            break;
-        default:
-            RNP_LOG("For the given asymmetric encryption algorithm in the PKESK, only AES is "
-                    "allowed but another algorithm has been detected.");
-            return false;
-        }
+    if (!check_enforce_aes_v3_pkesk(sesskey.alg, sesskey.salg, sesskey.version)) {
+        RNP_LOG("For the given asymmetric encryption algorithm in the PKESK, only AES is "
+                "allowed but another algorithm has been detected.");
+        return false;
     }
 #endif
 
-    rnp::secure_array<uint8_t, PGP_MPINT_SIZE> decbuf;
+    rnp::secure_bytes decbuf(PGP_MPINT_SIZE, 0);
     /* Decrypting session key value */
-    bool   res = false;
     size_t declen = decbuf.size();
 
     if (sesskey.alg == PGP_PKA_ECDH) {
@@ -1630,97 +1618,52 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     if (err) {
         return false;
     }
+    decbuf.resize(declen);
 
-    uint8_t *decbuf_sesskey = decbuf.data();
-    size_t   decbuf_sesskey_len = declen;
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
-    if (do_encrypt_pkesk_v3_alg_id(sesskey.alg))
-#endif
-    {
+    /* This is always true for non-experimental pqc/crypto refresh */
+    if (do_encrypt_pkesk_v3_alg_id(sesskey.alg)) {
         sesskey.salg = static_cast<pgp_symm_alg_t>(decbuf[0]);
+        decbuf.erase(decbuf.begin());
     }
-    size_t keylen = pgp_key_size(sesskey.salg);
+    size_t keylen = 0;
     if (sesskey.version == PGP_PKSK_V3) {
-        /* Check algorithm and key length */
-        if (!pgp_is_sa_supported(sesskey.salg)) {
-            RNP_LOG("Unsupported symmetric algorithm %d", (int) sesskey.salg);
-            return false;
-        }
-
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
-        size_t alg_id_bytes = do_encrypt_pkesk_v3_alg_id(sesskey.alg) ? 1 : 0;
-        size_t checksum_bytes = have_pkesk_checksum(sesskey.alg) ? 2 : 0;
-#else
-        size_t alg_id_bytes = 1;
-        size_t checksum_bytes = 2;
-#endif
-
-        if (decbuf_sesskey_len != keylen + alg_id_bytes + checksum_bytes) {
-            RNP_LOG("invalid symmetric key length");
-            return false;
-        }
-
-        /* skip over the first byte (if present) to aligns the code for all cases. */
-        decbuf_sesskey += alg_id_bytes;
+        keylen = pgp_key_size(sesskey.salg);
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
-    else { // V6 PKESK
-        /* compute the expected key length from the decbuf_sesskey_len and check */
-        keylen =
-          have_pkesk_checksum(sesskey.alg) ? decbuf_sesskey_len - 2 : decbuf_sesskey_len;
-        if (pgp_key_size(param->aead_hdr.ealg) != keylen) {
-            RNP_LOG("invalid symmetric key length");
-            return false;
-        }
+    else if (sesskey.version == PGP_PKSK_V6) { // V6 PKESK
+        keylen = pgp_key_size(param->aead_hdr.ealg);
     }
 #endif
+    /* Check checksum if there is one */
+    if (!check_decrypted_symkey(sesskey.alg, keylen, decbuf)) {
+        return false;
+    }
 
 #if defined(ENABLE_PQC_DBG_LOG)
     RNP_LOG_U8VEC("Session Key: %s",
-                  std::vector<uint8_t>(decbuf_sesskey, decbuf_sesskey + keylen));
+                  std::vector<uint8_t>(decbuf.data(), decbuf.data() + keylen));
 #endif
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
-    if (have_pkesk_checksum(sesskey.alg))
-#endif
-    {
-        /* Validate checksum */
-        rnp::secure_array<unsigned, 1> checksum;
-        for (unsigned i = 0; i < keylen; i++) {
-            checksum[0] += decbuf_sesskey[i];
-        }
-
-        if ((checksum[0] & 0xffff) !=
-            (decbuf_sesskey[keylen + 1] | ((unsigned) decbuf_sesskey[keylen] << 8))) {
-            RNP_LOG("wrong checksum\n");
-            return false;
-        }
-    }
-
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
-    if (sesskey.version == PGP_PKSK_V3)
-#endif
-    {
-        if (param->use_cfb()) {
-            /* Decrypt header */
-            res = encrypted_decrypt_cfb_header(param, sesskey.salg, decbuf_sesskey);
-        } else {
-            /* Start AEAD decrypting, assuming we have correct key */
-            res = encrypted_start_aead(param, sesskey.salg, decbuf_sesskey);
-        }
-        if (res) {
-            param->salg = sesskey.salg;
-        }
-        return res;
-    }
 #if defined(ENABLE_CRYPTO_REFRESH)
-    else { // PGP_PKSK_V6
-        pgp_symm_alg_t salg =
-          param->aead_hdr.ealg; // NOTEMTG: salg not part of the v6 PKESK, assignment here
-                                // just to make the following call "happy"
-        return encrypted_start_aead(param, salg, decbuf_sesskey);
+    if (sesskey.version == PGP_PKSK_V6) { // PGP_PKSK_V6
+        /* NOTEMTG: salg not part of the v6 PKESK, assignment here just to make the following
+         * call "happy" */
+        return encrypted_start_aead(param, param->aead_hdr.ealg, decbuf.data());
     }
 #endif
+    /* v3 PKSK by default */
+    bool res = false;
+    if (param->use_cfb()) {
+        /* Decrypt header */
+        res = encrypted_decrypt_cfb_header(param, sesskey.salg, decbuf.data());
+    } else {
+        /* Start AEAD decrypting, assuming we have correct key */
+        res = encrypted_start_aead(param, sesskey.salg, decbuf.data());
+    }
+    if (res) {
+        param->salg = sesskey.salg;
+    }
+    return res;
 }
 
 #if defined(ENABLE_AEAD)

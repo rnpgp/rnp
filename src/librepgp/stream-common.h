@@ -556,9 +556,12 @@ class MemoryDest : public Dest {
 };
 } // namespace rnp
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 bool have_pkesk_checksum(pgp_pubkey_alg_t alg);
 bool do_encrypt_pkesk_v3_alg_id(pgp_pubkey_alg_t alg);
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+bool check_enforce_aes_v3_pkesk(pgp_pubkey_alg_t    alg,
+                                pgp_symm_alg_t      salg,
+                                pgp_pkesk_version_t ver);
 #endif
 
 #endif
