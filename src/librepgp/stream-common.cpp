@@ -1189,11 +1189,11 @@ dst_write_src(pgp_source_t *src, pgp_dest_t *dst, uint64_t limit)
     return dst->werr;
 }
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 bool
 have_pkesk_checksum(pgp_pubkey_alg_t alg)
 {
     switch (alg) {
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_X25519:
 #endif
@@ -1206,6 +1206,7 @@ have_pkesk_checksum(pgp_pubkey_alg_t alg)
     case PGP_PKA_KYBER1024_BP384:
 #endif
         return false;
+#endif
     default:
         return true;
     }
@@ -1216,5 +1217,29 @@ do_encrypt_pkesk_v3_alg_id(pgp_pubkey_alg_t alg)
 {
     /* matches the same algorithms */
     return have_pkesk_checksum(alg);
+}
+
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+/* The crypto refresh mandates that for a X25519/X448 PKESKv3, AES MUST be used.
+   The same is true for the PQC algorithms
+ */
+bool
+check_enforce_aes_v3_pkesk(pgp_pubkey_alg_t alg, pgp_symm_alg_t salg, pgp_pkesk_version_t ver)
+{
+    if (ver != PGP_PKSK_V3) {
+        return true;
+    }
+    /* The same algorithms */
+    if (have_pkesk_checksum(alg)) {
+        return true;
+    }
+    switch (salg) {
+    case PGP_SA_AES_128:
+    case PGP_SA_AES_192:
+    case PGP_SA_AES_256:
+        return true;
+    default:
+        return false;
+    }
 }
 #endif
