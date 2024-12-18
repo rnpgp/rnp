@@ -54,7 +54,7 @@ pgp_s2k_iterated(pgp_hash_alg_t alg,
         size_t pswd_len = strlen(password);
         size_t salt_len = salt ? PGP_SALT_SIZE : 0;
 
-        rnp::secure_vector<uint8_t> data(salt_len + pswd_len);
+        rnp::secure_bytes data(salt_len + pswd_len);
         if (salt_len) {
             memcpy(data.data(), salt, PGP_SALT_SIZE);
         }
@@ -78,8 +78,8 @@ pgp_s2k_iterated(pgp_hash_alg_t alg,
                     left -= to_hash;
                 }
             }
-            rnp::secure_vector<uint8_t> dgst(hash_len);
-            size_t                      out_cpy = std::min(dgst.size(), output_len);
+            rnp::secure_bytes dgst(hash_len);
+            size_t            out_cpy = std::min(dgst.size(), output_len);
             if (hash->finish(dgst.data()) != dgst.size()) {
                 RNP_LOG("Unexpected digest size.");
                 return 1;
