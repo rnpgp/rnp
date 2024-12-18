@@ -286,7 +286,7 @@ ecdh_encrypt_pkcs5(rnp::RNG &               rng,
         return RNP_ERROR_BAD_PARAMETERS;
         /* LCOV_EXCL_END */
     }
-    rnp::secure_vector<uint8_t>                      sec(MAX_CURVE_BYTELEN + 1, 0);
+    rnp::secure_bytes                                sec(MAX_CURVE_BYTELEN + 1, 0);
     rnp::secure_array<uint8_t, MAX_AES_KEY_SIZE>     kek;
     rnp::secure_array<uint8_t, MAX_SESSION_KEY_SIZE> mpad;
 

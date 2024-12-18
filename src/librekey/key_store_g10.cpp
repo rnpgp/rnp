@@ -1080,7 +1080,7 @@ gnupg_sexp_t::add_seckey(const pgp_key_pkt_t &key)
     }
 }
 
-rnp::secure_vector<uint8_t>
+rnp::secure_bytes
 gnupg_sexp_t::write_padded(size_t padblock) const
 {
     rnp::MemoryDest raw;
@@ -1101,7 +1101,7 @@ gnupg_sexp_t::write_padded(size_t padblock) const
         throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
     const uint8_t *mem = (uint8_t *) raw.memory();
-    return rnp::secure_vector<uint8_t>(mem, mem + raw.writeb());
+    return rnp::secure_bytes(mem, mem + raw.writeb());
 }
 
 void
@@ -1147,7 +1147,7 @@ gnupg_sexp_t::add_protected_seckey(pgp_key_pkt_t &       seckey,
     psub_s_exp->add(checksum, sizeof(checksum));
 
     /* write raw secret key to the memory */
-    rnp::secure_vector<uint8_t> rawkey = raw_s_exp.write_padded(format->cipher_block_size);
+    rnp::secure_bytes rawkey = raw_s_exp.write_padded(format->cipher_block_size);
 
     /* derive encrypting key */
     unsigned keysize = pgp_key_size(prot.symm_alg);

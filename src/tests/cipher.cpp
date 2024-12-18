@@ -142,14 +142,14 @@ TEST_F(rnp_tests, rnp_test_eddsa)
     pgp_key_pkt_t     seckey;
     assert_true(keygen.generate(seckey, true));
 
-    rnp::secure_vector<uint8_t> hash(32);
-    pgp_signature_material_t    sig = {};
+    rnp::secure_bytes        hash(32);
+    pgp_signature_material_t sig = {};
 
     assert_rnp_success(seckey.material->sign(global_ctx, sig, hash));
     assert_rnp_success(seckey.material->verify(global_ctx, sig, hash));
 
     // cut one byte off hash -> invalid sig
-    rnp::secure_vector<uint8_t> hash_cut(31);
+    rnp::secure_bytes hash_cut(31);
     assert_rnp_failure(seckey.material->verify(global_ctx, sig, hash_cut));
 
     // swap r/s -> invalid sig
@@ -241,7 +241,7 @@ TEST_F(rnp_tests, ecdsa_signverify_success)
 
     for (size_t i = 0; i < ARRAY_SIZE(curves); i++) {
         // Generate test data. Mainly to make valgrind not to complain about uninitialized data
-        rnp::secure_vector<uint8_t> hash(rnp::Hash::size(hash_alg));
+        rnp::secure_bytes hash(rnp::Hash::size(hash_alg));
         global_ctx.rng.get(hash.data(), hash.size());
 
         rnp::KeygenParams keygen(PGP_PKA_ECDSA, global_ctx);
@@ -523,9 +523,9 @@ TEST_F(rnp_tests, test_dsa_roundtrip)
           "p: %zu q: %zu h: %s\n", dsa.bits(), dsa.qbits(), rnp::Hash::name(keygen.hash()));
         fflush(stdout);
 
-        auto &                      key = *seckey.material;
-        rnp::secure_vector<uint8_t> hash(message, message + rnp::Hash::size(keygen.hash()));
-        pgp_signature_material_t    sig = {};
+        auto &                   key = *seckey.material;
+        rnp::secure_bytes        hash(message, message + rnp::Hash::size(keygen.hash()));
+        pgp_signature_material_t sig = {};
         assert_rnp_success(key.sign(global_ctx, sig, hash));
         assert_rnp_success(key.verify(global_ctx, sig, hash));
     }
@@ -553,8 +553,8 @@ TEST_F(rnp_tests, test_dsa_verify_negative)
     auto &key1 = *sec_key1.material;
     auto &key2 = *sec_key2.material;
 
-    rnp::secure_vector<uint8_t> hash(message, message + rnp::Hash::size(keygen.hash()));
-    pgp_signature_material_t    sig = {};
+    rnp::secure_bytes        hash(message, message + rnp::Hash::size(keygen.hash()));
+    pgp_signature_material_t sig = {};
     assert_rnp_success(key1.sign(global_ctx, sig, hash));
     // wrong key used
     assert_int_equal(key2.verify(global_ctx, sig, hash), RNP_ERROR_SIGNATURE_INVALID);
@@ -626,7 +626,7 @@ TEST_F(rnp_tests, dilithium_exdsa_signverify_success)
 
         pgp_signature_material_t sig;
         sig.halg = hash_alg;
-        rnp::secure_vector<uint8_t> hash(message, message + sizeof(message));
+        rnp::secure_bytes hash(message, message + sizeof(message));
         assert_rnp_success(key1.sign(global_ctx, sig, hash));
         assert_rnp_success(key1.verify(global_ctx, sig, hash));
 
@@ -662,10 +662,10 @@ TEST_F(rnp_tests, sphincsplus_signverify_success)
             assert_true(keygen.generate(seckey1, true));
             assert_true(keygen.generate(seckey2, true));
 
-            auto &                      key1 = *seckey1.material;
-            auto &                      key2 = *seckey2.material;
-            rnp::secure_vector<uint8_t> hash(message, message + sizeof(message));
-            pgp_signature_material_t    sig;
+            auto &                   key1 = *seckey1.material;
+            auto &                   key2 = *seckey2.material;
+            rnp::secure_bytes        hash(message, message + sizeof(message));
+            pgp_signature_material_t sig;
             assert_rnp_success(key1.sign(global_ctx, sig, hash));
             assert_rnp_success(key1.verify(global_ctx, sig, hash));
 

@@ -209,7 +209,7 @@ pgp_cipher_aead_init(pgp_crypt_t *  crypt,
         /* LCOV_EXCL_END */
     }
 
-    crypt->aead.key = new rnp::secure_vector<uint8_t>(key, key + pgp_key_size(ealg));
+    crypt->aead.key = new rnp::secure_bytes(key, key + pgp_key_size(ealg));
     crypt->alg = ealg;
     crypt->blocksize = pgp_block_size(ealg);
     crypt->aead.cipher = cipher;
