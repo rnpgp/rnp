@@ -103,12 +103,12 @@ struct pgp_crypt_aead_param_t {
     struct botan_cipher_struct *obj;
 #endif
 #ifdef CRYPTO_BACKEND_OPENSSL
-    EVP_CIPHER_CTX *             obj;
-    const EVP_CIPHER *           cipher;
-    rnp::secure_vector<uint8_t> *key;
-    uint8_t                      ad[PGP_AEAD_MAX_AD_LEN];
-    size_t                       ad_len;
-    size_t                       n_len;
+    EVP_CIPHER_CTX *   obj;
+    const EVP_CIPHER * cipher;
+    rnp::secure_bytes *key;
+    uint8_t            ad[PGP_AEAD_MAX_AD_LEN];
+    size_t             ad_len;
+    size_t             n_len;
 #endif
     pgp_aead_alg_t alg;
     bool           decrypt;

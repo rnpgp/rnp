@@ -101,6 +101,8 @@ template <typename T> using secure_vector = std::vector<T, ossl_allocator<T> >;
 #error Unsupported backend.
 #endif
 
+using secure_bytes = secure_vector<uint8_t>;
+
 template <typename T, std::size_t N> struct secure_array {
   private:
 #if !defined(_MSC_VER) || !defined(_DEBUG)

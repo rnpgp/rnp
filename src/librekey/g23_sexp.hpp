@@ -37,7 +37,7 @@ typedef std::shared_ptr<gnupg_sexp_t> p_gnupg_sexp;
 
 class gnupg_sexp_t : public sexp::sexp_list_t {
     /* write gnupg_sexp_t contents, adding padding, for the further encryption */
-    rnp::secure_vector<uint8_t> write_padded(size_t padblock) const;
+    rnp::secure_bytes write_padded(size_t padblock) const;
 
   public:
     void

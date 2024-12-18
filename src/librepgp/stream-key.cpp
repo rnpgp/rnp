@@ -503,8 +503,8 @@ decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
     }
 
     try {
-        rnp::secure_vector<uint8_t> decdata(key->sec_len);
-        pgp_crypt_t                 crypt;
+        rnp::secure_bytes decdata(key->sec_len);
+        pgp_crypt_t       crypt;
         if (!pgp_cipher_cfb_start(
               &crypt, key->sec_protection.symm_alg, keybuf.data(), key->sec_protection.iv)) {
             RNP_LOG("failed to start cfb decryption");

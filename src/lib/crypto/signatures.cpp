@@ -42,7 +42,7 @@
  * @param hdr literal packet header for attached signatures or NULL otherwise.
  * @return RNP_SUCCESS on success or some error otherwise
  */
-static rnp::secure_vector<uint8_t>
+static rnp::secure_bytes
 signature_hash_finish(const pgp_signature_t &  sig,
                       rnp::Hash &              hash,
                       const pgp_literal_hdr_t *hdr)
@@ -84,7 +84,7 @@ signature_hash_finish(const pgp_signature_t &  sig,
     default:
         break;
     }
-    rnp::secure_vector<uint8_t> res(hash.size());
+    rnp::secure_bytes res(hash.size());
     hash.finish(res.data());
     return res;
 }
