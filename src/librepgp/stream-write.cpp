@@ -29,6 +29,7 @@
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <cassert>
 #ifdef HAVE_UNISTD_H
 #include <sys/param.h>
 #include <unistd.h>
@@ -577,12 +578,10 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
                         pgp_dest_t *         dst,
                         pgp_key_t *          userkey,
                         const uint8_t *      key,
-                        const unsigned       keylen,
+                        const size_t         keylen,
                         pgp_pkesk_version_t  pkesk_version)
 {
-    pgp_pk_sesskey_t            pkey;
     pgp_dest_encrypted_param_t *param = (pgp_dest_encrypted_param_t *) dst->param;
-    rnp_result_t                ret = RNP_ERROR_GENERIC;
 
     /* Use primary key if good for encryption, otherwise look in subkey list */
     userkey = find_suitable_key(PGP_OP_ENCRYPT, userkey, handler->key_provider);
@@ -593,24 +592,19 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
     /* Crypto Refresh: For X25519/X448 PKESKv3, AES is mandated */
     /* PQC: AES is mandated for PKESKv3 */
-    if (!do_encrypt_pkesk_v3_alg_id(userkey->alg()) && pkesk_version == PGP_PKSK_V3) {
-        switch (param->ctx->ealg) {
-        case PGP_SA_AES_128:
-        case PGP_SA_AES_192:
-        case PGP_SA_AES_256:
-            break;
-        default:
-            RNP_LOG("attempting to use v3 PKESK with an unencrypted algorithm id in "
-                    "combination with a symmetric "
-                    "algorithm that is not AES.");
-            return RNP_ERROR_DECRYPT_FAILED;
-        }
+    if (!check_enforce_aes_v3_pkesk(userkey->alg(), param->ctx->ealg, pkesk_version)) {
+        RNP_LOG("attempting to use v3 PKESK with an unencrypted algorithm id in "
+                "combination with a symmetric "
+                "algorithm that is not AES.");
+        return RNP_ERROR_ENCRYPT_FAILED;
     }
 #endif
 
     /* Fill pkey */
+    pgp_pk_sesskey_t pkey;
     pkey.version = pkesk_version;
     pkey.alg = userkey->alg();
+    pkey.salg = param->ctx->ealg;
     /* set key_id (used for PKESK v3) and fingerprint (used for PKESK v6) */
     pkey.key_id = userkey->keyid();
 #if defined(ENABLE_CRYPTO_REFRESH)
@@ -620,57 +614,29 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
 #endif
 
     /* Encrypt the session key */
-    rnp::secure_array<uint8_t, PGP_MAX_KEY_SIZE + 3> enckey;
-    uint8_t *sesskey = enckey.data(); /* pointer to the actual session key */
-    size_t   enckey_len = keylen;
-
-    pkey.salg = param->ctx->ealg;
-
+    rnp::secure_bytes enckey;
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
-    if (pkey.version == PGP_PKSK_V3) {
-        size_t key_offset;
-        if (do_encrypt_pkesk_v3_alg_id(pkey.alg)) {
-            /* for pre-crypto-refresh algorithms, algorithm ID is part of the session key */
-            key_offset = 1;
-            enckey[0] = pkey.salg;
-        } else {
-            key_offset = 0;
-        }
-#else
-    enckey[0] = pkey.salg;
-    size_t key_offset = 1;
-#endif
-        memcpy(&enckey[key_offset], key, keylen);
-        sesskey += key_offset;
-        enckey_len += key_offset;
-#if defined(ENABLE_CRYPTO_REFRESH)
-    } else { // PGP_PKSK_V6
-        memcpy(&enckey[0], key, keylen);
-#endif
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+    if ((pkey.version == PGP_PKSK_V3) && do_encrypt_pkesk_v3_alg_id(pkey.alg)) {
+        /* for pre-crypto-refresh algorithms, algorithm ID is part of the session key */
+        enckey.push_back(pkey.salg);
     }
+#else
+    enckey.push_back(pkey.salg);
 #endif
+    enckey.insert(enckey.end(), key, key + keylen);
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
-    if (have_pkesk_checksum(pkey.alg))
-#endif
-    {
+    if (have_pkesk_checksum(pkey.alg)) {
         /* Calculate checksum */
-        rnp::secure_array<unsigned, 1> checksum;
-
-        for (unsigned i = 0; i < keylen; i++) {
-            checksum[0] += sesskey[i];
+        rnp::secure_array<uint16_t, 1> checksum;
+        for (size_t i = 0; i < keylen; i++) {
+            checksum[0] += key[i];
         }
-        sesskey[keylen] = (checksum[0] >> 8) & 0xff;
-        sesskey[keylen + 1] = checksum[0] & 0xff;
-
-        /* increment enckey_len by checksum */
-        enckey_len += 2;
+        enckey.push_back(checksum[0] >> 8);
+        enckey.push_back(checksum[0] & 0xff);
     }
 
 #if defined(ENABLE_PQC_DBG_LOG)
-    RNP_LOG_U8VEC("Session Key: %s",
-                  std::vector<uint8_t>(enckey.data(), enckey.data() + keylen));
+    RNP_LOG_U8VEC("Session Key: %s", std::vector<uint8_t>(enckey.begin(), enckey.end()));
 #endif
 
     pgp_encrypted_material_t material;
@@ -678,8 +644,8 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     if (userkey->alg() == PGP_PKA_ECDH) {
         material.ecdh.fp = &userkey->fp();
     }
-    ret = userkey->pkt().material->encrypt(
-      *handler->ctx->ctx, material, enckey.data(), enckey_len);
+    auto ret = userkey->pkt().material->encrypt(
+      *handler->ctx->ctx, material, enckey.data(), enckey.size());
     if (ret) {
         return ret;
     }
