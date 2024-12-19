@@ -1547,7 +1547,7 @@ check_decrypted_symkey(pgp_pubkey_alg_t alg, size_t keylen, rnp::secure_bytes &d
         return false;
     }
     /* Will be always true for non-experimental pqc/crypto-refresh */
-    if (!have_pkesk_checksum(alg)) {
+    if (!inc) {
         return true;
     }
     /* Validate checksum */
