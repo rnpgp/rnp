@@ -352,10 +352,7 @@ setup_signature_hash(rnp::ossl::evp::PKeyCtx &ctx,
 }
 
 rnp_result_t
-Key::encrypt_pkcs1(rnp::RNG &     rng,
-                   Encrypted &    out,
-                   const uint8_t *in,
-                   size_t         in_len) const noexcept
+Key::encrypt_pkcs1(rnp::RNG &rng, Encrypted &out, const rnp::secure_bytes &in) const noexcept
 {
     auto ctx = init_context(*this, false);
     if (!ctx) {
@@ -371,7 +368,7 @@ Key::encrypt_pkcs1(rnp::RNG &     rng,
         return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
     out.m.len = PGP_MPINT_SIZE;
-    if (EVP_PKEY_encrypt(ctx.get(), out.m.mpi, &out.m.len, in, in_len) <= 0) {
+    if (EVP_PKEY_encrypt(ctx.get(), out.m.mpi, &out.m.len, in.data(), in.size()) <= 0) {
         RNP_LOG("Encryption failed: %lu", ERR_peek_last_error());
         out.m.len = 0;
         return RNP_ERROR_GENERIC;
@@ -475,10 +472,7 @@ Key::sign_pkcs1(rnp::RNG &     rng,
 }
 
 rnp_result_t
-Key::decrypt_pkcs1(rnp::RNG &       rng,
-                   uint8_t *        out,
-                   size_t &         out_len,
-                   const Encrypted &in) const noexcept
+Key::decrypt_pkcs1(rnp::RNG &rng, rnp::secure_bytes &out, const Encrypted &in) const noexcept
 {
     if (!q.bytes()) {
         /* LCOV_EXCL_START */
@@ -499,14 +493,16 @@ Key::decrypt_pkcs1(rnp::RNG &       rng,
     if (!setup_context(ctx)) {
         return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
-    out_len = PGP_MPINT_SIZE;
-    if (EVP_PKEY_decrypt(ctx.get(), out, &out_len, in.m.mpi, in.m.len) <= 0) {
+    out.resize(n.len);
+    size_t out_len = out.size();
+    if (EVP_PKEY_decrypt(ctx.get(), out.data(), &out_len, in.m.mpi, in.m.len) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Encryption failed: %lu", ERR_peek_last_error());
-        out_len = 0;
+        out.resize(0);
         return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
+    out.resize(out_len);
     return RNP_SUCCESS;
 }
 

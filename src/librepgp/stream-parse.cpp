@@ -1607,18 +1607,15 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     }
 #endif
 
-    rnp::secure_bytes decbuf(PGP_MPINT_SIZE, 0);
     /* Decrypting session key value */
-    size_t declen = decbuf.size();
-
+    rnp::secure_bytes decbuf(PGP_MPINT_SIZE, 0);
     if (sesskey.alg == PGP_PKA_ECDH) {
-        encmaterial.ecdh.fp = &seckey.fp();
+        encmaterial.ecdh.fp = seckey.fp().vec();
     }
-    auto err = seckey.pkt().material->decrypt(ctx, decbuf.data(), declen, encmaterial);
+    auto err = seckey.pkt().material->decrypt(ctx, decbuf, encmaterial);
     if (err) {
         return false;
     }
-    decbuf.resize(declen);
 
     /* This is always true for non-experimental pqc/crypto refresh */
     if (do_encrypt_pkesk_v3_alg_id(sesskey.alg)) {

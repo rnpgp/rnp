@@ -191,12 +191,11 @@ typedef struct pgp_signature_material_t {
  * Type to keep pk-encrypted data without any openpgp-dependent data.
  */
 typedef struct pgp_encrypted_material_t {
-    union {
-        pgp::rsa::Encrypted  rsa;
-        pgp::eg::Encrypted   eg;
-        pgp_sm2_encrypted_t  sm2;
-        pgp_ecdh_encrypted_t ecdh;
-    };
+    /* Temporary: will be replaced by class */
+    pgp::rsa::Encrypted  rsa;
+    pgp::eg::Encrypted   eg;
+    pgp::sm2::Encrypted  sm2;
+    pgp::ecdh::Encrypted ecdh;
 #if defined(ENABLE_CRYPTO_REFRESH)
     pgp_x25519_encrypted_t x25519; // non-trivial type cannot be member in union
 #endif
