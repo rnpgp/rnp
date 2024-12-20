@@ -1211,9 +1211,9 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
     case PGP_PKA_ECDH:
         dst_print_mpi(dst, "ecdh p", material.ecdh.p, ctx->dump_mpi);
         if (ctx->dump_mpi) {
-            dst_print_hex(dst, "ecdh m", material.ecdh.m, material.ecdh.mlen, true);
+            dst_print_hex(dst, "ecdh m", material.ecdh.m.data(), material.ecdh.m.size(), true);
         } else {
-            dst_printf(dst, "ecdh m: %d bytes\n", (int) material.ecdh.mlen);
+            dst_printf(dst, "ecdh m: %zu bytes\n", material.ecdh.m.size());
         }
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
@@ -2392,11 +2392,10 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
         break;
     case PGP_PKA_ECDH:
         if (!obj_add_mpi_json(material, "p", pkmaterial.ecdh.p, ctx->dump_mpi) ||
-            !json_add(material, "m.bytes", (int) pkmaterial.ecdh.mlen)) {
+            !json_add(material, "m.bytes", (int) pkmaterial.ecdh.m.size())) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
-        if (ctx->dump_mpi &&
-            !json_add_hex(material, "m", pkmaterial.ecdh.m, pkmaterial.ecdh.mlen)) {
+        if (ctx->dump_mpi && !json_add_hex(material, "m", pkmaterial.ecdh.m)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;

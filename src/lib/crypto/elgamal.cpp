@@ -124,7 +124,7 @@ Key::validate(bool secret) const noexcept
 }
 
 rnp_result_t
-Key::encrypt_pkcs1(rnp::RNG &rng, Encrypted &out, const uint8_t *in, size_t in_len) const
+Key::encrypt_pkcs1(rnp::RNG &rng, Encrypted &out, const rnp::secure_bytes &in) const
 {
     rnp::botan::Pubkey b_key;
     if (!load_public_key(b_key, *this)) {
@@ -143,7 +143,8 @@ Key::encrypt_pkcs1(rnp::RNG &rng, Encrypted &out, const uint8_t *in, size_t in_l
     rnp::botan::op::Encrypt op_ctx;
 
     if (botan_pk_op_encrypt_create(&op_ctx.get(), b_key.get(), "PKCS1v15", 0) ||
-        botan_pk_op_encrypt(op_ctx.get(), rng.handle(), enc_buf.data(), &p_len, in, in_len)) {
+        botan_pk_op_encrypt(
+          op_ctx.get(), rng.handle(), enc_buf.data(), &p_len, in.data(), in.size())) {
         RNP_LOG("Failed to create operation context");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -168,7 +169,7 @@ Key::encrypt_pkcs1(rnp::RNG &rng, Encrypted &out, const uint8_t *in, size_t in_l
 }
 
 rnp_result_t
-Key::decrypt_pkcs1(rnp::RNG &rng, uint8_t *out, size_t *out_len, const Encrypted &in) const
+Key::decrypt_pkcs1(rnp::RNG &rng, rnp::secure_bytes &out, const Encrypted &in) const
 {
     if (!x.bytes()) {
         RNP_LOG("empty secret key");
@@ -198,13 +199,16 @@ Key::decrypt_pkcs1(rnp::RNG &rng, uint8_t *out, size_t *out_len, const Encrypted
     memcpy(&enc_buf[p_len - g_len], in.g.mpi, g_len);
     memcpy(&enc_buf[2 * p_len - m_len], in.m.mpi, m_len);
 
-    *out_len = p_len;
+    out.resize(p_len);
+    size_t                  out_len = out.size();
     rnp::botan::op::Decrypt op_ctx;
     if (botan_pk_op_decrypt_create(&op_ctx.get(), b_key.get(), "PKCS1v15", 0) ||
-        botan_pk_op_decrypt(op_ctx.get(), out, out_len, enc_buf.data(), 2 * p_len)) {
+        botan_pk_op_decrypt(op_ctx.get(), out.data(), &out_len, enc_buf.data(), 2 * p_len)) {
+        out.resize(0);
         RNP_LOG("Decryption failed");
         return RNP_ERROR_BAD_PARAMETERS;
     }
+    out.resize(out_len);
     return RNP_SUCCESS;
 }
 

@@ -31,6 +31,7 @@
 #include <repgp/repgp_def.h>
 #include "crypto/rng.h"
 #include "crypto/mpi.h"
+#include "mem.h"
 
 namespace pgp {
 namespace rsa {
@@ -73,15 +74,13 @@ class Key {
 
     rnp_result_t generate(rnp::RNG &rng, size_t numbits) noexcept;
 
-    rnp_result_t encrypt_pkcs1(rnp::RNG &     rng,
-                               Encrypted &    out,
-                               const uint8_t *in,
-                               size_t         in_len) const noexcept;
+    rnp_result_t encrypt_pkcs1(rnp::RNG &               rng,
+                               Encrypted &              out,
+                               const rnp::secure_bytes &in) const noexcept;
 
-    rnp_result_t decrypt_pkcs1(rnp::RNG &       rng,
-                               uint8_t *        out,
-                               size_t &         out_len,
-                               const Encrypted &in) const noexcept;
+    rnp_result_t decrypt_pkcs1(rnp::RNG &         rng,
+                               rnp::secure_bytes &out,
+                               const Encrypted &  in) const noexcept;
 
     rnp_result_t verify_pkcs1(const Signature &sig,
                               pgp_hash_alg_t   hash_alg,

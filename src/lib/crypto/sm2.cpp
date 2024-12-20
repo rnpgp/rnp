@@ -32,10 +32,13 @@
 #include "sm2.h"
 #include "utils.h"
 
+namespace pgp {
+namespace sm2 {
+
 static bool
-sm2_load_public_key(rnp::botan::Pubkey &pubkey, const pgp::ec::Key &keydata)
+load_public_key(rnp::botan::Pubkey &pubkey, const ec::Key &keydata)
 {
-    auto curve = pgp::ec::Curve::get(keydata.curve);
+    auto curve = ec::Curve::get(keydata.curve);
     if (!curve) {
         return false;
     }
@@ -56,9 +59,9 @@ sm2_load_public_key(rnp::botan::Pubkey &pubkey, const pgp::ec::Key &keydata)
 }
 
 static bool
-sm2_load_secret_key(rnp::botan::Privkey &seckey, const pgp::ec::Key &keydata)
+load_secret_key(rnp::botan::Privkey &seckey, const ec::Key &keydata)
 {
-    auto curve = pgp::ec::Curve::get(keydata.curve);
+    auto curve = ec::Curve::get(keydata.curve);
     if (!curve) {
         return false;
     }
@@ -72,10 +75,10 @@ sm2_load_secret_key(rnp::botan::Privkey &seckey, const pgp::ec::Key &keydata)
 }
 
 rnp_result_t
-sm2_compute_za(const pgp::ec::Key &key, rnp::Hash &hash, const char *ident_field)
+compute_za(const ec::Key &key, rnp::Hash &hash, const char *ident_field)
 {
     rnp::botan::Pubkey sm2_key;
-    if (!sm2_load_public_key(sm2_key, key)) {
+    if (!load_public_key(sm2_key, key)) {
         RNP_LOG("Failed to load SM2 key");
         return RNP_ERROR_GENERIC;
     }
@@ -94,16 +97,15 @@ sm2_compute_za(const pgp::ec::Key &key, rnp::Hash &hash, const char *ident_field
         RNP_LOG("compute_za failed %d", rc);
         return RNP_ERROR_GENERIC;
     }
-    hash.add(digest_buf.data(), digest_len);
+    hash.add(digest_buf);
     return RNP_SUCCESS;
 }
 
 rnp_result_t
-sm2_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
+validate_key(rnp::RNG &rng, const ec::Key &key, bool secret)
 {
     rnp::botan::Pubkey bpkey;
-    if (!sm2_load_public_key(bpkey, key) ||
-        botan_pubkey_check_key(bpkey.get(), rng.handle(), 0)) {
+    if (!load_public_key(bpkey, key) || botan_pubkey_check_key(bpkey.get(), rng.handle(), 0)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -112,7 +114,7 @@ sm2_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
     }
 
     rnp::botan::Privkey bskey;
-    if (!sm2_load_secret_key(bskey, key) ||
+    if (!load_secret_key(bskey, key) ||
         botan_privkey_check_key(bskey.get(), rng.handle(), 0)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -120,36 +122,35 @@ sm2_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
 }
 
 rnp_result_t
-sm2_sign(rnp::RNG &          rng,
-         pgp::ec::Signature &sig,
-         pgp_hash_alg_t      hash_alg,
-         const uint8_t *     hash,
-         size_t              hash_len,
-         const pgp::ec::Key &key)
+sign(rnp::RNG &               rng,
+     ec::Signature &          sig,
+     pgp_hash_alg_t           hash_alg,
+     const rnp::secure_bytes &hash,
+     const ec::Key &          key)
 {
     if (botan_ffi_supports_api(20180713)) {
         RNP_LOG("SM2 signatures requires Botan 2.8 or higher");
         return RNP_ERROR_NOT_SUPPORTED;
     }
 
-    if (hash_len != rnp::Hash::size(hash_alg)) {
+    if (hash.size() != rnp::Hash::size(hash_alg)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    auto curve = pgp::ec::Curve::get(key.curve);
+    auto curve = ec::Curve::get(key.curve);
     if (!curve) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     rnp::botan::Privkey b_key;
-    if (!sm2_load_secret_key(b_key, key)) {
+    if (!load_secret_key(b_key, key)) {
         RNP_LOG("Can't load private key");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     rnp::botan::op::Sign signer;
     if (botan_pk_op_sign_create(&signer.get(), b_key.get(), ",Raw", 0) ||
-        botan_pk_op_sign_update(signer.get(), hash, hash_len)) {
+        botan_pk_op_sign_update(signer.get(), hash.data(), hash.size())) {
         return RNP_ERROR_SIGNING_FAILED;
     }
 
@@ -171,22 +172,21 @@ sm2_sign(rnp::RNG &          rng,
 }
 
 rnp_result_t
-sm2_verify(const pgp::ec::Signature &sig,
-           pgp_hash_alg_t            hash_alg,
-           const uint8_t *           hash,
-           size_t                    hash_len,
-           const pgp::ec::Key &      key)
+verify(const ec::Signature &    sig,
+       pgp_hash_alg_t           hash_alg,
+       const rnp::secure_bytes &hash,
+       const ec::Key &          key)
 {
     if (botan_ffi_supports_api(20180713) != 0) {
         RNP_LOG("SM2 signatures requires Botan 2.8 or higher");
         return RNP_ERROR_NOT_SUPPORTED;
     }
 
-    if (hash_len != rnp::Hash::size(hash_alg)) {
+    if (hash.size() != rnp::Hash::size(hash_alg)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    auto curve = pgp::ec::Curve::get(key.curve);
+    auto curve = ec::Curve::get(key.curve);
     if (!curve) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -201,14 +201,14 @@ sm2_verify(const pgp::ec::Signature &sig,
     }
 
     rnp::botan::Pubkey pub;
-    if (!sm2_load_public_key(pub, key)) {
+    if (!load_public_key(pub, key)) {
         RNP_LOG("Failed to load public key");
         return RNP_ERROR_SIGNATURE_INVALID;
     }
 
     rnp::botan::op::Verify verifier;
     if (botan_pk_op_verify_create(&verifier.get(), pub.get(), ",Raw", 0) ||
-        botan_pk_op_verify_update(verifier.get(), hash, hash_len)) {
+        botan_pk_op_verify_update(verifier.get(), hash.data(), hash.size())) {
         return RNP_ERROR_SIGNATURE_INVALID;
     }
 
@@ -223,14 +223,13 @@ sm2_verify(const pgp::ec::Signature &sig,
 }
 
 rnp_result_t
-sm2_encrypt(rnp::RNG &           rng,
-            pgp_sm2_encrypted_t &out,
-            const uint8_t *      in,
-            size_t               in_len,
-            pgp_hash_alg_t       hash_algo,
-            const pgp::ec::Key & key)
+encrypt(rnp::RNG &               rng,
+        Encrypted &              out,
+        const rnp::secure_bytes &in,
+        pgp_hash_alg_t           hash_algo,
+        const ec::Key &          key)
 {
-    auto curve = pgp::ec::Curve::get(key.curve);
+    auto curve = ec::Curve::get(key.curve);
     if (!curve) {
         return RNP_ERROR_GENERIC;
     }
@@ -246,14 +245,14 @@ sm2_encrypt(rnp::RNG &           rng,
      * the masked ciphertext (out_len) plus a hash.
      */
     size_t point_len = curve->bytes();
-    size_t ctext_len = (2 * point_len + 1) + in_len + hash_alg_len;
+    size_t ctext_len = (2 * point_len + 1) + in.size() + hash_alg_len;
     if (ctext_len > PGP_MPINT_SIZE) {
         RNP_LOG("too large output for SM2 encryption");
         return RNP_ERROR_GENERIC;
     }
 
     rnp::botan::Pubkey sm2_key;
-    if (!sm2_load_public_key(sm2_key, key)) {
+    if (!load_public_key(sm2_key, key)) {
         RNP_LOG("Failed to load public key");
         return RNP_ERROR_GENERIC;
     }
@@ -270,7 +269,8 @@ sm2_encrypt(rnp::RNG &           rng,
     }
 
     out.m.len = sizeof(out.m.mpi);
-    if (botan_pk_op_encrypt(enc_op.get(), rng.handle(), out.m.mpi, &out.m.len, in, in_len)) {
+    if (botan_pk_op_encrypt(
+          enc_op.get(), rng.handle(), out.m.mpi, &out.m.len, in.data(), in.size())) {
         return RNP_ERROR_GENERIC;
     }
     out.m.mpi[out.m.len++] = hash_algo;
@@ -278,12 +278,9 @@ sm2_encrypt(rnp::RNG &           rng,
 }
 
 rnp_result_t
-sm2_decrypt(uint8_t *                  out,
-            size_t *                   out_len,
-            const pgp_sm2_encrypted_t &in,
-            const pgp::ec::Key &       key)
+decrypt(rnp::secure_bytes &out, const Encrypted &in, const ec::Key &key)
 {
-    auto   curve = pgp::ec::Curve::get(key.curve);
+    auto   curve = ec::Curve::get(key.curve);
     size_t in_len = in.m.bytes();
     if (!curve || in_len < 64) {
         return RNP_ERROR_GENERIC;
@@ -297,15 +294,21 @@ sm2_decrypt(uint8_t *                  out,
     }
 
     rnp::botan::Privkey b_key;
-    if (!sm2_load_secret_key(b_key, key)) {
+    if (!load_secret_key(b_key, key)) {
         RNP_LOG("Can't load private key");
         return RNP_ERROR_GENERIC;
     }
 
+    out.resize(in_len - 1);
+    size_t                  out_size = out.size();
     rnp::botan::op::Decrypt decrypt_op;
     if (botan_pk_op_decrypt_create(&decrypt_op.get(), b_key.get(), hash_name, 0) ||
-        botan_pk_op_decrypt(decrypt_op.get(), out, out_len, in.m.mpi, in_len - 1)) {
+        botan_pk_op_decrypt(decrypt_op.get(), out.data(), &out_size, in.m.mpi, in_len - 1)) {
         return RNP_ERROR_GENERIC;
     }
+    out.resize(out_size);
     return RNP_SUCCESS;
 }
+
+} // namespace sm2
+} // namespace pgp
