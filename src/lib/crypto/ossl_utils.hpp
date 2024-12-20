@@ -227,6 +227,16 @@ struct PKeyCtxDeleter {
 
 using PKeyCtx = std::unique_ptr<EVP_PKEY_CTX, PKeyCtxDeleter>;
 
+struct CipherCtxDeleter {
+    void
+    operator()(EVP_CIPHER_CTX *ptr) const
+    {
+        EVP_CIPHER_CTX_free(ptr);
+    }
+};
+
+using CipherCtx = std::unique_ptr<EVP_CIPHER_CTX, CipherCtxDeleter>;
+
 struct MDCtxDeleter {
     void
     operator()(EVP_MD_CTX *ptr) const

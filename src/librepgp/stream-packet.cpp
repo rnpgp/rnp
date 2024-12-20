@@ -1235,7 +1235,7 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material)
             RNP_LOG("wrong ecdh m len");
             return false;
         }
-        material.ecdh.mlen = bt;
+        material.ecdh.m.resize(bt);
         if (!pkt.get(material.ecdh.m, bt)) {
             RNP_LOG("failed to get ecdh m len");
             return false;
@@ -1342,8 +1342,8 @@ pgp_pk_sesskey_t::write_material(const pgp_encrypted_material_t &material)
         break;
     case PGP_PKA_ECDH:
         pktbody.add(material.ecdh.p);
-        pktbody.add_byte(material.ecdh.mlen);
-        pktbody.add(material.ecdh.m, material.ecdh.mlen);
+        pktbody.add_byte(material.ecdh.m.size());
+        pktbody.add(material.ecdh.m);
         break;
     case PGP_PKA_ELGAMAL:
         pktbody.add(material.eg.g);

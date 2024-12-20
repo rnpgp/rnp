@@ -37,13 +37,15 @@
 #include "utils.h"
 #include "mem.h"
 
+namespace pgp {
+namespace ecdh {
 // Produces kek of size kek_len which corresponds to length of wrapping key
 static bool
 compute_kek(uint8_t *                   kek,
             size_t                      kek_len,
             const std::vector<uint8_t> &other_info,
-            const pgp::ec::Curve *      curve_desc,
-            const pgp::mpi &            ec_pubkey,
+            const ec::Curve *           curve_desc,
+            const mpi &                 ec_pubkey,
             const rnp::botan::Privkey & ec_prvkey,
             const pgp_hash_alg_t        hash_alg)
 {
@@ -74,9 +76,9 @@ compute_kek(uint8_t *                   kek,
 }
 
 static bool
-ecdh_load_public_key(rnp::botan::Pubkey &pubkey, const pgp::ec::Key &key)
+load_public_key(rnp::botan::Pubkey &pubkey, const ec::Key &key)
 {
-    auto curve = pgp::ec::Curve::get(key.curve);
+    auto curve = ec::Curve::get(key.curve);
     if (!curve) {
         RNP_LOG("unknown curve");
         return false;
@@ -112,9 +114,9 @@ ecdh_load_public_key(rnp::botan::Pubkey &pubkey, const pgp::ec::Key &key)
 }
 
 static bool
-ecdh_load_secret_key(rnp::botan::Privkey &seckey, const pgp::ec::Key &key)
+load_secret_key(rnp::botan::Privkey &seckey, const ec::Key &key)
 {
-    auto curve = pgp::ec::Curve::get(key.curve);
+    auto curve = ec::Curve::get(key.curve);
     if (!curve) {
         return false;
     }
@@ -137,16 +139,15 @@ ecdh_load_secret_key(rnp::botan::Privkey &seckey, const pgp::ec::Key &key)
 }
 
 rnp_result_t
-ecdh_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
+validate_key(rnp::RNG &rng, const ec::Key &key, bool secret)
 {
-    auto curve_desc = pgp::ec::Curve::get(key.curve);
+    auto curve_desc = ec::Curve::get(key.curve);
     if (!curve_desc) {
         return RNP_ERROR_NOT_SUPPORTED;
     }
 
     rnp::botan::Pubkey bpkey;
-    if (!ecdh_load_public_key(bpkey, key) ||
-        botan_pubkey_check_key(bpkey.get(), rng.handle(), 0)) {
+    if (!load_public_key(bpkey, key) || botan_pubkey_check_key(bpkey.get(), rng.handle(), 0)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     if (!secret) {
@@ -154,7 +155,7 @@ ecdh_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
     }
 
     rnp::botan::Privkey bskey;
-    if (!ecdh_load_secret_key(bskey, key) ||
+    if (!load_secret_key(bskey, key) ||
         botan_privkey_check_key(bskey.get(), rng.handle(), 0)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -162,19 +163,16 @@ ecdh_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
 }
 
 rnp_result_t
-ecdh_encrypt_pkcs5(rnp::RNG &               rng,
-                   pgp_ecdh_encrypted_t &   out,
-                   const uint8_t *const     in,
-                   size_t                   in_len,
-                   const pgp::ec::Key &     key,
-                   const pgp_fingerprint_t &fingerprint)
+encrypt_pkcs5(rnp::RNG &                  rng,
+              Encrypted &                 out,
+              const rnp::secure_bytes &   in,
+              const ec::Key &             key,
+              const std::vector<uint8_t> &fp)
 {
-    // 'm' is padded to the 8-byte granularity
-    uint8_t m[MAX_SESSION_KEY_SIZE];
-    if (!in || (in_len > sizeof(m))) {
+    if (in.size() > MAX_SESSION_KEY_SIZE) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    const size_t m_padded_len = ((in_len / 8) + 1) * 8;
+    const size_t m_padded_len = ((in.size() / 8) + 1) * 8;
     // +8 because of AES-wrap adds 8 bytes
     if (ECDH_WRAPPED_KEY_SIZE < (m_padded_len + 8)) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -186,7 +184,7 @@ ecdh_encrypt_pkcs5(rnp::RNG &               rng,
         return RNP_ERROR_NOT_IMPLEMENTED;
     }
 #endif
-    auto curve_desc = pgp::ec::Curve::get(key.curve);
+    auto curve_desc = ec::Curve::get(key.curve);
     if (!curve_desc) {
         RNP_LOG("unsupported curve");
         return RNP_ERROR_NOT_SUPPORTED;
@@ -195,7 +193,7 @@ ecdh_encrypt_pkcs5(rnp::RNG &               rng,
     // See 13.5 of RFC 4880 for definition of other_info size
     const size_t kek_len = pgp_key_size(key.key_wrap_alg);
     auto         other_info =
-      kdf_other_info_serialize(curve_desc, fingerprint, key.kdf_hash_alg, key.key_wrap_alg);
+      kdf_other_info_serialize(*curve_desc, fp, key.kdf_hash_alg, key.key_wrap_alg);
     assert(other_info.size() == curve_desc->OID.size() + 46);
 
     rnp::botan::Privkey eph_prv_key;
@@ -217,22 +215,22 @@ ecdh_encrypt_pkcs5(rnp::RNG &               rng,
         return RNP_ERROR_GENERIC;
     }
 
-    memcpy(m, in, in_len);
-    if (!pad_pkcs7(m, m_padded_len, in_len)) {
-        // Should never happen
-        return RNP_ERROR_GENERIC;
-    }
+    // 'm' is padded to the 8-byte granularity
+    rnp::secure_bytes m = in;
+    pad_pkcs7(m, m_padded_len - m.size());
 
-    out.mlen = sizeof(out.m);
+    size_t mlen = ECDH_WRAPPED_KEY_SIZE;
+    out.m.resize(ECDH_WRAPPED_KEY_SIZE);
 #if defined(CRYPTO_BACKEND_BOTAN3)
     char name[16];
     snprintf(name, sizeof(name), "AES-%zu", 8 * kek_len);
-    if (botan_nist_kw_enc(name, 0, m, m_padded_len, kek, kek_len, out.m, &out.mlen)) {
+    if (botan_nist_kw_enc(name, 0, m.data(), m.size(), kek, kek_len, out.m.data(), &mlen)) {
 #else
-    if (botan_key_wrap3394(m, m_padded_len, kek, kek_len, out.m, &out.mlen)) {
+    if (botan_key_wrap3394(m.data(), m.size(), kek, kek_len, out.m.data(), &mlen)) {
 #endif
         return RNP_ERROR_GENERIC;
     }
+    out.m.resize(mlen);
 
     /* we need to prepend 0x40 for the x25519 */
     if (key.curve == PGP_CURVE_25519) {
@@ -255,17 +253,16 @@ ecdh_encrypt_pkcs5(rnp::RNG &               rng,
 }
 
 rnp_result_t
-ecdh_decrypt_pkcs5(uint8_t *                   out,
-                   size_t *                    out_len,
-                   const pgp_ecdh_encrypted_t &in,
-                   const pgp::ec::Key &        key,
-                   const pgp_fingerprint_t &   fingerprint)
+decrypt_pkcs5(rnp::secure_bytes &         out,
+              const Encrypted &           in,
+              const ec::Key &             key,
+              const std::vector<uint8_t> &fp)
 {
-    if (!out || !out_len || !key.x.bytes()) {
+    if (!key.x.bytes()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    auto curve_desc = pgp::ec::Curve::get(key.curve);
+    auto curve_desc = ec::Curve::get(key.curve);
     if (!curve_desc) {
         RNP_LOG("unknown curve");
         return RNP_ERROR_NOT_SUPPORTED;
@@ -274,28 +271,23 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
     auto wrap_alg = key.key_wrap_alg;
     auto kdf_hash = key.kdf_hash_alg;
     /* Ensure that AES is used for wrapping */
-    if ((wrap_alg != PGP_SA_AES_128) && (wrap_alg != PGP_SA_AES_192) &&
-        (wrap_alg != PGP_SA_AES_256)) {
+    if (!pgp_is_sa_aes(wrap_alg)) {
         RNP_LOG("non-aes wrap algorithm");
         return RNP_ERROR_NOT_SUPPORTED;
     }
 
     // See 13.5 of RFC 4880 for definition of other_info_size
-    auto other_info = kdf_other_info_serialize(curve_desc, fingerprint, kdf_hash, wrap_alg);
+    auto other_info = kdf_other_info_serialize(*curve_desc, fp, kdf_hash, wrap_alg);
     assert(other_info.size() == curve_desc->OID.size() + 46);
 
     rnp::botan::Privkey prv_key;
-    if (!ecdh_load_secret_key(prv_key, key)) {
+    if (!load_secret_key(prv_key, key)) {
         RNP_LOG("failed to load ecdh secret key");
         return RNP_ERROR_GENERIC;
     }
 
     // Size of SHA-256 or smaller
-    rnp::secure_array<uint8_t, MAX_SYMM_KEY_SIZE>    kek;
-    rnp::secure_array<uint8_t, MAX_SESSION_KEY_SIZE> deckey;
-
-    size_t deckey_len = deckey.size();
-    size_t offset = 0;
+    rnp::secure_array<uint8_t, MAX_SYMM_KEY_SIZE> kek;
 
     /* Security: Always return same error code in case compute_kek,
      *           botan_key_unwrap3394 or unpad_pkcs7 fails
@@ -305,29 +297,28 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
         return RNP_ERROR_GENERIC;
     }
 
+    size_t deckey_len = MAX_SESSION_KEY_SIZE;
+    out.resize(deckey_len);
 #if defined(CRYPTO_BACKEND_BOTAN3)
     char name[16];
     snprintf(name, sizeof(name), "AES-%zu", 8 * kek_len);
     if (botan_nist_kw_dec(
-          name, 0, in.m, in.mlen, kek.data(), kek_len, deckey.data(), &deckey_len)) {
+          name, 0, in.m.data(), in.m.size(), kek.data(), kek_len, out.data(), &deckey_len)) {
 #else
-    if (botan_key_unwrap3394(in.m, in.mlen, kek.data(), kek_len, deckey.data(), &deckey_len)) {
+    if (botan_key_unwrap3394(
+          in.m.data(), in.m.size(), kek.data(), kek_len, out.data(), &deckey_len)) {
 #endif
         return RNP_ERROR_GENERIC;
     }
-
-    if (!unpad_pkcs7(deckey.data(), deckey_len, &offset)) {
+    out.resize(deckey_len);
+    if (!unpad_pkcs7(out)) {
         return RNP_ERROR_GENERIC;
     }
-
-    if (*out_len < offset) {
-        return RNP_ERROR_SHORT_BUFFER;
-    }
-
-    *out_len = offset;
-    memcpy(out, deckey.data(), *out_len);
     return RNP_SUCCESS;
 }
+
+} // namespace ecdh
+} // namespace pgp
 
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 rnp_result_t

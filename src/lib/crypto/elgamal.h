@@ -30,6 +30,7 @@
 #include <stdint.h>
 #include "crypto/rng.h"
 #include "crypto/mpi.h"
+#include "mem.h"
 
 namespace pgp {
 namespace eg {
@@ -86,10 +87,9 @@ class Key {
      *         RNP_ERROR_OUT_OF_MEMORY  allocation failure
      *         RNP_ERROR_BAD_PARAMETERS wrong input provided
      */
-    rnp_result_t encrypt_pkcs1(rnp::RNG &     rng,
-                               Encrypted &    out,
-                               const uint8_t *in,
-                               size_t         in_len) const;
+    rnp_result_t encrypt_pkcs1(rnp::RNG &               rng,
+                               Encrypted &              out,
+                               const rnp::secure_bytes &in) const;
 
     /*
      * Performs ElGamal decryption
@@ -109,10 +109,9 @@ class Key {
      *         RNP_ERROR_OUT_OF_MEMORY  allocation failure
      *         RNP_ERROR_BAD_PARAMETERS wrong input provided
      */
-    rnp_result_t decrypt_pkcs1(rnp::RNG &       rng,
-                               uint8_t *        out,
-                               size_t *         out_len,
-                               const Encrypted &in) const;
+    rnp_result_t decrypt_pkcs1(rnp::RNG &         rng,
+                               rnp::secure_bytes &out,
+                               const Encrypted &  in) const;
 
     /*
      * Generates ElGamal key

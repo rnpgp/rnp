@@ -38,16 +38,17 @@
 #define ECDH_WRAPPED_KEY_SIZE 48
 
 /* Forward declarations */
-typedef struct pgp_fingerprint_t pgp_fingerprint_t;
 
-typedef struct pgp_ecdh_encrypted_t {
-    pgp::mpi                 p;
-    uint8_t                  m[ECDH_WRAPPED_KEY_SIZE];
-    size_t                   mlen;
-    const pgp_fingerprint_t *fp;
-} pgp_ecdh_encrypted_t;
+namespace pgp {
+namespace ecdh {
+class Encrypted {
+  public:
+    mpi                  p{};
+    std::vector<uint8_t> m;
+    std::vector<uint8_t> fp;
+};
 
-rnp_result_t ecdh_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret);
+rnp_result_t validate_key(rnp::RNG &rng, const ec::Key &key, bool secret);
 
 /*
  * @brief   Sets hash algorithm and key wrapping algo
@@ -58,24 +59,18 @@ rnp_result_t ecdh_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secr
  *
  * @returns false if curve is not supported, otherwise true
  */
-bool ecdh_set_params(pgp::ec::Key &key, pgp_curve_t curve_id);
+bool set_params(ec::Key &key, pgp_curve_t curve_id);
 
 /*
  * Encrypts session key with a KEK agreed during ECDH as specified in
  * RFC 4880 bis 01, 13.5
  *
  * @param rng initialized rnp::RNG object
- * @param session_key key to be encrypted
- * @param session_key_len length of the key buffer
- * @param wrapped_key [out] resulting key wrapped in by some AES
+ * @param out [out] resulting key wrapped in by some AES
  *        as specified in RFC 3394
- * @param wrapped_key_len [out] length of the `wrapped_key' buffer
- *        Current implementation always produces 48 bytes as key
- *        is padded with PKCS-5/7
- * @param ephemeral_key [out] public ephemeral ECDH key used for key
- *        agreement (private part). Must be initialized
- * @param pubkey public key to be used for encryption
- * @param fingerprint fingerprint of the pubkey
+ * @param in data to be encrypted
+ * @param key public key to be used for encryption
+ * @param fp fingerprint of the encrypting key
  *
  * @return RNP_SUCCESS on success and output parameters are populated
  * @return RNP_ERROR_NOT_SUPPORTED unknown curve
@@ -83,12 +78,11 @@ bool ecdh_set_params(pgp::ec::Key &key, pgp_curve_t curve_id);
  * @return RNP_ERROR_SHORT_BUFFER `wrapped_key_len' to small to store result
  * @return RNP_ERROR_GENERIC implementation error
  */
-rnp_result_t ecdh_encrypt_pkcs5(rnp::RNG &               rng,
-                                pgp_ecdh_encrypted_t &   out,
-                                const uint8_t *const     in,
-                                size_t                   in_len,
-                                const pgp::ec::Key &     key,
-                                const pgp_fingerprint_t &fingerprint);
+rnp_result_t encrypt_pkcs5(rnp::RNG &                  rng,
+                           Encrypted &                 out,
+                           const rnp::secure_bytes &   in,
+                           const ec::Key &             key,
+                           const std::vector<uint8_t> &fp);
 
 /*
  * Decrypts session key with a KEK agreed during ECDH as specified in
@@ -110,11 +104,12 @@ rnp_result_t ecdh_encrypt_pkcs5(rnp::RNG &               rng,
  * @return RNP_ERROR_SHORT_BUFFER `session_key_len' to small to store result
  * @return RNP_ERROR_GENERIC decryption failed or implementation error
  */
-rnp_result_t ecdh_decrypt_pkcs5(uint8_t *                   out,
-                                size_t *                    out_len,
-                                const pgp_ecdh_encrypted_t &in,
-                                const pgp::ec::Key &        key,
-                                const pgp_fingerprint_t &   fingerprint);
+rnp_result_t decrypt_pkcs5(rnp::secure_bytes &         out,
+                           const Encrypted &           in,
+                           const ec::Key &             key,
+                           const std::vector<uint8_t> &fp);
+} // namespace ecdh
+} // namespace pgp
 
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 /* Generate an ECDH key pair in "native" format, i.e.,

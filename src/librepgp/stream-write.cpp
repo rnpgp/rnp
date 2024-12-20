@@ -642,10 +642,9 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     pgp_encrypted_material_t material;
 
     if (userkey->alg() == PGP_PKA_ECDH) {
-        material.ecdh.fp = &userkey->fp();
+        material.ecdh.fp = userkey->fp().vec();
     }
-    auto ret = userkey->pkt().material->encrypt(
-      *handler->ctx->ctx, material, enckey.data(), enckey.size());
+    auto ret = userkey->pkt().material->encrypt(*handler->ctx->ctx, material, enckey);
     if (ret) {
         return ret;
     }
