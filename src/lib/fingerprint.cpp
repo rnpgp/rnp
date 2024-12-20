@@ -151,3 +151,9 @@ pgp_fingerprint_t::keyid() const
     }
     return res;
 }
+
+std::vector<uint8_t>
+pgp_fingerprint_t::vec() const
+{
+    return std::vector<uint8_t>(fingerprint, fingerprint + length);
+}

@@ -100,7 +100,8 @@ typedef struct pgp_fingerprint_t {
                (size == PGP_FINGERPRINT_V5_SIZE);
     }
 
-    pgp_key_id_t keyid() const;
+    pgp_key_id_t         keyid() const;
+    std::vector<uint8_t> vec() const;
 } pgp_fingerprint_t;
 
 typedef std::array<uint8_t, PGP_KEY_GRIP_SIZE> pgp_sig_id_t;
