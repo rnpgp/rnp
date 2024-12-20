@@ -1226,20 +1226,7 @@ do_encrypt_pkesk_v3_alg_id(pgp_pubkey_alg_t alg)
 bool
 check_enforce_aes_v3_pkesk(pgp_pubkey_alg_t alg, pgp_symm_alg_t salg, pgp_pkesk_version_t ver)
 {
-    if (ver != PGP_PKSK_V3) {
-        return true;
-    }
-    /* The same algorithms */
-    if (have_pkesk_checksum(alg)) {
-        return true;
-    }
-    switch (salg) {
-    case PGP_SA_AES_128:
-    case PGP_SA_AES_192:
-    case PGP_SA_AES_256:
-        return true;
-    default:
-        return false;
-    }
+    /* The same algorithms as with pkesk_checksum */
+    return (ver != PGP_PKSK_V3) || have_pkesk_checksum(alg) || pgp_is_sa_aes(salg);
 }
 #endif

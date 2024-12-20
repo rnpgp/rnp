@@ -260,6 +260,19 @@ pgp_key_size(pgp_symm_alg_t alg)
     }
 }
 
+bool
+pgp_is_sa_aes(pgp_symm_alg_t alg)
+{
+    switch (alg) {
+    case PGP_SA_AES_128:
+    case PGP_SA_AES_192:
+    case PGP_SA_AES_256:
+        return true;
+    default:
+        return false;
+    }
+}
+
 #if defined(ENABLE_AEAD)
 size_t
 pgp_cipher_aead_granularity(pgp_crypt_t *crypt)
