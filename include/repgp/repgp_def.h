@@ -499,7 +499,13 @@ typedef enum {
     PGP_C_UNKNOWN = 255
 } pgp_compression_type_t;
 
-enum { PGP_SKSK_V4 = 4, PGP_SKSK_V5 = 5 };
+typedef enum {
+    PGP_SKSK_V4 = 4,
+    PGP_SKSK_V5 = 5,
+#if defined(ENABLE_CRYPTO_REFRESH)
+    PGP_SKSK_V6 = 6
+#endif
+} pgp_skesk_version_t;
 typedef enum {
     PGP_PKSK_V3 = 3,
 #if defined(ENABLE_CRYPTO_REFRESH)

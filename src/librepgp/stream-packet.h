@@ -211,6 +211,11 @@ typedef struct pgp_sk_sesskey_t {
 
     void         write(pgp_dest_t &dst) const;
     rnp_result_t parse(pgp_source_t &src);
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+  private:
+    rnp_result_t parse_v6(pgp_packet_body_t &pkt);
+#endif
 } pgp_sk_sesskey_t;
 
 /** pgp_one_pass_sig_t */

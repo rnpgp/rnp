@@ -72,6 +72,7 @@ typedef struct rnp_symmetric_pass_info_t {
  *  - recipients : list of key ids used to encrypt data to
  *  - enable_pkesk_v6 (Only if defined: ENABLE_CRYPTO_REFRESH): if true and each recipient in
  * the  list of recipients has the capability, allows PKESKv6/SEIPDv2
+ *  - enable_skesk_v6 : if true and AEAD cipher is chosen, creates SKESKv6/SEIPDv2
  *  - pref_pqc_enc_subkey (Only if defined: ENABLE_PQC): if true, prefers PQC subkey over
  * non-PQC subkey for encryption.
  *  - passwords : list of passwords used for password-based encryption
@@ -110,6 +111,7 @@ typedef struct rnp_ctx_t {
     bool           no_wrap{};   /* do not wrap source in literal data packet */
 #if defined(ENABLE_CRYPTO_REFRESH)
     bool enable_pkesk_v6{}; /* allows pkesk v6 if list of recipients is suitable */
+    bool enable_skesk_v6{}; /* allows skesk v6 if chosen cipher is suitable */
 #endif
 #if defined(ENABLE_PQC)
     bool pref_pqc_enc_subkey{}; /* prefer to encrypt to PQC subkey */
