@@ -242,7 +242,7 @@ exdsa_private_key_t::sign(rnp::RNG *            rng,
     } else {
         Botan::ECDSA_PrivateKey priv_key = botan_key(rng);
         auto                    signer =
-          Botan::PK_Signer(priv_key, *(rng->obj()), ecdsa_padding_str_for(hash_alg));
+          Botan::PK_Signer(priv_key, *(rng->obj()), pgp::ecdsa::padding_str_for(hash_alg));
         sig_out = signer.sign_message(hash, hash_len, *(rng->obj()));
     }
     return RNP_SUCCESS;
@@ -258,7 +258,7 @@ exdsa_public_key_t::verify(const std::vector<uint8_t> &sig,
         return ed25519_verify_native(sig, key_, hash, hash_len);
     } else {
         Botan::ECDSA_PublicKey pub_key = botan_key();
-        auto verifier = Botan::PK_Verifier(pub_key, ecdsa_padding_str_for(hash_alg));
+        auto verifier = Botan::PK_Verifier(pub_key, pgp::ecdsa::padding_str_for(hash_alg));
         if (verifier.verify_message(hash, hash_len, sig.data(), sig.size())) {
             return RNP_SUCCESS;
         }

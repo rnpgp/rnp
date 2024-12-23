@@ -62,10 +62,10 @@ Key::choose_qsize(size_t psize)
 }
 
 } // namespace dsa
-} // namespace pgp
 
+namespace ecdsa {
 pgp_hash_alg_t
-ecdsa_get_min_hash(pgp_curve_t curve)
+get_min_hash(pgp_curve_t curve)
 {
     switch (curve) {
     case PGP_CURVE_NIST_P_256:
@@ -82,3 +82,6 @@ ecdsa_get_min_hash(pgp_curve_t curve)
         return PGP_HASH_UNKNOWN;
     }
 }
+} // namespace ecdsa
+
+} // namespace pgp
