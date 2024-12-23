@@ -82,16 +82,14 @@ class Key {
                                rnp::secure_bytes &out,
                                const Encrypted &  in) const noexcept;
 
-    rnp_result_t verify_pkcs1(const Signature &sig,
-                              pgp_hash_alg_t   hash_alg,
-                              const uint8_t *  hash,
-                              size_t           hash_len) const noexcept;
+    rnp_result_t verify_pkcs1(const Signature &        sig,
+                              pgp_hash_alg_t           hash_alg,
+                              const rnp::secure_bytes &hash) const noexcept;
 
-    rnp_result_t sign_pkcs1(rnp::RNG &     rng,
-                            Signature &    sig,
-                            pgp_hash_alg_t hash_alg,
-                            const uint8_t *hash,
-                            size_t         hash_len) const noexcept;
+    rnp_result_t sign_pkcs1(rnp::RNG &               rng,
+                            Signature &              sig,
+                            pgp_hash_alg_t           hash_alg,
+                            const rnp::secure_bytes &hash) const noexcept;
 };
 
 } // namespace rsa

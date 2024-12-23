@@ -215,7 +215,7 @@ ECCKeyParams::bits() const noexcept
 pgp_hash_alg_t
 ECDSAKeyParams::min_hash() const noexcept
 {
-    return ecdsa_get_min_hash(curve());
+    return ecdsa::get_min_hash(curve());
 }
 
 #if defined(ENABLE_PQC)
@@ -586,7 +586,7 @@ RSAKeyMaterial::verify(const rnp::SecurityContext &    ctx,
         RNP_LOG("RSA encrypt-only signature considered as invalid.");
         return RNP_ERROR_SIGNATURE_INVALID;
     }
-    return key_.verify_pkcs1(sig.rsa, sig.halg, hash.data(), hash.size());
+    return key_.verify_pkcs1(sig.rsa, sig.halg, hash);
 }
 
 rnp_result_t
@@ -594,7 +594,7 @@ RSAKeyMaterial::sign(rnp::SecurityContext &    ctx,
                      pgp_signature_material_t &sig,
                      const rnp::secure_bytes & hash) const
 {
-    return key_.sign_pkcs1(ctx.rng, sig.rsa, sig.halg, hash.data(), hash.size());
+    return key_.sign_pkcs1(ctx.rng, sig.rsa, sig.halg, hash);
 }
 
 void
@@ -737,7 +737,7 @@ DSAKeyMaterial::verify(const rnp::SecurityContext &    ctx,
                        const pgp_signature_material_t &sig,
                        const rnp::secure_bytes &       hash) const
 {
-    return key_.verify(sig.dsa, hash.data(), hash.size());
+    return key_.verify(sig.dsa, hash);
 }
 
 rnp_result_t
@@ -745,7 +745,7 @@ DSAKeyMaterial::sign(rnp::SecurityContext &    ctx,
                      pgp_signature_material_t &sig,
                      const rnp::secure_bytes & hash) const
 {
-    return key_.sign(ctx.rng, sig.dsa, hash.data(), hash.size());
+    return key_.sign(ctx.rng, sig.dsa, hash);
 }
 
 pgp_hash_alg_t
@@ -1086,7 +1086,7 @@ ECDSAKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
         RNP_LOG("ECDSA validate: curve %d is not supported.", key_.curve);
         return true;
     }
-    return !ecdsa_validate_key(ctx.rng, key_, secret_);
+    return !ecdsa::validate_key(ctx.rng, key_, secret_);
 }
 
 std::unique_ptr<KeyMaterial>
@@ -1104,7 +1104,7 @@ ECDSAKeyMaterial::verify(const rnp::SecurityContext &    ctx,
         RNP_LOG("Curve %d is not supported.", key_.curve);
         return RNP_ERROR_NOT_SUPPORTED;
     }
-    return ecdsa_verify(sig.ecc, sig.halg, hash.data(), hash.size(), key_);
+    return ecdsa::verify(sig.ecc, sig.halg, hash, key_);
 }
 
 rnp_result_t
@@ -1116,13 +1116,13 @@ ECDSAKeyMaterial::sign(rnp::SecurityContext &    ctx,
     if (ret) {
         return ret;
     }
-    return ecdsa_sign(ctx.rng, sig.ecc, sig.halg, hash.data(), hash.size(), key_);
+    return ecdsa::sign(ctx.rng, sig.ecc, sig.halg, hash, key_);
 }
 
 pgp_hash_alg_t
 ECDSAKeyMaterial::adjust_hash(pgp_hash_alg_t hash) const
 {
-    pgp_hash_alg_t hash_min = ecdsa_get_min_hash(key_.curve);
+    pgp_hash_alg_t hash_min = ecdsa::get_min_hash(key_.curve);
     if (rnp::Hash::size(hash) < rnp::Hash::size(hash_min)) {
         return hash_min;
     }
@@ -1254,7 +1254,7 @@ ECDHKeyMaterial::x25519_tweak_bits() noexcept
 bool
 EDDSAKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 {
-    return !eddsa_validate_key(ctx.rng, key_, secret_);
+    return !eddsa::validate_key(ctx.rng, key_, secret_);
 }
 
 std::unique_ptr<KeyMaterial>
@@ -1266,7 +1266,7 @@ EDDSAKeyMaterial::clone()
 bool
 EDDSAKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 {
-    if (eddsa_generate(ctx.rng, key_)) {
+    if (eddsa::generate(ctx.rng, key_)) {
         RNP_LOG("failed to generate EDDSA key");
         return false;
     }
@@ -1278,7 +1278,7 @@ EDDSAKeyMaterial::verify(const rnp::SecurityContext &    ctx,
                          const pgp_signature_material_t &sig,
                          const rnp::secure_bytes &       hash) const
 {
-    return eddsa_verify(sig.ecc, hash.data(), hash.size(), key_);
+    return eddsa::verify(sig.ecc, hash, key_);
 }
 
 rnp_result_t
@@ -1286,7 +1286,7 @@ EDDSAKeyMaterial::sign(rnp::SecurityContext &    ctx,
                        pgp_signature_material_t &sig,
                        const rnp::secure_bytes & hash) const
 {
-    return eddsa_sign(ctx.rng, sig.ecc, hash.data(), hash.size(), key_);
+    return eddsa::sign(ctx.rng, sig.ecc, hash, key_);
 }
 
 bool
