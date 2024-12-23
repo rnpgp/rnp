@@ -31,6 +31,7 @@
 #include <repgp/repgp_def.h>
 #include "crypto/rng.h"
 #include "crypto/mpi.h"
+#include "crypto/mem.h"
 
 #define DSA_MAX_Q_BITLEN 256
 
@@ -85,10 +86,7 @@ class Key {
      *          RNP_ERROR_BAD_PARAMETERS wrong input provided
      *          RNP_ERROR_SIGNING_FAILED internal error
      */
-    rnp_result_t sign(rnp::RNG &     rng,
-                      Signature &    sig,
-                      const uint8_t *hash,
-                      size_t         hash_len) const;
+    rnp_result_t sign(rnp::RNG &rng, Signature &sig, const rnp::secure_bytes &hash) const;
 
     /*
      * @brief   Performs DSA verification
@@ -102,7 +100,7 @@ class Key {
      *          RNP_ERROR_GENERIC internal error
      *          RNP_ERROR_SIGNATURE_INVALID signature is invalid
      */
-    rnp_result_t verify(const Signature &sig, const uint8_t *hash, size_t hash_len) const;
+    rnp_result_t verify(const Signature &sig, const rnp::secure_bytes &hash) const;
 
     /*
      * @brief   Performs DSA key generation

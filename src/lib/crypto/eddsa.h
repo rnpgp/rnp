@@ -29,22 +29,25 @@
 
 #include "ec.h"
 
-rnp_result_t eddsa_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret);
+namespace pgp {
+namespace eddsa {
+
+rnp_result_t validate_key(rnp::RNG &rng, const ec::Key &key, bool secret);
 /*
  * curve_len must be 255 currently (for Ed25519)
  * If Ed448 was supported in the future curve_len=448 would also be allowed.
  */
-rnp_result_t eddsa_generate(rnp::RNG &rng, pgp::ec::Key &key);
+rnp_result_t generate(rnp::RNG &rng, ec::Key &key);
 
-rnp_result_t eddsa_verify(const pgp::ec::Signature &sig,
-                          const uint8_t *           hash,
-                          size_t                    hash_len,
-                          const pgp::ec::Key &      key);
+rnp_result_t verify(const ec::Signature &    sig,
+                    const rnp::secure_bytes &hash,
+                    const ec::Key &          key);
 
-rnp_result_t eddsa_sign(rnp::RNG &          rng,
-                        pgp::ec::Signature &sig,
-                        const uint8_t *     hash,
-                        size_t              hash_len,
-                        const pgp::ec::Key &key);
+rnp_result_t sign(rnp::RNG &               rng,
+                  ec::Signature &          sig,
+                  const rnp::secure_bytes &hash,
+                  const ec::Key &          key);
+} // namespace eddsa
+} // namespace pgp
 
 #endif
