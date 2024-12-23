@@ -29,22 +29,22 @@
 
 #include "crypto/ec.h"
 
-rnp_result_t ecdsa_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret);
+namespace pgp {
+namespace ecdsa {
+rnp_result_t validate_key(rnp::RNG &rng, const ec::Key &key, bool secret);
 
-rnp_result_t ecdsa_sign(rnp::RNG &          rng,
-                        pgp::ec::Signature &sig,
-                        pgp_hash_alg_t      hash_alg,
-                        const uint8_t *     hash,
-                        size_t              hash_len,
-                        const pgp::ec::Key &key);
+rnp_result_t sign(rnp::RNG &               rng,
+                  ec::Signature &          sig,
+                  pgp_hash_alg_t           hash_alg,
+                  const rnp::secure_bytes &hash,
+                  const ec::Key &          key);
 
-rnp_result_t ecdsa_verify(const pgp::ec::Signature &sig,
-                          pgp_hash_alg_t            hash_alg,
-                          const uint8_t *           hash,
-                          size_t                    hash_len,
-                          const pgp::ec::Key &      key);
+rnp_result_t verify(const ec::Signature &    sig,
+                    pgp_hash_alg_t           hash_alg,
+                    const rnp::secure_bytes &hash,
+                    const ec::Key &          key);
 
-const char *ecdsa_padding_str_for(pgp_hash_alg_t hash_alg);
+const char *padding_str_for(pgp_hash_alg_t hash_alg);
 
 /*
  * @brief   Returns hash which should be used with the curve
@@ -54,6 +54,9 @@ const char *ecdsa_padding_str_for(pgp_hash_alg_t hash_alg);
  * @returns  Either ID of the hash algorithm, or PGP_HASH_UNKNOWN
  *           if not found
  */
-pgp_hash_alg_t ecdsa_get_min_hash(pgp_curve_t curve);
+pgp_hash_alg_t get_min_hash(pgp_curve_t curve);
+
+} // namespace ecdsa
+} // namespace pgp
 
 #endif // ECDSA_H_

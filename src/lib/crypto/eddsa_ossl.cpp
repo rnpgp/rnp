@@ -36,8 +36,11 @@
 #include <openssl/err.h>
 #include <openssl/ec.h>
 
+namespace pgp {
+namespace eddsa {
+
 rnp_result_t
-eddsa_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
+validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
 {
     /* Not implemented in the OpenSSL, so just do basic size checks. */
     if ((key.p.bytes() != 33) || (key.p.mpi[0] != 0x40)) {
@@ -50,7 +53,7 @@ eddsa_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
 }
 
 rnp_result_t
-eddsa_generate(rnp::RNG &rng, pgp::ec::Key &key)
+generate(rnp::RNG &rng, pgp::ec::Key &key)
 {
     rnp_result_t ret = key.generate(rng, PGP_PKA_EDDSA, PGP_CURVE_ED25519);
     if (!ret) {
@@ -60,10 +63,7 @@ eddsa_generate(rnp::RNG &rng, pgp::ec::Key &key)
 }
 
 rnp_result_t
-eddsa_verify(const pgp::ec::Signature &sig,
-             const uint8_t *           hash,
-             size_t                    hash_len,
-             const pgp::ec::Key &      key)
+verify(const pgp::ec::Signature &sig, const rnp::secure_bytes &hash, const pgp::ec::Key &key)
 {
     if ((sig.r.bytes() > 32) || (sig.s.bytes() > 32)) {
         RNP_LOG("Invalid EdDSA signature.");
@@ -96,18 +96,17 @@ eddsa_verify(const pgp::ec::Signature &sig,
     sig.r.to_mem(&sigbuf[32 - sig.r.bytes()]);
     sig.s.to_mem(&sigbuf[64 - sig.s.bytes()]);
 
-    if (EVP_DigestVerify(md.get(), sigbuf, 64, hash, hash_len) < 1) {
+    if (EVP_DigestVerify(md.get(), sigbuf, 64, hash.data(), hash.size()) < 1) {
         return RNP_ERROR_SIGNATURE_INVALID;
     }
     return RNP_SUCCESS;
 }
 
 rnp_result_t
-eddsa_sign(rnp::RNG &          rng,
-           pgp::ec::Signature &sig,
-           const uint8_t *     hash,
-           size_t              hash_len,
-           const pgp::ec::Key &key)
+sign(rnp::RNG &               rng,
+     pgp::ec::Signature &     sig,
+     const rnp::secure_bytes &hash,
+     const pgp::ec::Key &     key)
 {
     if (!key.x.bytes()) {
         RNP_LOG("private key not set");
@@ -134,7 +133,7 @@ eddsa_sign(rnp::RNG &          rng,
     static_assert((sizeof(sig.r.mpi) == PGP_MPINT_SIZE) && (PGP_MPINT_SIZE >= 64),
                   "invalid mpi type/size");
     sig.r.len = PGP_MPINT_SIZE;
-    if (EVP_DigestSign(md.get(), sig.r.mpi, &sig.r.len, hash, hash_len) <= 0) {
+    if (EVP_DigestSign(md.get(), sig.r.mpi, &sig.r.len, hash.data(), hash.size()) <= 0) {
         RNP_LOG("Signing failed: %lu", ERR_peek_last_error());
         sig.r.len = 0;
         return RNP_ERROR_GENERIC;
@@ -145,3 +144,5 @@ eddsa_sign(rnp::RNG &          rng,
     memcpy(sig.s.mpi, &sig.r.mpi[32], 32);
     return RNP_SUCCESS;
 }
+} // namespace eddsa
+} // namespace pgp

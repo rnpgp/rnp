@@ -322,8 +322,7 @@ static const uint8_t PKCS1_SHA1_ENCODING[15] = {
 static bool
 setup_signature_hash(rnp::ossl::evp::PKeyCtx &ctx,
                      pgp_hash_alg_t           hash_alg,
-                     const uint8_t *&         enc,
-                     size_t &                 enc_size)
+                     rnp::secure_bytes &      enc)
 {
     auto hash_name = rnp::Hash_OpenSSL::name(hash_alg);
     if (!hash_name) {
@@ -342,11 +341,9 @@ setup_signature_hash(rnp::ossl::evp::PKeyCtx &ctx,
             RNP_LOG("Failed to set digest %s: %s", hash_name, rnp::ossl::latest_err());
             return false;
         }
-        enc = &PKCS1_SHA1_ENCODING[0];
-        enc_size = sizeof(PKCS1_SHA1_ENCODING);
+        enc.assign(PKCS1_SHA1_ENCODING, PKCS1_SHA1_ENCODING + sizeof(PKCS1_SHA1_ENCODING));
     } else {
-        enc = NULL;
-        enc_size = 0;
+        enc.resize(0);
     }
     return true;
 }
@@ -377,10 +374,9 @@ Key::encrypt_pkcs1(rnp::RNG &rng, Encrypted &out, const rnp::secure_bytes &in) c
 }
 
 rnp_result_t
-Key::verify_pkcs1(const Signature &sig,
-                  pgp_hash_alg_t   hash_alg,
-                  const uint8_t *  hash,
-                  size_t           hash_len) const noexcept
+Key::verify_pkcs1(const Signature &        sig,
+                  pgp_hash_alg_t           hash_alg,
+                  const rnp::secure_bytes &hash) const noexcept
 {
     auto ctx = init_context(*this, false);
     if (!ctx) {
@@ -394,27 +390,27 @@ Key::verify_pkcs1(const Signature &sig,
         /* LCOV_EXCL_END */
     }
 
-    const uint8_t *hash_enc = NULL;
-    size_t         hash_enc_size = 0;
-    if (!setup_context(ctx) || !setup_signature_hash(ctx, hash_alg, hash_enc, hash_enc_size)) {
+    rnp::secure_bytes hash_enc;
+    if (!setup_context(ctx) || !setup_signature_hash(ctx, hash_alg, hash_enc)) {
         return RNP_ERROR_SIGNATURE_INVALID; // LCOV_EXCL_LINE
     }
     /* Check whether we need to workaround on unsupported SHA1 for RSA signature verification
      */
-    std::vector<uint8_t> hash_buf(hash_enc, hash_enc + hash_enc_size);
-    if (hash_enc_size) {
-        hash_buf.insert(hash_buf.end(), hash, hash + hash_len);
-        hash = hash_buf.data();
-        hash_len = hash_buf.size();
+    auto hptr = hash.data();
+    auto hsize = hash.size();
+    if (!hash_enc.empty()) {
+        hash_enc.insert(hash_enc.end(), hash.begin(), hash.end());
+        hptr = hash_enc.data();
+        hsize = hash_enc.size();
     }
     int res = 0;
     if (sig.s.len < n.len) {
         /* OpenSSL doesn't like signatures smaller then N */
         std::vector<uint8_t> sn(n.len - sig.s.len, 0);
         sn.insert(sn.end(), sig.s.mpi, sig.s.mpi + sig.s.len);
-        res = EVP_PKEY_verify(ctx.get(), sn.data(), sn.size(), hash, hash_len);
+        res = EVP_PKEY_verify(ctx.get(), sn.data(), sn.size(), hptr, hsize);
     } else {
-        res = EVP_PKEY_verify(ctx.get(), sig.s.mpi, sig.s.len, hash, hash_len);
+        res = EVP_PKEY_verify(ctx.get(), sig.s.mpi, sig.s.len, hptr, hsize);
     }
     if (res <= 0) {
         RNP_LOG("RSA verification failure: %s", rnp::ossl::latest_err());
@@ -424,11 +420,10 @@ Key::verify_pkcs1(const Signature &sig,
 }
 
 rnp_result_t
-Key::sign_pkcs1(rnp::RNG &     rng,
-                Signature &    sig,
-                pgp_hash_alg_t hash_alg,
-                const uint8_t *hash,
-                size_t         hash_len) const noexcept
+Key::sign_pkcs1(rnp::RNG &               rng,
+                Signature &              sig,
+                pgp_hash_alg_t           hash_alg,
+                const rnp::secure_bytes &hash) const noexcept
 {
     if (!q.bytes()) {
         /* LCOV_EXCL_START */
@@ -447,21 +442,21 @@ Key::sign_pkcs1(rnp::RNG &     rng,
         return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    const uint8_t *hash_enc = NULL;
-    size_t         hash_enc_size = 0;
-    if (!setup_context(ctx) || !setup_signature_hash(ctx, hash_alg, hash_enc, hash_enc_size)) {
+    rnp::secure_bytes hash_enc;
+    if (!setup_context(ctx) || !setup_signature_hash(ctx, hash_alg, hash_enc)) {
         return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
     /* Check whether we need to workaround on unsupported SHA1 for RSA signature verification
      */
-    std::vector<uint8_t> hash_buf(hash_enc, hash_enc + hash_enc_size);
-    if (hash_enc_size) {
-        hash_buf.insert(hash_buf.end(), hash, hash + hash_len);
-        hash = hash_buf.data();
-        hash_len = hash_buf.size();
+    auto hptr = hash.data();
+    auto hsize = hash.size();
+    if (!hash_enc.empty()) {
+        hash_enc.insert(hash_enc.end(), hash.begin(), hash.end());
+        hptr = hash_enc.data();
+        hsize = hash_enc.size();
     }
     sig.s.len = PGP_MPINT_SIZE;
-    if (EVP_PKEY_sign(ctx.get(), sig.s.mpi, &sig.s.len, hash, hash_len) <= 0) {
+    if (EVP_PKEY_sign(ctx.get(), sig.s.mpi, &sig.s.len, hptr, hsize) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Signing failed: %lu", ERR_peek_last_error());
         sig.s.len = 0;
