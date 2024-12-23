@@ -366,9 +366,10 @@ struct pgp_key_t {
      *            PGP_UID_NONE for direct-key signature,
      *            PGP_UID_PRIMARY for any primary key,
      *            PGP_UID_ANY for any uid.
+     * @param validated set to true whether signature must be validated
      * @return pointer to signature object or NULL if failed/not found.
      */
-    pgp_subsig_t *latest_selfsig(uint32_t uid);
+    pgp_subsig_t *latest_selfsig(uint32_t uid, bool validated = true);
 
     /**
      * @brief Get the latest valid subkey binding. Should be called on subkey.

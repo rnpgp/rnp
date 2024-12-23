@@ -271,10 +271,23 @@ static bool
 update_sig_expiration(pgp_signature_t *      dst,
                       const pgp_signature_t *src,
                       uint64_t               create,
-                      uint32_t               expiry)
+                      uint32_t               expiry,
+                      rnp::SecurityContext & ctx)
 {
     try {
         *dst = *src;
+        // Upgrade old hashes to the more secure one
+        rnp::SecurityRule rule(rnp::FeatureType::Hash, dst->halg, ctx.profile.def_level());
+        if (ctx.profile.has_rule(
+              rnp::FeatureType::Hash, dst->halg, ctx.time(), rnp::SecurityAction::Any)) {
+            rule = ctx.profile.get_rule(
+              rnp::FeatureType::Hash, dst->halg, ctx.time(), rnp::SecurityAction::Any);
+        }
+
+        if (rule.level != rnp::SecurityLevel::Default) {
+            RNP_LOG("Warning: Weak hash algorithm, authomatically upgrading to SHA256");
+            dst->halg = PGP_HASH_SHA256;
+        }
         if (!expiry) {
             dst->remove_subpkt(dst->find_subpkt(pgp::pkt::sigsub::Type::KeyExpirationTime));
             ;
@@ -304,12 +317,12 @@ pgp_key_set_expiration(pgp_key_t *                    key,
     std::vector<pgp_sig_id_t> sigs;
     /* update expiration for the latest direct-key signature and self-signature for each userid
      */
-    pgp_subsig_t *sig = key->latest_selfsig(PGP_UID_NONE);
+    pgp_subsig_t *sig = key->latest_selfsig(PGP_UID_NONE, false);
     if (sig) {
         sigs.push_back(sig->sigid);
     }
     for (size_t uid = 0; uid < key->uid_count(); uid++) {
-        sig = key->latest_selfsig(uid);
+        sig = key->latest_selfsig(uid, false);
         if (sig) {
             sigs.push_back(sig->sigid);
         }
@@ -335,7 +348,7 @@ pgp_key_set_expiration(pgp_key_t *                    key,
 
         pgp_signature_t newsig;
         pgp_sig_id_t    oldsigid = sigid;
-        if (!update_sig_expiration(&newsig, &sig.sig, ctx.time(), expiry)) {
+        if (!update_sig_expiration(&newsig, &sig.sig, ctx.time(), expiry, ctx)) {
             return false;
         }
         try {
@@ -387,7 +400,7 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
     }
 
     /* find the latest valid subkey binding */
-    pgp_subsig_t *subsig = sub->latest_binding();
+    pgp_subsig_t *subsig = sub->latest_binding(false);
     if (!subsig) {
         RNP_LOG("No valid subkey binding");
         return false;
@@ -412,7 +425,7 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
         /* update signature and re-sign */
         pgp_signature_t newsig;
         pgp_sig_id_t    oldsigid = subsig->sigid;
-        if (!update_sig_expiration(&newsig, &subsig->sig, ctx.time(), expiry)) {
+        if (!update_sig_expiration(&newsig, &subsig->sig, ctx.time(), expiry, ctx)) {
             return false;
         }
         primsec->sign_subkey_binding(*secsub, newsig, ctx);
@@ -1766,14 +1779,14 @@ pgp_key_t::write_vec() const
 #define PGP_UID_ANY ((uint32_t) -3)
 
 pgp_subsig_t *
-pgp_key_t::latest_selfsig(uint32_t uid)
+pgp_key_t::latest_selfsig(uint32_t uid, bool validated)
 {
     uint32_t      latest = 0;
     pgp_subsig_t *res = nullptr;
 
     for (auto &sigid : sigs_) {
         auto &sig = get_sig(sigid);
-        if (!sig.valid()) {
+        if (validated && !sig.valid()) {
             continue;
         }
         bool skip = false;
@@ -1807,7 +1820,7 @@ pgp_key_t::latest_selfsig(uint32_t uid)
 
     /* if there is later self-sig for the same uid without primary flag, then drop res */
     if ((uid == PGP_UID_PRIMARY) && res) {
-        pgp_subsig_t *overres = latest_selfsig(res->uid);
+        pgp_subsig_t *overres = latest_selfsig(res->uid, validated);
         if (overres && (overres->sig.creation() > res->sig.creation())) {
             res = nullptr;
         }
