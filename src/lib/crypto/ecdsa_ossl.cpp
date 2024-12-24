@@ -32,24 +32,26 @@
 #include <openssl/err.h>
 #include <openssl/ec.h>
 
+namespace pgp {
+namespace ecdsa {
+
 static bool
-ecdsa_decode_sig(const uint8_t *data, size_t len, pgp::ec::Signature &sig)
+decode_sig(const uint8_t *data, size_t len, ec::Signature &sig)
 {
-    ECDSA_SIG *esig = d2i_ECDSA_SIG(NULL, &data, len);
-    if (!esig) {
+    rnp::ossl::ECDSASig esig(d2i_ECDSA_SIG(NULL, &data, len));
+    if (!esig.get()) {
         RNP_LOG("Failed to parse ECDSA sig: %lu", ERR_peek_last_error());
         return false;
     }
     rnp::bn r, s;
-    ECDSA_SIG_get0(esig, r.cptr(), s.cptr());
+    ECDSA_SIG_get0(esig.get(), r.cptr(), s.cptr());
     r.mpi(sig.r);
     s.mpi(sig.s);
-    ECDSA_SIG_free(esig);
     return true;
 }
 
 static bool
-ecdsa_encode_sig(uint8_t *data, size_t *len, const pgp::ec::Signature &sig)
+encode_sig(uint8_t *data, size_t *len, const ec::Signature &sig)
 {
     ECDSA_SIG *dsig = ECDSA_SIG_new();
     rnp::bn    r(sig.r);
@@ -71,18 +73,17 @@ ecdsa_encode_sig(uint8_t *data, size_t *len, const pgp::ec::Signature &sig)
 }
 
 rnp_result_t
-ecdsa_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
+validate_key(rnp::RNG &rng, const ec::Key &key, bool secret)
 {
-    return pgp::ec::validate_key(key, secret);
+    return ec::validate_key(key, secret);
 }
 
 rnp_result_t
-ecdsa_sign(rnp::RNG &          rng,
-           pgp::ec::Signature &sig,
-           pgp_hash_alg_t      hash_alg,
-           const uint8_t *     hash,
-           size_t              hash_len,
-           const pgp::ec::Key &key)
+sign(rnp::RNG &               rng,
+     ec::Signature &          sig,
+     pgp_hash_alg_t           hash_alg,
+     const rnp::secure_bytes &hash,
+     const ec::Key &          key)
 {
     if (!key.x.bytes()) {
         RNP_LOG("private key not set");
@@ -90,7 +91,7 @@ ecdsa_sign(rnp::RNG &          rng,
     }
 
     /* Load secret key to DSA structure*/
-    auto evpkey = pgp::ec::load_key(key.p, &key.x, key.curve);
+    auto evpkey = ec::load_key(key.p, &key.x, key.curve);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -107,12 +108,11 @@ ecdsa_sign(rnp::RNG &          rng,
         return RNP_ERROR_GENERIC;
     }
     sig.s.len = PGP_MPINT_SIZE;
-    if (EVP_PKEY_sign(ctx.get(), sig.s.mpi, &sig.s.len, hash, hash_len) <= 0) {
+    if (EVP_PKEY_sign(ctx.get(), sig.s.mpi, &sig.s.len, hash.data(), hash.size()) <= 0) {
         RNP_LOG("Signing failed: %lu", ERR_peek_last_error());
-        sig.s.len = 0;
         return RNP_ERROR_GENERIC;
     }
-    if (!ecdsa_decode_sig(sig.s.mpi, sig.s.len, sig)) {
+    if (!decode_sig(sig.s.mpi, sig.s.len, sig)) {
         RNP_LOG("Failed to parse ECDSA sig: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
     }
@@ -120,14 +120,13 @@ ecdsa_sign(rnp::RNG &          rng,
 }
 
 rnp_result_t
-ecdsa_verify(const pgp::ec::Signature &sig,
-             pgp_hash_alg_t            hash_alg,
-             const uint8_t *           hash,
-             size_t                    hash_len,
-             const pgp::ec::Key &      key)
+verify(const ec::Signature &    sig,
+       pgp_hash_alg_t           hash_alg,
+       const rnp::secure_bytes &hash,
+       const ec::Key &          key)
 {
     /* Load secret key to DSA structure*/
-    auto evpkey = pgp::ec::load_key(key.p, NULL, key.curve);
+    auto evpkey = ec::load_key(key.p, NULL, key.curve);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -142,12 +141,14 @@ ecdsa_verify(const pgp::ec::Signature &sig,
         RNP_LOG("Failed to initialize verify: %lu", ERR_peek_last_error());
         return RNP_ERROR_SIGNATURE_INVALID;
     }
-    pgp::mpi sigbuf;
-    if (!ecdsa_encode_sig(sigbuf.mpi, &sigbuf.len, sig)) {
+    mpi sigbuf;
+    if (!encode_sig(sigbuf.mpi, &sigbuf.len, sig)) {
         return RNP_ERROR_SIGNATURE_INVALID;
     }
-    if (EVP_PKEY_verify(ctx.get(), sigbuf.mpi, sigbuf.len, hash, hash_len) < 1) {
+    if (EVP_PKEY_verify(ctx.get(), sigbuf.mpi, sigbuf.len, hash.data(), hash.size()) < 1) {
         return RNP_ERROR_SIGNATURE_INVALID;
     }
     return RNP_SUCCESS;
 }
+} // namespace ecdsa
+} // namespace pgp

@@ -29,6 +29,8 @@
 #include "utils.h"
 #include <cassert>
 
+namespace pgp {
+namespace ecdh {
 /* Used by ECDH keys. Specifies which hash and wrapping algorithm
  * to be used (see point 15. of RFC 4880).
  *
@@ -51,18 +53,18 @@ static const struct ecdh_params_t {
 
 // returns size of data written to other_info
 std::vector<uint8_t>
-kdf_other_info_serialize(const pgp::ec::Curve *   curve,
-                         const pgp_fingerprint_t &fp,
-                         const pgp_hash_alg_t     kdf_hash,
-                         const pgp_symm_alg_t     wrap_alg)
+kdf_other_info_serialize(const pgp::ec::Curve &      curve,
+                         const std::vector<uint8_t> &fp,
+                         const pgp_hash_alg_t        kdf_hash,
+                         const pgp_symm_alg_t        wrap_alg)
 {
-    assert(fp.length >= 20);
+    assert(fp.size() >= 20);
     /* KDF-OtherInfo: AlgorithmID
      *   Current implementation will always use SHA-512 and AES-256 for KEK wrapping
      */
     std::vector<uint8_t> buf;
-    buf.push_back(static_cast<uint8_t>(curve->OID.size()));
-    buf.insert(buf.end(), curve->OID.begin(), curve->OID.end());
+    buf.push_back(static_cast<uint8_t>(curve.OID.size()));
+    buf.insert(buf.end(), curve.OID.begin(), curve.OID.end());
     buf.push_back(PGP_PKA_ECDH);
     // size of following 3 params (each 1 byte)
     buf.push_back(0x03);
@@ -81,49 +83,41 @@ kdf_other_info_serialize(const pgp::ec::Curve *   curve,
                                                       0x65, 0x72, 0x20, 0x20, 0x20, 0x20};
     buf.insert(buf.end(), anonymous.begin(), anonymous.end());
     // keep 20, as per spec
-    buf.insert(buf.end(), fp.fingerprint, fp.fingerprint + fp.length);
+    buf.insert(buf.end(), fp.begin(), fp.end());
     return buf;
 }
 
-bool
-pad_pkcs7(uint8_t *buf, size_t buf_len, size_t offset)
+void
+pad_pkcs7(rnp::secure_bytes &buf, uint8_t padding)
 {
-    if (buf_len <= offset) {
-        // Must have at least 1 byte of padding
-        return false;
-    }
-
-    const uint8_t pad_byte = buf_len - offset;
-    memset(buf + offset, pad_byte, pad_byte);
-    return true;
+    buf.insert(buf.end(), padding, padding);
 }
 
 bool
-unpad_pkcs7(uint8_t *buf, size_t buf_len, size_t *offset)
+unpad_pkcs7(rnp::secure_bytes &buf)
 {
-    if (!buf || !offset || !buf_len) {
+    if (buf.empty()) {
         return false;
     }
 
-    uint8_t        err = 0;
-    const uint8_t  pad_byte = buf[buf_len - 1];
-    const uint32_t pad_begin = buf_len - pad_byte;
+    uint8_t       err = 0;
+    const uint8_t pad_byte = buf.back();
+    const size_t  pad_begin = buf.size() - pad_byte;
 
     // TODO: Still >, <, and <=,==  are not constant time (maybe?)
-    err |= (pad_byte > buf_len);
+    err |= (pad_byte > buf.size());
     err |= (pad_byte == 0);
 
     /* Check if padding is OK */
-    for (size_t c = 0; c < buf_len; c++) {
+    for (size_t c = 0; c < buf.size(); c++) {
         err |= (buf[c] ^ pad_byte) * (pad_begin <= c);
     }
-
-    *offset = pad_begin;
+    buf.resize(pad_begin);
     return (err == 0);
 }
 
 bool
-ecdh_set_params(pgp::ec::Key &key, pgp_curve_t curve_id)
+set_params(pgp::ec::Key &key, pgp_curve_t curve_id)
 {
     for (size_t i = 0; i < ARRAY_SIZE(ecdh_params); i++) {
         if (ecdh_params[i].curve == curve_id) {
@@ -135,6 +129,9 @@ ecdh_set_params(pgp::ec::Key &key, pgp_curve_t curve_id)
 
     return false;
 }
+
+} // namespace ecdh
+} // namespace pgp
 
 bool
 x25519_tweak_bits(pgp::ec::Key &key)

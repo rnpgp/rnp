@@ -30,8 +30,11 @@
 #include <string.h>
 #include "botan_utils.hpp"
 
+namespace pgp {
+namespace ecdsa {
+
 static bool
-ecdsa_load_public_key(rnp::botan::Pubkey &pubkey, const pgp::ec::Key &keydata)
+load_public_key(rnp::botan::Pubkey &pubkey, const pgp::ec::Key &keydata)
 {
     auto curve = pgp::ec::Curve::get(keydata.curve);
     if (!curve) {
@@ -59,7 +62,7 @@ ecdsa_load_public_key(rnp::botan::Pubkey &pubkey, const pgp::ec::Key &keydata)
 }
 
 static bool
-ecdsa_load_secret_key(rnp::botan::Privkey &seckey, const pgp::ec::Key &keydata)
+load_secret_key(rnp::botan::Privkey &seckey, const pgp::ec::Key &keydata)
 {
     auto curve = pgp::ec::Curve::get(keydata.curve);
     if (!curve) {
@@ -79,11 +82,10 @@ ecdsa_load_secret_key(rnp::botan::Privkey &seckey, const pgp::ec::Key &keydata)
 }
 
 rnp_result_t
-ecdsa_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
+validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
 {
     rnp::botan::Pubkey bpkey;
-    if (!ecdsa_load_public_key(bpkey, key) ||
-        botan_pubkey_check_key(bpkey.get(), rng.handle(), 0)) {
+    if (!load_public_key(bpkey, key) || botan_pubkey_check_key(bpkey.get(), rng.handle(), 0)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     if (!secret) {
@@ -91,7 +93,7 @@ ecdsa_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
     }
 
     rnp::botan::Privkey bskey;
-    if (!ecdsa_load_secret_key(bskey, key) ||
+    if (!load_secret_key(bskey, key) ||
         botan_privkey_check_key(bskey.get(), rng.handle(), 0)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -99,7 +101,7 @@ ecdsa_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
 }
 
 const char *
-ecdsa_padding_str_for(pgp_hash_alg_t hash_alg)
+padding_str_for(pgp_hash_alg_t hash_alg)
 {
     switch (hash_alg) {
     case PGP_HASH_MD5:
@@ -108,7 +110,6 @@ ecdsa_padding_str_for(pgp_hash_alg_t hash_alg)
         return "Raw(SHA-1)";
     case PGP_HASH_RIPEMD:
         return "Raw(RIPEMD-160)";
-
     case PGP_HASH_SHA256:
         return "Raw(SHA-256)";
     case PGP_HASH_SHA384:
@@ -121,7 +122,6 @@ ecdsa_padding_str_for(pgp_hash_alg_t hash_alg)
         return "Raw(SHA-3(256))";
     case PGP_HASH_SHA3_512:
         return "Raw(SHA-3(512))";
-
     case PGP_HASH_SM3:
         return "Raw(SM3)";
     default:
@@ -130,12 +130,11 @@ ecdsa_padding_str_for(pgp_hash_alg_t hash_alg)
 }
 
 rnp_result_t
-ecdsa_sign(rnp::RNG &          rng,
-           pgp::ec::Signature &sig,
-           pgp_hash_alg_t      hash_alg,
-           const uint8_t *     hash,
-           size_t              hash_len,
-           const pgp::ec::Key &key)
+sign(rnp::RNG &               rng,
+     pgp::ec::Signature &     sig,
+     pgp_hash_alg_t           hash_alg,
+     const rnp::secure_bytes &hash,
+     const pgp::ec::Key &     key)
 {
     auto curve = pgp::ec::Curve::get(key.curve);
     if (!curve) {
@@ -143,15 +142,15 @@ ecdsa_sign(rnp::RNG &          rng,
     }
 
     rnp::botan::Privkey b_key;
-    if (!ecdsa_load_secret_key(b_key, key)) {
+    if (!load_secret_key(b_key, key)) {
         RNP_LOG("Can't load private key");
         return RNP_ERROR_GENERIC;
     }
 
     rnp::botan::op::Sign signer;
-    auto                 pad = ecdsa_padding_str_for(hash_alg);
+    auto                 pad = padding_str_for(hash_alg);
     if (botan_pk_op_sign_create(&signer.get(), b_key.get(), pad, 0) ||
-        botan_pk_op_sign_update(signer.get(), hash, hash_len)) {
+        botan_pk_op_sign_update(signer.get(), hash.data(), hash.size())) {
         return RNP_ERROR_GENERIC;
     }
 
@@ -173,11 +172,10 @@ ecdsa_sign(rnp::RNG &          rng,
 }
 
 rnp_result_t
-ecdsa_verify(const pgp::ec::Signature &sig,
-             pgp_hash_alg_t            hash_alg,
-             const uint8_t *           hash,
-             size_t                    hash_len,
-             const pgp::ec::Key &      key)
+verify(const pgp::ec::Signature &sig,
+       pgp_hash_alg_t            hash_alg,
+       const rnp::secure_bytes & hash,
+       const pgp::ec::Key &      key)
 {
     auto curve = pgp::ec::Curve::get(key.curve);
     if (!curve) {
@@ -194,14 +192,14 @@ ecdsa_verify(const pgp::ec::Signature &sig,
     }
 
     rnp::botan::Pubkey pub;
-    if (!ecdsa_load_public_key(pub, key)) {
+    if (!load_public_key(pub, key)) {
         return RNP_ERROR_SIGNATURE_INVALID;
     }
 
     rnp::botan::op::Verify verifier;
-    auto                   pad = ecdsa_padding_str_for(hash_alg);
+    auto                   pad = padding_str_for(hash_alg);
     if (botan_pk_op_verify_create(&verifier.get(), pub.get(), pad, 0) ||
-        botan_pk_op_verify_update(verifier.get(), hash, hash_len)) {
+        botan_pk_op_verify_update(verifier.get(), hash.data(), hash.size())) {
         return RNP_ERROR_SIGNATURE_INVALID;
     }
 
@@ -215,3 +213,5 @@ ecdsa_verify(const pgp::ec::Signature &sig,
     }
     return RNP_SUCCESS;
 }
+} // namespace ecdsa
+} // namespace pgp

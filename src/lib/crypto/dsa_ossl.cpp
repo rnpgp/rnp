@@ -184,7 +184,7 @@ Key::validate(rnp::RNG &rng, bool secret) const noexcept
 }
 
 rnp_result_t
-Key::sign(rnp::RNG &rng, Signature &sig, const uint8_t *hash, size_t hash_len) const
+Key::sign(rnp::RNG &rng, Signature &sig, const rnp::secure_bytes &hash) const
 {
     if (!x.bytes()) {
         RNP_LOG("private key not set");
@@ -211,7 +211,7 @@ Key::sign(rnp::RNG &rng, Signature &sig, const uint8_t *hash, size_t hash_len) c
         return RNP_ERROR_GENERIC;
     }
     sig.s.len = PGP_MPINT_SIZE;
-    if (EVP_PKEY_sign(ctx.get(), sig.s.mpi, &sig.s.len, hash, hash_len) <= 0) {
+    if (EVP_PKEY_sign(ctx.get(), sig.s.mpi, &sig.s.len, hash.data(), hash.size()) <= 0) {
         RNP_LOG("Signing failed: %lu", ERR_peek_last_error());
         sig.s.len = 0;
         return RNP_ERROR_GENERIC;
@@ -224,7 +224,7 @@ Key::sign(rnp::RNG &rng, Signature &sig, const uint8_t *hash, size_t hash_len) c
 }
 
 rnp_result_t
-Key::verify(const Signature &sig, const uint8_t *hash, size_t hash_len) const
+Key::verify(const Signature &sig, const rnp::secure_bytes &hash) const
 {
     /* Load secret key to EVP key */
     auto evpkey = load_key(*this, false);
@@ -249,7 +249,7 @@ Key::verify(const Signature &sig, const uint8_t *hash, size_t hash_len) const
     if (!encode_sig(sigbuf.mpi, &sigbuf.len, sig)) {
         return RNP_ERROR_GENERIC;
     }
-    if (EVP_PKEY_verify(ctx.get(), sigbuf.mpi, sigbuf.len, hash, hash_len) <= 0) {
+    if (EVP_PKEY_verify(ctx.get(), sigbuf.mpi, sigbuf.len, hash.data(), hash.size()) <= 0) {
         return RNP_ERROR_SIGNATURE_INVALID;
     }
     return RNP_SUCCESS;

@@ -215,7 +215,7 @@ ECCKeyParams::bits() const noexcept
 pgp_hash_alg_t
 ECDSAKeyParams::min_hash() const noexcept
 {
-    return ecdsa_get_min_hash(curve());
+    return ecdsa::get_min_hash(curve());
 }
 
 #if defined(ENABLE_PQC)
@@ -324,33 +324,31 @@ KeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 rnp_result_t
 KeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                      pgp_encrypted_material_t &out,
-                     const uint8_t *           data,
-                     size_t                    len) const
+                     const rnp::secure_bytes & data) const
 {
     return RNP_ERROR_NOT_SUPPORTED;
 }
 
 rnp_result_t
 KeyMaterial::decrypt(rnp::SecurityContext &          ctx,
-                     uint8_t *                       out,
-                     size_t &                        out_len,
+                     rnp::secure_bytes &             out,
                      const pgp_encrypted_material_t &in) const
 {
     return RNP_ERROR_NOT_SUPPORTED;
 }
 
 rnp_result_t
-KeyMaterial::verify(const rnp::SecurityContext &       ctx,
-                    const pgp_signature_material_t &   sig,
-                    const rnp::secure_vector<uint8_t> &hash) const
+KeyMaterial::verify(const rnp::SecurityContext &    ctx,
+                    const pgp_signature_material_t &sig,
+                    const rnp::secure_bytes &       hash) const
 {
     return RNP_ERROR_NOT_SUPPORTED;
 }
 
 rnp_result_t
-KeyMaterial::sign(rnp::SecurityContext &             ctx,
-                  pgp_signature_material_t &         sig,
-                  const rnp::secure_vector<uint8_t> &hash) const
+KeyMaterial::sign(rnp::SecurityContext &    ctx,
+                  pgp_signature_material_t &sig,
+                  const rnp::secure_bytes & hash) const
 {
     return RNP_ERROR_NOT_SUPPORTED;
 }
@@ -446,19 +444,19 @@ KeyMaterial::create(pgp_pubkey_alg_t alg)
 std::unique_ptr<KeyMaterial>
 KeyMaterial::create(pgp_pubkey_alg_t alg, const rsa::Key &key)
 {
-    return std::unique_ptr<pgp::KeyMaterial>(new pgp::RSAKeyMaterial(alg, key));
+    return std::unique_ptr<KeyMaterial>(new RSAKeyMaterial(alg, key));
 }
 
 std::unique_ptr<KeyMaterial>
 KeyMaterial::create(const dsa::Key &key)
 {
-    return std::unique_ptr<pgp::KeyMaterial>(new pgp::DSAKeyMaterial(key));
+    return std::unique_ptr<KeyMaterial>(new DSAKeyMaterial(key));
 }
 
 std::unique_ptr<KeyMaterial>
 KeyMaterial::create(pgp_pubkey_alg_t alg, const eg::Key &key)
 {
-    return std::unique_ptr<pgp::KeyMaterial>(new pgp::EGKeyMaterial(alg, key));
+    return std::unique_ptr<KeyMaterial>(new EGKeyMaterial(alg, key));
 }
 
 std::unique_ptr<KeyMaterial>
@@ -466,13 +464,13 @@ KeyMaterial::create(pgp_pubkey_alg_t alg, const ec::Key &key)
 {
     switch (alg) {
     case PGP_PKA_ECDSA:
-        return std::unique_ptr<pgp::KeyMaterial>(new pgp::ECDSAKeyMaterial(key));
+        return std::unique_ptr<KeyMaterial>(new ECDSAKeyMaterial(key));
     case PGP_PKA_ECDH:
-        return std::unique_ptr<pgp::KeyMaterial>(new pgp::ECDHKeyMaterial(key));
+        return std::unique_ptr<KeyMaterial>(new ECDHKeyMaterial(key));
     case PGP_PKA_EDDSA:
-        return std::unique_ptr<pgp::KeyMaterial>(new pgp::EDDSAKeyMaterial(key));
+        return std::unique_ptr<KeyMaterial>(new EDDSAKeyMaterial(key));
     case PGP_PKA_SM2:
-        return std::unique_ptr<pgp::KeyMaterial>(new pgp::SM2KeyMaterial(key));
+        return std::unique_ptr<KeyMaterial>(new SM2KeyMaterial(key));
     default:
         throw std::invalid_argument("Invalid EC algorithm.");
     }
@@ -566,43 +564,37 @@ RSAKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 rnp_result_t
 RSAKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                         pgp_encrypted_material_t &out,
-                        const uint8_t *           data,
-                        size_t                    len) const
+                        const rnp::secure_bytes & data) const
 {
-    return key_.encrypt_pkcs1(ctx.rng, out.rsa, data, len);
+    return key_.encrypt_pkcs1(ctx.rng, out.rsa, data);
 }
 
 rnp_result_t
 RSAKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
-                        uint8_t *                       out,
-                        size_t &                        out_len,
+                        rnp::secure_bytes &             out,
                         const pgp_encrypted_material_t &in) const
 {
-    if ((alg() != PGP_PKA_RSA) && (alg() != PGP_PKA_RSA_ENCRYPT_ONLY)) {
-        RNP_LOG("Non-encrypting RSA algorithm: %d\n", alg());
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-    return key_.decrypt_pkcs1(ctx.rng, out, out_len, in.rsa);
+    return key_.decrypt_pkcs1(ctx.rng, out, in.rsa);
 }
 
 rnp_result_t
-RSAKeyMaterial::verify(const rnp::SecurityContext &       ctx,
-                       const pgp_signature_material_t &   sig,
-                       const rnp::secure_vector<uint8_t> &hash) const
+RSAKeyMaterial::verify(const rnp::SecurityContext &    ctx,
+                       const pgp_signature_material_t &sig,
+                       const rnp::secure_bytes &       hash) const
 {
     if (alg() == PGP_PKA_RSA_ENCRYPT_ONLY) {
         RNP_LOG("RSA encrypt-only signature considered as invalid.");
         return RNP_ERROR_SIGNATURE_INVALID;
     }
-    return key_.verify_pkcs1(sig.rsa, sig.halg, hash.data(), hash.size());
+    return key_.verify_pkcs1(sig.rsa, sig.halg, hash);
 }
 
 rnp_result_t
-RSAKeyMaterial::sign(rnp::SecurityContext &             ctx,
-                     pgp_signature_material_t &         sig,
-                     const rnp::secure_vector<uint8_t> &hash) const
+RSAKeyMaterial::sign(rnp::SecurityContext &    ctx,
+                     pgp_signature_material_t &sig,
+                     const rnp::secure_bytes & hash) const
 {
-    return key_.sign_pkcs1(ctx.rng, sig.rsa, sig.halg, hash.data(), hash.size());
+    return key_.sign_pkcs1(ctx.rng, sig.rsa, sig.halg, hash);
 }
 
 void
@@ -741,19 +733,19 @@ DSAKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 }
 
 rnp_result_t
-DSAKeyMaterial::verify(const rnp::SecurityContext &       ctx,
-                       const pgp_signature_material_t &   sig,
-                       const rnp::secure_vector<uint8_t> &hash) const
+DSAKeyMaterial::verify(const rnp::SecurityContext &    ctx,
+                       const pgp_signature_material_t &sig,
+                       const rnp::secure_bytes &       hash) const
 {
-    return key_.verify(sig.dsa, hash.data(), hash.size());
+    return key_.verify(sig.dsa, hash);
 }
 
 rnp_result_t
-DSAKeyMaterial::sign(rnp::SecurityContext &             ctx,
-                     pgp_signature_material_t &         sig,
-                     const rnp::secure_vector<uint8_t> &hash) const
+DSAKeyMaterial::sign(rnp::SecurityContext &    ctx,
+                     pgp_signature_material_t &sig,
+                     const rnp::secure_bytes & hash) const
 {
-    return key_.sign(ctx.rng, sig.dsa, hash.data(), hash.size());
+    return key_.sign(ctx.rng, sig.dsa, hash);
 }
 
 pgp_hash_alg_t
@@ -902,25 +894,23 @@ EGKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 rnp_result_t
 EGKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                        pgp_encrypted_material_t &out,
-                       const uint8_t *           data,
-                       size_t                    len) const
+                       const rnp::secure_bytes & data) const
 {
-    return key_.encrypt_pkcs1(ctx.rng, out.eg, data, len);
+    return key_.encrypt_pkcs1(ctx.rng, out.eg, data);
 }
 
 rnp_result_t
 EGKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
-                       uint8_t *                       out,
-                       size_t &                        out_len,
+                       rnp::secure_bytes &             out,
                        const pgp_encrypted_material_t &in) const
 {
-    return key_.decrypt_pkcs1(ctx.rng, out, &out_len, in.eg);
+    return key_.decrypt_pkcs1(ctx.rng, out, in.eg);
 }
 
 rnp_result_t
-EGKeyMaterial::verify(const rnp::SecurityContext &       ctx,
-                      const pgp_signature_material_t &   sig,
-                      const rnp::secure_vector<uint8_t> &hash) const
+EGKeyMaterial::verify(const rnp::SecurityContext &    ctx,
+                      const pgp_signature_material_t &sig,
+                      const rnp::secure_bytes &       hash) const
 {
     RNP_LOG("ElGamal signatures are considered as invalid.");
     return RNP_ERROR_SIGNATURE_INVALID;
@@ -1096,7 +1086,7 @@ ECDSAKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
         RNP_LOG("ECDSA validate: curve %d is not supported.", key_.curve);
         return true;
     }
-    return !ecdsa_validate_key(ctx.rng, key_, secret_);
+    return !ecdsa::validate_key(ctx.rng, key_, secret_);
 }
 
 std::unique_ptr<KeyMaterial>
@@ -1106,33 +1096,33 @@ ECDSAKeyMaterial::clone()
 }
 
 rnp_result_t
-ECDSAKeyMaterial::verify(const rnp::SecurityContext &       ctx,
-                         const pgp_signature_material_t &   sig,
-                         const rnp::secure_vector<uint8_t> &hash) const
+ECDSAKeyMaterial::verify(const rnp::SecurityContext &    ctx,
+                         const pgp_signature_material_t &sig,
+                         const rnp::secure_bytes &       hash) const
 {
     if (!ec::Curve::is_supported(key_.curve)) {
         RNP_LOG("Curve %d is not supported.", key_.curve);
         return RNP_ERROR_NOT_SUPPORTED;
     }
-    return ecdsa_verify(sig.ecc, sig.halg, hash.data(), hash.size(), key_);
+    return ecdsa::verify(sig.ecc, sig.halg, hash, key_);
 }
 
 rnp_result_t
-ECDSAKeyMaterial::sign(rnp::SecurityContext &             ctx,
-                       pgp_signature_material_t &         sig,
-                       const rnp::secure_vector<uint8_t> &hash) const
+ECDSAKeyMaterial::sign(rnp::SecurityContext &    ctx,
+                       pgp_signature_material_t &sig,
+                       const rnp::secure_bytes & hash) const
 {
     auto ret = check_curve(hash.size());
     if (ret) {
         return ret;
     }
-    return ecdsa_sign(ctx.rng, sig.ecc, sig.halg, hash.data(), hash.size(), key_);
+    return ecdsa::sign(ctx.rng, sig.ecc, sig.halg, hash, key_);
 }
 
 pgp_hash_alg_t
 ECDSAKeyMaterial::adjust_hash(pgp_hash_alg_t hash) const
 {
-    pgp_hash_alg_t hash_min = ecdsa_get_min_hash(key_.curve);
+    pgp_hash_alg_t hash_min = ecdsa::get_min_hash(key_.curve);
     if (rnp::Hash::size(hash) < rnp::Hash::size(hash_min)) {
         return hash_min;
     }
@@ -1147,7 +1137,7 @@ ECDHKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
         RNP_LOG("ECDH validate: curve %d is not supported.", key_.curve);
         return true;
     }
-    return !ecdh_validate_key(ctx.rng, key_, secret_);
+    return !ecdh::validate_key(ctx.rng, key_, secret_);
 }
 
 std::unique_ptr<KeyMaterial>
@@ -1193,7 +1183,7 @@ bool
 ECDHKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 {
     auto &ecc = dynamic_cast<const ECCKeyParams &>(params);
-    if (!ecdh_set_params(key_, ecc.curve())) {
+    if (!ecdh::set_params(key_, ecc.curve())) {
         RNP_LOG("Unsupported curve [ID=%d]", ecc.curve());
         return false;
     }
@@ -1213,21 +1203,18 @@ ECDHKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 rnp_result_t
 ECDHKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                          pgp_encrypted_material_t &out,
-                         const uint8_t *           data,
-                         size_t                    len) const
+                         const rnp::secure_bytes & data) const
 {
     if (!ec::Curve::is_supported(key_.curve)) {
         RNP_LOG("ECDH encrypt: curve %d is not supported.", key_.curve);
         return RNP_ERROR_NOT_SUPPORTED;
     }
-    assert(out.ecdh.fp);
-    return ecdh_encrypt_pkcs5(ctx.rng, out.ecdh, data, len, key_, *out.ecdh.fp);
+    return ecdh::encrypt_pkcs5(ctx.rng, out.ecdh, data, key_, out.ecdh.fp);
 }
 
 rnp_result_t
 ECDHKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
-                         uint8_t *                       out,
-                         size_t &                        out_len,
+                         rnp::secure_bytes &             out,
                          const pgp_encrypted_material_t &in) const
 {
     if (!ec::Curve::is_supported(key_.curve)) {
@@ -1237,7 +1224,7 @@ ECDHKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
     if ((key_.curve == PGP_CURVE_25519) && !x25519_bits_tweaked()) {
         RNP_LOG("Warning: bits of 25519 secret key are not tweaked.");
     }
-    return ecdh_decrypt_pkcs5(out, &out_len, in.ecdh, key_, *in.ecdh.fp);
+    return ecdh::decrypt_pkcs5(out, in.ecdh, key_, in.ecdh.fp);
 }
 
 pgp_hash_alg_t
@@ -1267,7 +1254,7 @@ ECDHKeyMaterial::x25519_tweak_bits() noexcept
 bool
 EDDSAKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 {
-    return !eddsa_validate_key(ctx.rng, key_, secret_);
+    return !eddsa::validate_key(ctx.rng, key_, secret_);
 }
 
 std::unique_ptr<KeyMaterial>
@@ -1279,7 +1266,7 @@ EDDSAKeyMaterial::clone()
 bool
 EDDSAKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 {
-    if (eddsa_generate(ctx.rng, key_)) {
+    if (eddsa::generate(ctx.rng, key_)) {
         RNP_LOG("failed to generate EDDSA key");
         return false;
     }
@@ -1287,26 +1274,26 @@ EDDSAKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 }
 
 rnp_result_t
-EDDSAKeyMaterial::verify(const rnp::SecurityContext &       ctx,
-                         const pgp_signature_material_t &   sig,
-                         const rnp::secure_vector<uint8_t> &hash) const
+EDDSAKeyMaterial::verify(const rnp::SecurityContext &    ctx,
+                         const pgp_signature_material_t &sig,
+                         const rnp::secure_bytes &       hash) const
 {
-    return eddsa_verify(sig.ecc, hash.data(), hash.size(), key_);
+    return eddsa::verify(sig.ecc, hash, key_);
 }
 
 rnp_result_t
-EDDSAKeyMaterial::sign(rnp::SecurityContext &             ctx,
-                       pgp_signature_material_t &         sig,
-                       const rnp::secure_vector<uint8_t> &hash) const
+EDDSAKeyMaterial::sign(rnp::SecurityContext &    ctx,
+                       pgp_signature_material_t &sig,
+                       const rnp::secure_bytes & hash) const
 {
-    return eddsa_sign(ctx.rng, sig.ecc, hash.data(), hash.size(), key_);
+    return eddsa::sign(ctx.rng, sig.ecc, hash, key_);
 }
 
 bool
 SM2KeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 {
 #if defined(ENABLE_SM2)
-    return !sm2_validate_key(ctx.rng, key_, secret_);
+    return !pgp::sm2::validate_key(ctx.rng, key_, secret_);
 #else
     RNP_LOG("SM2 key validation is not available.");
     return false;
@@ -1322,11 +1309,10 @@ SM2KeyMaterial::clone()
 rnp_result_t
 SM2KeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                         pgp_encrypted_material_t &out,
-                        const uint8_t *           data,
-                        size_t                    len) const
+                        const rnp::secure_bytes & data) const
 {
 #if defined(ENABLE_SM2)
-    return sm2_encrypt(ctx.rng, out.sm2, data, len, PGP_HASH_SM3, key_);
+    return pgp::sm2::encrypt(ctx.rng, out.sm2, data, PGP_HASH_SM3, key_);
 #else
     RNP_LOG("sm2_encrypt is not available");
     return RNP_ERROR_NOT_IMPLEMENTED;
@@ -1335,12 +1321,11 @@ SM2KeyMaterial::encrypt(rnp::SecurityContext &    ctx,
 
 rnp_result_t
 SM2KeyMaterial::decrypt(rnp::SecurityContext &          ctx,
-                        uint8_t *                       out,
-                        size_t &                        out_len,
+                        rnp::secure_bytes &             out,
                         const pgp_encrypted_material_t &in) const
 {
 #if defined(ENABLE_SM2)
-    return sm2_decrypt(out, &out_len, in.sm2, key_);
+    return pgp::sm2::decrypt(out, in.sm2, key_);
 #else
     RNP_LOG("SM2 decryption is not available.");
     return RNP_ERROR_NOT_IMPLEMENTED;
@@ -1348,12 +1333,12 @@ SM2KeyMaterial::decrypt(rnp::SecurityContext &          ctx,
 }
 
 rnp_result_t
-SM2KeyMaterial::verify(const rnp::SecurityContext &       ctx,
-                       const pgp_signature_material_t &   sig,
-                       const rnp::secure_vector<uint8_t> &hash) const
+SM2KeyMaterial::verify(const rnp::SecurityContext &    ctx,
+                       const pgp_signature_material_t &sig,
+                       const rnp::secure_bytes &       hash) const
 {
 #if defined(ENABLE_SM2)
-    return sm2_verify(sig.ecc, sig.halg, hash.data(), hash.size(), key_);
+    return pgp::sm2::verify(sig.ecc, sig.halg, hash, key_);
 #else
     RNP_LOG("SM2 verification is not available.");
     return RNP_ERROR_NOT_IMPLEMENTED;
@@ -1361,16 +1346,16 @@ SM2KeyMaterial::verify(const rnp::SecurityContext &       ctx,
 }
 
 rnp_result_t
-SM2KeyMaterial::sign(rnp::SecurityContext &             ctx,
-                     pgp_signature_material_t &         sig,
-                     const rnp::secure_vector<uint8_t> &hash) const
+SM2KeyMaterial::sign(rnp::SecurityContext &    ctx,
+                     pgp_signature_material_t &sig,
+                     const rnp::secure_bytes & hash) const
 {
 #if defined(ENABLE_SM2)
     auto ret = check_curve(hash.size());
     if (ret) {
         return ret;
     }
-    return sm2_sign(ctx.rng, sig.ecc, sig.halg, hash.data(), hash.size(), key_);
+    return pgp::sm2::sign(ctx.rng, sig.ecc, sig.halg, hash, key_);
 #else
     RNP_LOG("SM2 signing is not available.");
     return RNP_ERROR_NOT_IMPLEMENTED;
@@ -1381,7 +1366,7 @@ void
 SM2KeyMaterial::compute_za(rnp::Hash &hash) const
 {
 #if defined(ENABLE_SM2)
-    auto res = sm2_compute_za(key_, hash);
+    auto res = pgp::sm2::compute_za(key_, hash);
     if (res) {
         RNP_LOG("failed to compute SM2 ZA field");
         throw rnp::rnp_exception(res);
@@ -1480,17 +1465,17 @@ Ed25519KeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 }
 
 rnp_result_t
-Ed25519KeyMaterial::verify(const rnp::SecurityContext &       ctx,
-                           const pgp_signature_material_t &   sig,
-                           const rnp::secure_vector<uint8_t> &hash) const
+Ed25519KeyMaterial::verify(const rnp::SecurityContext &    ctx,
+                           const pgp_signature_material_t &sig,
+                           const rnp::secure_bytes &       hash) const
 {
     return ed25519_verify_native(sig.ed25519.sig, key_.pub, hash.data(), hash.size());
 }
 
 rnp_result_t
-Ed25519KeyMaterial::sign(rnp::SecurityContext &             ctx,
-                         pgp_signature_material_t &         sig,
-                         const rnp::secure_vector<uint8_t> &hash) const
+Ed25519KeyMaterial::sign(rnp::SecurityContext &    ctx,
+                         pgp_signature_material_t &sig,
+                         const rnp::secure_bytes & hash) const
 {
     return ed25519_sign_native(&ctx.rng, sig.ed25519.sig, key_.priv, hash.data(), hash.size());
 }
@@ -1608,19 +1593,23 @@ X25519KeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 rnp_result_t
 X25519KeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                            pgp_encrypted_material_t &out,
-                           const uint8_t *           data,
-                           size_t                    len) const
+                           const rnp::secure_bytes & data) const
 {
-    return x25519_native_encrypt(&ctx.rng, key_.pub, data, len, &out.x25519);
+    return x25519_native_encrypt(&ctx.rng, key_.pub, data.data(), data.size(), &out.x25519);
 }
 
 rnp_result_t
 X25519KeyMaterial::decrypt(rnp::SecurityContext &          ctx,
-                           uint8_t *                       out,
-                           size_t &                        out_len,
+                           rnp::secure_bytes &             out,
                            const pgp_encrypted_material_t &in) const
 {
-    return x25519_native_decrypt(&ctx.rng, key_, &in.x25519, out, &out_len);
+    out.resize(PGP_MPINT_SIZE);
+    size_t out_size = out.size();
+    auto   ret = x25519_native_decrypt(&ctx.rng, key_, &in.x25519, out.data(), &out_size);
+    if (!ret) {
+        out.resize(out_size);
+    }
+    return ret;
 }
 
 size_t
@@ -1735,19 +1724,23 @@ MlkemEcdhKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &param
 rnp_result_t
 MlkemEcdhKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
                               pgp_encrypted_material_t &out,
-                              const uint8_t *           data,
-                              size_t                    len) const
+                              const rnp::secure_bytes & data) const
 {
-    return key_.pub.encrypt(&ctx.rng, &out.kyber_ecdh, data, len);
+    return key_.pub.encrypt(&ctx.rng, &out.kyber_ecdh, data.data(), data.size());
 }
 
 rnp_result_t
 MlkemEcdhKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
-                              uint8_t *                       out,
-                              size_t &                        out_len,
+                              rnp::secure_bytes &             out,
                               const pgp_encrypted_material_t &in) const
 {
-    return key_.priv.decrypt(&ctx.rng, out, &out_len, &in.kyber_ecdh);
+    out.resize(PGP_MPINT_SIZE);
+    size_t out_size = out.size();
+    auto   ret = key_.priv.decrypt(&ctx.rng, out.data(), &out_size, &in.kyber_ecdh);
+    if (!ret) {
+        out.resize(out_size);
+    }
+    return ret;
 }
 
 size_t
@@ -1852,17 +1845,17 @@ DilithiumEccKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &pa
 }
 
 rnp_result_t
-DilithiumEccKeyMaterial::verify(const rnp::SecurityContext &       ctx,
-                                const pgp_signature_material_t &   sig,
-                                const rnp::secure_vector<uint8_t> &hash) const
+DilithiumEccKeyMaterial::verify(const rnp::SecurityContext &    ctx,
+                                const pgp_signature_material_t &sig,
+                                const rnp::secure_bytes &       hash) const
 {
     return key_.pub.verify(&sig.dilithium_exdsa, sig.halg, hash.data(), hash.size());
 }
 
 rnp_result_t
-DilithiumEccKeyMaterial::sign(rnp::SecurityContext &             ctx,
-                              pgp_signature_material_t &         sig,
-                              const rnp::secure_vector<uint8_t> &hash) const
+DilithiumEccKeyMaterial::sign(rnp::SecurityContext &    ctx,
+                              pgp_signature_material_t &sig,
+                              const rnp::secure_bytes & hash) const
 {
     return key_.priv.sign(&ctx.rng, &sig.dilithium_exdsa, sig.halg, hash.data(), hash.size());
 }
@@ -1995,17 +1988,17 @@ SlhdsaKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 }
 
 rnp_result_t
-SlhdsaKeyMaterial::verify(const rnp::SecurityContext &       ctx,
-                          const pgp_signature_material_t &   sig,
-                          const rnp::secure_vector<uint8_t> &hash) const
+SlhdsaKeyMaterial::verify(const rnp::SecurityContext &    ctx,
+                          const pgp_signature_material_t &sig,
+                          const rnp::secure_bytes &       hash) const
 {
     return key_.pub.verify(&sig.sphincsplus, hash.data(), hash.size());
 }
 
 rnp_result_t
-SlhdsaKeyMaterial::sign(rnp::SecurityContext &             ctx,
-                        pgp_signature_material_t &         sig,
-                        const rnp::secure_vector<uint8_t> &hash) const
+SlhdsaKeyMaterial::sign(rnp::SecurityContext &    ctx,
+                        pgp_signature_material_t &sig,
+                        const rnp::secure_bytes & hash) const
 {
     return key_.priv.sign(&ctx.rng, &sig.sphincsplus, hash.data(), hash.size());
 }

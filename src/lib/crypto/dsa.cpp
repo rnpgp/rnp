@@ -75,7 +75,7 @@ Key::validate(rnp::RNG &rng, bool secret) const noexcept
 }
 
 rnp_result_t
-Key::sign(rnp::RNG &rng, Signature &sig, const uint8_t *hash, size_t hash_len) const
+Key::sign(rnp::RNG &rng, Signature &sig, const rnp::secure_bytes &hash) const
 {
     sig = {};
     size_t q_order = q.bytes();
@@ -85,7 +85,7 @@ Key::sign(rnp::RNG &rng, Signature &sig, const uint8_t *hash, size_t hash_len) c
     }
 
     // As 'Raw' is used we need to reduce hash size (as per FIPS-186-4, 4.6)
-    size_t z_len = hash_len < q_order ? hash_len : q_order;
+    size_t z_len = std::min(hash.size(), q_order);
 
     rnp::bn bp(p);
     rnp::bn bq(q);
@@ -108,7 +108,7 @@ Key::sign(rnp::RNG &rng, Signature &sig, const uint8_t *hash, size_t hash_len) c
         return RNP_ERROR_SIGNING_FAILED;
     }
 
-    if (botan_pk_op_sign_update(sign_op.get(), hash, z_len)) {
+    if (botan_pk_op_sign_update(sign_op.get(), hash.data(), z_len)) {
         return RNP_ERROR_SIGNING_FAILED;
     }
 
@@ -128,14 +128,14 @@ Key::sign(rnp::RNG &rng, Signature &sig, const uint8_t *hash, size_t hash_len) c
 }
 
 rnp_result_t
-Key::verify(const Signature &sig, const uint8_t *hash, size_t hash_len) const
+Key::verify(const Signature &sig, const rnp::secure_bytes &hash) const
 {
     size_t q_order = q.bytes();
     if (q_order > BITS_TO_BYTES(DSA_MAX_Q_BITLEN)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    size_t z_len = hash_len < q_order ? hash_len : q_order;
+    size_t z_len = std::min(hash.size(), q_order);
     size_t r_blen = sig.r.bytes();
     size_t s_blen = sig.s.bytes();
     if ((r_blen > q_order) || (s_blen > q_order)) {
@@ -169,7 +169,7 @@ Key::verify(const Signature &sig, const uint8_t *hash, size_t hash_len) const
         return RNP_ERROR_GENERIC;
     }
 
-    if (botan_pk_op_verify_update(verify_op.get(), hash, z_len)) {
+    if (botan_pk_op_verify_update(verify_op.get(), hash.data(), z_len)) {
         return RNP_ERROR_GENERIC;
     }
 

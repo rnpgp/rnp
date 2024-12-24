@@ -31,8 +31,11 @@
 #include "utils.h"
 #include "botan_utils.hpp"
 
+namespace pgp {
+namespace eddsa {
+
 static bool
-eddsa_load_public_key(rnp::botan::Pubkey &pubkey, const pgp::ec::Key &keydata)
+load_public_key(rnp::botan::Pubkey &pubkey, const pgp::ec::Key &keydata)
 {
     if (keydata.curve != PGP_CURVE_ED25519) {
         return false;
@@ -50,7 +53,7 @@ eddsa_load_public_key(rnp::botan::Pubkey &pubkey, const pgp::ec::Key &keydata)
 }
 
 static bool
-eddsa_load_secret_key(rnp::botan::Privkey &seckey, const pgp::ec::Key &keydata)
+load_secret_key(rnp::botan::Privkey &seckey, const pgp::ec::Key &keydata)
 {
     if (keydata.curve != PGP_CURVE_ED25519) {
         return false;
@@ -69,11 +72,10 @@ eddsa_load_secret_key(rnp::botan::Privkey &seckey, const pgp::ec::Key &keydata)
 }
 
 rnp_result_t
-eddsa_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
+validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
 {
     rnp::botan::Pubkey bpkey;
-    if (!eddsa_load_public_key(bpkey, key) ||
-        botan_pubkey_check_key(bpkey.get(), rng.handle(), 0)) {
+    if (!load_public_key(bpkey, key) || botan_pubkey_check_key(bpkey.get(), rng.handle(), 0)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -82,7 +84,7 @@ eddsa_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
     }
 
     rnp::botan::Privkey bskey;
-    if (!eddsa_load_secret_key(bskey, key) ||
+    if (!load_secret_key(bskey, key) ||
         botan_privkey_check_key(bskey.get(), rng.handle(), 0)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -90,7 +92,7 @@ eddsa_validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
 }
 
 rnp_result_t
-eddsa_generate(rnp::RNG &rng, pgp::ec::Key &key)
+generate(rnp::RNG &rng, pgp::ec::Key &key)
 {
     rnp::botan::Privkey eddsa;
     if (botan_privkey_create(&eddsa.get(), "Ed25519", NULL, rng.handle())) {
@@ -113,10 +115,7 @@ eddsa_generate(rnp::RNG &rng, pgp::ec::Key &key)
 }
 
 rnp_result_t
-eddsa_verify(const pgp::ec::Signature &sig,
-             const uint8_t *           hash,
-             size_t                    hash_len,
-             const pgp::ec::Key &      key)
+verify(const pgp::ec::Signature &sig, const rnp::secure_bytes &hash, const pgp::ec::Key &key)
 {
     // Unexpected size for Ed25519 signature
     if ((sig.r.bytes() > 32) || (sig.s.bytes() > 32)) {
@@ -124,13 +123,13 @@ eddsa_verify(const pgp::ec::Signature &sig,
     }
 
     rnp::botan::Pubkey eddsa;
-    if (!eddsa_load_public_key(eddsa, key)) {
+    if (!load_public_key(eddsa, key)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     rnp::botan::op::Verify verify_op;
     if (botan_pk_op_verify_create(&verify_op.get(), eddsa.get(), "Pure", 0) ||
-        botan_pk_op_verify_update(verify_op.get(), hash, hash_len)) {
+        botan_pk_op_verify_update(verify_op.get(), hash.data(), hash.size())) {
         return RNP_ERROR_SIGNATURE_INVALID;
     }
 
@@ -145,20 +144,19 @@ eddsa_verify(const pgp::ec::Signature &sig,
 }
 
 rnp_result_t
-eddsa_sign(rnp::RNG &          rng,
-           pgp::ec::Signature &sig,
-           const uint8_t *     hash,
-           size_t              hash_len,
-           const pgp::ec::Key &key)
+sign(rnp::RNG &               rng,
+     pgp::ec::Signature &     sig,
+     const rnp::secure_bytes &hash,
+     const pgp::ec::Key &     key)
 {
     rnp::botan::Privkey eddsa;
-    if (!eddsa_load_secret_key(eddsa, key)) {
+    if (!load_secret_key(eddsa, key)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     rnp::botan::op::Sign sign_op;
     if (botan_pk_op_sign_create(&sign_op.get(), eddsa.get(), "Pure", 0) ||
-        botan_pk_op_sign_update(sign_op.get(), hash, hash_len)) {
+        botan_pk_op_sign_update(sign_op.get(), hash.data(), hash.size())) {
         return RNP_ERROR_SIGNING_FAILED;
     }
 
@@ -173,3 +171,5 @@ eddsa_sign(rnp::RNG &          rng,
     sig.s.from_mem(bn_buf + 32, 32);
     return RNP_SUCCESS;
 }
+} // namespace eddsa
+} // namespace pgp

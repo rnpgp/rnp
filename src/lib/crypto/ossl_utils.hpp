@@ -37,6 +37,7 @@
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #include <openssl/dsa.h>
+#include <openssl/ecdsa.h>
 #if defined(CRYPTO_BACKEND_OPENSSL3)
 #include <openssl/core_names.h>
 #include <openssl/param_build.h>
@@ -227,6 +228,16 @@ struct PKeyCtxDeleter {
 
 using PKeyCtx = std::unique_ptr<EVP_PKEY_CTX, PKeyCtxDeleter>;
 
+struct CipherCtxDeleter {
+    void
+    operator()(EVP_CIPHER_CTX *ptr) const
+    {
+        EVP_CIPHER_CTX_free(ptr);
+    }
+};
+
+using CipherCtx = std::unique_ptr<EVP_CIPHER_CTX, CipherCtxDeleter>;
+
 struct MDCtxDeleter {
     void
     operator()(EVP_MD_CTX *ptr) const
@@ -247,6 +258,16 @@ struct DSASigDeleter {
 };
 
 using DSASig = std::unique_ptr<DSA_SIG, DSASigDeleter>;
+
+struct ECDSASigDeleter {
+    void
+    operator()(::ECDSA_SIG *ptr) const
+    {
+        ECDSA_SIG_free(ptr);
+    }
+};
+
+using ECDSASig = std::unique_ptr<::ECDSA_SIG, ECDSASigDeleter>;
 
 #if !defined(CRYPTO_BACKEND_OPENSSL3)
 struct RSADeleter {

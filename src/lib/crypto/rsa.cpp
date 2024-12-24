@@ -87,10 +87,7 @@ Key::validate(rnp::RNG &rng, bool secret) const noexcept
 }
 
 rnp_result_t
-Key::encrypt_pkcs1(rnp::RNG &     rng,
-                   Encrypted &    out,
-                   const uint8_t *in,
-                   size_t         in_len) const noexcept
+Key::encrypt_pkcs1(rnp::RNG &rng, Encrypted &out, const rnp::secure_bytes &in) const noexcept
 {
     rnp::botan::Pubkey rsa_key;
     if (!load_public_key(rsa_key, *this)) {
@@ -101,7 +98,8 @@ Key::encrypt_pkcs1(rnp::RNG &     rng,
     out.m.len = PGP_MPINT_SIZE;
     rnp::botan::op::Encrypt enc_op;
     if (botan_pk_op_encrypt_create(&enc_op.get(), rsa_key.get(), "PKCS1v15", 0) ||
-        botan_pk_op_encrypt(enc_op.get(), rng.handle(), out.m.mpi, &out.m.len, in, in_len)) {
+        botan_pk_op_encrypt(
+          enc_op.get(), rng.handle(), out.m.mpi, &out.m.len, in.data(), in.size())) {
         out.m.len = 0;
         return RNP_ERROR_GENERIC;
     }
@@ -109,10 +107,9 @@ Key::encrypt_pkcs1(rnp::RNG &     rng,
 }
 
 rnp_result_t
-Key::verify_pkcs1(const Signature &sig,
-                  pgp_hash_alg_t   hash_alg,
-                  const uint8_t *  hash,
-                  size_t           hash_len) const noexcept
+Key::verify_pkcs1(const Signature &        sig,
+                  pgp_hash_alg_t           hash_alg,
+                  const rnp::secure_bytes &hash) const noexcept
 {
     rnp::botan::Pubkey rsa_key;
     if (!load_public_key(rsa_key, *this)) {
@@ -126,7 +123,7 @@ Key::verify_pkcs1(const Signature &sig,
 
     rnp::botan::op::Verify verify_op;
     if (botan_pk_op_verify_create(&verify_op.get(), rsa_key.get(), pad, 0) ||
-        botan_pk_op_verify_update(verify_op.get(), hash, hash_len) ||
+        botan_pk_op_verify_update(verify_op.get(), hash.data(), hash.size()) ||
         botan_pk_op_verify_finish(verify_op.get(), sig.s.mpi, sig.s.len)) {
         return RNP_ERROR_SIGNATURE_INVALID;
     }
@@ -134,11 +131,10 @@ Key::verify_pkcs1(const Signature &sig,
 }
 
 rnp_result_t
-Key::sign_pkcs1(rnp::RNG &     rng,
-                Signature &    sig,
-                pgp_hash_alg_t hash_alg,
-                const uint8_t *hash,
-                size_t         hash_len) const noexcept
+Key::sign_pkcs1(rnp::RNG &               rng,
+                Signature &              sig,
+                pgp_hash_alg_t           hash_alg,
+                const rnp::secure_bytes &hash) const noexcept
 {
     if (!q.bytes()) {
         RNP_LOG("private key not set");
@@ -158,7 +154,7 @@ Key::sign_pkcs1(rnp::RNG &     rng,
     sig.s.len = PGP_MPINT_SIZE;
     rnp::botan::op::Sign sign_op;
     if (botan_pk_op_sign_create(&sign_op.get(), rsa_key.get(), pad, 0) ||
-        botan_pk_op_sign_update(sign_op.get(), hash, hash_len) ||
+        botan_pk_op_sign_update(sign_op.get(), hash.data(), hash.size()) ||
         botan_pk_op_sign_finish(sign_op.get(), rng.handle(), sig.s.mpi, &sig.s.len)) {
         sig.s.len = 0;
         return RNP_ERROR_GENERIC;
@@ -167,10 +163,7 @@ Key::sign_pkcs1(rnp::RNG &     rng,
 }
 
 rnp_result_t
-Key::decrypt_pkcs1(rnp::RNG &       rng,
-                   uint8_t *        out,
-                   size_t &         out_len,
-                   const Encrypted &in) const noexcept
+Key::decrypt_pkcs1(rnp::RNG &rng, rnp::secure_bytes &out, const Encrypted &in) const noexcept
 {
     if (!q.bytes()) {
         RNP_LOG("private key not set");
@@ -187,16 +180,19 @@ Key::decrypt_pkcs1(rnp::RNG &       rng,
     if (botan_pk_op_decrypt_create(&decrypt_op.get(), rsa_key.get(), "PKCS1v15", 0)) {
         return RNP_ERROR_GENERIC;
     }
-    /* Skip trailing zeroes if any as Botan3 doesn't like m.len > e.len */
+    /* Skip trailing zeroes if any as Botan3 doesn't like m.len > n.len */
     size_t skip = 0;
     while ((in.m.len - skip > e.len) && !in.m.mpi[skip]) {
         skip++;
     }
-    out_len = PGP_MPINT_SIZE;
+    out.resize(n.len);
+    size_t out_len = out.size();
     if (botan_pk_op_decrypt(
-          decrypt_op.get(), out, &out_len, in.m.mpi + skip, in.m.len - skip)) {
+          decrypt_op.get(), out.data(), &out_len, in.m.mpi + skip, in.m.len - skip)) {
+        out.resize(0);
         return RNP_ERROR_GENERIC;
     }
+    out.resize(out_len);
     return RNP_SUCCESS;
 }
 
