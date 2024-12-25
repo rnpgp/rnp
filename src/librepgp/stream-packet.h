@@ -187,16 +187,13 @@ typedef struct pgp_pk_sesskey_t {
     rnp_result_t parse(pgp_source_t &src);
     /**
      * @brief Parse encrypted material which is stored in packet in raw.
-     * @param material on success parsed material will be stored here.
-     * @return true on success or false otherwise. May also throw an exception.
+     * @return Parsed material or nullptr. May also throw an exception.
      */
-    bool                              parse_material(pgp_encrypted_material_t &material);
     std::unique_ptr<pgp::EncMaterial> parse_material() const;
     /**
      * @brief Write encrypted material to the material_buf.
      * @param material populated encrypted material.
      */
-    void write_material(const pgp_encrypted_material_t &material);
     void write_material(const pgp::EncMaterial &material);
 } pgp_pk_sesskey_t;
 
