@@ -1161,20 +1161,14 @@ stream_dump_userid(pgp_source_t *src, pgp_dest_t *dst)
 static rnp_result_t
 stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
-    pgp_pk_sesskey_t         pkey;
-    pgp_encrypted_material_t material;
-    rnp_result_t             ret;
-
-    try {
-        ret = pkey.parse(*src);
-        if (!pkey.parse_material(material)) {
-            ret = RNP_ERROR_BAD_FORMAT;
-        }
-    } catch (const std::exception &e) {
-        ret = RNP_ERROR_GENERIC;
-    }
+    pgp_pk_sesskey_t pkey;
+    auto             ret = pkey.parse(*src);
     if (ret) {
         return ret;
+    }
+    auto material = pkey.parse_material();
+    if (!material) {
+        return RNP_ERROR_BAD_FORMAT;
     }
 
     dst_printf(dst, "Public-key encrypted session key packet\n");
@@ -1197,32 +1191,40 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
     switch (pkey.alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        dst_print_mpi(dst, "rsa m", material.rsa.m, ctx->dump_mpi);
+    case PGP_PKA_RSA_SIGN_ONLY: {
+        auto &rsa = dynamic_cast<const pgp::RSAEncMaterial &>(*material).enc;
+        dst_print_mpi(dst, "rsa m", rsa.m, ctx->dump_mpi);
         break;
+    }
     case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        dst_print_mpi(dst, "eg g", material.eg.g, ctx->dump_mpi);
-        dst_print_mpi(dst, "eg m", material.eg.m, ctx->dump_mpi);
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
+        auto &eg = dynamic_cast<const pgp::EGEncMaterial &>(*material).enc;
+        dst_print_mpi(dst, "eg g", eg.g, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg m", eg.m, ctx->dump_mpi);
         break;
-    case PGP_PKA_SM2:
-        dst_print_mpi(dst, "sm2 m", material.sm2.m, ctx->dump_mpi);
+    }
+    case PGP_PKA_SM2: {
+        auto &sm2 = dynamic_cast<const pgp::SM2EncMaterial &>(*material).enc;
+        dst_print_mpi(dst, "sm2 m", sm2.m, ctx->dump_mpi);
         break;
-    case PGP_PKA_ECDH:
-        dst_print_mpi(dst, "ecdh p", material.ecdh.p, ctx->dump_mpi);
+    }
+    case PGP_PKA_ECDH: {
+        auto &ecdh = dynamic_cast<const pgp::ECDHEncMaterial &>(*material).enc;
+        dst_print_mpi(dst, "ecdh p", ecdh.p, ctx->dump_mpi);
         if (ctx->dump_mpi) {
-            dst_print_hex(dst, "ecdh m", material.ecdh.m.data(), material.ecdh.m.size(), true);
+            dst_print_hex(dst, "ecdh m", ecdh.m.data(), ecdh.m.size(), true);
         } else {
-            dst_printf(dst, "ecdh m: %zu bytes\n", material.ecdh.m.size());
+            dst_printf(dst, "ecdh m: %zu bytes\n", ecdh.m.size());
         }
         break;
+    }
 #if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_X25519:
-        dst_print_vec(
-          dst, "x25519 ephemeral public key", material.x25519.eph_key, ctx->dump_mpi);
-        dst_print_vec(
-          dst, "x25519 encrypted session key", material.x25519.enc_sess_key, ctx->dump_mpi);
+    case PGP_PKA_X25519: {
+        auto &x25519 = dynamic_cast<const pgp::X25519EncMaterial &>(*material).enc;
+        dst_print_vec(dst, "x25519 ephemeral public key", x25519.eph_key, ctx->dump_mpi);
+        dst_print_vec(dst, "x25519 encrypted session key", x25519.enc_sess_key, ctx->dump_mpi);
         break;
+    }
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
@@ -1234,16 +1236,14 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384:
-        dst_print_vec(dst,
-                      "mlkem-ecdh composite ciphertext",
-                      material.kyber_ecdh.composite_ciphertext,
-                      ctx->dump_mpi);
-        dst_print_vec(dst,
-                      "mlkem-ecdh wrapped session key",
-                      material.kyber_ecdh.wrapped_sesskey,
-                      ctx->dump_mpi);
+    case PGP_PKA_KYBER1024_BP384: {
+        auto &mlkem = dynamic_cast<const pgp::MlkemEcdhEncMaterial &>(*material).enc;
+        dst_print_vec(
+          dst, "mlkem-ecdh composite ciphertext", mlkem.composite_ciphertext, ctx->dump_mpi);
+        dst_print_vec(
+          dst, "mlkem-ecdh wrapped session key", mlkem.wrapped_sesskey, ctx->dump_mpi);
         break;
+    }
 #endif
     default:
         dst_printf(dst, "unknown public key algorithm\n");
@@ -2343,20 +2343,14 @@ stream_dump_userid_json(pgp_source_t *src, json_object *pkt)
 static rnp_result_t
 stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
 {
-    pgp_pk_sesskey_t         pkey;
-    pgp_encrypted_material_t pkmaterial;
-    rnp_result_t             ret;
-
-    try {
-        ret = pkey.parse(*src);
-        if (!pkey.parse_material(pkmaterial)) {
-            ret = RNP_ERROR_BAD_FORMAT;
-        }
-    } catch (const std::exception &e) {
-        ret = RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
-    }
+    pgp_pk_sesskey_t pkey;
+    auto             ret = pkey.parse(*src);
     if (ret) {
         return ret;
+    }
+    auto pkmaterial = pkey.parse_material();
+    if (!pkmaterial) {
+        return RNP_ERROR_BAD_FORMAT;
     }
 
     if (!json_add(pkt, "version", (int) pkey.version) ||
@@ -2373,32 +2367,40 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
     switch (pkey.alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        if (!obj_add_mpi_json(material, "m", pkmaterial.rsa.m, ctx->dump_mpi)) {
+    case PGP_PKA_RSA_SIGN_ONLY: {
+        auto &rsa = dynamic_cast<const pgp::RSAEncMaterial &>(*pkmaterial).enc;
+        if (!obj_add_mpi_json(material, "m", rsa.m, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
+    }
     case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!obj_add_mpi_json(material, "g", pkmaterial.eg.g, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "m", pkmaterial.eg.m, ctx->dump_mpi)) {
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
+        auto &eg = dynamic_cast<const pgp::EGEncMaterial &>(*pkmaterial).enc;
+        if (!obj_add_mpi_json(material, "g", eg.g, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "m", eg.m, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
-    case PGP_PKA_SM2:
-        if (!obj_add_mpi_json(material, "m", pkmaterial.sm2.m, ctx->dump_mpi)) {
+    }
+    case PGP_PKA_SM2: {
+        auto &sm2 = dynamic_cast<const pgp::SM2EncMaterial &>(*pkmaterial).enc;
+        if (!obj_add_mpi_json(material, "m", sm2.m, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
-    case PGP_PKA_ECDH:
-        if (!obj_add_mpi_json(material, "p", pkmaterial.ecdh.p, ctx->dump_mpi) ||
-            !json_add(material, "m.bytes", (int) pkmaterial.ecdh.m.size())) {
+    }
+    case PGP_PKA_ECDH: {
+        auto &ecdh = dynamic_cast<const pgp::ECDHEncMaterial &>(*pkmaterial).enc;
+        if (!obj_add_mpi_json(material, "p", ecdh.p, ctx->dump_mpi) ||
+            !json_add(material, "m.bytes", (int) ecdh.m.size())) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
-        if (ctx->dump_mpi && !json_add_hex(material, "m", pkmaterial.ecdh.m)) {
+        if (ctx->dump_mpi && !json_add_hex(material, "m", ecdh.m.data(), ecdh.m.size())) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
+    }
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
     case PGP_PKA_X25519:
