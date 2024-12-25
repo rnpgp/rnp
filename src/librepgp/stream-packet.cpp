@@ -1327,6 +1327,35 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material)
     return true;
 }
 
+std::unique_ptr<pgp::EncMaterial>
+pgp_pk_sesskey_t::parse_material() const
+{
+    auto enc = pgp::EncMaterial::create(alg);
+    if (!enc) {
+        return nullptr;
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    enc->version = version;
+#endif
+    pgp_packet_body_t pkt(material_buf);
+    if (!enc->parse(pkt)) {
+        return nullptr;
+    }
+    if (pkt.left()) {
+        RNP_LOG("extra %zu bytes in pk packet", pkt.left());
+        return nullptr;
+    }
+    return enc;
+}
+
+void
+pgp_pk_sesskey_t::write_material(const pgp::EncMaterial &material)
+{
+    pgp_packet_body_t pktbody(PGP_PKT_PK_SESSION_KEY);
+    material.write(pktbody);
+    material_buf.assign(pktbody.data(), pktbody.data() + pktbody.size());
+}
+
 void
 pgp_pk_sesskey_t::write_material(const pgp_encrypted_material_t &material)
 {

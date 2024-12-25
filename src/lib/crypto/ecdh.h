@@ -70,7 +70,6 @@ bool set_params(ec::Key &key, pgp_curve_t curve_id);
  *        as specified in RFC 3394
  * @param in data to be encrypted
  * @param key public key to be used for encryption
- * @param fp fingerprint of the encrypting key
  *
  * @return RNP_SUCCESS on success and output parameters are populated
  * @return RNP_ERROR_NOT_SUPPORTED unknown curve
@@ -78,11 +77,10 @@ bool set_params(ec::Key &key, pgp_curve_t curve_id);
  * @return RNP_ERROR_SHORT_BUFFER `wrapped_key_len' to small to store result
  * @return RNP_ERROR_GENERIC implementation error
  */
-rnp_result_t encrypt_pkcs5(rnp::RNG &                  rng,
-                           Encrypted &                 out,
-                           const rnp::secure_bytes &   in,
-                           const ec::Key &             key,
-                           const std::vector<uint8_t> &fp);
+rnp_result_t encrypt_pkcs5(rnp::RNG &               rng,
+                           Encrypted &              out,
+                           const rnp::secure_bytes &in,
+                           const ec::Key &          key);
 
 /*
  * Decrypts session key with a KEK agreed during ECDH as specified in
@@ -104,10 +102,7 @@ rnp_result_t encrypt_pkcs5(rnp::RNG &                  rng,
  * @return RNP_ERROR_SHORT_BUFFER `session_key_len' to small to store result
  * @return RNP_ERROR_GENERIC decryption failed or implementation error
  */
-rnp_result_t decrypt_pkcs5(rnp::secure_bytes &         out,
-                           const Encrypted &           in,
-                           const ec::Key &             key,
-                           const std::vector<uint8_t> &fp);
+rnp_result_t decrypt_pkcs5(rnp::secure_bytes &out, const Encrypted &in, const ec::Key &key);
 } // namespace ecdh
 } // namespace pgp
 
