@@ -35,7 +35,7 @@
 
 namespace pgp {
 namespace ecdh {
-std::vector<uint8_t> kdf_other_info_serialize(const pgp::ec::Curve &      curve,
+std::vector<uint8_t> kdf_other_info_serialize(const ec::Curve &           curve,
                                               const std::vector<uint8_t> &fp,
                                               const pgp_hash_alg_t        kdf_hash,
                                               const pgp_symm_alg_t        wrap_alg);
