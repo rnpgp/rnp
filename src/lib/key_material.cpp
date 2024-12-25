@@ -566,7 +566,7 @@ RSAKeyMaterial::encrypt(rnp::SecurityContext &   ctx,
                         EncMaterial &            out,
                         const rnp::secure_bytes &data) const
 {
-    auto rsa = dynamic_cast<pgp::RSAEncMaterial *>(&out);
+    auto rsa = dynamic_cast<RSAEncMaterial *>(&out);
     if (!rsa) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -578,7 +578,7 @@ RSAKeyMaterial::decrypt(rnp::SecurityContext &ctx,
                         rnp::secure_bytes &   out,
                         const EncMaterial &   in) const
 {
-    auto rsa = dynamic_cast<const pgp::RSAEncMaterial *>(&in);
+    auto rsa = dynamic_cast<const RSAEncMaterial *>(&in);
     if (!rsa) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -904,7 +904,7 @@ EGKeyMaterial::encrypt(rnp::SecurityContext &   ctx,
                        EncMaterial &            out,
                        const rnp::secure_bytes &data) const
 {
-    auto eg = dynamic_cast<pgp::EGEncMaterial *>(&out);
+    auto eg = dynamic_cast<EGEncMaterial *>(&out);
     if (!eg) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -916,7 +916,7 @@ EGKeyMaterial::decrypt(rnp::SecurityContext &ctx,
                        rnp::secure_bytes &   out,
                        const EncMaterial &   in) const
 {
-    auto eg = dynamic_cast<const pgp::EGEncMaterial *>(&in);
+    auto eg = dynamic_cast<const EGEncMaterial *>(&in);
     if (!eg) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1225,7 +1225,7 @@ ECDHKeyMaterial::encrypt(rnp::SecurityContext &   ctx,
         RNP_LOG("ECDH encrypt: curve %d is not supported.", key_.curve);
         return RNP_ERROR_NOT_SUPPORTED;
     }
-    auto ecdh = dynamic_cast<pgp::ECDHEncMaterial *>(&out);
+    auto ecdh = dynamic_cast<ECDHEncMaterial *>(&out);
     if (!ecdh) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1244,7 +1244,7 @@ ECDHKeyMaterial::decrypt(rnp::SecurityContext &ctx,
     if ((key_.curve == PGP_CURVE_25519) && !x25519_bits_tweaked()) {
         RNP_LOG("Warning: bits of 25519 secret key are not tweaked.");
     }
-    auto ecdh = dynamic_cast<const pgp::ECDHEncMaterial *>(&in);
+    auto ecdh = dynamic_cast<const ECDHEncMaterial *>(&in);
     if (!ecdh) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1317,7 +1317,7 @@ bool
 SM2KeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 {
 #if defined(ENABLE_SM2)
-    return !pgp::sm2::validate_key(ctx.rng, key_, secret_);
+    return !sm2::validate_key(ctx.rng, key_, secret_);
 #else
     RNP_LOG("SM2 key validation is not available.");
     return false;
@@ -1336,11 +1336,11 @@ SM2KeyMaterial::encrypt(rnp::SecurityContext &   ctx,
                         const rnp::secure_bytes &data) const
 {
 #if defined(ENABLE_SM2)
-    auto sm2 = dynamic_cast<pgp::SM2EncMaterial *>(&out);
+    auto sm2 = dynamic_cast<SM2EncMaterial *>(&out);
     if (!sm2) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    return pgp::sm2::encrypt(ctx.rng, sm2->enc, data, PGP_HASH_SM3, key_);
+    return sm2::encrypt(ctx.rng, sm2->enc, data, PGP_HASH_SM3, key_);
 #else
     RNP_LOG("sm2_encrypt is not available");
     return RNP_ERROR_NOT_IMPLEMENTED;
@@ -1353,11 +1353,11 @@ SM2KeyMaterial::decrypt(rnp::SecurityContext &ctx,
                         const EncMaterial &   in) const
 {
 #if defined(ENABLE_SM2)
-    auto sm2 = dynamic_cast<const pgp::SM2EncMaterial *>(&in);
+    auto sm2 = dynamic_cast<const SM2EncMaterial *>(&in);
     if (!sm2) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    return pgp::sm2::decrypt(out, sm2->enc, key_);
+    return sm2::decrypt(out, sm2->enc, key_);
 #else
     RNP_LOG("SM2 decryption is not available.");
     return RNP_ERROR_NOT_IMPLEMENTED;
@@ -1370,7 +1370,7 @@ SM2KeyMaterial::verify(const rnp::SecurityContext &    ctx,
                        const rnp::secure_bytes &       hash) const
 {
 #if defined(ENABLE_SM2)
-    return pgp::sm2::verify(sig.ecc, sig.halg, hash, key_);
+    return sm2::verify(sig.ecc, sig.halg, hash, key_);
 #else
     RNP_LOG("SM2 verification is not available.");
     return RNP_ERROR_NOT_IMPLEMENTED;
@@ -1387,7 +1387,7 @@ SM2KeyMaterial::sign(rnp::SecurityContext &    ctx,
     if (ret) {
         return ret;
     }
-    return pgp::sm2::sign(ctx.rng, sig.ecc, sig.halg, hash, key_);
+    return sm2::sign(ctx.rng, sig.ecc, sig.halg, hash, key_);
 #else
     RNP_LOG("SM2 signing is not available.");
     return RNP_ERROR_NOT_IMPLEMENTED;
@@ -1398,7 +1398,7 @@ void
 SM2KeyMaterial::compute_za(rnp::Hash &hash) const
 {
 #if defined(ENABLE_SM2)
-    auto res = pgp::sm2::compute_za(key_, hash);
+    auto res = sm2::compute_za(key_, hash);
     if (res) {
         RNP_LOG("failed to compute SM2 ZA field");
         throw rnp::rnp_exception(res);
@@ -1450,7 +1450,7 @@ bool
 Ed25519KeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 {
     secret_ = false;
-    auto                 ec_desc = pgp::ec::Curve::get(PGP_CURVE_ED25519);
+    auto                 ec_desc = ec::Curve::get(PGP_CURVE_ED25519);
     std::vector<uint8_t> buf(ec_desc->bytes());
     if (!pkt.get(buf.data(), buf.size())) {
         RNP_LOG("failed to parse Ed25519 public key data");
@@ -1463,7 +1463,7 @@ Ed25519KeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 bool
 Ed25519KeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 {
-    auto                 ec_desc = pgp::ec::Curve::get(PGP_CURVE_ED25519);
+    auto                 ec_desc = ec::Curve::get(PGP_CURVE_ED25519);
     std::vector<uint8_t> buf(ec_desc->bytes());
     if (!pkt.get(buf.data(), buf.size())) {
         RNP_LOG("failed to parse Ed25519 secret key data");
@@ -1576,7 +1576,7 @@ bool
 X25519KeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 {
     secret_ = false;
-    auto                 ec_desc = pgp::ec::Curve::get(PGP_CURVE_25519);
+    auto                 ec_desc = ec::Curve::get(PGP_CURVE_25519);
     std::vector<uint8_t> buf(ec_desc->bytes());
     if (!pkt.get(buf.data(), buf.size())) {
         RNP_LOG("failed to parse X25519 public key data");
@@ -1589,7 +1589,7 @@ X25519KeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 bool
 X25519KeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 {
-    auto                 ec_desc = pgp::ec::Curve::get(PGP_CURVE_25519);
+    auto                 ec_desc = ec::Curve::get(PGP_CURVE_25519);
     std::vector<uint8_t> buf(ec_desc->bytes());
     if (!pkt.get(buf.data(), buf.size())) {
         RNP_LOG("failed to parse X25519 secret key data");
@@ -1627,7 +1627,7 @@ X25519KeyMaterial::encrypt(rnp::SecurityContext &   ctx,
                            EncMaterial &            out,
                            const rnp::secure_bytes &data) const
 {
-    auto x25519 = dynamic_cast<pgp::X25519EncMaterial *>(&out);
+    auto x25519 = dynamic_cast<X25519EncMaterial *>(&out);
     if (!x25519) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1639,7 +1639,7 @@ X25519KeyMaterial::decrypt(rnp::SecurityContext &ctx,
                            rnp::secure_bytes &   out,
                            const EncMaterial &   in) const
 {
-    auto x25519 = dynamic_cast<const pgp::X25519EncMaterial *>(&in);
+    auto x25519 = dynamic_cast<const X25519EncMaterial *>(&in);
     if (!x25519) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1766,7 +1766,7 @@ MlkemEcdhKeyMaterial::encrypt(rnp::SecurityContext &   ctx,
                               EncMaterial &            out,
                               const rnp::secure_bytes &data) const
 {
-    auto mlkem = dynamic_cast<pgp::MlkemEcdhEncMaterial *>(&out);
+    auto mlkem = dynamic_cast<MlkemEcdhEncMaterial *>(&out);
     if (!mlkem) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1778,7 +1778,7 @@ MlkemEcdhKeyMaterial::decrypt(rnp::SecurityContext &ctx,
                               rnp::secure_bytes &   out,
                               const EncMaterial &   in) const
 {
-    auto mlkem = dynamic_cast<const pgp::MlkemEcdhEncMaterial *>(&in);
+    auto mlkem = dynamic_cast<const MlkemEcdhEncMaterial *>(&in);
     if (!mlkem) {
         return RNP_ERROR_BAD_PARAMETERS;
     }

@@ -106,16 +106,16 @@ class Curve {
 
 class Signature {
   public:
-    pgp::mpi r;
-    pgp::mpi s;
+    mpi r;
+    mpi s;
 };
 
 class Key {
   public:
     pgp_curve_t curve;
-    pgp::mpi    p;
+    mpi         p;
     /* secret mpi */
-    pgp::mpi x;
+    mpi x;
     /* ecdh params */
     pgp_hash_alg_t kdf_hash_alg; /* Hash used by kdf */
     pgp_symm_alg_t key_wrap_alg; /* Symmetric algorithm used to wrap KEK*/

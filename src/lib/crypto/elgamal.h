@@ -39,23 +39,23 @@ class Signature {
   public:
     /* This is kept only for packet reading. Implementation MUST
      * not create elgamal signatures */
-    pgp::mpi r;
-    pgp::mpi s;
+    mpi r;
+    mpi s;
 };
 
 class Encrypted {
   public:
-    pgp::mpi g;
-    pgp::mpi m;
+    mpi g;
+    mpi m;
 };
 
 class Key {
   public:
-    pgp::mpi p;
-    pgp::mpi g;
-    pgp::mpi y;
+    mpi p;
+    mpi g;
+    mpi y;
     /* secret mpi */
-    pgp::mpi x;
+    mpi x;
 
     void
     clear_secret()

@@ -40,18 +40,18 @@ namespace dsa {
 
 class Signature {
   public:
-    pgp::mpi r;
-    pgp::mpi s;
+    mpi r;
+    mpi s;
 };
 
 class Key {
   public:
-    pgp::mpi p{};
-    pgp::mpi q{};
-    pgp::mpi g{};
-    pgp::mpi y{};
+    mpi p{};
+    mpi q{};
+    mpi g{};
+    mpi y{};
     /* secret mpi */
-    pgp::mpi x{};
+    mpi x{};
 
     void
     clear_secret()

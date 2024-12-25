@@ -306,8 +306,8 @@ Key::decrypt_pkcs1(rnp::RNG &rng, rnp::secure_bytes &out, const Encrypted &in) c
         return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    pgp::mpi mm = {};
-    bool     res = m.mpi(mm);
+    mpi  mm = {};
+    bool res = m.mpi(mm);
     assert(res);
     if (!res) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE

@@ -101,7 +101,7 @@ generate_pkey(const pgp_pubkey_alg_t alg_id, const pgp_curve_t curve)
 }
 
 static bool
-write_raw_seckey(const rnp::ossl::evp::PKey &pkey, pgp::ec::Key &key)
+write_raw_seckey(const rnp::ossl::evp::PKey &pkey, ec::Key &key)
 {
     /* EdDSA and X25519 keys are saved in a different way */
     static_assert(sizeof(key.x.mpi) > 32, "mpi is too small.");
@@ -123,7 +123,7 @@ write_raw_seckey(const rnp::ossl::evp::PKey &pkey, pgp::ec::Key &key)
 }
 
 static bool
-write_seckey(rnp::ossl::evp::PKey &pkey, pgp::mpi &key)
+write_seckey(rnp::ossl::evp::PKey &pkey, mpi &key)
 {
 #if defined(CRYPTO_BACKEND_OPENSSL3)
     rnp::bn x;
@@ -173,7 +173,7 @@ Key::generate(rnp::RNG &rng, const pgp_pubkey_alg_t alg_id, const pgp_curve_t cu
 }
 
 static rnp::ossl::evp::PKey
-load_raw_key(const pgp::mpi &keyp, const pgp::mpi *keyx, int nid)
+load_raw_key(const mpi &keyp, const mpi *keyx, int nid)
 {
     if (!keyx) {
         /* as per RFC, EdDSA & 25519 keys must use 0x40 byte for encoding */
@@ -219,7 +219,7 @@ load_raw_key(const pgp::mpi &keyp, const pgp::mpi *keyx, int nid)
 
 #if defined(CRYPTO_BACKEND_OPENSSL3)
 static rnp::ossl::Param
-build_params(const pgp::mpi &p, const pgp::mpi *x, const char *curve)
+build_params(const mpi &p, const mpi *x, const char *curve)
 {
     rnp::ossl::ParamBld bld(OSSL_PARAM_BLD_new());
     if (!bld) {
@@ -235,7 +235,7 @@ build_params(const pgp::mpi &p, const pgp::mpi *x, const char *curve)
 }
 
 static rnp::ossl::evp::PKey
-load_key_openssl3(const pgp::mpi &keyp, const pgp::mpi *keyx, const Curve &curv_desc)
+load_key_openssl3(const mpi &keyp, const mpi *keyx, const Curve &curv_desc)
 {
     auto params = build_params(keyp, keyx, curv_desc.openssl_name);
     if (!params) {
@@ -266,7 +266,7 @@ load_key_openssl3(const pgp::mpi &keyp, const pgp::mpi *keyx, const Curve &curv_
 #endif
 
 rnp::ossl::evp::PKey
-load_key(const pgp::mpi &keyp, const pgp::mpi *keyx, pgp_curve_t curve)
+load_key(const mpi &keyp, const mpi *keyx, pgp_curve_t curve)
 {
     auto curv_desc = Curve::get(curve);
     if (!curv_desc) {
@@ -394,7 +394,7 @@ validate_key(const Key &key, bool secret)
 }
 
 bool
-write_pubkey(const rnp::ossl::evp::PKey &pkey, pgp::mpi &mpi, pgp_curve_t curve)
+write_pubkey(const rnp::ossl::evp::PKey &pkey, mpi &mpi, pgp_curve_t curve)
 {
     if (is_raw_key(curve)) {
         /* EdDSA and X25519 keys are saved in a different way */

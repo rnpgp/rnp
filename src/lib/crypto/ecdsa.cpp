@@ -34,9 +34,9 @@ namespace pgp {
 namespace ecdsa {
 
 static bool
-load_public_key(rnp::botan::Pubkey &pubkey, const pgp::ec::Key &keydata)
+load_public_key(rnp::botan::Pubkey &pubkey, const ec::Key &keydata)
 {
-    auto curve = pgp::ec::Curve::get(keydata.curve);
+    auto curve = ec::Curve::get(keydata.curve);
     if (!curve) {
         RNP_LOG("unknown curve");
         return false;
@@ -62,9 +62,9 @@ load_public_key(rnp::botan::Pubkey &pubkey, const pgp::ec::Key &keydata)
 }
 
 static bool
-load_secret_key(rnp::botan::Privkey &seckey, const pgp::ec::Key &keydata)
+load_secret_key(rnp::botan::Privkey &seckey, const ec::Key &keydata)
 {
-    auto curve = pgp::ec::Curve::get(keydata.curve);
+    auto curve = ec::Curve::get(keydata.curve);
     if (!curve) {
         return false;
     }
@@ -82,7 +82,7 @@ load_secret_key(rnp::botan::Privkey &seckey, const pgp::ec::Key &keydata)
 }
 
 rnp_result_t
-validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
+validate_key(rnp::RNG &rng, const ec::Key &key, bool secret)
 {
     rnp::botan::Pubkey bpkey;
     if (!load_public_key(bpkey, key) || botan_pubkey_check_key(bpkey.get(), rng.handle(), 0)) {
@@ -131,12 +131,12 @@ padding_str_for(pgp_hash_alg_t hash_alg)
 
 rnp_result_t
 sign(rnp::RNG &               rng,
-     pgp::ec::Signature &     sig,
+     ec::Signature &          sig,
      pgp_hash_alg_t           hash_alg,
      const rnp::secure_bytes &hash,
-     const pgp::ec::Key &     key)
+     const ec::Key &          key)
 {
-    auto curve = pgp::ec::Curve::get(key.curve);
+    auto curve = ec::Curve::get(key.curve);
     if (!curve) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -172,12 +172,12 @@ sign(rnp::RNG &               rng,
 }
 
 rnp_result_t
-verify(const pgp::ec::Signature &sig,
-       pgp_hash_alg_t            hash_alg,
-       const rnp::secure_bytes & hash,
-       const pgp::ec::Key &      key)
+verify(const ec::Signature &    sig,
+       pgp_hash_alg_t           hash_alg,
+       const rnp::secure_bytes &hash,
+       const ec::Key &          key)
 {
-    auto curve = pgp::ec::Curve::get(key.curve);
+    auto curve = ec::Curve::get(key.curve);
     if (!curve) {
         RNP_LOG("unknown curve");
         return RNP_ERROR_BAD_PARAMETERS;
