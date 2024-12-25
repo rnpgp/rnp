@@ -40,7 +40,7 @@ namespace pgp {
 namespace eddsa {
 
 rnp_result_t
-validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
+validate_key(rnp::RNG &rng, const ec::Key &key, bool secret)
 {
     /* Not implemented in the OpenSSL, so just do basic size checks. */
     if ((key.p.bytes() != 33) || (key.p.mpi[0] != 0x40)) {
@@ -53,7 +53,7 @@ validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
 }
 
 rnp_result_t
-generate(rnp::RNG &rng, pgp::ec::Key &key)
+generate(rnp::RNG &rng, ec::Key &key)
 {
     rnp_result_t ret = key.generate(rng, PGP_PKA_EDDSA, PGP_CURVE_ED25519);
     if (!ret) {
@@ -63,7 +63,7 @@ generate(rnp::RNG &rng, pgp::ec::Key &key)
 }
 
 rnp_result_t
-verify(const pgp::ec::Signature &sig, const rnp::secure_bytes &hash, const pgp::ec::Key &key)
+verify(const ec::Signature &sig, const rnp::secure_bytes &hash, const ec::Key &key)
 {
     if ((sig.r.bytes() > 32) || (sig.s.bytes() > 32)) {
         RNP_LOG("Invalid EdDSA signature.");
@@ -74,7 +74,7 @@ verify(const pgp::ec::Signature &sig, const rnp::secure_bytes &hash, const pgp::
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    auto evpkey = pgp::ec::load_key(key.p, NULL, PGP_CURVE_ED25519);
+    auto evpkey = ec::load_key(key.p, NULL, PGP_CURVE_ED25519);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -103,16 +103,13 @@ verify(const pgp::ec::Signature &sig, const rnp::secure_bytes &hash, const pgp::
 }
 
 rnp_result_t
-sign(rnp::RNG &               rng,
-     pgp::ec::Signature &     sig,
-     const rnp::secure_bytes &hash,
-     const pgp::ec::Key &     key)
+sign(rnp::RNG &rng, ec::Signature &sig, const rnp::secure_bytes &hash, const ec::Key &key)
 {
     if (!key.x.bytes()) {
         RNP_LOG("private key not set");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    auto evpkey = pgp::ec::load_key(key.p, &key.x, PGP_CURVE_ED25519);
+    auto evpkey = ec::load_key(key.p, &key.x, PGP_CURVE_ED25519);
     if (!evpkey) {
         RNP_LOG("Failed to load private key: %lu", ERR_peek_last_error());
         return RNP_ERROR_BAD_PARAMETERS;

@@ -53,7 +53,7 @@ static const struct ecdh_params_t {
 
 // returns size of data written to other_info
 std::vector<uint8_t>
-kdf_other_info_serialize(const pgp::ec::Curve &      curve,
+kdf_other_info_serialize(const ec::Curve &           curve,
                          const std::vector<uint8_t> &fp,
                          const pgp_hash_alg_t        kdf_hash,
                          const pgp_symm_alg_t        wrap_alg)
@@ -117,7 +117,7 @@ unpad_pkcs7(rnp::secure_bytes &buf)
 }
 
 bool
-set_params(pgp::ec::Key &key, pgp_curve_t curve_id)
+set_params(ec::Key &key, pgp_curve_t curve_id)
 {
     for (size_t i = 0; i < ARRAY_SIZE(ecdh_params); i++) {
         if (ecdh_params[i].curve == curve_id) {
