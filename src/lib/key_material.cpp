@@ -322,17 +322,17 @@ KeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 }
 
 rnp_result_t
-KeyMaterial::encrypt(rnp::SecurityContext &    ctx,
-                     pgp_encrypted_material_t &out,
-                     const rnp::secure_bytes & data) const
+KeyMaterial::encrypt(rnp::SecurityContext &   ctx,
+                     EncMaterial &            out,
+                     const rnp::secure_bytes &data) const
 {
     return RNP_ERROR_NOT_SUPPORTED;
 }
 
 rnp_result_t
-KeyMaterial::decrypt(rnp::SecurityContext &          ctx,
-                     rnp::secure_bytes &             out,
-                     const pgp_encrypted_material_t &in) const
+KeyMaterial::decrypt(rnp::SecurityContext &ctx,
+                     rnp::secure_bytes &   out,
+                     const EncMaterial &   in) const
 {
     return RNP_ERROR_NOT_SUPPORTED;
 }
@@ -562,19 +562,27 @@ RSAKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 }
 
 rnp_result_t
-RSAKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
-                        pgp_encrypted_material_t &out,
-                        const rnp::secure_bytes & data) const
+RSAKeyMaterial::encrypt(rnp::SecurityContext &   ctx,
+                        EncMaterial &            out,
+                        const rnp::secure_bytes &data) const
 {
-    return key_.encrypt_pkcs1(ctx.rng, out.rsa, data);
+    auto rsa = dynamic_cast<pgp::RSAEncMaterial *>(&out);
+    if (!rsa) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return key_.encrypt_pkcs1(ctx.rng, rsa->enc, data);
 }
 
 rnp_result_t
-RSAKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
-                        rnp::secure_bytes &             out,
-                        const pgp_encrypted_material_t &in) const
+RSAKeyMaterial::decrypt(rnp::SecurityContext &ctx,
+                        rnp::secure_bytes &   out,
+                        const EncMaterial &   in) const
 {
-    return key_.decrypt_pkcs1(ctx.rng, out, in.rsa);
+    auto rsa = dynamic_cast<const pgp::RSAEncMaterial *>(&in);
+    if (!rsa) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return key_.decrypt_pkcs1(ctx.rng, out, rsa->enc);
 }
 
 rnp_result_t
@@ -892,19 +900,27 @@ EGKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 }
 
 rnp_result_t
-EGKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
-                       pgp_encrypted_material_t &out,
-                       const rnp::secure_bytes & data) const
+EGKeyMaterial::encrypt(rnp::SecurityContext &   ctx,
+                       EncMaterial &            out,
+                       const rnp::secure_bytes &data) const
 {
-    return key_.encrypt_pkcs1(ctx.rng, out.eg, data);
+    auto eg = dynamic_cast<pgp::EGEncMaterial *>(&out);
+    if (!eg) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return key_.encrypt_pkcs1(ctx.rng, eg->enc, data);
 }
 
 rnp_result_t
-EGKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
-                       rnp::secure_bytes &             out,
-                       const pgp_encrypted_material_t &in) const
+EGKeyMaterial::decrypt(rnp::SecurityContext &ctx,
+                       rnp::secure_bytes &   out,
+                       const EncMaterial &   in) const
 {
-    return key_.decrypt_pkcs1(ctx.rng, out, in.eg);
+    auto eg = dynamic_cast<const pgp::EGEncMaterial *>(&in);
+    if (!eg) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return key_.decrypt_pkcs1(ctx.rng, out, eg->enc);
 }
 
 rnp_result_t
@@ -1201,21 +1217,25 @@ ECDHKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 }
 
 rnp_result_t
-ECDHKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
-                         pgp_encrypted_material_t &out,
-                         const rnp::secure_bytes & data) const
+ECDHKeyMaterial::encrypt(rnp::SecurityContext &   ctx,
+                         EncMaterial &            out,
+                         const rnp::secure_bytes &data) const
 {
     if (!ec::Curve::is_supported(key_.curve)) {
         RNP_LOG("ECDH encrypt: curve %d is not supported.", key_.curve);
         return RNP_ERROR_NOT_SUPPORTED;
     }
-    return ecdh::encrypt_pkcs5(ctx.rng, out.ecdh, data, key_, out.ecdh.fp);
+    auto ecdh = dynamic_cast<pgp::ECDHEncMaterial *>(&out);
+    if (!ecdh) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return ecdh::encrypt_pkcs5(ctx.rng, ecdh->enc, data, key_);
 }
 
 rnp_result_t
-ECDHKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
-                         rnp::secure_bytes &             out,
-                         const pgp_encrypted_material_t &in) const
+ECDHKeyMaterial::decrypt(rnp::SecurityContext &ctx,
+                         rnp::secure_bytes &   out,
+                         const EncMaterial &   in) const
 {
     if (!ec::Curve::is_supported(key_.curve)) {
         RNP_LOG("ECDH decrypt: curve %d is not supported.", key_.curve);
@@ -1224,7 +1244,11 @@ ECDHKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
     if ((key_.curve == PGP_CURVE_25519) && !x25519_bits_tweaked()) {
         RNP_LOG("Warning: bits of 25519 secret key are not tweaked.");
     }
-    return ecdh::decrypt_pkcs5(out, in.ecdh, key_, in.ecdh.fp);
+    auto ecdh = dynamic_cast<const pgp::ECDHEncMaterial *>(&in);
+    if (!ecdh) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return ecdh::decrypt_pkcs5(out, ecdh->enc, key_);
 }
 
 pgp_hash_alg_t
@@ -1307,12 +1331,16 @@ SM2KeyMaterial::clone()
 }
 
 rnp_result_t
-SM2KeyMaterial::encrypt(rnp::SecurityContext &    ctx,
-                        pgp_encrypted_material_t &out,
-                        const rnp::secure_bytes & data) const
+SM2KeyMaterial::encrypt(rnp::SecurityContext &   ctx,
+                        EncMaterial &            out,
+                        const rnp::secure_bytes &data) const
 {
 #if defined(ENABLE_SM2)
-    return pgp::sm2::encrypt(ctx.rng, out.sm2, data, PGP_HASH_SM3, key_);
+    auto sm2 = dynamic_cast<pgp::SM2EncMaterial *>(&out);
+    if (!sm2) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return pgp::sm2::encrypt(ctx.rng, sm2->enc, data, PGP_HASH_SM3, key_);
 #else
     RNP_LOG("sm2_encrypt is not available");
     return RNP_ERROR_NOT_IMPLEMENTED;
@@ -1320,12 +1348,16 @@ SM2KeyMaterial::encrypt(rnp::SecurityContext &    ctx,
 }
 
 rnp_result_t
-SM2KeyMaterial::decrypt(rnp::SecurityContext &          ctx,
-                        rnp::secure_bytes &             out,
-                        const pgp_encrypted_material_t &in) const
+SM2KeyMaterial::decrypt(rnp::SecurityContext &ctx,
+                        rnp::secure_bytes &   out,
+                        const EncMaterial &   in) const
 {
 #if defined(ENABLE_SM2)
-    return pgp::sm2::decrypt(out, in.sm2, key_);
+    auto sm2 = dynamic_cast<const pgp::SM2EncMaterial *>(&in);
+    if (!sm2) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return pgp::sm2::decrypt(out, sm2->enc, key_);
 #else
     RNP_LOG("SM2 decryption is not available.");
     return RNP_ERROR_NOT_IMPLEMENTED;
@@ -1591,21 +1623,29 @@ X25519KeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 }
 
 rnp_result_t
-X25519KeyMaterial::encrypt(rnp::SecurityContext &    ctx,
-                           pgp_encrypted_material_t &out,
-                           const rnp::secure_bytes & data) const
+X25519KeyMaterial::encrypt(rnp::SecurityContext &   ctx,
+                           EncMaterial &            out,
+                           const rnp::secure_bytes &data) const
 {
-    return x25519_native_encrypt(&ctx.rng, key_.pub, data.data(), data.size(), &out.x25519);
+    auto x25519 = dynamic_cast<pgp::X25519EncMaterial *>(&out);
+    if (!x25519) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return x25519_native_encrypt(&ctx.rng, key_.pub, data.data(), data.size(), &x25519->enc);
 }
 
 rnp_result_t
-X25519KeyMaterial::decrypt(rnp::SecurityContext &          ctx,
-                           rnp::secure_bytes &             out,
-                           const pgp_encrypted_material_t &in) const
+X25519KeyMaterial::decrypt(rnp::SecurityContext &ctx,
+                           rnp::secure_bytes &   out,
+                           const EncMaterial &   in) const
 {
+    auto x25519 = dynamic_cast<const pgp::X25519EncMaterial *>(&in);
+    if (!x25519) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
     out.resize(PGP_MPINT_SIZE);
     size_t out_size = out.size();
-    auto   ret = x25519_native_decrypt(&ctx.rng, key_, &in.x25519, out.data(), &out_size);
+    auto   ret = x25519_native_decrypt(&ctx.rng, key_, &x25519->enc, out.data(), &out_size);
     if (!ret) {
         out.resize(out_size);
     }
@@ -1722,21 +1762,29 @@ MlkemEcdhKeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &param
 }
 
 rnp_result_t
-MlkemEcdhKeyMaterial::encrypt(rnp::SecurityContext &    ctx,
-                              pgp_encrypted_material_t &out,
-                              const rnp::secure_bytes & data) const
+MlkemEcdhKeyMaterial::encrypt(rnp::SecurityContext &   ctx,
+                              EncMaterial &            out,
+                              const rnp::secure_bytes &data) const
 {
-    return key_.pub.encrypt(&ctx.rng, &out.kyber_ecdh, data.data(), data.size());
+    auto mlkem = dynamic_cast<pgp::MlkemEcdhEncMaterial *>(&out);
+    if (!mlkem) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return key_.pub.encrypt(&ctx.rng, &mlkem->enc, data.data(), data.size());
 }
 
 rnp_result_t
-MlkemEcdhKeyMaterial::decrypt(rnp::SecurityContext &          ctx,
-                              rnp::secure_bytes &             out,
-                              const pgp_encrypted_material_t &in) const
+MlkemEcdhKeyMaterial::decrypt(rnp::SecurityContext &ctx,
+                              rnp::secure_bytes &   out,
+                              const EncMaterial &   in) const
 {
+    auto mlkem = dynamic_cast<const pgp::MlkemEcdhEncMaterial *>(&in);
+    if (!mlkem) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
     out.resize(PGP_MPINT_SIZE);
     size_t out_size = out.size();
-    auto   ret = key_.priv.decrypt(&ctx.rng, out.data(), &out_size, &in.kyber_ecdh);
+    auto   ret = key_.priv.decrypt(&ctx.rng, out.data(), &out_size, &mlkem->enc);
     if (!ret) {
         out.resize(out_size);
     }
