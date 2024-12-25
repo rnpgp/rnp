@@ -32,7 +32,6 @@
 #include "enc_material.hpp"
 
 typedef struct pgp_packet_body_t        pgp_packet_body_t;
-typedef struct pgp_encrypted_material_t pgp_encrypted_material_t;
 typedef struct pgp_signature_material_t pgp_signature_material_t;
 
 namespace pgp {
