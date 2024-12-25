@@ -35,7 +35,7 @@ namespace pgp {
 namespace eddsa {
 
 static bool
-load_public_key(rnp::botan::Pubkey &pubkey, const pgp::ec::Key &keydata)
+load_public_key(rnp::botan::Pubkey &pubkey, const ec::Key &keydata)
 {
     if (keydata.curve != PGP_CURVE_ED25519) {
         return false;
@@ -53,7 +53,7 @@ load_public_key(rnp::botan::Pubkey &pubkey, const pgp::ec::Key &keydata)
 }
 
 static bool
-load_secret_key(rnp::botan::Privkey &seckey, const pgp::ec::Key &keydata)
+load_secret_key(rnp::botan::Privkey &seckey, const ec::Key &keydata)
 {
     if (keydata.curve != PGP_CURVE_ED25519) {
         return false;
@@ -72,7 +72,7 @@ load_secret_key(rnp::botan::Privkey &seckey, const pgp::ec::Key &keydata)
 }
 
 rnp_result_t
-validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
+validate_key(rnp::RNG &rng, const ec::Key &key, bool secret)
 {
     rnp::botan::Pubkey bpkey;
     if (!load_public_key(bpkey, key) || botan_pubkey_check_key(bpkey.get(), rng.handle(), 0)) {
@@ -92,7 +92,7 @@ validate_key(rnp::RNG &rng, const pgp::ec::Key &key, bool secret)
 }
 
 rnp_result_t
-generate(rnp::RNG &rng, pgp::ec::Key &key)
+generate(rnp::RNG &rng, ec::Key &key)
 {
     rnp::botan::Privkey eddsa;
     if (botan_privkey_create(&eddsa.get(), "Ed25519", NULL, rng.handle())) {
@@ -115,7 +115,7 @@ generate(rnp::RNG &rng, pgp::ec::Key &key)
 }
 
 rnp_result_t
-verify(const pgp::ec::Signature &sig, const rnp::secure_bytes &hash, const pgp::ec::Key &key)
+verify(const ec::Signature &sig, const rnp::secure_bytes &hash, const ec::Key &key)
 {
     // Unexpected size for Ed25519 signature
     if ((sig.r.bytes() > 32) || (sig.s.bytes() > 32)) {
@@ -144,10 +144,7 @@ verify(const pgp::ec::Signature &sig, const rnp::secure_bytes &hash, const pgp::
 }
 
 rnp_result_t
-sign(rnp::RNG &               rng,
-     pgp::ec::Signature &     sig,
-     const rnp::secure_bytes &hash,
-     const pgp::ec::Key &     key)
+sign(rnp::RNG &rng, ec::Signature &sig, const rnp::secure_bytes &hash, const ec::Key &key)
 {
     rnp::botan::Privkey eddsa;
     if (!load_secret_key(eddsa, key)) {

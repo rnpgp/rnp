@@ -35,13 +35,13 @@
 namespace pgp {
 namespace ec {
 
-rnp::ossl::evp::PKey load_key(const pgp::mpi &keyp, const pgp::mpi *keyx, pgp_curve_t curve);
+rnp::ossl::evp::PKey load_key(const mpi &keyp, const mpi *keyx, pgp_curve_t curve);
 
-rnp_result_t validate_key(const pgp::ec::Key &key, bool secret);
+rnp_result_t validate_key(const ec::Key &key, bool secret);
 
 rnp::ossl::evp::PKey generate_pkey(const pgp_pubkey_alg_t alg_id, const pgp_curve_t curve);
 
-bool write_pubkey(const rnp::ossl::evp::PKey &key, pgp::mpi &mpi, pgp_curve_t curve);
+bool write_pubkey(const rnp::ossl::evp::PKey &key, mpi &mpi, pgp_curve_t curve);
 
 } // namespace ec
 } // namespace pgp

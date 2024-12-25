@@ -245,7 +245,7 @@ Key::verify(const Signature &sig, const rnp::secure_bytes &hash) const
         RNP_LOG("Failed to initialize verify: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
     }
-    pgp::mpi sigbuf;
+    mpi sigbuf;
     if (!encode_sig(sigbuf.mpi, &sigbuf.len, sig)) {
         return RNP_ERROR_GENERIC;
     }
