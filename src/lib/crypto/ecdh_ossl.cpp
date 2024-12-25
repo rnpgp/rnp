@@ -248,11 +248,7 @@ ecdh_kek_len(pgp_symm_alg_t wrap_alg)
 }
 
 rnp_result_t
-encrypt_pkcs5(rnp::RNG &                  rng,
-              Encrypted &                 out,
-              const rnp::secure_bytes &   in,
-              const ec::Key &             key,
-              const std::vector<uint8_t> &fp)
+encrypt_pkcs5(rnp::RNG &rng, Encrypted &out, const rnp::secure_bytes &in, const ec::Key &key)
 {
     if (in.size() > MAX_SESSION_KEY_SIZE) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -298,7 +294,7 @@ encrypt_pkcs5(rnp::RNG &                  rng,
     }
     /* here we got x value in sec, deriving kek */
     rnp::secure_bytes kek(keklen, 0);
-    auto              ret = derive_kek(sec, key, fp, kek);
+    auto              ret = derive_kek(sec, key, out.fp, kek);
     if (ret) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to derive KEK.");
@@ -329,10 +325,7 @@ encrypt_pkcs5(rnp::RNG &                  rng,
 }
 
 rnp_result_t
-decrypt_pkcs5(rnp::secure_bytes &         out,
-              const Encrypted &           in,
-              const ec::Key &             key,
-              const std::vector<uint8_t> &fp)
+decrypt_pkcs5(rnp::secure_bytes &out, const Encrypted &in, const ec::Key &key)
 {
     if (!key.x.bytes()) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -368,7 +361,7 @@ decrypt_pkcs5(rnp::secure_bytes &         out,
     }
     /* here we got x value in sec, deriving kek */
     rnp::secure_bytes kek(keklen, 0);
-    auto              ret = derive_kek(sec, key, fp, kek);
+    auto              ret = derive_kek(sec, key, in.fp, kek);
     if (ret) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to derive KEK.");

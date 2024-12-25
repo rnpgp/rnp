@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include "types.h"
 #include "stream-common.h"
+#include "enc_material.hpp"
 
 /* maximum size of the 'small' packet */
 #define PGP_MAX_PKT_SIZE 0x100000
@@ -189,12 +190,14 @@ typedef struct pgp_pk_sesskey_t {
      * @param material on success parsed material will be stored here.
      * @return true on success or false otherwise. May also throw an exception.
      */
-    bool parse_material(pgp_encrypted_material_t &material);
+    bool                              parse_material(pgp_encrypted_material_t &material);
+    std::unique_ptr<pgp::EncMaterial> parse_material() const;
     /**
      * @brief Write encrypted material to the material_buf.
      * @param material populated encrypted material.
      */
     void write_material(const pgp_encrypted_material_t &material);
+    void write_material(const pgp::EncMaterial &material);
 } pgp_pk_sesskey_t;
 
 /** pkp_sk_sesskey_t */

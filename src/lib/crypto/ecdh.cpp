@@ -163,11 +163,7 @@ validate_key(rnp::RNG &rng, const ec::Key &key, bool secret)
 }
 
 rnp_result_t
-encrypt_pkcs5(rnp::RNG &                  rng,
-              Encrypted &                 out,
-              const rnp::secure_bytes &   in,
-              const ec::Key &             key,
-              const std::vector<uint8_t> &fp)
+encrypt_pkcs5(rnp::RNG &rng, Encrypted &out, const rnp::secure_bytes &in, const ec::Key &key)
 {
     if (in.size() > MAX_SESSION_KEY_SIZE) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -193,7 +189,7 @@ encrypt_pkcs5(rnp::RNG &                  rng,
     // See 13.5 of RFC 4880 for definition of other_info size
     const size_t kek_len = pgp_key_size(key.key_wrap_alg);
     auto         other_info =
-      kdf_other_info_serialize(*curve_desc, fp, key.kdf_hash_alg, key.key_wrap_alg);
+      kdf_other_info_serialize(*curve_desc, out.fp, key.kdf_hash_alg, key.key_wrap_alg);
     assert(other_info.size() == curve_desc->OID.size() + 46);
 
     rnp::botan::Privkey eph_prv_key;
@@ -253,10 +249,7 @@ encrypt_pkcs5(rnp::RNG &                  rng,
 }
 
 rnp_result_t
-decrypt_pkcs5(rnp::secure_bytes &         out,
-              const Encrypted &           in,
-              const ec::Key &             key,
-              const std::vector<uint8_t> &fp)
+decrypt_pkcs5(rnp::secure_bytes &out, const Encrypted &in, const ec::Key &key)
 {
     if (!key.x.bytes()) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -277,7 +270,7 @@ decrypt_pkcs5(rnp::secure_bytes &         out,
     }
 
     // See 13.5 of RFC 4880 for definition of other_info_size
-    auto other_info = kdf_other_info_serialize(*curve_desc, fp, kdf_hash, wrap_alg);
+    auto other_info = kdf_other_info_serialize(*curve_desc, in.fp, kdf_hash, wrap_alg);
     assert(other_info.size() == curve_desc->OID.size() + 46);
 
     rnp::botan::Privkey prv_key;

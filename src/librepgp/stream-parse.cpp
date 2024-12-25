@@ -1569,19 +1569,14 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
                   pgp_key_t &                   seckey,
                   rnp::SecurityContext &        ctx)
 {
-    pgp_encrypted_material_t encmaterial;
-    try {
-        if (!sesskey.parse_material(encmaterial) || !seckey.material()) {
-            return false;
-        }
-        seckey.material()->validate(ctx, false);
-        if (!seckey.material()->valid()) {
-            RNP_LOG("Attempt to decrypt using the key with invalid material.");
-            return false;
-        }
-    } catch (const std::exception &e) {
+    auto encmaterial = sesskey.parse_material();
+    if (!encmaterial || !seckey.material()) {
+        return false;
+    }
+    seckey.material()->validate(ctx, false);
+    if (!seckey.material()->valid()) {
         /* LCOV_EXCL_START */
-        RNP_LOG("%s", e.what());
+        RNP_LOG("Attempt to decrypt using the key with invalid material.");
         return false;
         /* LCOV_EXCL_END */
     }
@@ -1599,6 +1594,8 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
 #endif
 
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+    /* If AES is forced then salg must be stored plaintext in material */
+    sesskey.salg = encmaterial->salg;
     /* check that AES is used when mandated by the standard */
     if (!check_enforce_aes_v3_pkesk(sesskey.alg, sesskey.salg, sesskey.version)) {
         RNP_LOG("For the given asymmetric encryption algorithm in the PKESK, only AES is "
@@ -1608,11 +1605,13 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
 #endif
 
     /* Decrypting session key value */
-    rnp::secure_bytes decbuf(PGP_MPINT_SIZE, 0);
+    rnp::secure_bytes decbuf;
     if (sesskey.alg == PGP_PKA_ECDH) {
-        encmaterial.ecdh.fp = seckey.fp().vec();
+        auto ecdh = dynamic_cast<pgp::ECDHEncMaterial *>(encmaterial.get());
+        assert(ecdh);
+        ecdh->enc.fp = seckey.fp().vec();
     }
-    auto err = seckey.pkt().material->decrypt(ctx, decbuf, encmaterial);
+    auto err = seckey.pkt().material->decrypt(ctx, decbuf, *encmaterial);
     if (err) {
         return false;
     }

@@ -574,12 +574,11 @@ encrypted_dst_close(pgp_dest_t *dst, bool discard)
 }
 
 static rnp_result_t
-encrypted_add_recipient(pgp_write_handler_t *handler,
-                        pgp_dest_t *         dst,
-                        pgp_key_t *          userkey,
-                        const uint8_t *      key,
-                        const size_t         keylen,
-                        pgp_pkesk_version_t  pkesk_version)
+encrypted_add_recipient(pgp_write_handler_t *    handler,
+                        pgp_dest_t *             dst,
+                        pgp_key_t *              userkey,
+                        const rnp::secure_bytes &key,
+                        pgp_pkesk_version_t      pkesk_version)
 {
     pgp_dest_encrypted_param_t *param = (pgp_dest_encrypted_param_t *) dst->param;
 
@@ -623,12 +622,12 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
 #else
     enckey.push_back(pkey.salg);
 #endif
-    enckey.insert(enckey.end(), key, key + keylen);
+    enckey.insert(enckey.end(), key.begin(), key.end());
 
     if (have_pkesk_checksum(pkey.alg)) {
         /* Calculate checksum */
         rnp::secure_array<uint16_t, 1> checksum;
-        for (size_t i = 0; i < keylen; i++) {
+        for (size_t i = 0; i < key.size(); i++) {
             checksum[0] += key[i];
         }
         enckey.push_back(checksum[0] >> 8);
@@ -639,19 +638,24 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     RNP_LOG_U8VEC("Session Key: %s", std::vector<uint8_t>(enckey.begin(), enckey.end()));
 #endif
 
-    pgp_encrypted_material_t material;
-
+    auto material = pgp::EncMaterial::create(pkey.alg);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    material->version = pkey.version;
+    material->salg = pkey.salg;
+#endif
     if (userkey->alg() == PGP_PKA_ECDH) {
-        material.ecdh.fp = userkey->fp().vec();
+        auto ecdh = dynamic_cast<pgp::ECDHEncMaterial *>(material.get());
+        assert(ecdh);
+        ecdh->enc.fp = userkey->fp().vec();
     }
-    auto ret = userkey->pkt().material->encrypt(*handler->ctx->ctx, material, enckey);
+    auto ret = userkey->pkt().material->encrypt(*handler->ctx->ctx, *material, enckey);
     if (ret) {
         return ret;
     }
 
     /* Writing symmetric key encrypted session key packet */
     try {
-        pkey.write_material(material);
+        pkey.write_material(*material);
         pkey.write(*param->pkt.origdst);
         return param->pkt.origdst->werr;
     } catch (const std::exception &e) {
@@ -987,7 +991,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     dst->close = encrypted_dst_close;
     dst->type = PGP_STREAM_ENCRYPTED;
 
-    rnp::secure_array<uint8_t, PGP_MAX_KEY_SIZE> enckey; /* content encryption key */
+    rnp::secure_bytes enckey(keylen, 0); /* content encryption key */
     if (!pkeycount && !skeycount) {
         RNP_LOG("no recipients");
         ret = RNP_ERROR_BAD_PARAMETERS;
@@ -1019,8 +1023,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
             param->ctx->aalg = DEFAULT_AEAD_ALG;
         }
 #endif
-        ret = encrypted_add_recipient(
-          handler, dst, recipient, enckey.data(), keylen, pkesk_version);
+        ret = encrypted_add_recipient(handler, dst, recipient, enckey, pkesk_version);
         if (ret) {
             goto finish;
         }
