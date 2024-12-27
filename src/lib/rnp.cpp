@@ -8174,29 +8174,32 @@ add_json_mpis(json_object *jso, pgp_key_t *key, bool secret = false)
 static rnp_result_t
 add_json_sig_mpis(json_object *jso, const pgp_signature_t *sig)
 {
-    pgp_signature_material_t material = {};
-    try {
-        if (!sig->parse_material(material)) {
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return RNP_ERROR_OUT_OF_MEMORY;
+    auto material = sig->parse_material();
+    if (!material) {
+        return RNP_ERROR_NOT_SUPPORTED;
     }
     switch (sig->palg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        return add_json_mpis(jso, "sig", &material.rsa.s, NULL);
+    case PGP_PKA_RSA_SIGN_ONLY: {
+        auto &rsa = dynamic_cast<const pgp::RSASigMaterial &>(*material);
+        return add_json_mpis(jso, "sig", &rsa.sig.s, NULL);
+    }
     case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        return add_json_mpis(jso, "r", &material.eg.r, "s", &material.eg.s, NULL);
-    case PGP_PKA_DSA:
-        return add_json_mpis(jso, "r", &material.dsa.r, "s", &material.dsa.s, NULL);
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
+        auto &eg = dynamic_cast<const pgp::EGSigMaterial &>(*material);
+        return add_json_mpis(jso, "r", &eg.sig.r, "s", &eg.sig.s, NULL);
+    }
+    case PGP_PKA_DSA: {
+        auto &dsa = dynamic_cast<const pgp::DSASigMaterial &>(*material);
+        return add_json_mpis(jso, "r", &dsa.sig.r, "s", &dsa.sig.s, NULL);
+    }
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-        return add_json_mpis(jso, "r", &material.ecc.r, "s", &material.ecc.s, NULL);
+    case PGP_PKA_SM2: {
+        auto &ec = dynamic_cast<const pgp::ECSigMaterial &>(*material);
+        return add_json_mpis(jso, "r", &ec.sig.r, "s", &ec.sig.s, NULL);
+    }
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
     case PGP_PKA_X25519:
