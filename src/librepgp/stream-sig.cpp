@@ -1018,8 +1018,7 @@ pgp_signature_t::parse(pgp_packet_body_t &pkt)
     /* we cannot fail here */
     pkt.get(material_buf, pkt.left());
     /* check whether it can be parsed */
-    pgp_signature_material_t material = {};
-    if (!parse_material(material)) {
+    if (!parse_material()) {
         return RNP_ERROR_BAD_FORMAT;
     }
     return RNP_SUCCESS;
@@ -1034,105 +1033,6 @@ pgp_signature_t::parse(pgp_source_t &src)
         return res;
     }
     return parse(pkt);
-}
-
-bool
-pgp_signature_t::parse_material(pgp_signature_material_t &material) const
-{
-    pgp_packet_body_t pkt(material_buf);
-
-    switch (palg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        if (!pkt.get(material.rsa.s)) {
-            return false;
-        }
-        break;
-    case PGP_PKA_DSA:
-        if (!pkt.get(material.dsa.r) || !pkt.get(material.dsa.s)) {
-            return false;
-        }
-        break;
-    case PGP_PKA_EDDSA:
-        if (version < PGP_V4) {
-            RNP_LOG("Warning! v3 EdDSA signature.");
-        }
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_SM2:
-    case PGP_PKA_ECDH:
-        if (!pkt.get(material.ecc.r) || !pkt.get(material.ecc.s)) {
-            return false;
-        }
-        break;
-    case PGP_PKA_ELGAMAL: /* we support reading it but will not validate */
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!pkt.get(material.eg.r) || !pkt.get(material.eg.s)) {
-            return false;
-        }
-        break;
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_ED25519: {
-        auto ec_desc = pgp::ec::Curve::get(PGP_CURVE_25519);
-        material.ed25519.sig.resize(2 * ec_desc->bytes());
-        if (!pkt.get(material.ed25519.sig.data(), material.ed25519.sig.size())) {
-            RNP_LOG("failed to parse ED25519 signature data");
-            return false;
-        }
-        break;
-    }
-#endif
-#if defined(ENABLE_PQC)
-    case PGP_PKA_DILITHIUM3_ED25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
-        material.dilithium_exdsa.sig.resize(
-          pgp_dilithium_exdsa_signature_t::composite_signature_size(palg));
-        if (!pkt.get(material.dilithium_exdsa.sig.data(),
-                     material.dilithium_exdsa.sig.size())) {
-            RNP_LOG("failed to get mldsa-ecdsa/eddsa signature");
-            return false;
-        }
-        break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE: {
-        uint8_t param;
-        if (!pkt.get(param)) {
-            RNP_LOG("failed to parse SLH-DSA signature data");
-            return false;
-        }
-        auto sig_size = sphincsplus_signature_size((sphincsplus_parameter_t) param);
-        if (!sig_size) {
-            RNP_LOG("invalid SLH-DSA param value");
-            return false;
-        }
-        material.sphincsplus.param = (sphincsplus_parameter_t) param;
-        material.sphincsplus.sig.resize(sig_size);
-        if (!pkt.get(material.sphincsplus.sig.data(), sig_size)) {
-            RNP_LOG("failed to parse SLH-DSA signature data");
-            return false;
-        }
-        break;
-    }
-#endif
-    default:
-        RNP_LOG("Unknown pk algorithm : %d", (int) palg);
-        return false;
-    }
-
-    if (pkt.left()) {
-        RNP_LOG("extra %d bytes in signature packet", (int) pkt.left());
-        return false;
-    }
-    return true;
 }
 
 std::unique_ptr<pgp::SigMaterial>
@@ -1201,63 +1101,6 @@ pgp_signature_t::write_material(const pgp::SigMaterial &material)
 {
     pgp_packet_body_t pktbody(PGP_PKT_SIGNATURE);
     material.write(pktbody);
-    material_buf.assign(pktbody.data(), pktbody.data() + pktbody.size());
-}
-
-void
-pgp_signature_t::write_material(const pgp_signature_material_t &material)
-{
-    pgp_packet_body_t pktbody(PGP_PKT_SIGNATURE);
-    switch (palg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        pktbody.add(material.rsa.s);
-        break;
-    case PGP_PKA_DSA:
-        pktbody.add(material.dsa.r);
-        pktbody.add(material.dsa.s);
-        break;
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_SM2:
-    case PGP_PKA_ECDH:
-        pktbody.add(material.ecc.r);
-        pktbody.add(material.ecc.s);
-        break;
-    case PGP_PKA_ELGAMAL: /* we support writing it but will not generate */
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        pktbody.add(material.eg.r);
-        pktbody.add(material.eg.s);
-        break;
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_ED25519:
-        pktbody.add(material.ed25519.sig);
-        break;
-#endif
-#if defined(ENABLE_PQC)
-    case PGP_PKA_DILITHIUM3_ED25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
-        pktbody.add(material.dilithium_exdsa.sig);
-        break;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        pktbody.add_byte((uint8_t) material.sphincsplus.param);
-        pktbody.add(material.sphincsplus.sig);
-        break;
-#endif
-    default:
-        RNP_LOG("Unknown pk algorithm : %d", (int) palg);
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
     material_buf.assign(pktbody.data(), pktbody.data() + pktbody.size());
 }
 
