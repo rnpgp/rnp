@@ -140,8 +140,8 @@ TEST_F(rnp_tests, rnp_test_eddsa)
     pgp_key_pkt_t     seckey;
     assert_true(keygen.generate(seckey, true));
 
-    rnp::secure_bytes        hash(32);
-    pgp_signature_material_t sig = {};
+    rnp::secure_bytes  hash(32);
+    pgp::ECSigMaterial sig(PGP_HASH_SHA256);
 
     assert_rnp_success(seckey.material->sign(global_ctx, sig, hash));
     assert_rnp_success(seckey.material->verify(global_ctx, sig, hash));
@@ -151,9 +151,9 @@ TEST_F(rnp_tests, rnp_test_eddsa)
     assert_rnp_failure(seckey.material->verify(global_ctx, sig, hash_cut));
 
     // swap r/s -> invalid sig
-    pgp::mpi tmp = sig.ecc.r;
-    sig.ecc.r = sig.ecc.s;
-    sig.ecc.s = tmp;
+    pgp::mpi tmp = sig.sig.r;
+    sig.sig.r = sig.sig.s;
+    sig.sig.s = tmp;
     assert_rnp_failure(seckey.material->verify(global_ctx, sig, hash));
 }
 
@@ -253,8 +253,7 @@ TEST_F(rnp_tests, ecdsa_signverify_success)
         assert_true(keygen.generate(seckey1, true));
         assert_true(keygen.generate(seckey2, true));
 
-        pgp_signature_material_t sig = {};
-        sig.halg = hash_alg;
+        pgp::ECSigMaterial sig(hash_alg);
         assert_rnp_success(seckey1.material->sign(global_ctx, sig, hash));
         assert_rnp_success(seckey1.material->verify(global_ctx, sig, hash));
 
@@ -512,9 +511,9 @@ TEST_F(rnp_tests, test_dsa_roundtrip)
           "p: %zu q: %zu h: %s\n", dsa.bits(), dsa.qbits(), rnp::Hash::name(keygen.hash()));
         fflush(stdout);
 
-        auto &                   key = *seckey.material;
-        rnp::secure_bytes        hash(message, message + rnp::Hash::size(keygen.hash()));
-        pgp_signature_material_t sig = {};
+        auto &              key = *seckey.material;
+        rnp::secure_bytes   hash(message, message + rnp::Hash::size(keygen.hash()));
+        pgp::DSASigMaterial sig(keygen.hash());
         assert_rnp_success(key.sign(global_ctx, sig, hash));
         assert_rnp_success(key.verify(global_ctx, sig, hash));
     }
@@ -542,8 +541,8 @@ TEST_F(rnp_tests, test_dsa_verify_negative)
     auto &key1 = *sec_key1.material;
     auto &key2 = *sec_key2.material;
 
-    rnp::secure_bytes        hash(message, message + rnp::Hash::size(keygen.hash()));
-    pgp_signature_material_t sig = {};
+    rnp::secure_bytes   hash(message, message + rnp::Hash::size(keygen.hash()));
+    pgp::DSASigMaterial sig(keygen.hash());
     assert_rnp_success(key1.sign(global_ctx, sig, hash));
     // wrong key used
     assert_int_equal(key2.verify(global_ctx, sig, hash), RNP_ERROR_SIGNATURE_INVALID);
@@ -611,7 +610,7 @@ TEST_F(rnp_tests, dilithium_exdsa_signverify_success)
         auto &key1 = *seckey1.material;
         auto &key2 = *seckey2.material;
 
-        pgp_signature_material_t sig;
+        pgp::DilithiumSigMaterial sig(keygen.alg(), keygen.hash());
         sig.halg = hash_alg;
         rnp::secure_bytes hash(message, message + sizeof(message));
         assert_rnp_success(key1.sign(global_ctx, sig, hash));
@@ -649,10 +648,10 @@ TEST_F(rnp_tests, sphincsplus_signverify_success)
             assert_true(keygen.generate(seckey1, true));
             assert_true(keygen.generate(seckey2, true));
 
-            auto &                   key1 = *seckey1.material;
-            auto &                   key2 = *seckey2.material;
-            rnp::secure_bytes        hash(message, message + sizeof(message));
-            pgp_signature_material_t sig;
+            auto &                 key1 = *seckey1.material;
+            auto &                 key2 = *seckey2.material;
+            rnp::secure_bytes      hash(message, message + sizeof(message));
+            pgp::SlhdsaSigMaterial sig(keygen.hash());
             assert_rnp_success(key1.sign(global_ctx, sig, hash));
             assert_rnp_success(key1.verify(global_ctx, sig, hash));
 
