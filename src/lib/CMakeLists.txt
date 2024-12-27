@@ -371,6 +371,7 @@ add_library(librnp-obj OBJECT
   sig_subpacket.cpp
   key_material.cpp
   enc_material.cpp
+  sig_material.cpp
   keygen.cpp
   pgp-key.cpp
   rnp.cpp
