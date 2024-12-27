@@ -408,7 +408,6 @@ typedef struct pgp_signature_t {
      * @param material on success parsed material will be stored here.
      * @return true on success or false otherwise. May also throw an exception.
      */
-    bool                              parse_material(pgp_signature_material_t &material) const;
     std::unique_ptr<pgp::SigMaterial> parse_material() const;
 
     /**
@@ -422,7 +421,6 @@ typedef struct pgp_signature_t {
      *
      * @param material populated signature material.
      */
-    void write_material(const pgp_signature_material_t &material);
     void write_material(const pgp::SigMaterial &material);
 
     /**
