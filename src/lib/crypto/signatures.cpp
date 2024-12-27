@@ -25,6 +25,7 @@
  */
 
 #include <string.h>
+#include <cassert>
 #include "crypto/signatures.h"
 #include "librepgp/stream-packet.h"
 #include "librepgp/stream-sig.h"
@@ -134,16 +135,17 @@ signature_calculate(pgp_signature_t &        sig,
     /* Copy left 16 bits to signature */
     std::copy(hval.begin(), hval.begin() + 2, sig.lbits.begin());
 
-    pgp_signature_material_t material = {};
     /* Some algos require used hash algorithm for signing */
-    material.halg = sig.halg;
+    auto material = pgp::SigMaterial::create(sig.palg, sig.halg);
+    if (!material) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
     /* Sign */
-    auto ret = seckey.sign(ctx, material, hval);
-
+    auto ret = seckey.sign(ctx, *material, hval);
     if (ret) {
         throw rnp::rnp_exception(ret);
     }
-    sig.write_material(material);
+    sig.write_material(*material);
 }
 
 rnp_result_t
@@ -187,10 +189,8 @@ signature_validate(const pgp_signature_t &     sig,
     }
 
     /* validate signature */
-    pgp_signature_material_t material = {};
     /* We check whether material could be parsed during the signature parsing */
-    sig.parse_material(material);
-    material.halg = sig.halg;
-
-    return key.verify(ctx, material, hval);
+    auto material = sig.parse_material();
+    assert(material);
+    return key.verify(ctx, *material, hval);
 }
