@@ -1135,6 +1135,24 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
     return true;
 }
 
+std::unique_ptr<pgp::SigMaterial>
+pgp_signature_t::parse_material() const
+{
+    auto sig = pgp::SigMaterial::create(palg, halg);
+    if (!sig) {
+        return nullptr;
+    }
+    pgp_packet_body_t pkt(material_buf);
+    if (!sig->parse(pkt)) {
+        return nullptr;
+    }
+    if (pkt.left()) {
+        RNP_LOG("extra %zu bytes in pk packet", pkt.left());
+        return nullptr;
+    }
+    return sig;
+}
+
 void
 pgp_signature_t::write(pgp_dest_t &dst, bool hdr) const
 {
@@ -1176,6 +1194,14 @@ pgp_signature_t::write(bool hdr) const
     rnp::MemoryDest dst;
     write(dst.dst(), hdr);
     return dst.to_vector();
+}
+
+void
+pgp_signature_t::write_material(const pgp::SigMaterial &material)
+{
+    pgp_packet_body_t pktbody(PGP_PKT_SIGNATURE);
+    material.write(pktbody);
+    material_buf.assign(pktbody.data(), pktbody.data() + pktbody.size());
 }
 
 void
