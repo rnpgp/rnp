@@ -178,7 +178,7 @@ class KeyStore {
     pgp_key_t *add_key(pgp_key_t &key);
 
     /**
-     * @brief Add signature of the specific key to the keystore, revalidating and refresing
+     * @brief Add signature of the specific key to the keystore, revalidating and refreshing
      *        key's data.
      *
      * @param keyfp key's fingerprint.
