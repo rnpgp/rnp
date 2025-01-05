@@ -3212,7 +3212,7 @@ TEST_F(rnp_tests, test_ffi_v6_cert_import)
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_v6_valid_data/transferable_pubkey_v6.asc"));
+      rnp_input_from_path(&input, "data/test_crypto_refresh/transferable_pubkey_v6.asc"));
     assert_rnp_success(
       rnp_import_keys(ffi,
                       input,
@@ -3299,7 +3299,7 @@ TEST_F(rnp_tests, test_ffi_v6_seckey_import)
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_v6_valid_data/transferable_seckey_v6.asc"));
+      rnp_input_from_path(&input, "data/test_crypto_refresh/transferable_seckey_v6.asc"));
     assert_rnp_success(
       rnp_import_keys(ffi,
                       input,
