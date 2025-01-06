@@ -132,6 +132,40 @@ TEST_F(rnp_tests, pkcs1_rsa_test_success)
     assert_rnp_success(seckey.material->decrypt(global_ctx, dec, enc));
     assert_int_equal(dec.size(), 3);
     assert_true(bin_eq_hex(dec.data(), 3, "616263"));
+
+    /* Try signing */
+    assert_true(keygen.generate(seckey, true));
+
+    rnp::secure_bytes   hash(32);
+    pgp::RSASigMaterial sig(PGP_HASH_SHA256);
+
+    assert_rnp_success(seckey.material->sign(global_ctx, sig, hash));
+    assert_rnp_success(seckey.material->verify(global_ctx, sig, hash));
+
+    // cut one byte off hash -> invalid sig
+    rnp::secure_bytes hash_cut(hash.begin(), hash.end() - 1);
+    assert_rnp_failure(seckey.material->verify(global_ctx, sig, hash_cut));
+
+    // modify sig
+    sig.sig.s.mpi[0] ^= 0xff;
+    assert_rnp_failure(seckey.material->verify(global_ctx, sig, hash));
+}
+
+TEST_F(rnp_tests, pkcs1_rsa_test_sign_enc_only)
+{
+    rnp::KeygenParams keygen(PGP_PKA_RSA_SIGN_ONLY, global_ctx);
+    auto &            rsa = dynamic_cast<pgp::RSAKeyParams &>(keygen.key_params());
+    rsa.set_bits(1024);
+
+    pgp_key_pkt_t seckey;
+    assert_false(keygen.generate(seckey, true));
+
+    rnp::KeygenParams keygen2(PGP_PKA_RSA_ENCRYPT_ONLY, global_ctx);
+    auto &            rsa2 = dynamic_cast<pgp::RSAKeyParams &>(keygen2.key_params());
+    rsa2.set_bits(1024);
+
+    pgp_key_pkt_t seckey2;
+    assert_false(keygen2.generate(seckey2, true));
 }
 
 TEST_F(rnp_tests, rnp_test_eddsa)
