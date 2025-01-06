@@ -200,7 +200,6 @@ class KeyMaterial {
     void                  set_validity(const pgp_validity_t &val);
     void                  reset_validity();
     bool                  valid() const;
-    virtual bool          equals(const KeyMaterial &value) const noexcept;
     virtual void          clear_secret() noexcept;
     virtual bool          parse(pgp_packet_body_t &pkt) noexcept = 0;
     virtual bool          parse_secret(pgp_packet_body_t &pkt) noexcept = 0;
@@ -247,7 +246,6 @@ class RSAKeyMaterial : public KeyMaterial {
         : KeyMaterial(kalg, secret), key_(key){};
     std::unique_ptr<KeyMaterial> clone() override;
 
-    bool         equals(const KeyMaterial &value) const noexcept override;
     void         clear_secret() noexcept override;
     bool         parse(pgp_packet_body_t &pkt) noexcept override;
     bool         parse_secret(pgp_packet_body_t &pkt) noexcept override;
@@ -291,7 +289,6 @@ class DSAKeyMaterial : public KeyMaterial {
         : KeyMaterial(PGP_PKA_DSA, secret), key_(key){};
     std::unique_ptr<KeyMaterial> clone() override;
 
-    bool           equals(const KeyMaterial &value) const noexcept override;
     void           clear_secret() noexcept override;
     bool           parse(pgp_packet_body_t &pkt) noexcept override;
     bool           parse_secret(pgp_packet_body_t &pkt) noexcept override;
@@ -329,7 +326,6 @@ class EGKeyMaterial : public KeyMaterial {
         : KeyMaterial(kalg, secret), key_(key){};
     std::unique_ptr<KeyMaterial> clone() override;
 
-    bool         equals(const KeyMaterial &value) const noexcept override;
     void         clear_secret() noexcept override;
     bool         parse(pgp_packet_body_t &pkt) noexcept override;
     bool         parse_secret(pgp_packet_body_t &pkt) noexcept override;
@@ -367,7 +363,6 @@ class ECKeyMaterial : public KeyMaterial {
     ECKeyMaterial(pgp_pubkey_alg_t kalg, const ec::Key &key, bool secret = false)
         : KeyMaterial(kalg, secret), key_(key){};
 
-    bool        equals(const KeyMaterial &value) const noexcept override;
     void        clear_secret() noexcept override;
     bool        parse(pgp_packet_body_t &pkt) noexcept override;
     bool        parse_secret(pgp_packet_body_t &pkt) noexcept override;
@@ -483,7 +478,6 @@ class Ed25519KeyMaterial : public KeyMaterial {
     Ed25519KeyMaterial() : KeyMaterial(PGP_PKA_ED25519), key_{} {};
     std::unique_ptr<KeyMaterial> clone() override;
 
-    bool         equals(const KeyMaterial &value) const noexcept override;
     void         clear_secret() noexcept override;
     bool         parse(pgp_packet_body_t &pkt) noexcept override;
     bool         parse_secret(pgp_packet_body_t &pkt) noexcept override;
@@ -514,7 +508,6 @@ class X25519KeyMaterial : public KeyMaterial {
     X25519KeyMaterial() : KeyMaterial(PGP_PKA_X25519), key_{} {};
     std::unique_ptr<KeyMaterial> clone() override;
 
-    bool         equals(const KeyMaterial &value) const noexcept override;
     void         clear_secret() noexcept override;
     bool         parse(pgp_packet_body_t &pkt) noexcept override;
     bool         parse_secret(pgp_packet_body_t &pkt) noexcept override;
@@ -547,7 +540,6 @@ class MlkemEcdhKeyMaterial : public KeyMaterial {
     MlkemEcdhKeyMaterial(pgp_pubkey_alg_t kalg) : KeyMaterial(kalg), key_{} {};
     std::unique_ptr<KeyMaterial> clone() override;
 
-    bool         equals(const KeyMaterial &value) const noexcept override;
     void         clear_secret() noexcept override;
     bool         parse(pgp_packet_body_t &pkt) noexcept override;
     bool         parse_secret(pgp_packet_body_t &pkt) noexcept override;
@@ -579,7 +571,6 @@ class DilithiumEccKeyMaterial : public KeyMaterial {
 
     /** @brief Check two key material for equality. Only public part is checked, so this may be
      * called on public/secret key material */
-    bool           equals(const KeyMaterial &value) const noexcept override;
     void           clear_secret() noexcept override;
     bool           parse(pgp_packet_body_t &pkt) noexcept override;
     bool           parse_secret(pgp_packet_body_t &pkt) noexcept override;
@@ -610,7 +601,6 @@ class SlhdsaKeyMaterial : public KeyMaterial {
     SlhdsaKeyMaterial(pgp_pubkey_alg_t kalg) : KeyMaterial(kalg), key_{} {};
     std::unique_ptr<KeyMaterial> clone() override;
 
-    bool           equals(const KeyMaterial &value) const noexcept override;
     void           clear_secret() noexcept override;
     bool           parse(pgp_packet_body_t &pkt) noexcept override;
     bool           parse_secret(pgp_packet_body_t &pkt) noexcept override;

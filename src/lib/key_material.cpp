@@ -260,12 +260,6 @@ KeyMaterial::valid() const
     return validity_.validated && validity_.valid;
 }
 
-bool
-KeyMaterial::equals(const KeyMaterial &value) const noexcept
-{
-    return alg_ == value.alg_;
-}
-
 void
 KeyMaterial::validate(rnp::SecurityContext &ctx, bool reset)
 {
@@ -495,16 +489,6 @@ RSAKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
     return !key_.validate(ctx.rng, secret_);
 }
 
-bool
-RSAKeyMaterial::equals(const KeyMaterial &value) const noexcept
-{
-    auto key = dynamic_cast<const RSAKeyMaterial *>(&value);
-    if (!key || !KeyMaterial::equals(value)) {
-        return false;
-    }
-    return (key->key_.n == key_.n) && (key->key_.e == key_.e);
-}
-
 void
 RSAKeyMaterial::clear_secret() noexcept
 {
@@ -686,17 +670,6 @@ DSAKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
     return !key_.validate(ctx.rng, secret_);
 }
 
-bool
-DSAKeyMaterial::equals(const KeyMaterial &value) const noexcept
-{
-    auto key = dynamic_cast<const DSAKeyMaterial *>(&value);
-    if (!key || !KeyMaterial::equals(value)) {
-        return false;
-    }
-    return (key->key_.p == key_.p) && (key->key_.q == key_.q) && (key->key_.g == key_.g) &&
-           (key->key_.y == key_.y);
-}
-
 void
 DSAKeyMaterial::clear_secret() noexcept
 {
@@ -851,16 +824,6 @@ EGKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
     return key_.validate(secret_);
 }
 
-bool
-EGKeyMaterial::equals(const KeyMaterial &value) const noexcept
-{
-    auto key = dynamic_cast<const EGKeyMaterial *>(&value);
-    if (!key || !KeyMaterial::equals(value)) {
-        return false;
-    }
-    return (key->key_.p == key_.p) && (key->key_.g == key_.g) && (key->key_.y == key_.y);
-}
-
 void
 EGKeyMaterial::clear_secret() noexcept
 {
@@ -989,16 +952,6 @@ void
 ECKeyMaterial::grip_update(rnp::Hash &hash) const
 {
     grip_hash_ec(hash, key_);
-}
-
-bool
-ECKeyMaterial::equals(const KeyMaterial &value) const noexcept
-{
-    auto key = dynamic_cast<const ECKeyMaterial *>(&value);
-    if (!key || !KeyMaterial::equals(value)) {
-        return false;
-    }
-    return (key->key_.curve == key_.curve) && (key->key_.p == key_.p);
 }
 
 void
@@ -1469,16 +1422,6 @@ Ed25519KeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
     return !ed25519_validate_key_native(&ctx.rng, &key_, secret_);
 }
 
-bool
-Ed25519KeyMaterial::equals(const KeyMaterial &value) const noexcept
-{
-    auto key = dynamic_cast<const Ed25519KeyMaterial *>(&value);
-    if (!key || !KeyMaterial::equals(value)) {
-        return false;
-    }
-    return key->key_.pub == key_.pub;
-}
-
 void
 Ed25519KeyMaterial::clear_secret() noexcept
 {
@@ -1602,16 +1545,6 @@ bool
 X25519KeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 {
     return !x25519_validate_key_native(&ctx.rng, &key_, secret_);
-}
-
-bool
-X25519KeyMaterial::equals(const KeyMaterial &value) const noexcept
-{
-    auto key = dynamic_cast<const X25519KeyMaterial *>(&value);
-    if (!key || !KeyMaterial::equals(value)) {
-        return false;
-    }
-    return key->key_.pub == key_.pub;
 }
 
 void
@@ -1745,16 +1678,6 @@ MlkemEcdhKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
     return !kyber_ecdh_validate_key(&ctx.rng, &key_, secret_);
 }
 
-bool
-MlkemEcdhKeyMaterial::equals(const KeyMaterial &value) const noexcept
-{
-    auto key = dynamic_cast<const MlkemEcdhKeyMaterial *>(&value);
-    if (!key || !KeyMaterial::equals(value)) {
-        return false;
-    }
-    return key->key_.pub == key_.pub;
-}
-
 void
 MlkemEcdhKeyMaterial::clear_secret() noexcept
 {
@@ -1874,16 +1797,6 @@ bool
 DilithiumEccKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 {
     return !dilithium_exdsa_validate_key(&ctx.rng, &key_, secret_);
-}
-
-bool
-DilithiumEccKeyMaterial::equals(const KeyMaterial &value) const noexcept
-{
-    auto key = dynamic_cast<const DilithiumEccKeyMaterial *>(&value);
-    if (!key || !KeyMaterial::equals(value)) {
-        return false;
-    }
-    return key->key_.pub == key_.pub;
 }
 
 void
@@ -2006,16 +1919,6 @@ bool
 SlhdsaKeyMaterial::validate_material(rnp::SecurityContext &ctx, bool reset)
 {
     return !sphincsplus_validate_key(&ctx.rng, &key_, secret_);
-}
-
-bool
-SlhdsaKeyMaterial::equals(const KeyMaterial &value) const noexcept
-{
-    auto key = dynamic_cast<const SlhdsaKeyMaterial *>(&value);
-    if (!key || !KeyMaterial::equals(value)) {
-        return false;
-    }
-    return key->key_.pub == key_.pub;
 }
 
 void
