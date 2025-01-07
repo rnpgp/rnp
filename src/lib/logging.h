@@ -58,7 +58,8 @@ class LogStop {
 };
 } // namespace rnp
 
-#define __SOURCE_PATH_FILE__ (__FILE__ + SOURCE_PATH_SIZE + 3 /* remove "src" */)
+/* remove "src" */
+#define __SOURCE_PATH_FILE__ (&(__FILE__[SOURCE_PATH_SIZE + 3]))
 
 #define RNP_LOG_FD(fd, ...)                                                              \
     do {                                                                                 \
