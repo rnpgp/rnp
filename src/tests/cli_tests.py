@@ -48,6 +48,7 @@ RNP_IDEA = True
 RNP_BLOWFISH = True
 RNP_CAST5 = True
 RNP_RIPEMD160 = True
+RNP_SM2 = True
 # Botan may cause AV during OCB decryption in certain cases, see https://github.com/randombit/botan/issues/3812
 RNP_BOTAN_OCB_AV = False
 
@@ -880,7 +881,7 @@ def gpg_check_features():
     print('GPG_BRAINPOOL: ' + str(GPG_BRAINPOOL))
 
 def rnp_check_features():
-    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_AEAD_EAX, RNP_AEAD_OCB, RNP_AEAD_OCB_AES, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160, RNP_PQC
+    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_AEAD_EAX, RNP_AEAD_OCB, RNP_AEAD_OCB_AES, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160, RNP_PQC, RNP_SM2
     global RNP_BOTAN_OCB_AV
     ret, out, _ = run_proc(RNP, ['--version'])
     if ret != 0:
@@ -907,6 +908,8 @@ def rnp_check_features():
     RNP_BLOWFISH = re.match(r'(?s)^.*Encryption:.*BLOWFISH.*', out) is not None
     RNP_CAST5 = re.match(r'(?s)^.*Encryption:.*CAST5.*', out) is not None
     RNP_RIPEMD160 = re.match(r'(?s)^.*Hash:.*RIPEMD160.*', out) is not None
+    # SM2
+    RNP_SM2 = re.match(r'(?s)^.*Public key:.*SM2.*', out) is not None
     # Determine PQC support in general. If present, assume that all PQC schemes are supported.
     pqc_strs = ['ML-KEM', 'ML-DSA']
     RNP_PQC = any([re.match('(?s)^.*Public key:.*' + scheme + '.*', out) is not None for scheme in pqc_strs])
@@ -4475,8 +4478,7 @@ class Encryption(unittest.TestCase):
 
     def test_aead_chunk_edge_cases(self):
         if not RNP_AEAD:
-            print('AEAD is not available for RNP - skipping.')
-            return
+            self.skipTest('AEAD is not available for RNP - skipping.')
         src, dst, enc = reg_workfiles('cleartext', '.txt', '.rnp', '.enc')
         # Cover lines from src_skip() where > 16 bytes must be skipped
         random_text(src, 1001)
@@ -4870,7 +4872,7 @@ class Encryption(unittest.TestCase):
 
     def test_encryption_aead_defs(self):
         if not RNP_AEAD or not RNP_BRAINPOOL:
-            return
+            self.skipTest('AEAD and/or Brainpool are not supported')
         # Encrypt with RNP
         pubkey = data_path(KEY_ALICE_SUB_PUB)
         src, enc, dec = reg_workfiles('cleartext', '.txt', '.enc', '.dec')
@@ -4937,6 +4939,40 @@ class Encryption(unittest.TestCase):
         ret, _, _ = run_proc(RNP, ['--keyfile', data_path('test_messages/pubkey-aead-eax.gpg'), '--password', 'password1', '-d', EAXSRC, '--output', dec])
         self.assertEqual(ret, 0)
         clear_workfiles()
+
+    def test_sm2_encryption_signing(self):
+        if not RNP_SM2:
+            self.skipTest('SM2 is not supported or disabled')
+        RNPDIR2 = RNPDIR + '2'
+        os.mkdir(RNPDIR2, 0o700)
+        # Import public key
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR2, '--import', data_path('test_stream_key_load/sm2-pub.asc')])
+        self.assertEqual(ret, 0)
+        # Check listing
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR2, '--list-keys'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)2 keys found.*pub.*256/SM2.*3a143c1695ae14c9.*sm2\-key.*sub.*256/SM2.*75ca025d13c1c512.*')
+        # Validate signature
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR2, '-v', data_path('test_messages/message.txt.signed-sm2')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)Good signature made.*using SM2 key 3a143c1695ae14c9.*')
+        # Import secret key
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR2, '--import', data_path('test_stream_key_load/sm2-sec.asc')])
+        self.assertEqual(ret, 0)
+        # Check listing
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR2, '--list-keys', '--secret'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)2 keys found.*sec.*256/SM2.*3a143c1695ae14c9.*sm2\-key.*ssb.*256/SM2.*75ca025d13c1c512.*')
+        # Decrypt encrypted file
+        ret, out, _ = run_proc(RNP, ['--homedir', RNPDIR2, '--password', PASSWORD, '-d', data_path('test_messages/message.txt.enc-sm2')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)This is test message to be.*')
+        # Decrypt and verify file
+        ret, out, err = run_proc(RNP, ['--homedir', RNPDIR2, '--password', PASSWORD, '-d', data_path('test_messages/message.txt.enc-signed-sm2')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)This is test message to be.*')
+        self.assertRegex(err, r'(?s)Good signature made.*using SM2 key 3a143c1695ae14c9.*')
+        shutil.rmtree(RNPDIR2, ignore_errors=True)        
 
 class Compression(unittest.TestCase):
     @classmethod
