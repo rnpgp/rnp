@@ -819,11 +819,13 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, const pgp_signature_t &sig, pgp_d
 
     auto material = sig.parse_material();
     assert(material);
+    /* LCOV_EXCL_START */
     if (!material) {
         indent_dest_decrease(dst);
         indent_dest_decrease(dst);
         return;
     }
+    /* LCOV_EXCL_END */
     switch (sig.palg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
@@ -847,6 +849,8 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, const pgp_signature_t &sig, pgp_d
         dst_print_mpi(dst, "ecc s", ec.sig.s, ctx->dump_mpi);
         break;
     }
+    /* Wasn't able to find ElGamal sig artifacts so let's ignore this for coverage */
+    /* LCOV_EXCL_START */
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
         auto &eg = dynamic_cast<const EGSigMaterial &>(*material);
@@ -854,6 +858,7 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, const pgp_signature_t &sig, pgp_d
         dst_print_mpi(dst, "eg s", eg.sig.s, ctx->dump_mpi);
         break;
     }
+    /* LCOV_EXCL_END */
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519: {
         auto &ed = dynamic_cast<const Ed25519SigMaterial &>(*material);
@@ -2069,15 +2074,18 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
         }
         break;
     }
+    /* Wasn't able to find ElGamal sig artifacts so let's ignore this for coverage */
+    /* LCOV_EXCL_START */
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
         auto &eg = dynamic_cast<const EGSigMaterial &>(*sigmaterial);
         if (!obj_add_mpi_json(material, "r", eg.sig.r, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "s", eg.sig.s, ctx->dump_mpi)) {
-            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
     }
+    /* LCOV_EXCL_END */
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
         /* TODO */
