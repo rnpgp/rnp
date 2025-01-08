@@ -679,93 +679,115 @@ encrypted_sesk_set_ad(pgp_crypt_t *crypt, pgp_sk_sesskey_t *skey)
 #endif
 
 static rnp_result_t
-encrypted_add_password(rnp_symmetric_pass_info_t * pass,
-                       pgp_dest_encrypted_param_t *param,
-                       uint8_t *                   key,
-                       const unsigned              keylen,
+encrypted_add_password_v4(rnp_symmetric_pass_info_t &pass,
+                          pgp_symm_alg_t             ealg,
+                          rnp::secure_bytes &        key,
+                          size_t                     keylen,
+                          pgp_sk_sesskey_t &         skey,
+                          bool                       singlepass)
+{
+    skey.version = PGP_SKSK_V4;
+    if (singlepass) {
+        /* if there are no public keys then we do not encrypt session key in the packet */
+        skey.alg = ealg;
+        skey.enckeylen = 0;
+        key.assign(pass.key.data(), pass.key.data() + keylen);
+        return RNP_SUCCESS;
+    }
+    /* We may use different algo for CEK and KEK */
+    skey.enckeylen = keylen + 1;
+    skey.enckey[0] = ealg;
+    memcpy(&skey.enckey[1], key.data(), keylen);
+    skey.alg = pass.s2k_cipher;
+    pgp_crypt_t kcrypt;
+    if (!pgp_cipher_cfb_start(&kcrypt, skey.alg, pass.key.data(), NULL)) {
+        RNP_LOG("key encryption failed");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    pgp_cipher_cfb_encrypt(&kcrypt, skey.enckey, skey.enckey, skey.enckeylen);
+    pgp_cipher_cfb_finish(&kcrypt);
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+encrypted_add_password_v5(rnp_symmetric_pass_info_t &pass,
+                          pgp_aead_alg_t             aalg,
+                          rnp::RNG &                 rng,
+                          rnp::secure_bytes &        key,
+                          size_t                     keylen,
+                          pgp_sk_sesskey_t &         skey)
+{
+#if !defined(ENABLE_AEAD)
+    RNP_LOG("AEAD support is not enabled.");
+    return RNP_ERROR_NOT_IMPLEMENTED;
+#else
+    /* AEAD-encrypted v5 packet */
+    if ((aalg != PGP_AEAD_EAX) && (aalg != PGP_AEAD_OCB)) {
+        RNP_LOG("unsupported AEAD algorithm");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    skey.version = PGP_SKSK_V5;
+    skey.alg = pass.s2k_cipher;
+    skey.aalg = aalg;
+    skey.ivlen = pgp_cipher_aead_nonce_len(skey.aalg);
+    skey.enckeylen = keylen + pgp_cipher_aead_tag_len(skey.aalg);
+    rng.get(skey.iv, skey.ivlen);
+
+    /* initialize cipher */
+    pgp_crypt_t kcrypt;
+    if (!pgp_cipher_aead_init(&kcrypt, skey.alg, skey.aalg, pass.key.data(), false)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    /* set additional data */
+    if (!encrypted_sesk_set_ad(&kcrypt, &skey)) {
+        return RNP_ERROR_BAD_STATE; // LCOV_EXCL_LINE
+    }
+
+    /* calculate nonce */
+    uint8_t nonce[PGP_AEAD_MAX_NONCE_LEN];
+    size_t  nlen = pgp_cipher_aead_nonce(skey.aalg, skey.iv, nonce, 0);
+
+    /* start cipher, encrypt key and get tag */
+    bool res = pgp_cipher_aead_start(&kcrypt, nonce, nlen) &&
+               pgp_cipher_aead_finish(&kcrypt, skey.enckey, key.data(), keylen);
+
+    pgp_cipher_aead_destroy(&kcrypt);
+
+    return res ? RNP_SUCCESS : RNP_ERROR_BAD_STATE;
+#endif
+}
+
+static rnp_result_t
+encrypted_add_password(rnp_symmetric_pass_info_t & pass,
+                       pgp_dest_encrypted_param_t &param,
+                       rnp::secure_bytes &         key,
+                       const size_t                keylen,
                        bool                        singlepass)
 {
     pgp_sk_sesskey_t skey = {};
-    pgp_crypt_t      kcrypt;
+    skey.s2k = pass.s2k;
 
-    skey.s2k = pass->s2k;
-
-    if (param->auth_type != rnp::AuthType::AEADv1) {
-        skey.version = PGP_SKSK_V4;
-        if (singlepass) {
-            /* if there are no public keys then we do not encrypt session key in the packet */
-            skey.alg = param->ctx->ealg;
-            skey.enckeylen = 0;
-            memcpy(key, pass->key.data(), keylen);
-        } else {
-            /* We may use different algo for CEK and KEK */
-            skey.enckeylen = keylen + 1;
-            skey.enckey[0] = param->ctx->ealg;
-            memcpy(&skey.enckey[1], key, keylen);
-            skey.alg = pass->s2k_cipher;
-            if (!pgp_cipher_cfb_start(&kcrypt, skey.alg, pass->key.data(), NULL)) {
-                RNP_LOG("key encryption failed");
-                return RNP_ERROR_BAD_PARAMETERS;
-            }
-            pgp_cipher_cfb_encrypt(&kcrypt, skey.enckey, skey.enckey, skey.enckeylen);
-            pgp_cipher_cfb_finish(&kcrypt);
-        }
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+    if (param.auth_type != rnp::AuthType::AEADv1) {
+        ret = encrypted_add_password_v4(pass, param.ctx->ealg, key, keylen, skey, singlepass);
     } else {
-#if !defined(ENABLE_AEAD)
-        RNP_LOG("AEAD support is not enabled.");
-        return RNP_ERROR_NOT_IMPLEMENTED;
-#else
-        /* AEAD-encrypted v5 packet */
-        if ((param->ctx->aalg != PGP_AEAD_EAX) && (param->ctx->aalg != PGP_AEAD_OCB)) {
-            RNP_LOG("unsupported AEAD algorithm");
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
+        ret = encrypted_add_password_v5(
+          pass, param.ctx->aalg, param.ctx->ctx->rng, key, keylen, skey);
+    }
 
-        skey.version = PGP_SKSK_V5;
-        skey.alg = pass->s2k_cipher;
-        skey.aalg = param->ctx->aalg;
-        skey.ivlen = pgp_cipher_aead_nonce_len(skey.aalg);
-        skey.enckeylen = keylen + pgp_cipher_aead_tag_len(skey.aalg);
-
-        try {
-            param->ctx->ctx->rng.get(skey.iv, skey.ivlen);
-        } catch (const std::exception &e) {
-            return RNP_ERROR_RNG; // LCOV_EXCL_LINE
-        }
-
-        /* initialize cipher */
-        if (!pgp_cipher_aead_init(&kcrypt, skey.alg, skey.aalg, pass->key.data(), false)) {
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
-
-        /* set additional data */
-        if (!encrypted_sesk_set_ad(&kcrypt, &skey)) {
-            return RNP_ERROR_BAD_STATE; // LCOV_EXCL_LINE
-        }
-
-        /* calculate nonce */
-        uint8_t nonce[PGP_AEAD_MAX_NONCE_LEN];
-        size_t  nlen = pgp_cipher_aead_nonce(skey.aalg, skey.iv, nonce, 0);
-
-        /* start cipher, encrypt key and get tag */
-        bool res = pgp_cipher_aead_start(&kcrypt, nonce, nlen) &&
-                   pgp_cipher_aead_finish(&kcrypt, skey.enckey, key, keylen);
-
-        pgp_cipher_aead_destroy(&kcrypt);
-
-        if (!res) {
-            return RNP_ERROR_BAD_STATE;
-        }
-#endif
+    if (ret) {
+        return ret;
     }
 
     /* Writing symmetric key encrypted session key packet */
     try {
-        skey.write(*param->pkt.origdst);
+        skey.write(*param.pkt.origdst);
     } catch (const std::exception &e) {
         return RNP_ERROR_WRITE; // LCOV_EXCL_LINE
     }
-    return param->pkt.origdst->werr;
+    return param.pkt.origdst->werr;
 }
 
 static rnp_result_t
@@ -921,14 +943,7 @@ encrypted_start_aead(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
 static rnp_result_t
 init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
 {
-    pgp_dest_encrypted_param_t *param;
-    bool                        singlepass = true;
-    unsigned                    pkeycount = 0;
-    unsigned                    skeycount = 0;
-    unsigned                    keylen;
-    rnp_result_t                ret = RNP_ERROR_GENERIC;
-
-    keylen = pgp_key_size(handler->ctx->ealg);
+    size_t keylen = pgp_key_size(handler->ctx->ealg);
     if (!keylen) {
         RNP_LOG("unknown symmetric algorithm");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -957,23 +972,23 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
         }
     }
 
+    auto pkeycount = handler->ctx->recipients.size();
+    auto skeycount = handler->ctx->passwords.size();
+    if (!pkeycount && !skeycount) {
+        RNP_LOG("no recipients");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
     if (!init_dst_common(dst, 0)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
-    try {
-        param = new pgp_dest_encrypted_param_t();
-        dst->param = param;
-    } catch (const std::exception &e) {
-        /* LCOV_EXCL_START */
-        RNP_LOG("%s", e.what());
-        return RNP_ERROR_OUT_OF_MEMORY;
-        /* LCOV_EXCL_END */
+    auto param = new (std::nothrow) pgp_dest_encrypted_param_t();
+    if (!param) {
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
+    dst->param = param;
     param->auth_type =
       handler->ctx->aalg == PGP_AEAD_NONE ? rnp::AuthType::MDC : rnp::AuthType::AEADv1;
-
-    pkeycount = handler->ctx->recipients.size();
-    skeycount = handler->ctx->passwords.size();
 
 #if defined(ENABLE_CRYPTO_REFRESH)
     /* in the case of PKESK (pkeycount > 0) and all keys are PKESKv6/SEIPDv2 capable, upgrade
@@ -991,14 +1006,11 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     dst->close = encrypted_dst_close;
     dst->type = PGP_STREAM_ENCRYPTED;
 
+    rnp_result_t      ret = RNP_ERROR_GENERIC;
     rnp::secure_bytes enckey(keylen, 0); /* content encryption key */
-    if (!pkeycount && !skeycount) {
-        RNP_LOG("no recipients");
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto finish;
-    }
 
-    if ((pkeycount > 0) || (skeycount > 1) || param->is_aead_auth()) {
+    bool singlepass = !pkeycount && (skeycount == 1) && !param->is_aead_auth();
+    if (!singlepass) {
         try {
             handler->ctx->ctx->rng.get(enckey.data(), keylen);
         } catch (const std::exception &e) {
@@ -1007,7 +1019,6 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
             goto finish;
             /* LCOV_EXCL_END */
         }
-        singlepass = false;
     }
 
     /* Configuring and writing pk-encrypted session keys */
@@ -1031,8 +1042,8 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
 
     /* Configuring and writing sk-encrypted session key(s) */
     for (auto &passinfo : handler->ctx->passwords) {
-        ret = encrypted_add_password(&passinfo, param, enckey.data(), keylen, singlepass);
-        if (ret != RNP_SUCCESS) {
+        ret = encrypted_add_password(passinfo, *param, enckey, keylen, singlepass);
+        if (ret) {
             goto finish;
         }
     }
