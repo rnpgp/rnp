@@ -126,9 +126,13 @@ TEST_F(rnp_tests, pkcs1_rsa_test_success)
     assert_true(keygen.generate(seckey, true));
 
     pgp::RSAEncMaterial enc;
+    pgp::EGEncMaterial  enc2;
+    assert_rnp_failure(seckey.material->encrypt(global_ctx, enc2, ptext));
     assert_rnp_success(seckey.material->encrypt(global_ctx, enc, ptext));
     assert_int_equal(enc.enc.m.len, 1024 / 8);
 
+    assert_rnp_failure(seckey.material->decrypt(global_ctx, dec, enc2));
+    assert_true(dec.empty());
     assert_rnp_success(seckey.material->decrypt(global_ctx, dec, enc));
     assert_int_equal(dec.size(), 3);
     assert_true(bin_eq_hex(dec.data(), 3, "616263"));
@@ -136,9 +140,13 @@ TEST_F(rnp_tests, pkcs1_rsa_test_success)
     /* Try signing */
     assert_true(keygen.generate(seckey, true));
 
-    rnp::secure_bytes   hash(32);
+    rnp::secure_bytes hash(32);
+    global_ctx.rng.get(hash.data(), hash.size());
     pgp::RSASigMaterial sig(PGP_HASH_SHA256);
+    pgp::DSASigMaterial sig2(PGP_HASH_SHA256);
 
+    assert_rnp_failure(seckey.material->sign(global_ctx, sig2, hash));
+    assert_rnp_failure(seckey.material->verify(global_ctx, sig2, hash));
     assert_rnp_success(seckey.material->sign(global_ctx, sig, hash));
     assert_rnp_success(seckey.material->verify(global_ctx, sig, hash));
 
@@ -174,11 +182,21 @@ TEST_F(rnp_tests, rnp_test_eddsa)
     pgp_key_pkt_t     seckey;
     assert_true(keygen.generate(seckey, true));
 
-    rnp::secure_bytes  hash(32);
-    pgp::ECSigMaterial sig(PGP_HASH_SHA256);
+    rnp::secure_bytes hash(32);
+    global_ctx.rng.get(hash.data(), hash.size());
+
+    pgp::ECSigMaterial  sig(PGP_HASH_SHA256);
+    pgp::RSASigMaterial sig2(PGP_HASH_SHA256);
+
+    assert_rnp_failure(seckey.material->sign(global_ctx, sig2, hash));
+    assert_rnp_failure(seckey.material->verify(global_ctx, sig2, hash));
 
     assert_rnp_success(seckey.material->sign(global_ctx, sig, hash));
     assert_rnp_success(seckey.material->verify(global_ctx, sig, hash));
+
+    pgp::ECDHEncMaterial enc;
+    assert_rnp_failure(seckey.material->encrypt(global_ctx, enc, hash));
+    assert_rnp_failure(seckey.material->decrypt(global_ctx, hash, enc));
 
     // cut one byte off hash -> invalid sig
     rnp::secure_bytes hash_cut(31);
@@ -211,13 +229,17 @@ TEST_F(rnp_tests, rnp_test_x25519)
     assert_rnp_success(pgp_fingerprint(fp, seckey));
     rnp::secure_bytes    in({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
     pgp::ECDHEncMaterial enc;
+    pgp::SM2EncMaterial  enc2;
     enc.enc.fp = fp.vec();
+    assert_rnp_failure(seckey.material->encrypt(global_ctx, enc2, in));
     assert_rnp_success(seckey.material->encrypt(global_ctx, enc, in));
     assert_true(enc.enc.m.size() > 16);
     assert_int_equal(enc.enc.p.mpi[0], 0x40);
     assert_int_equal(enc.enc.p.len, 33);
     /* decrypt */
     rnp::secure_bytes out;
+    assert_rnp_failure(seckey.material->decrypt(global_ctx, out, enc2));
+    assert_true(out.empty());
     assert_rnp_success(seckey.material->decrypt(global_ctx, out, enc));
     assert_int_equal(out.size(), 16);
     assert_int_equal(memcmp(in.data(), out.data(), 16), 0);
@@ -237,6 +259,12 @@ TEST_F(rnp_tests, rnp_test_x25519)
     enc.enc.m.push_back(back);
     enc.enc.m.push_back(0);
     assert_rnp_failure(seckey.material->decrypt(global_ctx, out, enc));
+
+    rnp::secure_bytes hash(32);
+    global_ctx.rng.get(hash.data(), hash.size());
+    pgp::ECSigMaterial sig(PGP_HASH_SHA256);
+    assert_rnp_failure(seckey.material->sign(global_ctx, sig, hash));
+    assert_rnp_failure(seckey.material->verify(global_ctx, sig, hash));
 }
 
 static void
@@ -287,6 +315,12 @@ TEST_F(rnp_tests, ecdsa_signverify_success)
         assert_true(keygen.generate(seckey1, true));
         assert_true(keygen.generate(seckey2, true));
 
+        rnp::secure_bytes    in({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+        rnp::secure_bytes    out;
+        pgp::ECDHEncMaterial enc;
+        assert_rnp_failure(seckey1.material->encrypt(global_ctx, enc, in));
+        assert_rnp_failure(seckey1.material->decrypt(global_ctx, out, enc));
+
         pgp::ECSigMaterial sig(hash_alg);
         assert_rnp_success(seckey1.material->sign(global_ctx, sig, hash));
         assert_rnp_success(seckey1.material->verify(global_ctx, sig, hash));
@@ -322,6 +356,11 @@ TEST_F(rnp_tests, ecdh_roundtrip)
 
         pgp_fingerprint_t ecdh_key1_fpr{};
         assert_rnp_success(pgp_fingerprint(ecdh_key1_fpr, ecdh_key1));
+
+        pgp::ECSigMaterial sig(keygen.hash());
+        rnp::secure_bytes  hash(rnp::Hash::size(keygen.hash()));
+        assert_rnp_failure(ecdh_key1.material->sign(global_ctx, sig, hash));
+        assert_rnp_failure(ecdh_key1.material->verify(global_ctx, sig, hash));
 
         pgp::ECDHEncMaterial enc;
         enc.enc.fp = ecdh_key1_fpr.vec();
@@ -390,7 +429,6 @@ TEST_F(rnp_tests, ecdh_decryptionNegativeCases)
     assert_int_equal(key1_mod.decrypt(global_ctx, res, enc), RNP_ERROR_NOT_SUPPORTED);
 }
 
-#if defined(ENABLE_SM2)
 TEST_F(rnp_tests, sm2_roundtrip)
 {
     rnp::KeygenParams keygen(PGP_PKA_SM2, global_ctx);
@@ -400,25 +438,26 @@ TEST_F(rnp_tests, sm2_roundtrip)
     global_ctx.rng.get(key.data(), key.size());
 
     pgp_key_pkt_t seckey;
+#if defined(ENABLE_SM2)
     assert_true(keygen.generate(seckey, true));
-
     auto &eckey = *seckey.material;
 
-    pgp_hash_alg_t      hashes[] = {PGP_HASH_SM3, PGP_HASH_SHA256, PGP_HASH_SHA512};
-    pgp::SM2EncMaterial enc;
+    pgp_hash_alg_t       hashes[] = {PGP_HASH_SM3, PGP_HASH_SHA256, PGP_HASH_SHA512};
+    pgp::SM2EncMaterial  enc;
+    pgp::ECDHEncMaterial enc2;
 
     for (size_t i = 0; i < ARRAY_SIZE(hashes); ++i) {
-        auto ret = eckey.encrypt(global_ctx, enc, key);
-        assert_int_equal(ret, RNP_SUCCESS);
-
         rnp::secure_bytes dec(32, 0);
-        ret = eckey.decrypt(global_ctx, dec, enc);
-        assert_int_equal(ret, RNP_SUCCESS);
-        assert_int_equal(dec.size(), key.size());
+        assert_rnp_failure(eckey.encrypt(global_ctx, enc2, key));
+        assert_rnp_failure(eckey.decrypt(global_ctx, dec, enc2));
+        assert_rnp_success(eckey.encrypt(global_ctx, enc, key));
+        assert_rnp_success(eckey.decrypt(global_ctx, dec, enc));
         assert_true(dec == key);
     }
-}
+#else
+    assert_false(keygen.generate(seckey, true));
 #endif
+}
 
 #if defined(ENABLE_SM2)
 TEST_F(rnp_tests, sm2_sm3_signature_test)
@@ -544,6 +583,12 @@ TEST_F(rnp_tests, test_dsa_roundtrip)
         printf(
           "p: %zu q: %zu h: %s\n", dsa.bits(), dsa.qbits(), rnp::Hash::name(keygen.hash()));
         fflush(stdout);
+
+        rnp::secure_bytes  in({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+        rnp::secure_bytes  out;
+        pgp::EGEncMaterial enc;
+        assert_rnp_failure(seckey.material->encrypt(global_ctx, enc, in));
+        assert_rnp_failure(seckey.material->decrypt(global_ctx, out, enc));
 
         auto &              key = *seckey.material;
         rnp::secure_bytes   hash(message, message + rnp::Hash::size(keygen.hash()));
