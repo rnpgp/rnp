@@ -907,7 +907,7 @@ signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t
         }
         auto shash = hash->clone();
         key->validate_sig(
-          sinfo, *shash, *param.handler->ctx->ctx, param.has_lhdr ? &param.lhdr : NULL);
+          sinfo, *shash, param.handler->ctx->sec_ctx, param.has_lhdr ? &param.lhdr : NULL);
     } catch (const std::exception &e) {
         /* LCOV_EXCL_START */
         RNP_LOG("Signature validation failed: %s", e.what());
@@ -2346,7 +2346,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
 
             /* Try to initialize the decryption */
             rnp::LogStop logstop(hidden);
-            if (encrypted_try_key(param, pubenc, *seckey, *handler->ctx->ctx)) {
+            if (encrypted_try_key(param, pubenc, *seckey, handler->ctx->sec_ctx)) {
                 have_key = true;
                 /* inform handler that we used this pubenc */
                 if (handler->on_decryption_start) {
