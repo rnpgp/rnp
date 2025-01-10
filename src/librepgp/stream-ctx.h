@@ -35,6 +35,8 @@
 #include <list>
 #include "pgp-key.h"
 #include "crypto/mem.h"
+#include "key-provider.h"
+#include "pass-provider.h"
 #include "sec_profile.hpp"
 
 /* signature info structure */
@@ -93,18 +95,18 @@ typedef struct rnp_symmetric_pass_info_t {
  */
 
 typedef struct rnp_ctx_t {
-    std::string    filename{};  /* name of the input file to store in literal data packet */
+    std::string    filename;    /* name of the input file to store in literal data packet */
     int64_t        filemtime{}; /* file modification time to store in literal data packet */
     int64_t        sigcreate{}; /* signature creation time */
     uint64_t       sigexpire{}; /* signature expiration time */
     bool           clearsign{}; /* cleartext signature */
     bool           detached{};  /* detached signature */
-    pgp_hash_alg_t halg{};      /* hash algorithm */
-    pgp_symm_alg_t ealg{};      /* encryption algorithm */
+    pgp_hash_alg_t halg;        /* hash algorithm */
+    pgp_symm_alg_t ealg;        /* encryption algorithm */
     int            zalg{};      /* compression algorithm used */
     int            zlevel{};    /* compression level */
-    pgp_aead_alg_t aalg{};      /* non-zero to use AEAD */
-    int            abits{};     /* AEAD chunk bits */
+    pgp_aead_alg_t aalg;        /* non-zero to use AEAD */
+    int            abits;       /* AEAD chunk bits */
     bool           overwrite{}; /* allow to overwrite output file if exists */
     bool           armor{};     /* whether to use ASCII armor on output */
     bool           no_wrap{};   /* do not wrap source in literal data packet */
@@ -114,12 +116,20 @@ typedef struct rnp_ctx_t {
 #if defined(ENABLE_PQC)
     bool pref_pqc_enc_subkey{}; /* prefer to encrypt to PQC subkey */
 #endif
-    std::list<pgp_key_t *> recipients{};              /* recipients of the encrypted message */
-    std::list<rnp_symmetric_pass_info_t> passwords{}; /* passwords to encrypt message */
-    std::list<rnp_signer_info_t>         signers{};   /* keys to which sign message */
-    rnp::SecurityContext *               ctx{};       /* pointer to rnp::RNG */
+    std::list<pgp_key_t *>               recipients; /* recipients of the encrypted message */
+    std::list<rnp_symmetric_pass_info_t> passwords;  /* passwords to encrypt message */
+    std::list<rnp_signer_info_t>         signers;    /* keys to which sign message */
+    rnp::SecurityContext &               sec_ctx;    /* security context */
+    rnp::KeyProvider &                   key_provider;  /* Key provider */
+    pgp_password_provider_t &            pass_provider; /* Password provider */
 
-    rnp_ctx_t() = default;
+    rnp_ctx_t(rnp::SecurityContext &   sctx,
+              rnp::KeyProvider &       kprov,
+              pgp_password_provider_t &pprov)
+        : halg(DEFAULT_PGP_HASH_ALG), ealg(DEFAULT_PGP_SYMM_ALG), aalg(PGP_AEAD_NONE),
+          abits(DEFAULT_AEAD_CHUNK_BITS), sec_ctx(sctx), key_provider(kprov),
+          pass_provider(pprov){};
+
     rnp_ctx_t(const rnp_ctx_t &) = delete;
     rnp_ctx_t(rnp_ctx_t &&) = delete;
 
