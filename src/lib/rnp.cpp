@@ -2863,20 +2863,6 @@ try {
 }
 FFI_GUARD
 
-static pgp_write_handler_t
-pgp_write_handler(pgp_password_provider_t *pass_provider,
-                  rnp_ctx_t *              rnpctx,
-                  void *                   param,
-                  rnp::KeyProvider *       key_provider)
-{
-    pgp_write_handler_t handler{};
-    handler.password_provider = pass_provider;
-    handler.ctx = rnpctx;
-    handler.param = param;
-    handler.key_provider = key_provider;
-    return handler;
-}
-
 static rnp_result_t
 rnp_op_add_signatures(rnp_op_sign_signatures_t &opsigs, rnp_ctx_t &ctx)
 {
@@ -2912,14 +2898,12 @@ try {
     if (!op->rnpctx.halg) {
         op->rnpctx.halg = DEFAULT_PGP_HASH_ALG;
     }
-    pgp_write_handler_t handler =
-      pgp_write_handler(&op->ffi->pass_provider, &op->rnpctx, NULL, &op->ffi->key_provider);
 
-    rnp_result_t ret;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
     if (!op->signatures.empty() && (ret = rnp_op_add_signatures(op->signatures, op->rnpctx))) {
         return ret;
     }
-    ret = rnp_encrypt_sign_src(&handler, &op->input->src, &op->output->dst);
+    ret = rnp_encrypt_sign_src(op->rnpctx, op->input->src, op->output->dst);
 
     dst_flush(&op->output->dst);
     op->output->keep = ret == RNP_SUCCESS;
@@ -3109,14 +3093,11 @@ try {
     if (!op->rnpctx.halg) {
         op->rnpctx.halg = DEFAULT_PGP_HASH_ALG;
     }
-    pgp_write_handler_t handler =
-      pgp_write_handler(&op->ffi->pass_provider, &op->rnpctx, NULL, &op->ffi->key_provider);
-
-    rnp_result_t ret;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
     if ((ret = rnp_op_add_signatures(op->signatures, op->rnpctx))) {
         return ret;
     }
-    ret = rnp_sign_src(&handler, &op->input->src, &op->output->dst);
+    ret = rnp_sign_src(op->rnpctx, op->input->src, op->output->dst);
 
     dst_flush(&op->output->dst);
     op->output->keep = ret == RNP_SUCCESS;
