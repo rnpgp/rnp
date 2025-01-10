@@ -648,7 +648,7 @@ encrypted_add_recipient(pgp_write_handler_t *    handler,
         assert(ecdh);
         ecdh->enc.fp = userkey->fp().vec();
     }
-    auto ret = userkey->pkt().material->encrypt(*handler->ctx->ctx, *material, enckey);
+    auto ret = userkey->pkt().material->encrypt(handler->ctx->sec_ctx, *material, enckey);
     if (ret) {
         return ret;
     }
@@ -774,7 +774,7 @@ encrypted_add_password(rnp_symmetric_pass_info_t & pass,
         ret = encrypted_add_password_v4(pass, param.ctx->ealg, key, keylen, skey, singlepass);
     } else {
         ret = encrypted_add_password_v5(
-          pass, param.ctx->aalg, param.ctx->ctx->rng, key, keylen, skey);
+          pass, param.ctx->aalg, param.ctx->sec_ctx.rng, key, keylen, skey);
     }
 
     if (ret) {
@@ -819,7 +819,7 @@ encrypted_start_cfb(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
     /* generating and writing iv/password check bytes */
     blsize = pgp_block_size(param->ctx->ealg);
     try {
-        param->ctx->ctx->rng.get(enchdr, blsize);
+        param->ctx->sec_ctx.rng.get(enchdr, blsize);
         enchdr[blsize] = enchdr[blsize - 2];
         enchdr[blsize + 1] = enchdr[blsize - 1];
 
@@ -881,7 +881,7 @@ encrypted_start_aead(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
     }
 #endif
     try {
-        param->ctx->ctx->rng.get(iv_or_salt, iv_or_salt_len);
+        param->ctx->sec_ctx.rng.get(iv_or_salt, iv_or_salt_len);
     } catch (const std::exception &e) {
         return RNP_ERROR_RNG; // LCOV_EXCL_LINE
     }
@@ -1012,7 +1012,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     bool singlepass = !pkeycount && (skeycount == 1) && !param->is_aead_auth();
     if (!singlepass) {
         try {
-            handler->ctx->ctx->rng.get(enckey.data(), keylen);
+            handler->ctx->sec_ctx.rng.get(enckey.data(), keylen);
         } catch (const std::exception &e) {
             /* LCOV_EXCL_START */
             ret = RNP_ERROR_RNG;
@@ -1254,7 +1254,7 @@ signed_fill_signature(pgp_dest_signed_param_t &param,
     /* calculate the signature */
     auto hdr = param.has_lhdr ? &param.lhdr : NULL;
     signature_calculate(
-      sig, *signer.key->pkt().material, *listh->clone(), *param.ctx->ctx, hdr);
+      sig, *signer.key->pkt().material, *listh->clone(), param.ctx->sec_ctx, hdr);
 }
 
 static rnp_result_t
@@ -1265,18 +1265,18 @@ signed_write_signature(pgp_dest_signed_param_t *param,
     try {
         pgp_signature_t sig;
         if (signer->onepass.version) {
-            signer->key->sign_init(param->ctx->ctx->rng,
+            signer->key->sign_init(param->ctx->sec_ctx.rng,
                                    sig,
                                    signer->onepass.halg,
-                                   param->ctx->ctx->time(),
+                                   param->ctx->sec_ctx.time(),
                                    signer->key->version());
             sig.palg = signer->onepass.palg;
             sig.set_type(signer->onepass.type);
         } else {
-            signer->key->sign_init(param->ctx->ctx->rng,
+            signer->key->sign_init(param->ctx->sec_ctx.rng,
                                    sig,
                                    signer->halg,
-                                   param->ctx->ctx->time(),
+                                   param->ctx->sec_ctx.time(),
                                    signer->key->version());
             /* line below should be checked */
             sig.set_type(param->ctx->detached ? PGP_SIG_BINARY : PGP_SIG_TEXT);
@@ -1393,7 +1393,7 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
         return RNP_ERROR_BAD_PARAMETERS;
     }
     /* validate signing key material if didn't before */
-    signer->key->material()->validate(*param->ctx->ctx, false);
+    signer->key->material()->validate(param->ctx->sec_ctx, false);
     if (!signer->key->pkt().material->valid()) {
         RNP_LOG("attempt to sign to the key with invalid material");
         return RNP_ERROR_NO_SUITABLE_KEY;
@@ -2088,8 +2088,12 @@ finish:
 rnp_result_t
 rnp_compress_src(pgp_source_t &src, pgp_dest_t &dst, pgp_compression_type_t zalg, int zlevel)
 {
-    pgp_write_handler_t handler = {};
-    rnp_ctx_t           ctx;
+    pgp_write_handler_t     handler = {};
+    rnp::SecurityContext    sec_ctx;
+    rnp::KeyProvider        key_prov;
+    pgp_password_provider_t pass_prov;
+    rnp_ctx_t               ctx(sec_ctx, key_prov, pass_prov);
+
     ctx.zalg = zalg;
     ctx.zlevel = zlevel;
     handler.ctx = &ctx;
@@ -2108,7 +2112,11 @@ done:
 rnp_result_t
 rnp_wrap_src(pgp_source_t &src, pgp_dest_t &dst, const std::string &filename, uint32_t modtime)
 {
-    rnp_ctx_t ctx{};
+    rnp::SecurityContext    sec_ctx;
+    rnp::KeyProvider        key_prov;
+    pgp_password_provider_t pass_prov;
+    rnp_ctx_t               ctx(sec_ctx, key_prov, pass_prov);
+
     ctx.filename = filename;
     ctx.filemtime = modtime;
 
@@ -2133,11 +2141,12 @@ rnp_raw_encrypt_src(pgp_source_t &        src,
                     const std::string &   password,
                     rnp::SecurityContext &secctx)
 {
-    pgp_write_handler_t handler = {};
-    rnp_ctx_t           ctx;
+    pgp_write_handler_t     handler = {};
+    rnp::SecurityContext    sec_ctx;
+    rnp::KeyProvider        key_prov;
+    pgp_password_provider_t pass_prov;
+    rnp_ctx_t               ctx(sec_ctx, key_prov, pass_prov);
 
-    ctx.ctx = &secctx;
-    ctx.ealg = DEFAULT_PGP_SYMM_ALG;
     handler.ctx = &ctx;
     pgp_dest_t encrypted = {};
 

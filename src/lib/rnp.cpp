@@ -120,15 +120,6 @@ ffi_key_provider(const pgp_key_request_ctx_t *ctx, void *userdata)
     return find_key(ffi, ctx->search, ctx->secret, true);
 }
 
-static void
-rnp_ctx_init_ffi(rnp_ctx_t &ctx, rnp_ffi_t ffi)
-{
-    ctx.ctx = &ffi->context;
-    ctx.ealg = DEFAULT_PGP_SYMM_ALG;
-    ctx.aalg = PGP_AEAD_NONE;
-    ctx.abits = DEFAULT_AEAD_CHUNK_BITS;
-}
-
 static const id_str_pair sig_type_map[] = {{PGP_SIG_BINARY, "binary"},
                                            {PGP_SIG_TEXT, "text"},
                                            {PGP_SIG_STANDALONE, "standalone"},
@@ -2589,11 +2580,7 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *op = new rnp_op_encrypt_st();
-    rnp_ctx_init_ffi((*op)->rnpctx, ffi);
-    (*op)->ffi = ffi;
-    (*op)->input = input;
-    (*op)->output = output;
+    *op = new rnp_op_encrypt_st(ffi, input, output);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -2958,11 +2945,7 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *op = new rnp_op_sign_st();
-    rnp_ctx_init_ffi((*op)->rnpctx, ffi);
-    (*op)->ffi = ffi;
-    (*op)->input = input;
-    (*op)->output = output;
+    *op = new rnp_op_sign_st(ffi, input, output);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -3320,10 +3303,7 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *op = new rnp_op_verify_st();
-    rnp_ctx_init_ffi((*op)->rnpctx, ffi);
-    (*op)->ffi = ffi;
-    (*op)->input = input;
+    *op = new rnp_op_verify_st(ffi, input);
     (*op)->output = output;
 
     return RNP_SUCCESS;
@@ -3340,11 +3320,8 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *op = new rnp_op_verify_st();
-    rnp_ctx_init_ffi((*op)->rnpctx, ffi);
+    *op = new rnp_op_verify_st(ffi, signature);
     (*op)->rnpctx.detached = true;
-    (*op)->ffi = ffi;
-    (*op)->input = signature;
     (*op)->detached_input = input;
 
     return RNP_SUCCESS;
