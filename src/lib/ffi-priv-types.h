@@ -187,11 +187,17 @@ struct rnp_op_sign_signature_st {
 typedef std::list<rnp_op_sign_signature_st> rnp_op_sign_signatures_t;
 
 struct rnp_op_sign_st {
-    rnp_ffi_t                ffi{};
-    rnp_input_t              input{};
-    rnp_output_t             output{};
-    rnp_ctx_t                rnpctx{};
-    rnp_op_sign_signatures_t signatures{};
+    rnp_ffi_t                ffi;
+    rnp_input_t              input;
+    rnp_output_t             output;
+    rnp_ctx_t                rnpctx;
+    rnp_op_sign_signatures_t signatures;
+
+    rnp_op_sign_st(rnp_ffi_t affi, rnp_input_t in, rnp_output_t out)
+        : ffi(affi), input(in), output(out),
+          rnpctx(ffi->context, ffi->key_provider, ffi->pass_provider)
+    {
+    }
 };
 
 struct rnp_op_verify_signature_st {
@@ -201,11 +207,11 @@ struct rnp_op_verify_signature_st {
 };
 
 struct rnp_op_verify_st {
-    rnp_ffi_t    ffi{};
-    rnp_input_t  input{};
+    rnp_ffi_t    ffi;
+    rnp_input_t  input;
     rnp_input_t  detached_input{}; /* for detached signature will be source file/data */
     rnp_output_t output{};
-    rnp_ctx_t    rnpctx{};
+    rnp_ctx_t    rnpctx;
     /* these fields are filled after operation execution */
     std::vector<rnp_op_verify_signature_st> signatures_;
     pgp_literal_hdr_t                       lithdr{};
@@ -225,15 +231,25 @@ struct rnp_op_verify_st {
     rnp_symenc_handle_t                  used_symenc{};
     size_t                               encrypted_layers{};
 
+    rnp_op_verify_st(rnp_ffi_t affi, rnp_input_t in)
+        : ffi(affi), input(in), rnpctx(ffi->context, ffi->key_provider, ffi->pass_provider)
+    {
+    }
     ~rnp_op_verify_st();
 };
 
 struct rnp_op_encrypt_st {
-    rnp_ffi_t                ffi{};
-    rnp_input_t              input{};
-    rnp_output_t             output{};
-    rnp_ctx_t                rnpctx{};
-    rnp_op_sign_signatures_t signatures{};
+    rnp_ffi_t                ffi;
+    rnp_input_t              input;
+    rnp_output_t             output;
+    rnp_ctx_t                rnpctx;
+    rnp_op_sign_signatures_t signatures;
+
+    rnp_op_encrypt_st(rnp_ffi_t affi, rnp_input_t in, rnp_output_t out)
+        : ffi(affi), input(in), output(out),
+          rnpctx(ffi->context, ffi->key_provider, ffi->pass_provider)
+    {
+    }
 };
 
 #define RNP_LOCATOR_MAX_SIZE (MAX_ID_LENGTH + 1)
