@@ -116,13 +116,10 @@ typedef struct pgp_dest_encrypted_param_t {
         case rnp::AuthType::AEADv2:
 #endif
             return true;
-            break;
-        case rnp::AuthType::MDC:
-        case rnp::AuthType::None:
+        default:
             return false;
         }
-        throw rnp::rnp_exception(RNP_ERROR_GENERIC);
-    };
+    }
 
 #ifdef ENABLE_CRYPTO_REFRESH
     bool
@@ -770,7 +767,7 @@ encrypted_add_password(rnp_symmetric_pass_info_t & pass,
     skey.s2k = pass.s2k;
 
     rnp_result_t ret = RNP_ERROR_GENERIC;
-    if (param.auth_type != rnp::AuthType::AEADv1) {
+    if (!param.is_aead_auth()) {
         ret = encrypted_add_password_v4(pass, param.ctx->ealg, key, keylen, skey, singlepass);
     } else {
         ret = encrypted_add_password_v5(
@@ -1027,10 +1024,9 @@ init_encrypted_dst(rnp_ctx_t &ctx, pgp_dest_t &dst, pgp_dest_t &writedst)
         if (param->auth_type == rnp::AuthType::AEADv2) {
             pkesk_version = PGP_PKSK_V6;
         }
-        if (ctx.aalg == PGP_AEAD_NONE) {
+        if (param->is_aead_auth() && (param->ctx.aalg == PGP_AEAD_NONE)) {
             // set default AEAD if not set
-            // TODO-V6: is this the right place to set the default algorithm?
-            param->ctx->aalg = DEFAULT_AEAD_ALG;
+            param->ctx.aalg = DEFAULT_AEAD_ALG;
         }
 #endif
         ret = encrypted_add_recipient(ctx, dst, recipient, enckey, pkesk_version);
