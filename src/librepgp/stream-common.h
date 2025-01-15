@@ -563,5 +563,9 @@ bool check_enforce_aes_v3_pkesk(pgp_pubkey_alg_t    alg,
                                 pgp_symm_alg_t      salg,
                                 pgp_pkesk_version_t ver);
 #endif
+#if defined(ENABLE_AEAD)
+typedef struct pgp_sk_sesskey_t pgp_sk_sesskey_t;
+bool encrypted_sesk_set_ad(pgp_crypt_t &crypt, pgp_sk_sesskey_t &skey);
+#endif
 
 #endif

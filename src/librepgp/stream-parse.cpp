@@ -1662,23 +1662,6 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     return res;
 }
 
-#if defined(ENABLE_AEAD)
-static bool
-encrypted_sesk_set_ad(pgp_crypt_t *crypt, pgp_sk_sesskey_t *skey)
-{
-    /* TODO: this method is exact duplicate as in stream-write.c. Not sure where to put it
-     */
-    uint8_t ad_data[4];
-
-    ad_data[0] = PGP_PKT_SK_SESSION_KEY | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
-    ad_data[1] = skey->version;
-    ad_data[2] = skey->alg;
-    ad_data[3] = skey->aalg;
-
-    return pgp_cipher_aead_set_ad(crypt, ad_data, 4);
-}
-#endif
-
 static int
 encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password)
 {
@@ -1738,7 +1721,7 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
             }
 
             /* set additional data */
-            if (!encrypted_sesk_set_ad(&crypt, &skey)) {
+            if (!encrypted_sesk_set_ad(crypt, skey)) {
                 RNP_LOG("failed to set ad");
                 continue;
             }
