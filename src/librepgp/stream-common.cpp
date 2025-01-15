@@ -45,6 +45,7 @@
 #include <rnp/rnp_def.h>
 #include "rnp.h"
 #include "stream-common.h"
+#include "stream-packet.h"
 #include "types.h"
 #include "file-utils.h"
 #include "crypto/mem.h"
@@ -1228,5 +1229,20 @@ check_enforce_aes_v3_pkesk(pgp_pubkey_alg_t alg, pgp_symm_alg_t salg, pgp_pkesk_
 {
     /* The same algorithms as with pkesk_checksum */
     return (ver != PGP_PKSK_V3) || have_pkesk_checksum(alg) || pgp_is_sa_aes(salg);
+}
+#endif
+
+#if defined(ENABLE_AEAD)
+bool
+encrypted_sesk_set_ad(pgp_crypt_t &crypt, pgp_sk_sesskey_t &skey)
+{
+    uint8_t ad_data[4];
+
+    ad_data[0] = PGP_PKT_SK_SESSION_KEY | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
+    ad_data[1] = skey.version;
+    ad_data[2] = skey.alg;
+    ad_data[3] = skey.aalg;
+
+    return pgp_cipher_aead_set_ad(&crypt, ad_data, 4);
 }
 #endif
