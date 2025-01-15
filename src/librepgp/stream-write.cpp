@@ -660,21 +660,6 @@ encrypted_add_recipient(rnp_ctx_t &              ctx,
     }
 }
 
-#if defined(ENABLE_AEAD)
-static bool
-encrypted_sesk_set_ad(pgp_crypt_t *crypt, pgp_sk_sesskey_t *skey)
-{
-    uint8_t ad_data[4];
-
-    ad_data[0] = PGP_PKT_SK_SESSION_KEY | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
-    ad_data[1] = skey->version;
-    ad_data[2] = skey->alg;
-    ad_data[3] = skey->aalg;
-
-    return pgp_cipher_aead_set_ad(crypt, ad_data, 4);
-}
-#endif
-
 static rnp_result_t
 encrypted_add_password_v4(rnp_symmetric_pass_info_t &pass,
                           pgp_symm_alg_t             ealg,
@@ -738,7 +723,7 @@ encrypted_add_password_v5(rnp_symmetric_pass_info_t &pass,
     }
 
     /* set additional data */
-    if (!encrypted_sesk_set_ad(&kcrypt, &skey)) {
+    if (!encrypted_sesk_set_ad(kcrypt, skey)) {
         return RNP_ERROR_BAD_STATE; // LCOV_EXCL_LINE
     }
 
