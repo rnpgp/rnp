@@ -99,7 +99,7 @@ jobs:
 #     Already installed on GHA: build-essential libbz2-dev zlib1g-dev
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install cmake libjson-c-dev ${{ matrix.backend.package }} asciidoctor
+          sudo apt-get -y install cmake libbz2-dev libjson-c-dev ${{ matrix.backend.package }} asciidoctor
 
       - name: Configure
         run: |
@@ -133,7 +133,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install cmake libjson-c-dev libbotan-2-dev asciidoctor googletest
+          sudo apt-get -y install cmake libbz2-dev libjson-c-dev libbotan-2-dev asciidoctor googletest
 
       - name: Configure
         run: |
@@ -174,7 +174,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install cmake libjson-c-dev libbotan-2-dev asciidoctor googletest
+          sudo apt-get -y install cmake libbz2-dev libjson-c-dev libbotan-2-dev asciidoctor googletest
 
       - name: Build googletest
         run: |
@@ -221,7 +221,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install cmake libjson-c-dev libbotan-2-dev asciidoctor
+          sudo apt-get -y install cmake libbz2-dev libjson-c-dev libbotan-2-dev asciidoctor
 
       - name: Checkout sexpp
         uses: actions/checkout@v4
@@ -286,7 +286,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install cmake libjson-c-dev libbotan-2-dev asciidoctor
+          sudo apt-get -y install cmake libbz2-dev libjson-c-dev libbotan-2-dev asciidoctor
 
       - name: Configure
         run: |
@@ -323,7 +323,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install cmake libjson-c-dev libbotan-2-dev asciidoctor
+          sudo apt-get -y install cmake libbz2-dev libjson-c-dev libbotan-2-dev asciidoctor
 
       - name: Download source package
         uses: actions/download-artifact@v4
