@@ -1149,7 +1149,7 @@ pgp_pk_sesskey_t::parse(pgp_source_t &src)
             return RNP_ERROR_BAD_FORMAT;
         }
         fp.length = fp_len;
-        if (fp.length && (fp.length != fp_and_key_ver_len - 1)) {
+        if (fp.length && (fp.length + 1 != fp_and_key_ver_len)) {
             RNP_LOG("size mismatch (fingerprint size and fp+key version length field)");
             return RNP_ERROR_BAD_FORMAT;
         }
