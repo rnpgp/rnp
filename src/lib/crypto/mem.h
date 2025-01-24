@@ -123,6 +123,12 @@ template <typename T, std::size_t N> struct secure_array {
         return &data_[0];
     }
 
+    const T *
+    data() const
+    {
+        return &data_[0];
+    }
+
     std::size_t
     size() const
     {
