@@ -18,7 +18,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install cmake libjson-c-dev libbotan-2-dev asciidoctor
+          sudo apt-get -y install cmake libbz2-dev libjson-c-dev libbotan-2-dev asciidoctor
 
       - name: Configure
         run: |

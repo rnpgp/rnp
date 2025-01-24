@@ -32,7 +32,7 @@ jobs:
         if: ${{ matrix.language == 'cpp' }}
         run: |
           sudo apt-get update
-          sudo apt-get install --yes libjson-c-dev libgtest-dev
+          sudo apt-get install --yes libbz2-dev libjson-c-dev libgtest-dev
 
       - name: After Prepare (cpp)
         if: ${{ matrix.language == 'cpp' }}
