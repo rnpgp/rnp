@@ -32,7 +32,7 @@
 #include <vector>
 #include <repgp/repgp_def.h>
 #include "crypto/rng.h"
-#include <botan/sphincsplus.h>
+#include <botan/slh_dsa.h>
 #include <botan/pubkey.h>
 
 struct pgp_sphincsplus_key_t;
@@ -77,7 +77,7 @@ class pgp_sphincsplus_private_key_t {
     };
 
   private:
-    Botan::SphincsPlus_PrivateKey botan_key() const;
+    Botan::SLH_DSA_PrivateKey botan_key() const;
 
     Botan::secure_vector<uint8_t> key_encoded_;
     pgp_pubkey_alg_t              pk_alg_;
@@ -118,7 +118,7 @@ class pgp_sphincsplus_public_key_t {
     };
 
   private:
-    Botan::SphincsPlus_PublicKey botan_key() const;
+    Botan::SLH_DSA_PublicKey botan_key() const;
 
     std::vector<uint8_t> key_encoded_;
     pgp_pubkey_alg_t     pk_alg_;
