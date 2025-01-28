@@ -30,16 +30,16 @@
 #include "types.h"
 
 namespace {
-Botan::Sphincs_Parameter_Set
+Botan::SLH_DSA_Parameter_Set
 rnp_sphincsplus_alg_to_botan_param(pgp_pubkey_alg_t alg)
 {
     switch (alg) {
     case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
-        return Botan::Sphincs_Parameter_Set::Sphincs128Fast;
+        return Botan::SLH_DSA_Parameter_Set::SLHDSA128Fast;
     case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
-        return Botan::Sphincs_Parameter_Set::Sphincs128Small;
+        return Botan::SLH_DSA_Parameter_Set::SLHDSA128Small;
     case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
-        return Botan::Sphincs_Parameter_Set::Sphincs256Small;
+        return Botan::SLH_DSA_Parameter_Set::SLHDSA256Small;
     default:
         RNP_LOG("invalid algorithm ID given");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -91,22 +91,22 @@ pgp_sphincsplus_private_key_t::sign(rnp::RNG *                   rng,
     return RNP_SUCCESS;
 }
 
-Botan::SphincsPlus_PublicKey
+Botan::SLH_DSA_PublicKey
 pgp_sphincsplus_public_key_t::botan_key() const
 {
-    return Botan::SphincsPlus_PublicKey(key_encoded_,
-                                        rnp_sphincsplus_alg_to_botan_param(this->pk_alg_),
-                                        Botan::Sphincs_Hash_Type::Shake256);
+    return Botan::SLH_DSA_PublicKey(key_encoded_,
+                                    rnp_sphincsplus_alg_to_botan_param(this->pk_alg_),
+                                    Botan::SLH_DSA_Hash_Type::Shake256);
 }
 
-Botan::SphincsPlus_PrivateKey
+Botan::SLH_DSA_PrivateKey
 pgp_sphincsplus_private_key_t::botan_key() const
 {
     Botan::secure_vector<uint8_t> priv_sv(key_encoded_.data(),
                                           key_encoded_.data() + key_encoded_.size());
-    return Botan::SphincsPlus_PrivateKey(priv_sv,
-                                         rnp_sphincsplus_alg_to_botan_param(this->pk_alg_),
-                                         Botan::Sphincs_Hash_Type::Shake256);
+    return Botan::SLH_DSA_PrivateKey(priv_sv,
+                                     rnp_sphincsplus_alg_to_botan_param(this->pk_alg_),
+                                     Botan::SLH_DSA_Hash_Type::Shake256);
 }
 
 rnp_result_t
@@ -127,9 +127,9 @@ pgp_sphincsplus_public_key_t::verify(const pgp_sphincsplus_signature_t *sig,
 std::pair<pgp_sphincsplus_public_key_t, pgp_sphincsplus_private_key_t>
 sphincsplus_generate_keypair(rnp::RNG *rng, pgp_pubkey_alg_t alg)
 {
-    Botan::SphincsPlus_PrivateKey priv_key(*rng->obj(),
-                                           rnp_sphincsplus_alg_to_botan_param(alg),
-                                           Botan::Sphincs_Hash_Type::Shake256);
+    Botan::SLH_DSA_PrivateKey priv_key(*rng->obj(),
+                                       rnp_sphincsplus_alg_to_botan_param(alg),
+                                       Botan::SLH_DSA_Hash_Type::Shake256);
 
     std::unique_ptr<Botan::Public_Key> pub_key = priv_key.public_key();
     Botan::secure_vector<uint8_t>      priv_bits = priv_key.private_key_bits();
