@@ -3284,9 +3284,7 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *op = new rnp_op_verify_st(ffi, input);
-    (*op)->output = output;
-
+    *op = new rnp_op_verify_st(ffi, input, output);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -3301,10 +3299,7 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *op = new rnp_op_verify_st(ffi, signature);
-    (*op)->rnpctx.detached = true;
-    (*op)->detached_input = input;
-
+    *op = new rnp_op_verify_st(ffi, input, signature);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5014,8 +5009,8 @@ try {
 }
 FFI_GUARD
 
-static pgp_key_flags_t
-default_key_flags(pgp_pubkey_alg_t alg, bool subkey)
+pgp_key_flags_t
+rnp_op_generate_st::default_key_flags(pgp_pubkey_alg_t alg, bool subkey)
 {
     switch (alg) {
     case PGP_PKA_RSA:
@@ -5090,10 +5085,6 @@ try {
     }
 
     *op = new rnp_op_generate_st(ffi, key_alg);
-    (*op)->primary = true;
-    (*op)->cert.flags = default_key_flags(key_alg, false);
-    (*op)->cert.key_expiration = DEFAULT_KEY_EXPIRATION;
-
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5122,13 +5113,7 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    *op = new rnp_op_generate_st(ffi, key_alg);
-    (*op)->primary = false;
-    (*op)->binding.flags = default_key_flags(key_alg, true);
-    (*op)->binding.key_expiration = DEFAULT_KEY_EXPIRATION;
-    (*op)->primary_sec = primary->sec;
-    (*op)->primary_pub = primary->pub;
-
+    *op = new rnp_op_generate_st(ffi, key_alg, primary);
     return RNP_SUCCESS;
 }
 FFI_GUARD
