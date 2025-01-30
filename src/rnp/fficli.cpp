@@ -255,7 +255,7 @@ rnp_ask_filename(const std::string &msg, std::string &res, cli_rnp_t &rnp)
         }
         path = path + std::string(fname);
         if (rnp::strip_eol(path)) {
-            res = path;
+            res = std::move(path);
             return true;
         }
         if (path.size() >= 2048) {
@@ -284,7 +284,7 @@ rnp_get_output_filename(const std::string &path, std::string &res, cli_rnp_t &rn
 
     while (true) {
         if (!rnp_file_exists(newpath.c_str())) {
-            res = newpath;
+            res = std::move(newpath);
             return true;
         }
         if (rnp.cfg().get_bool(CFG_OVERWRITE) ||
@@ -293,7 +293,7 @@ rnp_get_output_filename(const std::string &path, std::string &res, cli_rnp_t &rn
               "File '%s' already exists. Would you like to overwrite it?",
               newpath.c_str())) {
             rnp_unlink(newpath.c_str());
-            res = newpath;
+            res = std::move(newpath);
             return true;
         }
 
@@ -1242,7 +1242,7 @@ static const std::string alg_aliases[] = {
   "SHA-512",      "SHA512",      "RIPEMD-160",   "RIPEMD160"};
 
 const std::string
-cli_rnp_alg_to_ffi(const std::string alg)
+cli_rnp_alg_to_ffi(const std::string &alg)
 {
     size_t count = sizeof(alg_aliases) / sizeof(alg_aliases[0]);
     assert((count % 2) == 0);
@@ -2540,7 +2540,7 @@ output_strip_extension(Operation op, const std::string &in)
 }
 
 static std::string
-extract_filename(const std::string path)
+extract_filename(const std::string &path)
 {
     size_t lpos = path.find_last_of("/\\");
     if (lpos == std::string::npos) {

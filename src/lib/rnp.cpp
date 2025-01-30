@@ -4514,7 +4514,7 @@ parse_keygen_common_fields(json_object *                jso,
     std::string              str;
     std::vector<std::string> strs;
     if (json_get_str(jso, "usage", str)) {
-        strs.push_back(str);
+        strs.push_back(std::move(str));
     } else {
         json_get_str_arr(jso, "usage", strs);
     }
