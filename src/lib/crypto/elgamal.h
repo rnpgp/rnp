@@ -51,11 +51,11 @@ class Encrypted {
 
 class Key {
   public:
-    mpi p;
-    mpi g;
-    mpi y;
+    mpi p{};
+    mpi g{};
+    mpi y{};
     /* secret mpi */
-    mpi x;
+    mpi x{};
 
     void
     clear_secret()
