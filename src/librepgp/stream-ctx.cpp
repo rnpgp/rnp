@@ -64,7 +64,7 @@ rnp_ctx_t::add_encryption_password(const std::string &password,
     if (!pgp_s2k_derive_key(&info.s2k, password.c_str(), info.key.data(), info.key.size())) {
         return RNP_ERROR_GENERIC;
     }
-    passwords.push_back(info);
+    passwords.push_back(std::move(info));
     return RNP_SUCCESS;
 }
 
