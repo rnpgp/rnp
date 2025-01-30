@@ -38,7 +38,7 @@ namespace rsa {
 
 class Signature {
   public:
-    mpi s;
+    mpi s{};
 };
 
 class Encrypted {
