@@ -39,8 +39,8 @@ class Signature {
   public:
     /* This is kept only for packet reading. Implementation MUST
      * not create elgamal signatures */
-    mpi r;
-    mpi s;
+    mpi r{};
+    mpi s{};
 };
 
 class Encrypted {
@@ -51,11 +51,11 @@ class Encrypted {
 
 class Key {
   public:
-    mpi p;
-    mpi g;
-    mpi y;
+    mpi p{};
+    mpi g{};
+    mpi y{};
     /* secret mpi */
-    mpi x;
+    mpi x{};
 
     void
     clear_secret()

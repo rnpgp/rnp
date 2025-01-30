@@ -248,7 +248,7 @@ void        cli_rnp_print_feature(FILE *fp, const char *type, const char *printe
  * @return string with FFI algorithm's name. In case alias is not found the source string will
  * be returned.
  */
-const std::string cli_rnp_alg_to_ffi(const std::string alg);
+const std::string cli_rnp_alg_to_ffi(const std::string &alg);
 
 /**
  * @brief Attempt to set hash algorithm using the value provided.

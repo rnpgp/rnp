@@ -2072,7 +2072,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
                     errors++;
                     continue;
                 }
-                param->symencs.push_back(skey);
+                param->symencs.push_back(std::move(skey));
                 break;
             }
             case PGP_PKT_PK_SESSION_KEY: {
@@ -2087,7 +2087,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
                     errors++;
                     continue;
                 }
-                param->pubencs.push_back(pkey);
+                param->pubencs.push_back(std::move(pkey));
                 break;
             }
             case PGP_PKT_SE_DATA:

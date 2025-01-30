@@ -677,7 +677,7 @@ encrypted_add_password_v4_single(pgp_dest_encrypted_param_t &param,
     skey.alg = param.ctx.ealg;
     skey.enckeylen = 0;
     key.assign(pass.key.data(), pass.key.data() + keylen);
-    param.skesks.push_back(skey);
+    param.skesks.push_back(std::move(skey));
 }
 
 static bool
@@ -700,7 +700,7 @@ encrypted_add_password_v4(pgp_dest_encrypted_param_t &     param,
     }
     pgp_cipher_cfb_encrypt(&kcrypt, skey.enckey, skey.enckey, skey.enckeylen);
     pgp_cipher_cfb_finish(&kcrypt);
-    param.skesks.push_back(skey);
+    param.skesks.push_back(std::move(skey));
     return true;
 }
 
@@ -749,7 +749,7 @@ encrypted_add_password_v5(pgp_dest_encrypted_param_t &     param,
 
     pgp_cipher_aead_destroy(&kcrypt);
     if (res) {
-        param.skesks.push_back(skey);
+        param.skesks.push_back(std::move(skey));
     }
     return res;
 #endif
