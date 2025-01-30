@@ -106,8 +106,8 @@ class Curve {
 
 class Signature {
   public:
-    mpi r;
-    mpi s;
+    mpi r{};
+    mpi s{};
 };
 
 class Key {

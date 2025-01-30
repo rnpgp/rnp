@@ -39,8 +39,8 @@ class Signature {
   public:
     /* This is kept only for packet reading. Implementation MUST
      * not create elgamal signatures */
-    mpi r;
-    mpi s;
+    mpi r{};
+    mpi s{};
 };
 
 class Encrypted {
