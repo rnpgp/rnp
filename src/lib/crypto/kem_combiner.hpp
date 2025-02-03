@@ -51,8 +51,8 @@ class PqcKemCombiner {
 
   public:
     /* PQC KEM Combiner interface for OpenPGP PQC composite algorithms */
-    static std::vector<uint8_t> compute(const std::vector<uint8_t> &ecc_key_share,
-                                        const std::vector<uint8_t> &mlkem_key_share,
+    static std::vector<uint8_t> compute(const std::vector<uint8_t> &mlkem_key_share,
+                                        const std::vector<uint8_t> &ecc_key_share,
                                         const std::vector<uint8_t> &ecc_ciphertext,
                                         const std::vector<uint8_t> &ecc_pub_key,
                                         const std::vector<uint8_t> &mlkem_ciphertext,
