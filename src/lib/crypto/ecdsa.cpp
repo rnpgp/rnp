@@ -41,6 +41,7 @@ load_public_key(rnp::botan::Pubkey &pubkey, const ec::Key &keydata)
         RNP_LOG("unknown curve");
         return false;
     }
+    RNP_LOG("Botan curve name: %s", curve->botan_name);
     if (!keydata.p.bytes() || (keydata.p.mpi[0] != 0x04)) {
         RNP_LOG("Failed to load public key: %02x", keydata.p.mpi[0]);
         return false;
@@ -56,7 +57,7 @@ load_public_key(rnp::botan::Pubkey &pubkey, const ec::Key &keydata)
 
     bool res = !botan_pubkey_load_ecdsa(&pubkey.get(), px.get(), py.get(), curve->botan_name);
     if (!res) {
-        RNP_LOG("failed to load ecdsa public key");
+        RNP_LOG("failed to load ecdsa %s public key", curve->botan_name);
     }
     return res;
 }
@@ -76,7 +77,7 @@ load_secret_key(rnp::botan::Privkey &seckey, const ec::Key &keydata)
 
     bool res = !botan_privkey_load_ecdsa(&seckey.get(), x.get(), curve->botan_name);
     if (!res) {
-        RNP_LOG("Can't load private key");
+        RNP_LOG("Can't load private %s key", curve->botan_name);
     }
     return res;
 }

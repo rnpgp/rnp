@@ -170,9 +170,23 @@ struct rnp_op_generate_st {
     rnp::CertParams             cert;
     rnp::BindingParams          binding;
 
+    static pgp_key_flags_t default_key_flags(pgp_pubkey_alg_t alg, bool subkey);
+
+    /* primary key generation constructor */
     rnp_op_generate_st(rnp_ffi_t affi, pgp_pubkey_alg_t alg)
-        : ffi(affi), keygen(alg, affi->context)
+        : ffi(affi), primary(true), keygen(alg, affi->context)
     {
+        cert.flags = default_key_flags(alg, false);
+        cert.key_expiration = DEFAULT_KEY_EXPIRATION;
+    }
+    /* subkey generation constructor */
+    rnp_op_generate_st(rnp_ffi_t affi, pgp_pubkey_alg_t alg, rnp_key_handle_t primary)
+        : ffi(affi), primary(false), keygen(alg, affi->context)
+    {
+        binding.flags = default_key_flags(alg, true);
+        binding.key_expiration = DEFAULT_KEY_EXPIRATION;
+        primary_sec = primary->sec;
+        primary_pub = primary->pub;
     }
 };
 
@@ -231,9 +245,18 @@ struct rnp_op_verify_st {
     rnp_symenc_handle_t                  used_symenc{};
     size_t                               encrypted_layers{};
 
-    rnp_op_verify_st(rnp_ffi_t affi, rnp_input_t in)
-        : ffi(affi), input(in), rnpctx(ffi->context, ffi->key_provider, ffi->pass_provider)
+    /* Constructor for attached signature verification */
+    rnp_op_verify_st(rnp_ffi_t affi, rnp_input_t in, rnp_output_t out)
+        : ffi(affi), input(in), output(out),
+          rnpctx(ffi->context, ffi->key_provider, ffi->pass_provider)
     {
+    }
+    /* Constructor for detached signature verification */
+    rnp_op_verify_st(rnp_ffi_t affi, rnp_input_t data, rnp_input_t signature)
+        : ffi(affi), input(signature), detached_input(data),
+          rnpctx(ffi->context, ffi->key_provider, ffi->pass_provider)
+    {
+        rnpctx.detached = true;
     }
     ~rnp_op_verify_st();
 };
