@@ -41,7 +41,7 @@ SHUNIT_PARENT="$0"
 
 test_symbol_visibility() {
     case "$OSTYPE" in
-      msys)
+      msys|cygwin)
         mkdir tmp
         wget -O tmp/Dependencies_x64_Release.zip https://github.com/lucasg/Dependencies/releases/download/v1.10/Dependencies_x64_Release.zip
         7z x tmp/Dependencies_x64_Release.zip -otmp
