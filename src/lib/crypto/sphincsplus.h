@@ -145,8 +145,4 @@ size_t sphincsplus_privkey_size(pgp_pubkey_alg_t alg);
 size_t sphincsplus_pubkey_size(pgp_pubkey_alg_t alg);
 size_t sphincsplus_signature_size(pgp_pubkey_alg_t alg);
 
-bool sphincsplus_hash_allowed(pgp_pubkey_alg_t pk_alg, pgp_hash_alg_t hash_alg);
-
-pgp_hash_alg_t sphincsplus_default_hash_alg(pgp_pubkey_alg_t pk_alg);
-
 #endif
