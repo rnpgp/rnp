@@ -42,38 +42,6 @@ KeygenParams::check_defaults() noexcept
     if (hash_ == PGP_HASH_UNKNOWN) {
         hash_ = alg_ == PGP_PKA_SM2 ? PGP_HASH_SM3 : DEFAULT_PGP_HASH_ALG;
     }
-#if defined(ENABLE_PQC)
-    // ensure PQC key hash binding
-    switch (alg_) {
-    case PGP_PKA_DILITHIUM3_ED25519:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_ED448:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
-        if (!dilithium_hash_allowed(alg_, hash_)) {
-            hash_ = dilithium_default_hash_alg(alg_);
-        }
-        break;
-
-    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
-        if (!sphincsplus_hash_allowed(alg_, hash_)) {
-            hash_ = sphincsplus_default_hash_alg(alg_);
-        }
-        break;
-    default:
-        break;
-    }
-#endif
 
     pgp_hash_alg_t min_hash = key_params_->min_hash();
     if (Hash::size(hash_) < Hash::size(min_hash)) {
@@ -85,38 +53,6 @@ KeygenParams::check_defaults() noexcept
 bool
 KeygenParams::validate() const noexcept
 {
-#if defined(ENABLE_PQC)
-    switch (alg()) {
-    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
-        if (!sphincsplus_hash_allowed(alg(), hash())) {
-            RNP_LOG("invalid hash algorithm for the slhdsa key");
-            return false;
-        }
-        break;
-    case PGP_PKA_DILITHIUM3_ED25519:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_ED448:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
-        if (!dilithium_hash_allowed(alg(), hash())) {
-            RNP_LOG("invalid hash algorithm for the dilithium key");
-            return false;
-        }
-        break;
-    default:
-        break;
-    }
-#endif
     return true;
 }
 

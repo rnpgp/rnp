@@ -223,35 +223,3 @@ sphincsplus_signature_size(pgp_pubkey_alg_t alg)
         return 0;
     }
 }
-
-bool
-sphincsplus_hash_allowed(pgp_pubkey_alg_t pk_alg, pgp_hash_alg_t hash_alg)
-{
-    switch (pk_alg) {
-    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
-        return hash_alg == PGP_HASH_SHA3_256;
-    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
-        return hash_alg == PGP_HASH_SHA3_512;
-    default:
-        RNP_LOG("invalid algorithm ID given");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-}
-
-pgp_hash_alg_t
-sphincsplus_default_hash_alg(pgp_pubkey_alg_t alg)
-{
-    switch (alg) {
-    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
-        return PGP_HASH_SHA3_256;
-    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
-        return PGP_HASH_SHA3_256;
-    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
-        return PGP_HASH_SHA3_512;
-    default:
-        RNP_LOG("invalid algorithm ID given");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-}

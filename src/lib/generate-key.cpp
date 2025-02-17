@@ -156,41 +156,9 @@ pk_alg_default_flags(pgp_pubkey_alg_t alg)
     return pgp_pk_alg_capabilities(alg);
 }
 
-// TODO: Similar as pgp_pick_hash_alg but different enough to
-//       keep another version. This will be changed when refactoring crypto
 static void
 adjust_hash_alg(rnp_keygen_crypto_params_t &crypto)
 {
-#if defined(ENABLE_PQC)
-    if (!crypto.hash_alg) {
-        // Set usable default hash for PQC key if not explicitly set before.
-        // Note that for PQC keys, some constraints for the used hash algorithm exist.
-        switch (crypto.key_alg) {
-        case PGP_PKA_DILITHIUM3_ED25519:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_DILITHIUM3_P256:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_DILITHIUM3_BP256:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
-            crypto.hash_alg = PGP_HASH_SHA3_256;
-            break;
-        case PGP_PKA_DILITHIUM5_ED448:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_DILITHIUM5_BP384:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_DILITHIUM5_P384:
-            FALLTHROUGH_STATEMENT;
-        case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
-            crypto.hash_alg = PGP_HASH_SHA3_512;
-            break;
-        default:
-            break;
-        }
-    }
-#endif
     if (!crypto.hash_alg) {
         crypto.hash_alg = (pgp_hash_alg_t) DEFAULT_HASH_ALGS[0];
     }
@@ -209,41 +177,6 @@ adjust_hash_alg(rnp_keygen_crypto_params_t &crypto)
 }
 
 #if defined(ENABLE_PQC)
-static bool
-pgp_check_key_hash_requirements(const rnp_keygen_crypto_params_t &crypto)
-{
-    switch (crypto.key_alg) {
-    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
-        if (!sphincsplus_hash_allowed(crypto.key_alg, crypto.hash_alg)) {
-            return false;
-        }
-        break;
-    case PGP_PKA_DILITHIUM3_ED25519:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_ED448:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
-        if (!dilithium_hash_allowed(crypto.key_alg, crypto.hash_alg)) {
-            return false;
-        }
-        break;
-    default:
-        break;
-    }
-    return true;
-}
-#endif
-
 static void
 keygen_merge_crypto_defaults(rnp_keygen_crypto_params_t &crypto)
 {
@@ -320,13 +253,6 @@ validate_keygen_primary(const rnp_keygen_primary_desc_t &desc)
         RNP_LOG("usage not permitted for pk algorithm");
         return false;
     }
-#if defined(ENABLE_PQC)
-    // check hash requirements
-    if (!pgp_check_key_hash_requirements(desc.crypto)) {
-        RNP_LOG("invalid hash algorithm for the chosen key");
-        return false;
-    }
-#endif
     // require a userid
     if (!desc.cert.userid[0]) {
         RNP_LOG("userid is required for primary key");
@@ -509,14 +435,6 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t &desc,
             return false;
         }
 
-#if defined(ENABLE_PQC)
-        // check hash requirements
-        if (!pgp_check_key_hash_requirements(desc.crypto)) {
-            RNP_LOG("invalid hash algorithm for the chosen key");
-            return false;
-        }
-#endif
-
         // generate the raw key and fill tag/secret fields
         pgp_key_pkt_t secpkt;
         if (!pgp_generate_seckey(desc.crypto, secpkt, true, desc.pgp_version)) {
@@ -576,11 +494,6 @@ validate_keygen_subkey(rnp_keygen_subkey_desc_t &desc)
         return false;
     }
 #if defined(ENABLE_PQC)
-    // check hash requirements
-    if (!pgp_check_key_hash_requirements(desc.crypto)) {
-        RNP_LOG("invalid hash algorithm for the chosen key");
-        return false;
-    }
     switch (desc.crypto.key_alg) {
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
