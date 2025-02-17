@@ -883,7 +883,7 @@ def gpg_check_features():
     print('GPG_BRAINPOOL: ' + str(GPG_BRAINPOOL))
 
 def rnp_check_features():
-    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_AEAD_EAX, RNP_AEAD_OCB, RNP_AEAD_OCB_AES, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160, RNP_PQC, RNP_SM2
+    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_AEAD_EAX, RNP_AEAD_OCB, RNP_AEAD_OCB_AES, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160, RNP_PQC, RNP_SM2, RNP_CRYPTO_REFRESH
     global RNP_BOTAN_OCB_AV
     global RNP_BACKEND
     ret, out, _ = run_proc(RNP, ['--version'])
@@ -922,6 +922,8 @@ def rnp_check_features():
     # Determine PQC support in general. If present, assume that all PQC schemes are supported.
     pqc_strs = ['ML-KEM', 'ML-DSA']
     RNP_PQC = any([re.match('(?s)^.*Public key:.*' + scheme + '.*', out) is not None for scheme in pqc_strs])
+    crypto_refresh_strs = ['ED25519', 'ED448', 'X25519', 'X448']
+    RNP_CRYPTO_REFRESH = any([re.match('(?s)^.*Public key:.*' + scheme + '.*', out) is not None for scheme in crypto_refresh_strs])
     print('RNP_TWOFISH: ' + str(RNP_TWOFISH))
     print('RNP_BLOWFISH: ' + str(RNP_BLOWFISH))
     print('RNP_IDEA: ' + str(RNP_IDEA))
@@ -3144,6 +3146,9 @@ class Misc(unittest.TestCase):
         self.assertRegex(out,r'(?s)^.*Symmetric-key encrypted session key packet.*symmetric algorithm: 2 \(TripleDES\).*$')
         remove_files(enc)
         if RNP_RIPEMD160:
+            if RNP_CRYPTO_REFRESH:
+                # For RFC9580 RIPEMD160 is disallowed.
+                return
             # Use ripemd-160 hash instead of RIPEMD160
             ret, _, err = run_proc(RNP, ['-c', src, '--hash', 'ripemd-160', '--password', 'password'])
             self.assertEqual(ret, 0)
