@@ -357,12 +357,6 @@ KeyMaterial::adjust_hash(pgp_hash_alg_t hash) const
     return hash;
 }
 
-bool
-KeyMaterial::sig_hash_allowed(pgp_hash_alg_t hash) const
-{
-    return true;
-}
-
 pgp_curve_t
 KeyMaterial::curve() const noexcept
 {
@@ -2145,18 +2139,6 @@ DilithiumEccKeyMaterial::sign(rnp::SecurityContext &   ctx,
       &ctx.rng, &dilithium->sig, dilithium->halg, hash.data(), hash.size());
 }
 
-pgp_hash_alg_t
-DilithiumEccKeyMaterial::adjust_hash(pgp_hash_alg_t hash) const
-{
-    return dilithium_default_hash_alg(alg());
-}
-
-bool
-DilithiumEccKeyMaterial::sig_hash_allowed(pgp_hash_alg_t hash) const
-{
-    return dilithium_hash_allowed(alg(), hash);
-}
-
 size_t
 DilithiumEccKeyMaterial::bits() const noexcept
 {
@@ -2275,18 +2257,6 @@ SlhdsaKeyMaterial::sign(rnp::SecurityContext &   ctx,
         return RNP_ERROR_BAD_PARAMETERS;
     }
     return key_.priv.sign(&ctx.rng, &slhdsa->sig, hash.data(), hash.size());
-}
-
-pgp_hash_alg_t
-SlhdsaKeyMaterial::adjust_hash(pgp_hash_alg_t hash) const
-{
-    return sphincsplus_default_hash_alg(alg());
-}
-
-bool
-SlhdsaKeyMaterial::sig_hash_allowed(pgp_hash_alg_t hash) const
-{
-    return sphincsplus_hash_allowed(alg(), hash);
 }
 
 size_t
