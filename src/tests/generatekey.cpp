@@ -1072,7 +1072,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
 
         psiginfo.sig = psig;
         pub.validate_cert(psiginfo, pub.pkt(), pub.get_uid(0).pkt, global_ctx);
-        assert_true(psiginfo.valid);
+        assert_true(psiginfo.validity.valid());
         assert_true(psig->keyfp() == pub.fp());
         // check subpackets and their contents
         auto subpkt = psig->get_subpkt(pgp::pkt::sigsub::Type::IssuerFingerprint);
@@ -1090,7 +1090,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
 
         ssiginfo.sig = ssig;
         sec.validate_cert(ssiginfo, sec.pkt(), sec.get_uid(0).pkt, global_ctx);
-        assert_true(ssiginfo.valid);
+        assert_true(ssiginfo.validity.valid());
         assert_true(ssig->keyfp() == sec.fp());
 
         // modify a hashed portion of the sig packets
@@ -1098,9 +1098,9 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         ssig->hashed_data[32] ^= 0xff;
         // ensure validation fails
         pub.validate_cert(psiginfo, pub.pkt(), pub.get_uid(0).pkt, global_ctx);
-        assert_false(psiginfo.valid);
+        assert_false(psiginfo.validity.valid());
         sec.validate_cert(ssiginfo, sec.pkt(), sec.get_uid(0).pkt, global_ctx);
-        assert_false(ssiginfo.valid);
+        assert_false(ssiginfo.validity.valid());
         // restore the original data
         psig->hashed_data[32] ^= 0xff;
         ssig->hashed_data[32] ^= 0xff;
@@ -1111,9 +1111,9 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         uid.uid.assign(fake, fake + strlen(fake));
 
         pub.validate_cert(psiginfo, pub.pkt(), uid, global_ctx);
-        assert_false(psiginfo.valid);
+        assert_false(psiginfo.validity.valid());
         sec.validate_cert(ssiginfo, sec.pkt(), uid, global_ctx);
-        assert_false(ssiginfo.valid);
+        assert_false(ssiginfo.validity.valid());
 
         // validate via an alternative method
         // primary_pub + pubring
@@ -1139,7 +1139,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         // modify a hashed portion of the sig packet, offset may change in future
         pgp_subsig_t &sig = primary_pub->get_sig(0);
         sig.sig.hashed_data[10] ^= 0xff;
-        sig.validity.validated = false;
+        sig.validity.reset();
         // ensure validation fails
         primary_pub->validate(*pubring);
         assert_false(primary_pub->valid());
@@ -1147,7 +1147,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_false(primary_pub->expired());
         // restore the original data
         sig.sig.hashed_data[10] ^= 0xff;
-        sig.validity.validated = false;
+        sig.validity.reset();
         primary_pub->validate(*pubring);
         assert_true(primary_pub->valid());
         assert_true(primary_pub->validated());
@@ -1195,7 +1195,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         // validate the binding sig
         psiginfo.sig = psig;
         primary_pub->validate_binding(psiginfo, pub, global_ctx);
-        assert_true(psiginfo.valid);
+        assert_true(psiginfo.validity.valid());
         assert_true(psig->keyfp() == primary_pub->fp());
         // check subpackets and their contents
         auto subpkt = psig->get_subpkt(pgp::pkt::sigsub::Type::IssuerFingerprint);
@@ -1214,7 +1214,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
 
         ssiginfo.sig = ssig;
         primary_pub->validate_binding(ssiginfo, sec, global_ctx);
-        assert_true(ssiginfo.valid);
+        assert_true(ssiginfo.validity.valid());
         assert_true(ssig->keyfp() == primary_sec->fp());
 
         // modify a hashed portion of the sig packets
@@ -1222,9 +1222,9 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         ssig->hashed_data[10] ^= 0xff;
         // ensure validation fails
         primary_pub->validate_binding(psiginfo, pub, global_ctx);
-        assert_false(psiginfo.valid);
+        assert_false(psiginfo.validity.valid());
         primary_pub->validate_binding(ssiginfo, sec, global_ctx);
-        assert_false(ssiginfo.valid);
+        assert_false(ssiginfo.validity.valid());
         // restore the original data
         psig->hashed_data[10] ^= 0xff;
         ssig->hashed_data[10] ^= 0xff;

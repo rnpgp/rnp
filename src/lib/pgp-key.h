@@ -82,19 +82,18 @@ typedef struct pgp_rawpacket_t {
 
 /** information about the signature */
 typedef struct pgp_subsig_t {
-    uint32_t        uid{};      /* index in userid array in key for certification sig */
-    pgp_signature_t sig{};      /* signature packet */
-    pgp_sig_id_t    sigid{};    /* signature identifier */
-    pgp_rawpacket_t rawpkt{};   /* signature's rawpacket */
-    pgp_validity_t  validity{}; /* signature validity information */
+    uint32_t         uid{};    /* index in userid array in key for certification sig */
+    pgp_signature_t  sig{};    /* signature packet */
+    pgp_sig_id_t     sigid{};  /* signature identifier */
+    pgp_rawpacket_t  rawpkt{}; /* signature's rawpacket */
+    rnp::SigValidity validity; /* signature validity information */
 
     pgp_subsig_t() = delete;
     pgp_subsig_t(const pgp_signature_t &sig);
 
-    bool validated() const;
-    bool valid() const;
     /** @brief Returns true if signature is certification */
     bool is_cert() const;
+    bool is_revocation() const;
     /** @brief Returns true if signature is expired */
     bool expired(uint64_t at) const;
 } pgp_subsig_t;
