@@ -3131,16 +3131,31 @@ rnp_op_verify_on_signatures(const std::vector<pgp_signature_info_t> &sigs, void 
             if (sinfo.sig) {
                 res.sig_pkt = *sinfo.sig;
             }
-
-            if (sinfo.unknown) {
-                res.verify_status = RNP_ERROR_SIGNATURE_UNKNOWN;
-            } else if (sinfo.valid) {
-                res.verify_status = sinfo.expired ? RNP_ERROR_SIGNATURE_EXPIRED : RNP_SUCCESS;
-            } else {
-                res.verify_status =
-                  sinfo.no_signer ? RNP_ERROR_KEY_NOT_FOUND : RNP_ERROR_SIGNATURE_INVALID;
-            }
+            res.validity = sinfo.validity;
             res.ffi = op->ffi;
+
+            /* signature is valid */
+            if (res.validity.valid()) {
+                res.verify_status = RNP_SUCCESS;
+                continue;
+            }
+            /* failed to parse signature */
+            if (res.validity.unknown()) {
+                res.verify_status = RNP_ERROR_SIGNATURE_UNKNOWN;
+                continue;
+            }
+            /* expired signature */
+            if (res.validity.expired()) {
+                res.verify_status = RNP_ERROR_SIGNATURE_EXPIRED;
+                continue;
+            }
+            /* signer's key not found */
+            if (res.validity.no_signer()) {
+                res.verify_status = RNP_ERROR_KEY_NOT_FOUND;
+                continue;
+            }
+            /* other reasons */
+            res.verify_status = RNP_ERROR_SIGNATURE_INVALID;
         }
     } catch (const std::exception &e) {
         FFI_LOG(op->ffi, "%s", e.what()); // LCOV_EXCL_LINE
@@ -3697,6 +3712,7 @@ try {
         return RNP_ERROR_OUT_OF_MEMORY;
         /* LCOV_EXCL_END */
     }
+    (*handle)->sig->validity = sig->validity;
     subsig.release();
 
     return RNP_SUCCESS;
@@ -4279,14 +4295,14 @@ signature_needs_removal(rnp_ffi_t ffi, const pgp_key_t &key, pgp_subsig_t &sig, 
         return true;
     }
     /* validate signature if didn't */
-    if (signer && !sig.validated()) {
+    if (signer && !sig.validity.validated()) {
         signer->validate_sig(key, sig, ffi->context);
     }
     /* we cannot check for invalid/expired if sig was not validated */
-    if (!sig.validated()) {
+    if (!sig.validity.validated()) {
         return false;
     }
-    if ((flags & RNP_KEY_SIGNATURE_INVALID) && !sig.validity.valid) {
+    if ((flags & RNP_KEY_SIGNATURE_INVALID) && !sig.validity.valid()) {
         return true;
     }
     return false;
@@ -6889,7 +6905,7 @@ try {
     }
 
     auto ssig = sig->sig;
-    if (!ssig->validity.validated) {
+    if (!ssig->validity.validated()) {
         pgp_key_t *signer = sig->ffi->pubring->get_signer(ssig->sig, &sig->ffi->key_provider);
         if (!signer) {
             return RNP_ERROR_KEY_NOT_FOUND;
@@ -6897,13 +6913,13 @@ try {
         signer->validate_sig(*sig->key, *ssig, sig->ffi->context);
     }
 
-    if (!ssig->validity.validated) {
+    if (!ssig->validity.validated()) {
         return RNP_ERROR_VERIFICATION_FAILED;
     }
-    if (ssig->validity.expired) {
+    if (ssig->validity.expired()) {
         return RNP_ERROR_SIGNATURE_EXPIRED;
     }
-    return ssig->valid() ? RNP_SUCCESS : RNP_ERROR_SIGNATURE_INVALID;
+    return ssig->validity.valid() ? RNP_SUCCESS : RNP_ERROR_SIGNATURE_INVALID;
 }
 FFI_GUARD
 

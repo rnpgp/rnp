@@ -148,17 +148,18 @@ signature_calculate(pgp_signature_t &        sig,
     sig.write_material(*material);
 }
 
-rnp_result_t
+rnp::SigValidity
 signature_validate(const pgp_signature_t &     sig,
                    const pgp::KeyMaterial &    key,
                    rnp::Hash &                 hash,
                    const rnp::SecurityContext &ctx,
                    const pgp_literal_hdr_t *   hdr)
 {
+    rnp::SigValidity res;
     if (sig.palg != key.alg()) {
         RNP_LOG(
           "Signature and key do not agree on algorithm type: %d vs %d", sig.palg, key.alg());
-        return RNP_ERROR_BAD_PARAMETERS;
+        res.add_error(RNP_ERROR_SIG_PUB_ALG_MISMATCH);
     }
 
     /* Check signature security */
@@ -167,7 +168,7 @@ signature_validate(const pgp_signature_t &     sig,
     if (ctx.profile.hash_level(sig.halg, sig.creation(), action) <
         rnp::SecurityLevel::Default) {
         RNP_LOG("Insecure hash algorithm %d, marking signature as invalid.", sig.halg);
-        return RNP_ERROR_SIGNATURE_INVALID;
+        res.add_error(RNP_ERROR_SIG_WEAK_HASH);
     }
 
 #if defined(ENABLE_PQC)
@@ -175,7 +176,7 @@ signature_validate(const pgp_signature_t &     sig,
     if (!key.sig_hash_allowed(hash.alg())) {
         RNP_LOG("Signature invalid since hash algorithm requirements are not met for the "
                 "given key.");
-        return RNP_ERROR_SIGNATURE_INVALID;
+        res.add_error(RNP_ERROR_SIG_HASH_ALG_MISMATCH);
     }
 #endif
 
@@ -185,12 +186,16 @@ signature_validate(const pgp_signature_t &     sig,
     /* compare lbits */
     if (memcmp(hval.data(), sig.lbits.data(), 2)) {
         RNP_LOG("wrong lbits");
-        return RNP_ERROR_SIGNATURE_INVALID;
+        res.add_error(RNP_ERROR_SIG_LBITS_MISMATCH);
     }
 
     /* validate signature */
     /* We check whether material could be parsed during the signature parsing */
     auto material = sig.parse_material();
     assert(material);
-    return key.verify(ctx, *material, hval);
+    auto ret = key.verify(ctx, *material, hval);
+    if (ret) {
+        res.add_error(ret);
+    }
+    return res;
 }

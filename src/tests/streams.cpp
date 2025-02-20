@@ -359,10 +359,11 @@ TEST_F(rnp_tests, test_stream_signatures)
     /* validate signature and fields */
     auto hash = hash_orig->clone();
     assert_int_equal(sig.creation(), 1522241943);
-    assert_rnp_success(signature_validate(sig, *key->material(), *hash, global_ctx));
+    assert_true(signature_validate(sig, *key->material(), *hash, global_ctx).errors().empty());
     /* check forged file */
     hash = hash_forged->clone();
-    assert_rnp_failure(signature_validate(sig, *key->material(), *hash, global_ctx));
+    assert_false(
+      signature_validate(sig, *key->material(), *hash, global_ctx).errors().empty());
     /* now let's create signature and sign file */
 
     /* load secret key */
@@ -409,7 +410,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     assert_int_equal(sig.expiration(), expire);
     assert_true(sig.has_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR));
     assert_true(sig.keyfp() == key->fp());
-    assert_rnp_success(signature_validate(sig, *key->material(), *hash, global_ctx));
+    assert_true(signature_validate(sig, *key->material(), *hash, global_ctx).errors().empty());
     /* cleanup */
     delete pubring;
     delete secring;
@@ -1011,18 +1012,22 @@ TEST_F(rnp_tests, test_stream_key_signatures)
     /* check certification signature */
     auto hash = signature_hash_certification(sig, key.key, uid.uid);
     /* this signature uses MD5 hash after the allowed date */
-    assert_int_equal(signature_validate(sig, *pkey->material(), *hash, global_ctx),
-                     RNP_ERROR_SIGNATURE_INVALID);
+    auto res = signature_validate(sig, *pkey->material(), *hash, global_ctx);
+    assert_int_equal(res.errors().size(), 1);
+    assert_int_equal(res.errors().at(0), RNP_ERROR_SIG_WEAK_HASH);
     /* add rule which allows MD5 */
     rnp::SecurityRule allow_md5(
       rnp::FeatureType::Hash, PGP_HASH_MD5, rnp::SecurityLevel::Default);
     allow_md5.override = true;
     global_ctx.profile.add_rule(allow_md5);
-    assert_rnp_success(signature_validate(sig, *pkey->material(), *hash, global_ctx));
+    hash = signature_hash_certification(sig, key.key, uid.uid);
+    assert_true(
+      signature_validate(sig, *pkey->material(), *hash, global_ctx).errors().empty());
     /* modify userid and check signature */
     uid.uid.uid[2] = '?';
     hash = signature_hash_certification(sig, key.key, uid.uid);
-    assert_rnp_failure(signature_validate(sig, *pkey->material(), *hash, global_ctx));
+    assert_false(
+      signature_validate(sig, *pkey->material(), *hash, global_ctx).errors().empty());
     /* remove MD5 rule */
     assert_true(global_ctx.profile.del_rule(allow_md5));
     delete pubring;
@@ -1042,19 +1047,21 @@ TEST_F(rnp_tests, test_stream_key_signatures)
                 assert_non_null(pkey = pubring->get_signer(sig));
                 /* high level interface */
                 sinfo.sig = &sig;
+                sinfo.validity.reset();
                 pkey->validate_cert(sinfo, keyref.key, uid.uid, global_ctx);
-                assert_true(sinfo.valid);
+                assert_true(sinfo.validity.valid());
                 /* low level check */
                 auto hash = signature_hash_certification(sig, keyref.key, uid.uid);
-                assert_rnp_success(
-                  signature_validate(sig, *pkey->material(), *hash, global_ctx));
+                auto res = signature_validate(sig, *pkey->material(), *hash, global_ctx);
+                assert_true(res.errors().empty());
                 /* modify userid and check signature */
                 uid.uid.uid[2] = '?';
+                sinfo.validity.reset();
                 pkey->validate_cert(sinfo, keyref.key, uid.uid, global_ctx);
-                assert_false(sinfo.valid);
+                assert_false(sinfo.validity.valid());
                 hash = signature_hash_certification(sig, keyref.key, uid.uid);
-                assert_rnp_failure(
-                  signature_validate(sig, *pkey->material(), *hash, global_ctx));
+                res = signature_validate(sig, *pkey->material(), *hash, global_ctx);
+                assert_false(res.errors().empty());
             }
         }
 
@@ -1070,12 +1077,14 @@ TEST_F(rnp_tests, test_stream_key_signatures)
             assert_true(rnp::hex_encode(subid.data(), subid.size(), ssubid, sizeof(ssubid)));
             pgp_key_t *psub = rnp_tests_get_key_by_id(pubring, ssubid);
             assert_non_null(psub);
+            sinfo.validity.reset();
             pkey->validate_binding(sinfo, *psub, global_ctx);
-            assert_true(sinfo.valid);
+            assert_true(sinfo.validity.valid());
             /* low level check */
             hash = signature_hash_binding(sig, keyref.key, subkey.subkey);
+            sinfo.validity.reset();
             pkey->validate_sig(sinfo, *hash, global_ctx);
-            assert_true(sinfo.valid);
+            assert_true(sinfo.validity.valid());
         }
     }
 
