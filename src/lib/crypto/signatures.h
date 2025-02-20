@@ -54,6 +54,10 @@ void signature_calculate(pgp_signature_t &        sig,
                          rnp::SecurityContext &   ctx,
                          const pgp_literal_hdr_t *hdr = NULL);
 
+namespace rnp {
+class SigValidity;
+}
+
 /**
  * @brief Validate a signature with pre-populated hash. This method just checks correspondence
  *        between the hash and signature material. Expiration time and other fields are not
@@ -66,10 +70,10 @@ void signature_calculate(pgp_signature_t &        sig,
  * @param hdr literal packet header for attached document signatures or NULL otherwise.
  * @return RNP_SUCCESS if signature was successfully validated or error code otherwise.
  */
-rnp_result_t signature_validate(const pgp_signature_t &     sig,
-                                const pgp::KeyMaterial &    key,
-                                rnp::Hash &                 hash,
-                                const rnp::SecurityContext &ctx,
-                                const pgp_literal_hdr_t *   hdr = NULL);
+rnp::SigValidity signature_validate(const pgp_signature_t &     sig,
+                                    const pgp::KeyMaterial &    key,
+                                    rnp::Hash &                 hash,
+                                    const rnp::SecurityContext &ctx,
+                                    const pgp_literal_hdr_t *   hdr = NULL);
 
 #endif
