@@ -83,7 +83,7 @@ Hash_SHA1CD::finish(uint8_t *digest)
         RNP_LOG("Warning! SHA1 collision detected and mitigated.");
     }
     if (res) {
-        throw rnp_exception(RNP_ERROR_BAD_STATE);
+        return 0;
     }
     if (digest) {
         memcpy(digest, fixed_digest, 20);
