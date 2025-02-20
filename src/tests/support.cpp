@@ -311,14 +311,14 @@ make_temp_dir()
         return NULL;
     }
 
-    const char *tmplate = "/rnp-gtest-XXXXXX";
-    char *      buffer = (char *) calloc(1, strlen(rltmp) + strlen(tmplate) + 1);
-    if (buffer == NULL) {
+    auto  atemplate = "/rnp-gtest-XXXXXX";
+    char *buffer = (char *) calloc(1, strlen(rltmp) + strlen(atemplate) + 1);
+    if (!buffer) {
         return NULL;
     }
     memcpy(buffer, rltmp, strlen(rltmp));
-    memcpy(buffer + strlen(rltmp), tmplate, strlen(tmplate));
-    buffer[strlen(rltmp) + strlen(tmplate)] = '\0';
+    memcpy(buffer + strlen(rltmp), atemplate, strlen(atemplate));
+    buffer[strlen(rltmp) + strlen(atemplate)] = '\0';
     char *res = mkdtemp(buffer);
     if (!res) {
         free(buffer);
