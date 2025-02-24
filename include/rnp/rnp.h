@@ -2215,9 +2215,12 @@ RNP_API rnp_result_t rnp_signature_get_trust_level(rnp_signature_handle_t sig,
 /**
  * @brief Get signature validity, revalidating it if didn't before.
  *
- * @param sig key/userid signature handle
+ * @param sig key/userid/document signature handle
  * @param flags validation flags, currently must be zero.
- * @return Following error codes represents the validation status:
+ *
+ * @return Following error codes represents the validation status. For more detailed
+ *         information why signature is invalid it is recommended to use
+ *         rnp_signature_error_count()/rnp_signature_error_at() functions.
  *         RNP_SUCCESS : operation succeeds and signature is valid
  *         RNP_ERROR_KEY_NOT_FOUND : signer's key not found
  *         RNP_ERROR_VERIFICATION_FAILED: verification failed, so validity cannot be checked
@@ -2231,6 +2234,64 @@ RNP_API rnp_result_t rnp_signature_get_trust_level(rnp_signature_handle_t sig,
  *         RNP_ERROR_BAD_PARAMETERS: invalid parameter value (unsupported flag, etc).
  */
 RNP_API rnp_result_t rnp_signature_is_valid(rnp_signature_handle_t sig, uint32_t flags);
+
+/**
+ * @brief Get number of signature validation errors. This would allow to check in details why
+ * signature verification failed.
+ *
+ * @param sig signature handle. Cannot be NULL.
+ * @param count on success number of verification errors would be stored here
+ * @return RNP_SUCCESS if operation succeeded,
+ *         RNP_ERROR_VERIFICATION_FAILED if signature was not validated,
+ *         RNP_ERROR_NULL_POINTER if any of the parameters is NULL.
+ */
+RNP_API rnp_result_t rnp_signature_error_count(rnp_signature_handle_t sig, size_t *count);
+
+/**
+ * @brief Get error code at the specified position.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param idx zero-based index of the error. Must be less then count obtained via the
+ *            rnp_signature_error_count() call.
+ * @param error on success error code will be stored here. Cannot be NULL.
+ *        Following error codes are currently defined (but new ones could be added):
+ *
+ *        RNP_ERROR_SIG_ERROR : some general signature validation error
+ *        RNP_ERROR_SIG_PARSE_ERROR : failed to parse signature
+ *        RNP_ERROR_SIG_SIGNER_UNTRUSTED : key which produced signature is not trusted
+ *        RNP_ERROR_SIG_PUB_ALG_MISMATCH : key and signature algorithms do not match
+ *        RNP_ERROR_SIG_WEAK_HASH : too weak hash algorithm (i.e. MD5 or SHA1)
+ *        RNP_ERROR_SIG_HASH_ALG_MISMATCH : used hash algorithm is not allowed by signature
+ *                                          algorithm
+ *        RNP_ERROR_SIG_LBITS_MISMATCH : left 16 bits of hash, stored in signature, do not
+ *                                       match hash value
+ *        RNP_ERROR_SIG_FROM_FUTURE : signature with timestamp from the future
+ *        RNP_ERROR_SIG_EXPIRED : signature is expired
+ *        RNP_ERROR_SIG_OLDER_KEY : signature is older than the key
+ *        RNP_ERROR_SIG_EXPIRED_KEY : key was expired at signature creation time
+ *        RNP_ERROR_SIG_FP_MISMATCH : key fingerprint doesn't match fingerprint from the
+ *                                    signature
+ *        RNP_ERROR_SIG_UNKNOWN_NOTATION : unknown critical notation
+ *        RNP_ERROR_SIG_NOT_DOCUMENT : non-document signature used to sign data
+ *        RNP_ERROR_SIG_NO_SIGNER_ID : unknown signer's key id/fingerprint
+ *        RNP_ERROR_SIG_NO_SIGNER_KEY : signer's key not found
+ *        RNP_ERROR_SIG_NO_HASH_CTX : no corresponding hash context
+ *        RNP_ERROR_SIG_WRONG_KEY_SIG : non-key signature used on key
+ *        RNP_ERROR_SIG_UID_MISSING : missing uid for certification
+ *        RNP_ERROR_SIG_WRONG_BINDING : wrong subkey binding
+ *        RNP_ERROR_SIG_WRONG_DIRECT : wrong direct-key signature
+ *        RNP_ERROR_SIG_WRONG_REV : wrong revocation
+ *        RNP_ERROR_SIG_UNSUPPORTED : unsupported key signature type
+ *        RNP_ERROR_SIG_NO_PRIMARY_BINDING : subkey binding without primary key binding
+ *        RNP_ERROR_SIG_BINDING_PARSE : failed to parse primary key binding signature
+ *        RNP_ERROR_SIG_WRONG_BIND_TYPE : wrong primary key binding type
+ *        RNP_ERROR_SIG_INVALID_BINDING : invalid primary key binding
+ *
+ * @return RNP_SUCCESS on success or some other value in case of error.
+ */
+RNP_API rnp_result_t rnp_signature_error_at(rnp_signature_handle_t sig,
+                                            size_t                 idx,
+                                            rnp_result_t *         error);
 
 /** Dump signature packet to JSON, obtaining the whole information about it.
  *
@@ -3337,7 +3398,8 @@ RNP_API rnp_result_t rnp_symenc_get_s2k_iterations(rnp_symenc_handle_t symenc,
  */
 RNP_API rnp_result_t rnp_op_verify_destroy(rnp_op_verify_t op);
 
-/** @brief Get signature verification status.
+/** @brief Get signature verification status. To get more detailed signature information
+ *         function rnp_op_verify_signature_get_handle() should be used.
  *  @param sig opaque signature context obtained via rnp_op_verify_get_signature_at call.
  *  @return signature verification status:
  *          RNP_SUCCESS : signature is valid
