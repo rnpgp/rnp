@@ -3708,7 +3708,7 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    std::unique_ptr<pgp_subsig_t> subsig(new pgp_subsig_t(sig->sig_pkt));
+    std::unique_ptr<rnp::Signature> subsig(new rnp::Signature(sig->sig_pkt));
     *handle = new rnp_signature_handle_st(sig->ffi, nullptr, subsig.get(), true);
     if (!*handle) {
         /* LCOV_EXCL_START */
@@ -4245,7 +4245,7 @@ report_signature_removal(rnp_ffi_t             ffi,
                          const pgp_key_t &     key,
                          rnp_key_signatures_cb sigcb,
                          void *                app_ctx,
-                         pgp_subsig_t &        keysig,
+                         rnp::Signature &      keysig,
                          bool &                remove)
 {
     if (!sigcb) {
@@ -4279,7 +4279,10 @@ report_signature_removal(rnp_ffi_t             ffi,
 }
 
 static bool
-signature_needs_removal(rnp_ffi_t ffi, const pgp_key_t &key, pgp_subsig_t &sig, uint32_t flags)
+signature_needs_removal(rnp_ffi_t        ffi,
+                        const pgp_key_t &key,
+                        rnp::Signature & sig,
+                        uint32_t         flags)
 {
     /* quick check for non-self signatures */
     bool nonself = flags & RNP_KEY_SIGNATURE_NON_SELF_SIG;
@@ -4322,8 +4325,8 @@ remove_key_signatures(rnp_ffi_t             ffi,
     std::vector<pgp_sig_id_t> sigs;
 
     for (size_t idx = 0; idx < pub.sig_count(); idx++) {
-        pgp_subsig_t &sig = pub.get_sig(idx);
-        bool          remove = signature_needs_removal(ffi, pub, sig, flags);
+        auto &sig = pub.get_sig(idx);
+        bool  remove = signature_needs_removal(ffi, pub, sig, flags);
         report_signature_removal(ffi, pub, sigcb, app_ctx, sig, remove);
         if (remove) {
             sigs.push_back(sig.sigid);
@@ -5880,7 +5883,7 @@ FFI_GUARD
 static rnp_result_t
 rnp_key_return_signature(rnp_ffi_t               ffi,
                          pgp_key_t *             key,
-                         pgp_subsig_t *          subsig,
+                         rnp::Signature *        subsig,
                          rnp_signature_handle_t *sig)
 {
     try {
@@ -5962,7 +5965,7 @@ create_key_signature(rnp_ffi_t               ffi,
         sigkey.sign_init(
           ffi->rng(), sigpkt, DEFAULT_PGP_HASH_ALG, ffi->context.time(), sigkey.version());
         sigpkt.set_type(type);
-        std::unique_ptr<pgp_subsig_t> subsig(new pgp_subsig_t(sigpkt));
+        std::unique_ptr<rnp::Signature> subsig(new rnp::Signature(sigpkt));
         subsig->uid = uid;
         sig = new rnp_signature_handle_st(ffi, &tgkey, subsig.get(), true, true);
         subsig.release();
@@ -7027,7 +7030,7 @@ FFI_GUARD
 static rnp_result_t
 write_signature(rnp_signature_handle_t sig, pgp_dest_t &dst)
 {
-    sig->sig->rawpkt.write(dst);
+    sig->sig->raw.write(dst);
     dst_flush(&dst);
     return dst.werr;
 }
@@ -8293,7 +8296,7 @@ add_json_user_prefs(json_object *jso, const rnp::UserPrefs &prefs)
 }
 
 static rnp_result_t
-add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_t *subsig)
+add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const rnp::Signature *subsig)
 {
     // userid (if applicable)
     if (!is_sub && !json_add(jso, "userid", (int) subsig->uid)) {

@@ -57,7 +57,7 @@ struct rnp_signature_handle_st {
      * @brief Key to which this signature belongs, if available.
      */
     const pgp_key_t *key;
-    pgp_subsig_t *   sig;
+    rnp::Signature * sig;
     /**
      * @brief sig pointer is owned by structure and should be deallocated.
      */
@@ -69,7 +69,7 @@ struct rnp_signature_handle_st {
 
     rnp_signature_handle_st(rnp_ffi_t        affi,
                             const pgp_key_t *akey = nullptr,
-                            pgp_subsig_t *   asig = nullptr,
+                            rnp::Signature * asig = nullptr,
                             bool             aown_sig = false,
                             bool             anew_sig = false)
         : ffi(affi), key(akey), sig(asig), own_sig(aown_sig), new_sig(anew_sig)

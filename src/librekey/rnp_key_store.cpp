@@ -233,7 +233,7 @@ KeyStore::refresh_subkey_grips(pgp_key_t &key)
         }
 
         for (size_t i = 0; i < skey.sig_count(); i++) {
-            const pgp_subsig_t &subsig = skey.get_sig(i);
+            const rnp::Signature &subsig = skey.get_sig(i);
 
             if (subsig.sig.type() != PGP_SIG_SUBKEY) {
                 continue;
@@ -386,7 +386,7 @@ KeyStore::add_key(pgp_key_t &srckey)
     return added_key;
 }
 
-pgp_subsig_t *
+rnp::Signature *
 KeyStore::add_key_sig(const pgp_fingerprint_t &keyfp,
                       const pgp_signature_t &  sig,
                       const pgp_userid_pkt_t * uid,
@@ -418,7 +418,7 @@ KeyStore::add_key_sig(const pgp_fingerprint_t &keyfp,
             return nullptr;
         }
     }
-    pgp_subsig_t &newsig = key->add_sig(sig, uididx, front);
+    rnp::Signature &newsig = key->add_sig(sig, uididx, front);
     if (desig_rev) {
         key->validate_desig_revokes(*this);
     }
