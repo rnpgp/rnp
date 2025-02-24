@@ -34,15 +34,15 @@
 #include "stream-common.h"
 #include "stream-ctx.h"
 #include "stream-packet.h"
+#include "signature.hpp"
 
-typedef struct pgp_parse_handler_t  pgp_parse_handler_t;
-typedef struct pgp_signature_info_t pgp_signature_info_t;
-typedef bool                        pgp_destination_func_t(pgp_parse_handler_t *    handler,
-                                                           pgp_dest_t **            dst,
-                                                           bool *                   closedst,
-                                                           const pgp_literal_hdr_t *lithdr);
+typedef struct pgp_parse_handler_t pgp_parse_handler_t;
+typedef bool                       pgp_destination_func_t(pgp_parse_handler_t *    handler,
+                                                          pgp_dest_t **            dst,
+                                                          bool *                   closedst,
+                                                          const pgp_literal_hdr_t *lithdr);
 typedef bool pgp_source_func_t(pgp_parse_handler_t *handler, pgp_source_t *src);
-typedef void pgp_signatures_func_t(const std::vector<pgp_signature_info_t> &sigs, void *param);
+typedef void pgp_signatures_func_t(const std::vector<rnp::SignatureInfo> &sigs, void *param);
 
 typedef void pgp_on_recipients_func_t(const std::vector<pgp_pk_sesskey_t> &recipients,
                                       const std::vector<pgp_sk_sesskey_t> &passwords,
