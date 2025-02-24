@@ -777,8 +777,7 @@ g23_parse_seckey(pgp_key_pkt_t &  seckey,
 {
     gnupg_extended_private_key_t g23_extended_key;
 
-    const char *bytes = (const char *) data;
-    if (!g23_extended_key.parse(bytes, data_len, SXP_MAX_DEPTH)) {
+    if (!g23_extended_key.parse((const char *) data, data_len, SXP_MAX_DEPTH)) {
         RNP_LOG("Failed to parse s-exp.");
         return false;
     }
@@ -866,15 +865,16 @@ done:
 }
 
 pgp_key_pkt_t *
-g10_decrypt_seckey(const pgp_rawpacket_t &raw,
-                   const pgp_key_pkt_t &  pubkey,
-                   const char *           password)
+g10_decrypt_seckey(const rnp::RawPacket &raw,
+                   const pgp_key_pkt_t & pubkey,
+                   const char *          password)
 {
     if (!password) {
         return NULL;
     }
     auto seckey = std::unique_ptr<pgp_key_pkt_t>(new pgp_key_pkt_t(pubkey, false));
-    if (!g23_parse_seckey(*seckey, raw.raw.data(), raw.raw.size(), password, pubkey.alg)) {
+    if (!g23_parse_seckey(
+          *seckey, raw.data().data(), raw.data().size(), password, pubkey.alg)) {
         return nullptr;
     }
     return seckey.release();
@@ -959,7 +959,7 @@ KeyStore::load_g10(pgp_source_t &src, const KeyProvider *key_provider)
         }
         /* set rawpkt */
         key.set_rawpkt(
-          pgp_rawpacket_t((uint8_t *) memsrc.memory(), memsrc.size(), PGP_PKT_RESERVED));
+          rnp::RawPacket((uint8_t *) memsrc.memory(), memsrc.size(), PGP_PKT_RESERVED));
         key.format = PGP_KEY_STORE_G10;
         if (!add_key(key)) {
             return false;
@@ -1278,13 +1278,12 @@ g10_calculated_hash(const pgp_key_pkt_t &key, const char *protected_at, uint8_t 
 }
 
 bool
-rnp_key_store_gnupg_sexp_to_dst(pgp_key_t *key, pgp_dest_t *dest)
+rnp_key_store_gnupg_sexp_to_dst(pgp_key_t &key, pgp_dest_t &dest)
 {
-    if (key->format != PGP_KEY_STORE_G10) {
-        RNP_LOG("incorrect format: %d", key->format);
+    if (key.format != PGP_KEY_STORE_G10) {
+        RNP_LOG("incorrect format: %d", key.format);
         return false;
     }
-    pgp_rawpacket_t &packet = key->rawpkt();
-    dst_write(dest, packet.raw.data(), packet.raw.size());
-    return dest->werr == RNP_SUCCESS;
+    dst_write(dest, key.rawpkt().data());
+    return dest.werr == RNP_SUCCESS;
 }

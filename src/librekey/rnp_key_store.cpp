@@ -153,7 +153,7 @@ KeyStore::write()
                 return false;
             }
 
-            if (!rnp_key_store_gnupg_sexp_to_dst(&key, &keydst)) {
+            if (!rnp_key_store_gnupg_sexp_to_dst(key, keydst)) {
                 RNP_LOG("failed to write key to file");
                 dst_close(&keydst, true);
                 return false;
