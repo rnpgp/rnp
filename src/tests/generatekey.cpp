@@ -1065,8 +1065,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_int_not_equal(psig->material_buf.size(), 0);
         assert_int_not_equal(ssig->material_buf.size(), 0);
         // make sure we're targeting the right packet
-        assert_int_equal(PGP_PKT_SIGNATURE, pub.get_sig(0).rawpkt.tag());
-        assert_int_equal(PGP_PKT_SIGNATURE, sec.get_sig(0).rawpkt.tag());
+        assert_int_equal(PGP_PKT_SIGNATURE, pub.get_sig(0).raw.tag());
+        assert_int_equal(PGP_PKT_SIGNATURE, sec.get_sig(0).raw.tag());
 
         // validate the userid self-sig
 
@@ -1137,7 +1137,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(primary_sec->validated());
         assert_false(primary_sec->expired());
         // modify a hashed portion of the sig packet, offset may change in future
-        pgp_subsig_t &sig = primary_pub->get_sig(0);
+        rnp::Signature &sig = primary_pub->get_sig(0);
         sig.sig.hashed_data[10] ^= 0xff;
         sig.validity.reset();
         // ensure validation fails
@@ -1190,8 +1190,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_int_not_equal(psig->material_buf.size(), 0);
         assert_int_not_equal(ssig->material_buf.size(), 0);
         // make sure we're targeting the right packet
-        assert_int_equal(PGP_PKT_SIGNATURE, pub.get_sig(0).rawpkt.tag());
-        assert_int_equal(PGP_PKT_SIGNATURE, sec.get_sig(0).rawpkt.tag());
+        assert_int_equal(PGP_PKT_SIGNATURE, pub.get_sig(0).raw.tag());
+        assert_int_equal(PGP_PKT_SIGNATURE, sec.get_sig(0).raw.tag());
         // validate the binding sig
         psiginfo.sig = psig;
         primary_pub->validate_binding(psiginfo, pub, global_ctx);
