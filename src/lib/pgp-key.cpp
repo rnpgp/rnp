@@ -48,12 +48,12 @@
 #include "defaults.h"
 
 pgp_key_pkt_t *
-pgp_decrypt_seckey_pgp(const pgp_rawpacket_t &raw,
-                       const pgp_key_pkt_t &  pubkey,
-                       const char *           password)
+pgp_decrypt_seckey_pgp(const rnp::RawPacket &raw,
+                       const pgp_key_pkt_t & pubkey,
+                       const char *          password)
 {
     try {
-        rnp::MemorySource src(raw.raw.data(), raw.raw.size(), false);
+        rnp::MemorySource src(raw.data());
         auto              res = std::unique_ptr<pgp_key_pkt_t>(new pgp_key_pkt_t());
         if (res->parse(src.src()) || decrypt_secret_key(res.get(), password)) {
             return NULL;
@@ -234,7 +234,7 @@ pgp_key_t::write_sec_rawpkt(pgp_key_pkt_t &       seckey,
             return false;
         }
 
-        rawpkt_ = pgp_rawpacket_t((uint8_t *) memdst.memory(), memdst.writeb(), type());
+        rawpkt_ = rnp::RawPacket((uint8_t *) memdst.memory(), memdst.writeb(), type());
         return true;
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
@@ -486,34 +486,6 @@ find_suitable_key(pgp_op_t          op,
     return subkey;
 }
 
-pgp_rawpacket_t::pgp_rawpacket_t(const pgp_signature_t &sig)
-{
-    raw = sig.write();
-    tag = PGP_PKT_SIGNATURE;
-}
-
-pgp_rawpacket_t::pgp_rawpacket_t(pgp_key_pkt_t &key)
-{
-    rnp::MemoryDest dst;
-    key.write(dst.dst());
-    raw = dst.to_vector();
-    tag = key.tag;
-}
-
-pgp_rawpacket_t::pgp_rawpacket_t(const pgp_userid_pkt_t &uid)
-{
-    rnp::MemoryDest dst;
-    uid.write(dst.dst());
-    raw = dst.to_vector();
-    tag = uid.tag;
-}
-
-void
-pgp_rawpacket_t::write(pgp_dest_t &dst) const
-{
-    dst_write(&dst, raw.data(), raw.size());
-}
-
 void
 pgp_validity_t::mark_valid()
 {
@@ -535,7 +507,7 @@ pgp_subsig_t::pgp_subsig_t(const pgp_signature_t &pkt)
     sig = pkt;
     sigid = sig.get_id();
     /* add signature rawpacket */
-    rawpkt = pgp_rawpacket_t(sig);
+    rawpkt = rnp::RawPacket(sig);
 }
 
 bool
@@ -580,7 +552,7 @@ pgp_userid_t::pgp_userid_t(const pgp_userid_pkt_t &uidpkt)
 {
     /* copy packet data */
     pkt = uidpkt;
-    rawpkt = pgp_rawpacket_t(uidpkt);
+    rawpkt = rnp::RawPacket(uidpkt);
     /* populate uid string */
     if (uidpkt.tag == PGP_PKT_USER_ID) {
         str.assign(uidpkt.uid.data(), uidpkt.uid.data() + uidpkt.uid.size());
@@ -681,7 +653,7 @@ pgp_key_t::pgp_key_t(const pgp_key_pkt_t &keypkt) : pkt_(keypkt)
         pkt_.material->set_validity(keypkt.material->validity());
     }
     /* add rawpacket */
-    rawpkt_ = pgp_rawpacket_t(pkt_);
+    rawpkt_ = rnp::RawPacket(pkt_);
     format = PGP_KEY_STORE_GPG;
 }
 
@@ -702,7 +674,7 @@ pgp_key_t::pgp_key_t(const pgp_key_t &src, bool pubonly)
 
     if (pubonly) {
         pkt_ = pgp_key_pkt_t(src.pkt_, true);
-        rawpkt_ = pgp_rawpacket_t(pkt_);
+        rawpkt_ = rnp::RawPacket(pkt_);
     } else {
         pkt_ = src.pkt_;
         rawpkt_ = src.rawpkt_;
@@ -1494,20 +1466,20 @@ pgp_key_t::rawpkt_count() const
     return 1 + uid_count() + sig_count();
 }
 
-pgp_rawpacket_t &
+rnp::RawPacket &
 pgp_key_t::rawpkt()
 {
     return rawpkt_;
 }
 
-const pgp_rawpacket_t &
+const rnp::RawPacket &
 pgp_key_t::rawpkt() const
 {
     return rawpkt_;
 }
 
 void
-pgp_key_t::set_rawpkt(const pgp_rawpacket_t &src)
+pgp_key_t::set_rawpkt(const rnp::RawPacket &src)
 {
     rawpkt_ = src;
 }

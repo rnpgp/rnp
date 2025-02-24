@@ -131,13 +131,10 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
 
     // confirm that packets[0] is no longer encrypted
     {
-        pgp_source_t     memsrc = {};
-        auto             ks = new rnp::KeyStore(global_ctx);
-        pgp_rawpacket_t &pkt = key->rawpkt();
+        auto              ks = new rnp::KeyStore(global_ctx);
+        rnp::MemorySource memsrc(key->rawpkt().data());
 
-        assert_rnp_success(init_mem_src(&memsrc, pkt.raw.data(), pkt.raw.size(), false));
-        assert_rnp_success(ks->load_pgp(memsrc));
-        memsrc.close();
+        assert_rnp_success(ks->load_pgp(memsrc.src()));
 
         // grab the first key
         pgp_key_t *reloaded_key = NULL;
@@ -267,19 +264,14 @@ TEST_F(rnp_tests, test_key_protect_sec_data)
     assert_int_not_equal(memcmp(raw_ssub, ssub.pkt().sec_data, 32), 0);
     /* make sure rawpkt is also protected */
     skeypkt = new pgp_key_pkt_t();
-    pgp_source_t memsrc = {};
-    assert_rnp_success(
-      init_mem_src(&memsrc, skey.rawpkt().raw.data(), skey.rawpkt().raw.size(), false));
-    assert_rnp_success(skeypkt->parse(memsrc));
-    memsrc.close();
+    rnp::MemorySource skeysrc(skey.rawpkt().data());
+    assert_rnp_success(skeypkt->parse(skeysrc.src()));
     assert_int_not_equal(memcmp(raw_skey, skeypkt->sec_data, 32), 0);
     assert_int_equal(skeypkt->sec_protection.s2k.specifier, PGP_S2KS_ITERATED_AND_SALTED);
     delete skeypkt;
     ssubpkt = new pgp_key_pkt_t();
-    assert_rnp_success(
-      init_mem_src(&memsrc, ssub.rawpkt().raw.data(), ssub.rawpkt().raw.size(), false));
-    assert_rnp_success(ssubpkt->parse(memsrc));
-    memsrc.close();
+    rnp::MemorySource ssubsrc(ssub.rawpkt().data());
+    assert_rnp_success(ssubpkt->parse(ssubsrc.src()));
     assert_int_not_equal(memcmp(raw_ssub, ssubpkt->sec_data, 32), 0);
     assert_int_equal(ssubpkt->sec_protection.s2k.specifier, PGP_S2KS_ITERATED_AND_SALTED);
     delete ssubpkt;
@@ -308,18 +300,14 @@ TEST_F(rnp_tests, test_key_protect_sec_data)
     assert_true(ssub.lock());
     /* make sure rawpkt is also protected */
     skeypkt = new pgp_key_pkt_t();
-    assert_rnp_success(
-      init_mem_src(&memsrc, skey.rawpkt().raw.data(), skey.rawpkt().raw.size(), false));
-    assert_rnp_success(skeypkt->parse(memsrc));
-    memsrc.close();
+    rnp::MemorySource skey2src(skey.rawpkt().data());
+    assert_rnp_success(skeypkt->parse(skey2src.src()));
     assert_int_not_equal(memcmp(raw_skey, skeypkt->sec_data, 32), 0);
     assert_int_equal(skeypkt->sec_protection.s2k.specifier, PGP_S2KS_ITERATED_AND_SALTED);
     delete skeypkt;
     ssubpkt = new pgp_key_pkt_t();
-    assert_rnp_success(
-      init_mem_src(&memsrc, ssub.rawpkt().raw.data(), ssub.rawpkt().raw.size(), false));
-    assert_rnp_success(ssubpkt->parse(memsrc));
-    memsrc.close();
+    rnp::MemorySource ssub2src(ssub.rawpkt().data());
+    assert_rnp_success(ssubpkt->parse(ssub2src.src()));
     assert_int_not_equal(memcmp(raw_ssub, ssubpkt->sec_data, 32), 0);
     assert_int_equal(ssubpkt->sec_protection.s2k.specifier, PGP_S2KS_ITERATED_AND_SALTED);
     delete ssubpkt;
