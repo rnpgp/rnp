@@ -190,10 +190,10 @@ class KeyStore {
      * @return pointer to the newly added signature or nullptr if error occurred (key not
      *         found, whatever else).
      */
-    pgp_subsig_t *add_key_sig(const pgp_fingerprint_t &keyfp,
-                              const pgp_signature_t &  sig,
-                              const pgp_userid_pkt_t * uid,
-                              bool                     front);
+    rnp::Signature *add_key_sig(const pgp_fingerprint_t &keyfp,
+                                const pgp_signature_t &  sig,
+                                const pgp_userid_pkt_t * uid,
+                                bool                     front);
 
     /**
      * @brief Add transferable key to the keystore.

@@ -41,25 +41,9 @@
 #include "signature.hpp"
 #include "sec_profile.hpp"
 
-/** information about the signature */
-typedef struct pgp_subsig_t {
-    uint32_t         uid{};    /* index in userid array in key for certification sig */
-    pgp_signature_t  sig{};    /* signature packet */
-    pgp_sig_id_t     sigid{};  /* signature identifier */
-    rnp::RawPacket   rawpkt;   /* signature's rawpacket */
-    rnp::SigValidity validity; /* signature validity information */
-
-    pgp_subsig_t() = delete;
-    pgp_subsig_t(const pgp_signature_t &sig);
-
-    /** @brief Returns true if signature is certification */
-    bool is_cert() const;
-    bool is_revocation() const;
-    /** @brief Returns true if signature is expired */
-    bool expired(uint64_t at) const;
-} pgp_subsig_t;
-
-typedef std::unordered_map<pgp_sig_id_t, pgp_subsig_t> pgp_sig_map_t;
+namespace rnp {
+using SignatureMap = std::unordered_map<pgp_sig_id_t, Signature>;
+}
 
 /* userid, built on top of userid packet structure */
 typedef struct pgp_userid_t {
@@ -95,12 +79,12 @@ class BindingParams;
 /* describes a user's key */
 struct pgp_key_t {
   private:
-    pgp_sig_map_t             sigs_map_{}; /* map with subsigs stored by their id */
-    std::vector<pgp_sig_id_t> sigs_{};     /* subsig ids to lookup actual sig in map */
-    std::vector<pgp_sig_id_t> keysigs_{};  /* direct-key signature ids in the original order */
-    std::vector<pgp_userid_t> uids_{};     /* array of user ids */
-    pgp_key_pkt_t             pkt_{};      /* pubkey/seckey data packet */
-    uint8_t                   flags_{};    /* key flags */
+    rnp::SignatureMap         sigs_map_;  /* map with subsigs stored by their id */
+    std::vector<pgp_sig_id_t> sigs_{};    /* subsig ids to lookup actual sig in map */
+    std::vector<pgp_sig_id_t> keysigs_{}; /* direct-key signature ids in the original order */
+    std::vector<pgp_userid_t> uids_{};    /* array of user ids */
+    pgp_key_pkt_t             pkt_{};     /* pubkey/seckey data packet */
+    uint8_t                   flags_{};   /* key flags */
     uint32_t                  expiration_{}; /* key expiration time, if available */
     pgp_key_id_t              keyid_{};
     pgp_fingerprint_t         fingerprint_{};
@@ -118,14 +102,14 @@ struct pgp_key_t {
     pgp_validity_t                 validity_{};   /* key's validity */
     uint64_t                       valid_till_{}; /* date till which key is/was valid */
 
-    pgp_subsig_t *latest_uid_selfcert(uint32_t uid);
-    void          validate_primary(rnp::KeyStore &keyring);
-    void          merge_validity(const pgp_validity_t &src);
-    uint64_t      valid_till_common(bool expiry) const;
-    bool          write_sec_pgp(pgp_dest_t &       dst,
-                                pgp_key_pkt_t &    seckey,
-                                const std::string &password,
-                                rnp::RNG &         rng);
+    rnp::Signature *latest_uid_selfcert(uint32_t uid);
+    void            validate_primary(rnp::KeyStore &keyring);
+    void            merge_validity(const pgp_validity_t &src);
+    uint64_t        valid_till_common(bool expiry) const;
+    bool            write_sec_pgp(pgp_dest_t &       dst,
+                                  pgp_key_pkt_t &    seckey,
+                                  const std::string &password,
+                                  rnp::RNG &         rng);
 
   public:
     pgp_key_store_format_t format{}; /* the format of the key in packets[0] */
@@ -139,36 +123,36 @@ struct pgp_key_t {
     pgp_key_t &operator=(const pgp_key_t &) = default;
     pgp_key_t &operator=(pgp_key_t &&) = default;
 
-    size_t              sig_count() const;
-    pgp_subsig_t &      get_sig(size_t idx);
-    const pgp_subsig_t &get_sig(size_t idx) const;
-    bool                has_sig(const pgp_sig_id_t &id) const;
-    pgp_subsig_t &      replace_sig(const pgp_sig_id_t &id, const pgp_signature_t &newsig);
-    pgp_subsig_t &      get_sig(const pgp_sig_id_t &id);
-    const pgp_subsig_t &get_sig(const pgp_sig_id_t &id) const;
-    pgp_subsig_t &      add_sig(const pgp_signature_t &sig,
-                                size_t                 uid = PGP_UID_NONE,
-                                bool                   begin = false);
-    bool                del_sig(const pgp_sig_id_t &sigid);
-    size_t              del_sigs(const std::vector<pgp_sig_id_t> &sigs);
-    size_t              keysig_count() const;
-    pgp_subsig_t &      get_keysig(size_t idx);
-    size_t              uid_count() const;
-    pgp_userid_t &      get_uid(size_t idx);
-    const pgp_userid_t &get_uid(size_t idx) const;
-    size_t              get_uid_idx(const pgp_userid_pkt_t &uid) const;
-    pgp_userid_t &      add_uid(const pgp_transferable_userid_t &uid);
-    bool                has_uid(const std::string &uid) const;
-    uint32_t            uid_idx(const pgp_userid_pkt_t &uid) const;
-    void                del_uid(size_t idx);
-    bool                has_primary_uid() const;
-    uint32_t            get_primary_uid() const;
-    bool                revoked() const;
-    const pgp_revoke_t &revocation() const;
-    void                clear_revokes();
-    void                add_revoker(const pgp_fingerprint_t &revoker);
-    bool                has_revoker(const pgp_fingerprint_t &revoker) const;
-    size_t              revoker_count() const;
+    size_t                sig_count() const;
+    rnp::Signature &      get_sig(size_t idx);
+    const rnp::Signature &get_sig(size_t idx) const;
+    bool                  has_sig(const pgp_sig_id_t &id) const;
+    rnp::Signature &      replace_sig(const pgp_sig_id_t &id, const pgp_signature_t &newsig);
+    rnp::Signature &      get_sig(const pgp_sig_id_t &id);
+    const rnp::Signature &get_sig(const pgp_sig_id_t &id) const;
+    rnp::Signature &      add_sig(const pgp_signature_t &sig,
+                                  size_t                 uid = PGP_UID_NONE,
+                                  bool                   begin = false);
+    bool                  del_sig(const pgp_sig_id_t &sigid);
+    size_t                del_sigs(const std::vector<pgp_sig_id_t> &sigs);
+    size_t                keysig_count() const;
+    rnp::Signature &      get_keysig(size_t idx);
+    size_t                uid_count() const;
+    pgp_userid_t &        get_uid(size_t idx);
+    const pgp_userid_t &  get_uid(size_t idx) const;
+    size_t                get_uid_idx(const pgp_userid_pkt_t &uid) const;
+    pgp_userid_t &        add_uid(const pgp_transferable_userid_t &uid);
+    bool                  has_uid(const std::string &uid) const;
+    uint32_t              uid_idx(const pgp_userid_pkt_t &uid) const;
+    void                  del_uid(size_t idx);
+    bool                  has_primary_uid() const;
+    uint32_t              get_primary_uid() const;
+    bool                  revoked() const;
+    const pgp_revoke_t &  revocation() const;
+    void                  clear_revokes();
+    void                  add_revoker(const pgp_fingerprint_t &revoker);
+    bool                  has_revoker(const pgp_fingerprint_t &revoker) const;
+    size_t                revoker_count() const;
     const pgp_fingerprint_t &get_revoker(size_t idx) const;
 
     const pgp_key_pkt_t &   pkt() const noexcept;
@@ -329,7 +313,7 @@ struct pgp_key_t {
      * @param validated set to true whether signature must be validated
      * @return pointer to signature object or NULL if failed/not found.
      */
-    pgp_subsig_t *latest_selfsig(uint32_t uid, bool validated = true);
+    rnp::Signature *latest_selfsig(uint32_t uid, bool validated = true);
 
     /**
      * @brief Get the latest valid subkey binding. Should be called on subkey.
@@ -337,28 +321,28 @@ struct pgp_key_t {
      * @param validated set to true whether binding signature must be validated
      * @return pointer to signature object or NULL if failed/not found.
      */
-    pgp_subsig_t *latest_binding(bool validated = true);
+    rnp::Signature *latest_binding(bool validated = true);
 
     /** @brief Returns true if signature is produced by the key itself. */
-    bool is_signer(const pgp_subsig_t &sig) const;
+    bool is_signer(const rnp::Signature &sig) const;
 
     /** @brief Returns true if key is expired according to sig. */
-    bool expired_with(const pgp_subsig_t &sig, uint64_t at) const;
+    bool expired_with(const rnp::Signature &sig, uint64_t at) const;
 
     /** @brief Check whether signature is key's self certification. */
-    bool is_self_cert(const pgp_subsig_t &sig) const;
+    bool is_self_cert(const rnp::Signature &sig) const;
 
     /** @brief Check whether signature is key's direct-key self-signature */
-    bool is_direct_self(const pgp_subsig_t &sig) const;
+    bool is_direct_self(const rnp::Signature &sig) const;
 
     /** @brief Check whether signature is key's/subkey's revocation */
-    bool is_revocation(const pgp_subsig_t &sig) const;
+    bool is_revocation(const rnp::Signature &sig) const;
 
     /** @brief Check whether signature is userid revocation */
-    bool is_uid_revocation(const pgp_subsig_t &sig) const;
+    bool is_uid_revocation(const rnp::Signature &sig) const;
 
     /** @brief Check whether signature is subkey binding */
-    bool is_binding(const pgp_subsig_t &sig) const;
+    bool is_binding(const rnp::Signature &sig) const;
 
     /**
      * @brief Validate key's signature, assuming that 'this' is a signing key.
@@ -368,7 +352,7 @@ struct pgp_key_t {
      * @param ctx Populated security context.
      */
     void validate_sig(const pgp_key_t &           key,
-                      pgp_subsig_t &              sig,
+                      rnp::Signature &            sig,
                       const rnp::SecurityContext &ctx) const noexcept;
 
     /**
