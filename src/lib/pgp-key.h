@@ -37,31 +37,16 @@
 #include "../librepgp/stream-packet.h"
 #include "crypto/symmetric.h"
 #include "types.h"
+#include "rawpacket.hpp"
 #include "signature.hpp"
 #include "sec_profile.hpp"
-
-/** pgp_rawpacket_t */
-typedef struct pgp_rawpacket_t {
-    pgp_pkt_type_t       tag;
-    std::vector<uint8_t> raw;
-
-    pgp_rawpacket_t() = default;
-    pgp_rawpacket_t(const uint8_t *data, size_t len, pgp_pkt_type_t tag)
-        : tag(tag),
-          raw(data ? std::vector<uint8_t>(data, data + len) : std::vector<uint8_t>()){};
-    pgp_rawpacket_t(const pgp_signature_t &sig);
-    pgp_rawpacket_t(pgp_key_pkt_t &key);
-    pgp_rawpacket_t(const pgp_userid_pkt_t &uid);
-
-    void write(pgp_dest_t &dst) const;
-} pgp_rawpacket_t;
 
 /** information about the signature */
 typedef struct pgp_subsig_t {
     uint32_t         uid{};    /* index in userid array in key for certification sig */
     pgp_signature_t  sig{};    /* signature packet */
     pgp_sig_id_t     sigid{};  /* signature identifier */
-    pgp_rawpacket_t  rawpkt{}; /* signature's rawpacket */
+    rnp::RawPacket   rawpkt;   /* signature's rawpacket */
     rnp::SigValidity validity; /* signature validity information */
 
     pgp_subsig_t() = delete;
@@ -82,7 +67,7 @@ typedef struct pgp_userid_t {
     std::vector<pgp_sig_id_t> sigs_{}; /* all signatures related to this userid */
   public:
     pgp_userid_pkt_t pkt{};    /* User ID or User Attribute packet as it was loaded */
-    pgp_rawpacket_t  rawpkt{}; /* Raw packet contents */
+    rnp::RawPacket   rawpkt{}; /* Raw packet contents */
     std::string      str{};    /* Human-readable representation of the userid */
     bool         valid{}; /* User ID is valid, i.e. has valid, non-expired self-signature */
     bool         revoked{};
@@ -123,12 +108,12 @@ struct pgp_key_t {
     pgp_fingerprint_t         primary_fp_{}; /* fingerprint of the primary key (for subkeys) */
     bool                      primary_fp_set_{};
     std::vector<pgp_fingerprint_t>
-                    subkey_fps_{}; /* array of subkey fingerprints (for primary keys) */
-    pgp_rawpacket_t rawpkt_{};     /* key raw packet */
-    uint32_t        uid0_{};       /* primary uid index in uids array */
-    bool            uid0_set_{};   /* flag for the above */
-    bool            revoked_{};    /* key has been revoked */
-    pgp_revoke_t    revocation_{}; /* revocation reason */
+                   subkey_fps_{}; /* array of subkey fingerprints (for primary keys) */
+    rnp::RawPacket rawpkt_;       /* key raw packet */
+    uint32_t       uid0_{};       /* primary uid index in uids array */
+    bool           uid0_set_{};   /* flag for the above */
+    bool           revoked_{};    /* key has been revoked */
+    pgp_revoke_t   revocation_{}; /* revocation reason */
     std::vector<pgp_fingerprint_t> revokers_{};
     pgp_validity_t                 validity_{};   /* key's validity */
     uint64_t                       valid_till_{}; /* date till which key is/was valid */
@@ -269,10 +254,10 @@ struct pgp_key_t {
     const pgp_fingerprint_t &             get_subkey_fp(size_t idx) const;
     const std::vector<pgp_fingerprint_t> &subkey_fps() const;
 
-    size_t                 rawpkt_count() const;
-    pgp_rawpacket_t &      rawpkt();
-    const pgp_rawpacket_t &rawpkt() const;
-    void                   set_rawpkt(const pgp_rawpacket_t &src);
+    size_t                rawpkt_count() const;
+    rnp::RawPacket &      rawpkt();
+    const rnp::RawPacket &rawpkt() const;
+    void                  set_rawpkt(const rnp::RawPacket &src);
     /** @brief write secret key data to the rawpkt, optionally encrypting with password */
     bool write_sec_rawpkt(pgp_key_pkt_t &       seckey,
                           const std::string &   password,
@@ -623,9 +608,9 @@ class KeyLocker {
 };
 }; // namespace rnp
 
-pgp_key_pkt_t *pgp_decrypt_seckey_pgp(const pgp_rawpacket_t &raw,
-                                      const pgp_key_pkt_t &  key,
-                                      const char *           password);
+pgp_key_pkt_t *pgp_decrypt_seckey_pgp(const rnp::RawPacket &raw,
+                                      const pgp_key_pkt_t & key,
+                                      const char *          password);
 
 pgp_key_pkt_t *pgp_decrypt_seckey(const pgp_key_t &,
                                   const pgp_password_provider_t &,
