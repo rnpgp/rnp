@@ -238,9 +238,11 @@ typedef enum {
     PGP_LDT_LOCAL2 = '1'
 } pgp_litdata_enum;
 
-/* user revocation info */
-typedef struct pgp_subsig_t pgp_subsig_t;
+namespace rnp {
+class Signature;
+}
 
+/* user revocation info */
 typedef struct pgp_revoke_t {
     uint32_t              uid{};   /* index in uid array */
     pgp_revocation_type_t code{};  /* revocation code */
@@ -248,7 +250,7 @@ typedef struct pgp_revoke_t {
     pgp_sig_id_t          sigid{}; /* id of the corresponding subsig */
 
     pgp_revoke_t() = default;
-    pgp_revoke_t(pgp_subsig_t &sig);
+    pgp_revoke_t(rnp::Signature &sig);
 } pgp_revoke_t;
 
 typedef struct rnp_key_protection_params_t {

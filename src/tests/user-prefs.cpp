@@ -31,7 +31,7 @@
 #include "pgp-key.h"
 #include "keygen.hpp"
 
-static const pgp_subsig_t *
+static const rnp::Signature *
 find_subsig(const pgp_key_t *key, const char *userid)
 {
     // find the userid index
@@ -47,7 +47,7 @@ find_subsig(const pgp_key_t *key, const char *userid)
     }
     // find the subsig index
     for (size_t i = 0; i < key->sig_count(); i++) {
-        const pgp_subsig_t &subsig = key->get_sig(i);
+        auto &subsig = key->get_sig(i);
         if ((int) subsig.uid == uididx) {
             return &subsig;
         }
@@ -69,7 +69,7 @@ TEST_F(rnp_tests, test_load_user_prefs)
         pgp_key_t *key = NULL;
         assert_non_null(key = rnp_tests_key_search(pubring, userid));
 
-        const pgp_subsig_t *subsig = find_subsig(key, userid);
+        auto subsig = find_subsig(key, userid);
         assert_non_null(subsig);
 
         const rnp::UserPrefs prefs(subsig->sig);
@@ -97,7 +97,7 @@ TEST_F(rnp_tests, test_load_user_prefs)
         pgp_key_t *key = NULL;
         assert_non_null(key = rnp_tests_key_search(pubring, userid));
 
-        const pgp_subsig_t *subsig = find_subsig(key, userid);
+        auto subsig = find_subsig(key, userid);
         assert_non_null(subsig);
 
         const rnp::UserPrefs prefs(subsig->sig);

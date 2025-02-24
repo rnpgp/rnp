@@ -24,10 +24,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef RNP_SIG_HPP_
-#define RNP_SIG_HPP_
+#ifndef RNP_SIGNATURE_HPP_
+#define RNP_SIGNATURE_HPP_
 
 #include <vector>
+#include "librepgp/stream-sig.h"
+#include "rawpacket.hpp"
 
 namespace rnp {
 
@@ -113,6 +115,24 @@ class SignatureInfo {
     bool             ignore_sig_expiry{}; /* we ignore expiration for revocations */
     pgp_signature_t *sig{};               /* signature, or NULL if there were parsing error */
     SigValidity      validity;
+};
+
+class Signature {
+  public:
+    uint32_t        uid{};    /* index in userid array in key for certification sig */
+    pgp_signature_t sig{};    /* signature packet */
+    pgp_sig_id_t    sigid{};  /* signature identifier */
+    RawPacket       raw;      /* signature's rawpacket */
+    SigValidity     validity; /* signature validity information */
+
+    Signature() = delete;
+    Signature(const pgp_signature_t &sig);
+
+    /** @brief Returns true if signature is certification */
+    bool is_cert() const;
+    bool is_revocation() const;
+    /** @brief Returns true if signature is expired */
+    bool expired(uint64_t at) const;
 };
 
 } // namespace rnp
