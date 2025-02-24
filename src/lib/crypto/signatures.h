@@ -29,6 +29,7 @@
 
 #include "crypto/hash.hpp"
 #include "key_material.hpp"
+#include "signature.hpp"
 
 /**
  * @brief Initialize a signature computation.
@@ -53,10 +54,6 @@ void signature_calculate(pgp_signature_t &        sig,
                          rnp::Hash &              hash,
                          rnp::SecurityContext &   ctx,
                          const pgp_literal_hdr_t *hdr = NULL);
-
-namespace rnp {
-class SigValidity;
-}
 
 /**
  * @brief Validate a signature with pre-populated hash. This method just checks correspondence

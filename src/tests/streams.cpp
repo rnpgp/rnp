@@ -992,10 +992,10 @@ TEST_F(rnp_tests, test_stream_key_encrypt)
 
 TEST_F(rnp_tests, test_stream_key_signatures)
 {
-    pgp_source_t         keysrc = {0};
-    pgp_key_sequence_t   keyseq;
-    pgp_key_t *          pkey = NULL;
-    pgp_signature_info_t sinfo = {};
+    pgp_source_t       keysrc = {0};
+    pgp_key_sequence_t keyseq;
+    pgp_key_t *        pkey = NULL;
+    rnp::SignatureInfo sinfo;
 
     /* v3 public key */
     auto pubring =
