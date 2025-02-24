@@ -384,6 +384,7 @@ add_library(librnp-obj OBJECT
   json-utils.cpp
   utils.cpp
   pass-provider.cpp
+  rawpacket.cpp
   sig_subpacket.cpp
   key_material.cpp
   enc_material.cpp

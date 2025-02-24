@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2025 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,9 +11,9 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE RIBOSE, INC. AND CONTRIBUTORS ``AS IS''
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
@@ -23,19 +23,39 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef RNP_RAWPACKET_HPP_
+#define RNP_RAWPACKET_HPP_
 
-#ifndef RNP_KEY_STORE_G10_H
-#define RNP_KEY_STORE_G10_H
+#include <vector>
+#include "types.h"
+#include "librepgp/stream-common.h"
 
-#include <rekey/rnp_key_store.h>
+namespace rnp {
+class RawPacket {
+    pgp_pkt_type_t       tag_;
+    std::vector<uint8_t> data_;
 
-bool           rnp_key_store_gnupg_sexp_to_dst(pgp_key_t &, pgp_dest_t &);
-bool           g10_write_seckey(pgp_dest_t *          dst,
-                                pgp_key_pkt_t *       seckey,
-                                const char *          password,
-                                rnp::SecurityContext &ctx);
-pgp_key_pkt_t *g10_decrypt_seckey(const rnp::RawPacket &raw,
-                                  const pgp_key_pkt_t & pubkey,
-                                  const char *          password);
+  public:
+    RawPacket() : tag_(PGP_PKT_RESERVED){};
+    RawPacket(const uint8_t *data, size_t len, pgp_pkt_type_t atag);
+    RawPacket(const pgp_signature_t &sig);
+    RawPacket(pgp_key_pkt_t &key);
+    RawPacket(const pgp_userid_pkt_t &uid);
 
-#endif // RNP_KEY_STORE_G10_H
+    const std::vector<uint8_t> &
+    data() const noexcept
+    {
+        return data_;
+    }
+
+    pgp_pkt_type_t
+    tag() const noexcept
+    {
+        return tag_;
+    }
+
+    void write(pgp_dest_t &dst) const;
+};
+} // namespace rnp
+
+#endif
