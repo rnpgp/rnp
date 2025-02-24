@@ -1,52 +1,27 @@
 /*
- * Copyright (c) 2017-2022 [Ribose Inc](https://www.ribose.com).
- * Copyright (c) 2009 The NetBSD Foundation, Inc.
+ * Copyright (c) 2017-2024 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
- * This code is originally derived from software contributed to
- * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
- * carried further by Ribose Inc (https://www.ribose.com).
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * 1.  Redistributions of source code must retain the above copyright notice,
+ *     this list of conditions and the following disclaimer.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-/*
- * Copyright (c) 2005-2008 Nominet UK (www.nic.uk)
- * All rights reserved.
- * Contributors: Ben Laurie, Rachel Willmer. The Contributors have asserted
- * their moral rights under the UK Copyright Design and Patents Act 1988 to
- * be recorded as the authors of this copyright work.
+ * 2.  Redistributions in binary form must reproduce the above copyright notice,
+ *     this list of conditions and the following disclaimer in the documentation
+ *     and/or other materials provided with the distribution.
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License.
- *
- * You may obtain a copy of the License at
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "pgp-key.h"
@@ -1943,7 +1918,7 @@ pgp_key_t::validate_sig(const pgp_key_t &           key,
 {
     sig.validity.reset();
 
-    pgp_signature_info_t sinfo = {};
+    rnp::SignatureInfo sinfo;
     sinfo.sig = &sig.sig;
     sinfo.signer_valid = true;
     sinfo.ignore_expiry = key.is_self_cert(sig) || key.is_binding(sig);
@@ -2019,7 +1994,7 @@ pgp_key_t::validate_sig(const pgp_key_t &           key,
 }
 
 void
-pgp_key_t::validate_sig(pgp_signature_info_t &      sinfo,
+pgp_key_t::validate_sig(rnp::SignatureInfo &        sinfo,
                         rnp::Hash &                 hash,
                         const rnp::SecurityContext &ctx,
                         const pgp_literal_hdr_t *   hdr) const noexcept
@@ -2085,7 +2060,7 @@ pgp_key_t::validate_sig(pgp_signature_info_t &      sinfo,
 }
 
 void
-pgp_key_t::validate_cert(pgp_signature_info_t &      sinfo,
+pgp_key_t::validate_cert(rnp::SignatureInfo &        sinfo,
                          const pgp_key_pkt_t &       key,
                          const pgp_userid_pkt_t &    uid,
                          const rnp::SecurityContext &ctx) const
@@ -2095,7 +2070,7 @@ pgp_key_t::validate_cert(pgp_signature_info_t &      sinfo,
 }
 
 void
-pgp_key_t::validate_binding(pgp_signature_info_t &      sinfo,
+pgp_key_t::validate_binding(rnp::SignatureInfo &        sinfo,
                             const pgp_key_t &           subkey,
                             const rnp::SecurityContext &ctx) const
 {
@@ -2137,7 +2112,7 @@ pgp_key_t::validate_binding(pgp_signature_info_t &      sinfo,
     }
 
     hash = signature_hash_binding(*sub->signature(), pkt(), subkey.pkt());
-    pgp_signature_info_t bindinfo = {};
+    rnp::SignatureInfo bindinfo;
     bindinfo.sig = sub->signature();
     bindinfo.signer_valid = true;
     bindinfo.ignore_expiry = true;
@@ -2151,7 +2126,7 @@ pgp_key_t::validate_binding(pgp_signature_info_t &      sinfo,
 }
 
 void
-pgp_key_t::validate_sub_rev(pgp_signature_info_t &      sinfo,
+pgp_key_t::validate_sub_rev(rnp::SignatureInfo &        sinfo,
                             const pgp_key_pkt_t &       subkey,
                             const rnp::SecurityContext &ctx) const
 {
@@ -2160,14 +2135,14 @@ pgp_key_t::validate_sub_rev(pgp_signature_info_t &      sinfo,
 }
 
 void
-pgp_key_t::validate_direct(pgp_signature_info_t &sinfo, const rnp::SecurityContext &ctx) const
+pgp_key_t::validate_direct(rnp::SignatureInfo &sinfo, const rnp::SecurityContext &ctx) const
 {
     auto hash = signature_hash_direct(*sinfo.sig, pkt());
     validate_sig(sinfo, *hash, ctx);
 }
 
 void
-pgp_key_t::validate_key_rev(pgp_signature_info_t &      sinfo,
+pgp_key_t::validate_key_rev(rnp::SignatureInfo &        sinfo,
                             const pgp_key_pkt_t &       key,
                             const rnp::SecurityContext &ctx) const
 {

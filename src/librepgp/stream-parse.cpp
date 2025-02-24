@@ -150,11 +150,11 @@ typedef struct pgp_source_signed_param_t {
     pgp_literal_hdr_t lhdr{};
     bool              has_lhdr = false;
 
-    std::vector<pgp_one_pass_sig_t>   onepasses;  /* list of one-pass signatures */
-    std::list<pgp_signature_t>        sigs;       /* list of signatures */
-    std::vector<pgp_signature_info_t> siginfos;   /* signature validation info */
-    rnp::HashList                     hashes;     /* hash contexts */
-    rnp::HashList                     txt_hashes; /* hash contexts for text-mode sigs */
+    std::vector<pgp_one_pass_sig_t> onepasses;  /* list of one-pass signatures */
+    std::list<pgp_signature_t>      sigs;       /* list of signatures */
+    std::vector<rnp::SignatureInfo> siginfos;   /* signature validation info */
+    rnp::HashList                   hashes;     /* hash contexts */
+    rnp::HashList                   txt_hashes; /* hash contexts for text-mode sigs */
 
     pgp_source_signed_param_t() = default;
     ~pgp_source_signed_param_t() = default;
@@ -858,7 +858,7 @@ add_hash_for_sig(pgp_source_signed_param_t *param, pgp_sig_type_t stype, pgp_has
 }
 
 static const rnp::Hash *
-get_hash_for_sig(pgp_source_signed_param_t &param, pgp_signature_info_t &sinfo)
+get_hash_for_sig(pgp_source_signed_param_t &param, rnp::SignatureInfo &sinfo)
 {
     /* Cleartext always uses param->hashes instead of param->txt_hashes */
     if (!param.cleartext && (sinfo.sig->type() == PGP_SIG_TEXT)) {
@@ -868,7 +868,7 @@ get_hash_for_sig(pgp_source_signed_param_t &param, pgp_signature_info_t &sinfo)
 }
 
 static void
-signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t &sinfo)
+signed_validate_signature(pgp_source_signed_param_t &param, rnp::SignatureInfo &sinfo)
 {
     /* Check signature type */
     if (!sinfo.sig->is_document()) {
@@ -1068,8 +1068,8 @@ signed_read_single_signature(pgp_source_signed_param_t *param,
 
     try {
         param->siginfos.emplace_back();
-        pgp_signature_info_t &siginfo = param->siginfos.back();
-        pgp_signature_t       readsig;
+        rnp::SignatureInfo &siginfo = param->siginfos.back();
+        pgp_signature_t     readsig;
         if (readsig.parse(*readsrc)) {
             RNP_LOG("failed to parse signature");
             siginfo.validity.add_error(RNP_ERROR_SIG_PARSE_ERROR);

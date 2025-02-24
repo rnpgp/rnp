@@ -3119,7 +3119,7 @@ try {
 FFI_GUARD
 
 static void
-rnp_op_verify_on_signatures(const std::vector<pgp_signature_info_t> &sigs, void *param)
+rnp_op_verify_on_signatures(const std::vector<rnp::SignatureInfo> &sigs, void *param)
 {
     rnp_op_verify_t op = (rnp_op_verify_t) param;
 
