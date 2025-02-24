@@ -3236,7 +3236,7 @@ TEST_F(rnp_tests, test_ffi_v6_cert_import)
 
     for (pgp_key_t key : ffi->pubring->keys) {
         /* get first sig and its issuer fpr subpacket */
-        pgp_subsig_t subsig = key.get_sig(0);
+        rnp::Signature subsig = key.get_sig(0);
         auto issuer_fpr = subsig.sig.get_subpkt(pgp::pkt::sigsub::Type::IssuerFingerprint);
         assert_non_null(issuer_fpr);
 
