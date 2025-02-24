@@ -6919,7 +6919,38 @@ try {
     if (ssig->validity.expired()) {
         return RNP_ERROR_SIGNATURE_EXPIRED;
     }
+    if (ssig->validity.no_signer()) {
+        return RNP_ERROR_KEY_NOT_FOUND;
+    }
     return ssig->validity.valid() ? RNP_SUCCESS : RNP_ERROR_SIGNATURE_INVALID;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_signature_error_count(rnp_signature_handle_t sig, size_t *count)
+try {
+    if (!sig || !count) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->sig->validity.validated()) {
+        return RNP_ERROR_VERIFICATION_FAILED;
+    }
+    *count = sig->sig->validity.errors().size();
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_signature_error_at(rnp_signature_handle_t sig, size_t idx, rnp_result_t *error)
+try {
+    if (!sig || !error) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (idx >= sig->sig->validity.errors().size()) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *error = sig->sig->validity.errors().at(idx);
+    return RNP_SUCCESS;
 }
 FFI_GUARD
 
