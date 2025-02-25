@@ -283,7 +283,7 @@ pgp_key_set_expiration(pgp_key_t *                    key,
     std::vector<pgp_sig_id_t> sigs;
     /* update expiration for the latest direct-key signature and self-signature for each userid
      */
-    auto sig = key->latest_selfsig(PGP_UID_NONE, false);
+    auto sig = key->latest_selfsig(rnp::UserID::None, false);
     if (sig) {
         sigs.push_back(sig->sigid);
     }
@@ -493,74 +493,6 @@ pgp_validity_t::reset()
     expired = false;
 }
 
-pgp_userid_t::pgp_userid_t(const pgp_userid_pkt_t &uidpkt)
-{
-    /* copy packet data */
-    pkt = uidpkt;
-    rawpkt = rnp::RawPacket(uidpkt);
-    /* populate uid string */
-    if (uidpkt.tag == PGP_PKT_USER_ID) {
-        str.assign(uidpkt.uid.data(), uidpkt.uid.data() + uidpkt.uid.size());
-    } else {
-        str = "(photo)";
-    }
-}
-
-size_t
-pgp_userid_t::sig_count() const
-{
-    return sigs_.size();
-}
-
-const pgp_sig_id_t &
-pgp_userid_t::get_sig(size_t idx) const
-{
-    if (idx >= sigs_.size()) {
-        throw std::out_of_range("idx");
-    }
-    return sigs_[idx];
-}
-
-bool
-pgp_userid_t::has_sig(const pgp_sig_id_t &id) const
-{
-    return std::find(sigs_.begin(), sigs_.end(), id) != sigs_.end();
-}
-
-void
-pgp_userid_t::add_sig(const pgp_sig_id_t &sig, bool begin)
-{
-    size_t idx = begin ? 0 : sigs_.size();
-    sigs_.insert(sigs_.begin() + idx, sig);
-}
-
-void
-pgp_userid_t::replace_sig(const pgp_sig_id_t &id, const pgp_sig_id_t &newsig)
-{
-    auto it = std::find(sigs_.begin(), sigs_.end(), id);
-    if (it == sigs_.end()) {
-        throw std::invalid_argument("id");
-    }
-    *it = newsig;
-}
-
-bool
-pgp_userid_t::del_sig(const pgp_sig_id_t &id)
-{
-    auto it = std::find(sigs_.begin(), sigs_.end(), id);
-    if (it == sigs_.end()) {
-        return false;
-    }
-    sigs_.erase(it);
-    return true;
-}
-
-void
-pgp_userid_t::clear_sigs()
-{
-    sigs_.clear();
-}
-
 pgp_key_t::pgp_key_t(const pgp_key_pkt_t &keypkt) : pkt_(keypkt)
 {
     if (!is_key_pkt(pkt_.tag) || !pkt_.material->alg()) {
@@ -721,7 +653,7 @@ pgp_key_t::replace_sig(const pgp_sig_id_t &id, const pgp_signature_t &newsig)
         throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
     *it = res.sigid;
-    if (uid == PGP_UID_NONE) {
+    if (uid == rnp::UserID::None) {
         auto it = std::find(keysigs_.begin(), keysigs_.end(), oldid);
         if (it == keysigs_.end()) {
             throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
@@ -740,7 +672,7 @@ pgp_key_t::add_sig(const pgp_signature_t &sig, size_t uid, bool begin)
     sigs_map_.erase(sigid);
     auto &res = sigs_map_.emplace(std::make_pair(sigid, sig)).first->second;
     res.uid = uid;
-    if (uid == PGP_UID_NONE) {
+    if (uid == rnp::UserID::None) {
         size_t idx = begin ? 0 : keysigs_.size();
         sigs_.insert(sigs_.begin() + idx, sigid);
         keysigs_.insert(keysigs_.begin() + idx, sigid);
@@ -767,7 +699,7 @@ pgp_key_t::del_sig(const pgp_sig_id_t &sigid)
         return false;
     }
     uint32_t uid = get_sig(sigid).uid;
-    if (uid == PGP_UID_NONE) {
+    if (uid == rnp::UserID::None) {
         /* signature over the key itself */
         auto it = std::find(keysigs_.begin(), keysigs_.end(), sigid);
         if (it != keysigs_.end()) {
@@ -805,7 +737,7 @@ pgp_key_t::del_sigs(const std::vector<pgp_sig_id_t> &sigs)
         }
         newsigs.push_back(sigid);
         uint32_t uid = get_sig(sigid).uid;
-        if (uid == PGP_UID_NONE) {
+        if (uid == rnp::UserID::None) {
             keysigs_.push_back(sigid);
         } else {
             uids_[uid].add_sig(sigid);
@@ -836,7 +768,7 @@ pgp_key_t::uid_count() const
     return uids_.size();
 }
 
-pgp_userid_t &
+rnp::UserID &
 pgp_key_t::get_uid(size_t idx)
 {
     if (idx >= uids_.size()) {
@@ -845,7 +777,7 @@ pgp_key_t::get_uid(size_t idx)
     return uids_[idx];
 }
 
-const pgp_userid_t &
+const rnp::UserID &
 pgp_key_t::get_uid(size_t idx) const
 {
     if (idx >= uids_.size()) {
@@ -862,7 +794,7 @@ pgp_key_t::get_uid_idx(const pgp_userid_pkt_t &uid) const
             return idx;
         }
     }
-    return PGP_UID_NONE;
+    return rnp::UserID::None;
 }
 
 bool
@@ -887,7 +819,7 @@ pgp_key_t::uid_idx(const pgp_userid_pkt_t &uid) const
             return idx;
         }
     }
-    return PGP_UID_NONE;
+    return rnp::UserID::None;
 }
 
 void
@@ -914,7 +846,7 @@ pgp_key_t::del_uid(size_t idx)
         return;
     }
     for (auto &sig : sigs_map_) {
-        if ((sig.second.uid == PGP_UID_NONE) || (sig.second.uid <= idx)) {
+        if ((sig.second.uid == rnp::UserID::None) || (sig.second.uid <= idx)) {
             continue;
         }
         sig.second.uid--;
@@ -936,7 +868,7 @@ pgp_key_t::get_primary_uid() const
     return uid0_;
 }
 
-pgp_userid_t &
+rnp::UserID &
 pgp_key_t::add_uid(const pgp_transferable_userid_t &uid)
 {
     /* construct userid */
@@ -1650,11 +1582,6 @@ pgp_key_t::write_vec() const
     return dst.to_vector();
 }
 
-/* look only for primary userids */
-#define PGP_UID_PRIMARY ((uint32_t) -2)
-/* look for any uid, except PGP_UID_NONE) */
-#define PGP_UID_ANY ((uint32_t) -3)
-
 rnp::Signature *
 pgp_key_t::latest_selfsig(uint32_t uid, bool validated)
 {
@@ -1668,17 +1595,17 @@ pgp_key_t::latest_selfsig(uint32_t uid, bool validated)
         }
         bool skip = false;
         switch (uid) {
-        case PGP_UID_NONE:
-            skip = (sig.uid != PGP_UID_NONE) || !is_direct_self(sig);
+        case rnp::UserID::None:
+            skip = (sig.uid != rnp::UserID::None) || !is_direct_self(sig);
             break;
-        case PGP_UID_PRIMARY: {
+        case rnp::UserID::Primary: {
             skip = !is_self_cert(sig) ||
                    !sig.sig.get_subpkt(pgp::pkt::sigsub::Type::PrimaryUserID) ||
-                   !sig.sig.primary_uid() || (sig.uid == PGP_UID_NONE);
+                   !sig.sig.primary_uid() || (sig.uid == rnp::UserID::None);
             break;
         }
-        case PGP_UID_ANY:
-            skip = !is_self_cert(sig) || (sig.uid == PGP_UID_NONE);
+        case rnp::UserID::Any:
+            skip = !is_self_cert(sig) || (sig.uid == rnp::UserID::None);
             break;
         default:
             skip = (sig.uid != uid) || !is_self_cert(sig);
@@ -1696,7 +1623,7 @@ pgp_key_t::latest_selfsig(uint32_t uid, bool validated)
     }
 
     /* if there is later self-sig for the same uid without primary flag, then drop res */
-    if ((uid == PGP_UID_PRIMARY) && res) {
+    if ((uid == rnp::UserID::Primary) && res) {
         auto overres = latest_selfsig(res->uid, validated);
         if (overres && (overres->sig.creation() > res->sig.creation())) {
             res = nullptr;
@@ -2145,20 +2072,20 @@ pgp_key_t::validate_primary(rnp::KeyStore &keyring)
     }
     /* if we have direct-key signature, then it has higher priority for expiration check */
     uint64_t now = keyring.secctx.time();
-    auto     dirsig = latest_selfsig(PGP_UID_NONE);
+    auto     dirsig = latest_selfsig(rnp::UserID::None);
     if (dirsig) {
         has_expired = expired_with(*dirsig, now);
         has_cert = !has_expired;
     }
     /* if we have primary uid and it is more restrictive, then use it as well */
     rnp::Signature *prisig = nullptr;
-    if (!has_expired && (prisig = latest_selfsig(PGP_UID_PRIMARY))) {
+    if (!has_expired && (prisig = latest_selfsig(rnp::UserID::Primary))) {
         has_expired = expired_with(*prisig, now);
         has_cert = !has_expired;
     }
     /* if we don't have direct-key sig and primary uid, use the latest self-cert */
     rnp::Signature *latest = nullptr;
-    if (!dirsig && !prisig && (latest = latest_selfsig(PGP_UID_ANY))) {
+    if (!dirsig && !prisig && (latest = latest_selfsig(rnp::UserID::Any))) {
         has_expired = expired_with(*latest, now);
         has_cert = !has_expired;
     }
@@ -2399,12 +2326,12 @@ pgp_key_t::add_direct_sig(rnp::CertParams &     cert,
     cert.populate(sig);
     sign_direct(pkt_, sig, ctx);
 
-    add_sig(sig, PGP_UID_NONE);
+    add_sig(sig, rnp::UserID::None);
     refresh_data(ctx);
     if (!pubkey) {
         return;
     }
-    pubkey->add_sig(sig, PGP_UID_NONE);
+    pubkey->add_sig(sig, rnp::UserID::None);
     pubkey->refresh_data(ctx);
 }
 #endif
@@ -2524,7 +2451,7 @@ pgp_key_t::refresh_revocations()
                 RNP_LOG("Invalid uid index");
                 continue;
             }
-            pgp_userid_t &uid = get_uid(sig.uid);
+            auto &uid = get_uid(sig.uid);
             if (uid.revoked) {
                 continue;
             }
@@ -2546,18 +2473,18 @@ pgp_key_t::refresh_data(const rnp::SecurityContext &ctx)
     /* key expiration */
     expiration_ = 0;
     /* if we have direct-key signature, then it has higher priority */
-    auto dirsig = latest_selfsig(PGP_UID_NONE);
+    auto dirsig = latest_selfsig(rnp::UserID::None);
     if (dirsig) {
         expiration_ = dirsig->sig.key_expiration();
     }
     /* if we have primary uid and it is more restrictive, then use it as well */
-    auto prisig = latest_selfsig(PGP_UID_PRIMARY);
+    auto prisig = latest_selfsig(rnp::UserID::Primary);
     if (prisig && prisig->sig.key_expiration() &&
         (!expiration_ || (prisig->sig.key_expiration() < expiration_))) {
         expiration_ = prisig->sig.key_expiration();
     }
     /* if we don't have direct-key sig and primary uid, use the latest self-cert */
-    auto latest = latest_selfsig(PGP_UID_ANY);
+    auto latest = latest_selfsig(rnp::UserID::Any);
     if (!dirsig && !prisig && latest) {
         expiration_ = latest->sig.key_expiration();
     }
@@ -2606,7 +2533,7 @@ pgp_key_t::refresh_data(const rnp::SecurityContext &ctx)
     }
     /* check whether uid is revoked */
     for (size_t i = 0; i < uid_count(); i++) {
-        pgp_userid_t &uid = get_uid(i);
+        auto &uid = get_uid(i);
         if (uid.revoked) {
             uid.valid = false;
         }
@@ -2699,7 +2626,7 @@ pgp_key_t::merge(const pgp_key_t &src)
     for (auto &srcuid : src.uids_) {
         /* check whether we have this uid and add if needed */
         size_t uididx = get_uid_idx(srcuid.pkt);
-        if (uididx == PGP_UID_NONE) {
+        if (uididx == rnp::UserID::None) {
             uididx = uid_count();
             uids_.emplace_back(srcuid.pkt);
         }

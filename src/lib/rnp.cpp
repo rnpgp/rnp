@@ -5798,7 +5798,7 @@ try {
 }
 FFI_GUARD
 
-static pgp_userid_t *
+static rnp::UserID *
 rnp_uid_handle_get_uid(rnp_uid_handle_t uid)
 {
     if (!uid || !uid->key) {
@@ -5813,7 +5813,7 @@ try {
     if (!type) {
         return RNP_ERROR_NULL_POINTER;
     }
-    pgp_userid_t *id = rnp_uid_handle_get_uid(uid);
+    auto id = rnp_uid_handle_get_uid(uid);
     if (!id) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5836,7 +5836,7 @@ try {
     if (!data || !size) {
         return RNP_ERROR_NULL_POINTER;
     }
-    pgp_userid_t *id = rnp_uid_handle_get_uid(uid);
+    auto id = rnp_uid_handle_get_uid(uid);
     if (!id) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5856,7 +5856,7 @@ try {
     if (!primary) {
         return RNP_ERROR_NULL_POINTER;
     }
-    pgp_userid_t *id = rnp_uid_handle_get_uid(uid);
+    auto id = rnp_uid_handle_get_uid(uid);
     if (!id) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5871,7 +5871,7 @@ try {
     if (!valid) {
         return RNP_ERROR_NULL_POINTER;
     }
-    pgp_userid_t *id = rnp_uid_handle_get_uid(uid);
+    auto id = rnp_uid_handle_get_uid(uid);
     if (!id) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5940,19 +5940,19 @@ create_key_signature(rnp_ffi_t               ffi,
     case PGP_CERT_PERSONA:
     case PGP_CERT_CASUAL:
     case PGP_CERT_POSITIVE:
-        assert(uid != PGP_UID_NONE);
+        assert(uid != rnp::UserID::None);
         if (!sigkey.is_primary() || !tgkey.is_primary()) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
         break;
     case PGP_SIG_DIRECT:
-        assert(uid == PGP_UID_NONE);
+        assert(uid == rnp::UserID::None);
         if (!tgkey.is_primary()) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
         break;
     case PGP_SIG_REV_KEY:
-        assert(uid == PGP_UID_NONE);
+        assert(uid == rnp::UserID::None);
         if (!tgkey.is_primary()) {
             type = PGP_SIG_REV_SUBKEY;
         }
@@ -5996,7 +5996,7 @@ create_key_signature(rnp_key_handle_t        signer,
     if (!sigkey || !tgkey) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    return create_key_signature(signer->ffi, *sigkey, *tgkey, PGP_UID_NONE, *sig, type);
+    return create_key_signature(signer->ffi, *sigkey, *tgkey, rnp::UserID::None, *sig, type);
 }
 
 rnp_result_t
@@ -6330,7 +6330,7 @@ try {
     case PGP_CERT_PERSONA:
     case PGP_CERT_CASUAL:
     case PGP_CERT_POSITIVE: {
-        assert(sig->sig->uid != PGP_UID_NONE);
+        assert(sig->sig->uid != rnp::UserID::None);
         assert(sig->sig->uid < sig->key->uid_count());
         if (sig->sig->uid >= sig->key->uid_count()) {
             return RNP_ERROR_BAD_STATE;
@@ -6447,7 +6447,7 @@ try {
     if (!handle->key) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    pgp_userid_t &uid = handle->key->get_uid(handle->idx);
+    auto &uid = handle->key->get_uid(handle->idx);
     if (idx >= uid.sig_count()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -7097,7 +7097,7 @@ try {
     if (uid->idx >= uid->key->uid_count()) {
         return RNP_ERROR_BAD_STATE;
     }
-    const pgp_userid_t &userid = uid->key->get_uid(uid->idx);
+    const auto &userid = uid->key->get_uid(uid->idx);
     if (!userid.revoked) {
         *sig = NULL;
         return RNP_SUCCESS;
