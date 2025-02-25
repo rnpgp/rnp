@@ -617,8 +617,8 @@ kbx_write_pgp(const KeyStore &key_store, const pgp_key_t &key, pgp_dest_t &dst)
 
     // wrtite UID, we might redesign PGP write and use this information from keyblob
     for (size_t i = 0; i < key.uid_count(); i++) {
-        const pgp_userid_t &uid = key.get_uid(i);
-        uint8_t *           p = (uint8_t *) mem.memory() + uid_start + (12 * i);
+        const auto &uid = key.get_uid(i);
+        uint8_t *   p = (uint8_t *) mem.memory() + uid_start + (12 * i);
         /* store absolute uid offset in the output stream */
         uint32_t pt = mem.writeb() + dst.writeb;
         write_uint32(p, pt);

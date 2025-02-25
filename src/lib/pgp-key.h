@@ -39,38 +39,11 @@
 #include "types.h"
 #include "rawpacket.hpp"
 #include "signature.hpp"
+#include "userid.hpp"
 #include "sec_profile.hpp"
 
 namespace rnp {
 using SignatureMap = std::unordered_map<pgp_sig_id_t, Signature>;
-}
-
-/* userid, built on top of userid packet structure */
-typedef struct pgp_userid_t {
-  private:
-    std::vector<pgp_sig_id_t> sigs_{}; /* all signatures related to this userid */
-  public:
-    pgp_userid_pkt_t pkt{};    /* User ID or User Attribute packet as it was loaded */
-    rnp::RawPacket   rawpkt{}; /* Raw packet contents */
-    std::string      str{};    /* Human-readable representation of the userid */
-    bool            valid{}; /* User ID is valid, i.e. has valid, non-expired self-signature */
-    bool            revoked{};
-    rnp::Revocation revocation;
-
-    pgp_userid_t(const pgp_userid_pkt_t &pkt);
-
-    size_t              sig_count() const;
-    const pgp_sig_id_t &get_sig(size_t idx) const;
-    bool                has_sig(const pgp_sig_id_t &id) const;
-    void                add_sig(const pgp_sig_id_t &sig, bool begin = false);
-    void                replace_sig(const pgp_sig_id_t &id, const pgp_sig_id_t &newsig);
-    bool                del_sig(const pgp_sig_id_t &id);
-    void                clear_sigs();
-} pgp_userid_t;
-
-#define PGP_UID_NONE ((uint32_t) -1)
-
-namespace rnp {
 class KeyStore;
 class CertParams;
 class BindingParams;
@@ -82,7 +55,7 @@ struct pgp_key_t {
     rnp::SignatureMap         sigs_map_;  /* map with subsigs stored by their id */
     std::vector<pgp_sig_id_t> sigs_{};    /* subsig ids to lookup actual sig in map */
     std::vector<pgp_sig_id_t> keysigs_{}; /* direct-key signature ids in the original order */
-    std::vector<pgp_userid_t> uids_{};    /* array of user ids */
+    std::vector<rnp::UserID>  uids_{};    /* array of user ids */
     pgp_key_pkt_t             pkt_{};     /* pubkey/seckey data packet */
     uint8_t                   flags_{};   /* key flags */
     uint32_t                  expiration_{}; /* key expiration time, if available */
@@ -131,17 +104,17 @@ struct pgp_key_t {
     rnp::Signature &       get_sig(const pgp_sig_id_t &id);
     const rnp::Signature & get_sig(const pgp_sig_id_t &id) const;
     rnp::Signature &       add_sig(const pgp_signature_t &sig,
-                                   size_t                 uid = PGP_UID_NONE,
+                                   size_t                 uid = rnp::UserID::None,
                                    bool                   begin = false);
     bool                   del_sig(const pgp_sig_id_t &sigid);
     size_t                 del_sigs(const std::vector<pgp_sig_id_t> &sigs);
     size_t                 keysig_count() const;
     rnp::Signature &       get_keysig(size_t idx);
     size_t                 uid_count() const;
-    pgp_userid_t &         get_uid(size_t idx);
-    const pgp_userid_t &   get_uid(size_t idx) const;
+    rnp::UserID &          get_uid(size_t idx);
+    const rnp::UserID &    get_uid(size_t idx) const;
     size_t                 get_uid_idx(const pgp_userid_pkt_t &uid) const;
-    pgp_userid_t &         add_uid(const pgp_transferable_userid_t &uid);
+    rnp::UserID &          add_uid(const pgp_transferable_userid_t &uid);
     bool                   has_uid(const std::string &uid) const;
     uint32_t               uid_idx(const pgp_userid_pkt_t &uid) const;
     void                   del_uid(size_t idx);
@@ -307,9 +280,9 @@ struct pgp_key_t {
      *        or direct-key signature.
      *
      * @param uid uid for which latest self-signature should be returned,
-     *            PGP_UID_NONE for direct-key signature,
-     *            PGP_UID_PRIMARY for any primary key,
-     *            PGP_UID_ANY for any uid.
+     *            UserID::None for direct-key signature,
+     *            UserID::Primary for any primary key,
+     *            UserID::Any for any uid.
      * @param validated set to true whether signature must be validated
      * @return pointer to signature object or NULL if failed/not found.
      */
