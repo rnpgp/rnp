@@ -280,7 +280,7 @@ pgp_key_set_expiration(pgp_key_t *                    key,
         return false;
     }
 
-    std::vector<pgp_sig_id_t> sigs;
+    pgp::SigIDs sigs;
     /* update expiration for the latest direct-key signature and self-signature for each userid
      */
     auto sig = key->latest_selfsig(rnp::UserID::None, false);
@@ -313,7 +313,7 @@ pgp_key_set_expiration(pgp_key_t *                    key,
         }
 
         pgp_signature_t newsig;
-        pgp_sig_id_t    oldsigid = sigid;
+        auto            oldsigid = sigid;
         if (!update_sig_expiration(&newsig, &sig.sig, ctx.time(), expiry, ctx)) {
             return false;
         }
@@ -390,8 +390,13 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
     try {
         /* update signature and re-sign */
         pgp_signature_t newsig;
+<<<<<<< HEAD
         pgp_sig_id_t    oldsigid = subsig->sigid;
         if (!update_sig_expiration(&newsig, &subsig->sig, ctx.time(), expiry, ctx)) {
+=======
+        auto            oldsigid = subsig->sigid;
+        if (!update_sig_expiration(&newsig, &subsig->sig, ctx.time(), expiry)) {
+>>>>>>> 22b6a9bf (Rename pgp_sig_id_t to pgp::SigID.)
             return false;
         }
         primsec->sign_subkey_binding(*secsub, newsig, ctx);
@@ -615,13 +620,13 @@ pgp_key_t::get_sig(size_t idx) const
 }
 
 bool
-pgp_key_t::has_sig(const pgp_sig_id_t &id) const
+pgp_key_t::has_sig(const pgp::SigID &id) const
 {
     return sigs_map_.count(id);
 }
 
 rnp::Signature &
-pgp_key_t::get_sig(const pgp_sig_id_t &id)
+pgp_key_t::get_sig(const pgp::SigID &id)
 {
     if (!has_sig(id)) {
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -630,7 +635,7 @@ pgp_key_t::get_sig(const pgp_sig_id_t &id)
 }
 
 const rnp::Signature &
-pgp_key_t::get_sig(const pgp_sig_id_t &id) const
+pgp_key_t::get_sig(const pgp::SigID &id) const
 {
     if (!has_sig(id)) {
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -639,12 +644,12 @@ pgp_key_t::get_sig(const pgp_sig_id_t &id) const
 }
 
 rnp::Signature &
-pgp_key_t::replace_sig(const pgp_sig_id_t &id, const pgp_signature_t &newsig)
+pgp_key_t::replace_sig(const pgp::SigID &id, const pgp_signature_t &newsig)
 {
     /* save oldsig's uid */
     size_t uid = get_sig(id).uid;
     /* delete first old sig since we may have theoretically the same sigid */
-    pgp_sig_id_t oldid = id;
+    auto oldid = id;
     sigs_map_.erase(oldid);
     auto &res = sigs_map_.emplace(std::make_pair(newsig.get_id(), newsig)).first->second;
     res.uid = uid;
@@ -668,7 +673,7 @@ pgp_key_t::replace_sig(const pgp_sig_id_t &id, const pgp_signature_t &newsig)
 rnp::Signature &
 pgp_key_t::add_sig(const pgp_signature_t &sig, size_t uid, bool begin)
 {
-    const pgp_sig_id_t sigid = sig.get_id();
+    auto sigid = sig.get_id();
     sigs_map_.erase(sigid);
     auto &res = sigs_map_.emplace(std::make_pair(sigid, sig)).first->second;
     res.uid = uid;
@@ -693,7 +698,7 @@ pgp_key_t::add_sig(const pgp_signature_t &sig, size_t uid, bool begin)
 }
 
 bool
-pgp_key_t::del_sig(const pgp_sig_id_t &sigid)
+pgp_key_t::del_sig(const pgp::SigID &sigid)
 {
     if (!has_sig(sigid)) {
         return false;
@@ -717,7 +722,7 @@ pgp_key_t::del_sig(const pgp_sig_id_t &sigid)
 }
 
 size_t
-pgp_key_t::del_sigs(const std::vector<pgp_sig_id_t> &sigs)
+pgp_key_t::del_sigs(const pgp::SigIDs &sigs)
 {
     /* delete actual signatures */
     size_t res = 0;
@@ -729,7 +734,7 @@ pgp_key_t::del_sigs(const std::vector<pgp_sig_id_t> &sigs)
     for (auto &uid : uids_) {
         uid.clear_sigs();
     }
-    std::vector<pgp_sig_id_t> newsigs;
+    pgp::SigIDs newsigs;
     newsigs.reserve(sigs_map_.size());
     for (auto &sigid : sigs_) {
         if (!sigs_map_.count(sigid)) {
@@ -829,7 +834,7 @@ pgp_key_t::del_uid(size_t idx)
         throw std::out_of_range("idx");
     }
 
-    std::vector<pgp_sig_id_t> newsigs;
+    pgp::SigIDs newsigs;
     /* copy sigs which do not belong to uid */
     newsigs.reserve(sigs_.size());
     for (auto &id : sigs_) {
