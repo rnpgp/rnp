@@ -410,10 +410,10 @@ KeyStore::add_key_sig(const pgp_fingerprint_t &keyfp,
         break;
     }
     /* Add to the keyring(s) */
-    uint32_t uididx = PGP_UID_NONE;
+    uint32_t uididx = rnp::UserID::None;
     if (uid) {
         uididx = key->uid_idx(*uid);
-        if (uididx == PGP_UID_NONE) {
+        if (uididx == rnp::UserID::None) {
             RNP_LOG("Attempt to add signature on non-existing userid.");
             return nullptr;
         }
