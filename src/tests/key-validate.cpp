@@ -634,7 +634,7 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
     pgp_password_provider_t pprov(string_copy_password_callback, (void *) "password");
     key->unlock(pprov);
     key->sign_direct(key->pkt(), sig, global_ctx);
-    key->add_sig(sig, PGP_UID_NONE);
+    key->add_sig(sig, rnp::UserID::None);
     key->revalidate(*secring);
 
     /* key becomsed invalid even since it is secret */
@@ -656,7 +656,7 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
     assert_true(subpub->valid());
     assert_false(subpub->expired());
 
-    pubkey->add_sig(sig, PGP_UID_NONE);
+    pubkey->add_sig(sig, rnp::UserID::None);
     pubkey->revalidate(*pubring);
     assert_int_equal(pubkey->expiration(), 1000);
     assert_false(pubkey->valid());
@@ -698,7 +698,7 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
 
     key->unlock(pprov);
     key->sign_direct(key->pkt(), sig, global_ctx);
-    key->add_sig(sig, PGP_UID_NONE);
+    key->add_sig(sig, rnp::UserID::None);
     key->revalidate(*secring);
     assert_int_equal(key->expiration(), 6);
     /* add primary userid with 0 expiration */
@@ -719,7 +719,7 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
     assert_true(subpub->valid());
     assert_false(subpub->expired());
 
-    pubkey->add_sig(sig, PGP_UID_NONE);
+    pubkey->add_sig(sig, rnp::UserID::None);
     pubkey->revalidate(*pubring);
     assert_int_equal(pubkey->expiration(), 6);
     assert_false(pubkey->valid());
