@@ -135,6 +135,17 @@ class Signature {
     bool expired(uint64_t at) const;
 };
 
+class Revocation {
+  public:
+    uint32_t              uid;    /* index in uid array */
+    pgp_revocation_type_t code;   /* revocation code */
+    std::string           reason; /* revocation reason */
+    pgp_sig_id_t          sigid;  /* id of the corresponding subsig */
+
+    Revocation() : uid(0), code(PGP_REVOCATION_NO_REASON), sigid(){};
+    Revocation(Signature &sig);
+};
+
 } // namespace rnp
 
 #endif
