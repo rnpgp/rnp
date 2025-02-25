@@ -49,7 +49,7 @@ UserID::sig_count() const
     return sigs_.size();
 }
 
-const pgp_sig_id_t &
+const pgp::SigID &
 UserID::get_sig(size_t idx) const
 {
     if (idx >= sigs_.size()) {
@@ -59,20 +59,20 @@ UserID::get_sig(size_t idx) const
 }
 
 bool
-UserID::has_sig(const pgp_sig_id_t &id) const
+UserID::has_sig(const pgp::SigID &id) const
 {
     return std::find(sigs_.begin(), sigs_.end(), id) != sigs_.end();
 }
 
 void
-UserID::add_sig(const pgp_sig_id_t &sig, bool begin)
+UserID::add_sig(const pgp::SigID &sig, bool begin)
 {
     size_t idx = begin ? 0 : sigs_.size();
     sigs_.insert(sigs_.begin() + idx, sig);
 }
 
 void
-UserID::replace_sig(const pgp_sig_id_t &id, const pgp_sig_id_t &newsig)
+UserID::replace_sig(const pgp::SigID &id, const pgp::SigID &newsig)
 {
     auto it = std::find(sigs_.begin(), sigs_.end(), id);
     if (it == sigs_.end()) {
@@ -82,7 +82,7 @@ UserID::replace_sig(const pgp_sig_id_t &id, const pgp_sig_id_t &newsig)
 }
 
 bool
-UserID::del_sig(const pgp_sig_id_t &id)
+UserID::del_sig(const pgp::SigID &id)
 {
     auto it = std::find(sigs_.begin(), sigs_.end(), id);
     if (it == sigs_.end()) {

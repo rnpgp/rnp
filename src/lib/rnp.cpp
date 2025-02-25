@@ -4322,7 +4322,7 @@ remove_key_signatures(rnp_ffi_t             ffi,
                       rnp_key_signatures_cb sigcb,
                       void *                app_ctx)
 {
-    std::vector<pgp_sig_id_t> sigs;
+    pgp::SigIDs sigs;
 
     for (size_t idx = 0; idx < pub.sig_count(); idx++) {
         auto &sig = pub.get_sig(idx);
@@ -6451,7 +6451,7 @@ try {
     if (idx >= uid.sig_count()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    const pgp_sig_id_t &sigid = uid.get_sig(idx);
+    auto &sigid = uid.get_sig(idx);
     if (!handle->key->has_sig(sigid)) {
         return RNP_ERROR_BAD_STATE;
     }
@@ -7011,8 +7011,8 @@ try {
     if (!pkey && !skey) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    const pgp_sig_id_t sigid = sig->sig->sigid;
-    bool               ok = false;
+    auto sigid = sig->sig->sigid;
+    bool ok = false;
     if (pkey) {
         ok = pkey->del_sig(sigid);
         pkey->revalidate(*key->ffi->pubring);

@@ -121,7 +121,7 @@ class Signature {
   public:
     uint32_t        uid{};    /* index in userid array in key for certification sig */
     pgp_signature_t sig{};    /* signature packet */
-    pgp_sig_id_t    sigid{};  /* signature identifier */
+    pgp::SigID      sigid{};  /* signature identifier */
     RawPacket       raw;      /* signature's rawpacket */
     SigValidity     validity; /* signature validity information */
 
@@ -140,7 +140,7 @@ class Revocation {
     uint32_t              uid;    /* index in uid array */
     pgp_revocation_type_t code;   /* revocation code */
     std::string           reason; /* revocation reason */
-    pgp_sig_id_t          sigid;  /* id of the corresponding subsig */
+    pgp::SigID            sigid;  /* id of the corresponding subsig */
 
     Revocation() : uid(0), code(PGP_REVOCATION_NO_REASON), sigid(){};
     Revocation(Signature &sig);

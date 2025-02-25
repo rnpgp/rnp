@@ -37,7 +37,7 @@ namespace rnp {
 /* userid, built on top of userid packet structure */
 class UserID {
   private:
-    std::vector<pgp_sig_id_t> sigs_; /* all signatures related to this userid */
+    pgp::SigIDs sigs_; /* all signatures related to this userid */
   public:
     pgp_userid_pkt_t pkt;    /* User ID or User Attribute packet as it was loaded */
     RawPacket        rawpkt; /* Raw packet contents */
@@ -49,13 +49,13 @@ class UserID {
     UserID() : valid(false), revoked(false){};
     UserID(const pgp_userid_pkt_t &pkt);
 
-    size_t              sig_count() const;
-    const pgp_sig_id_t &get_sig(size_t idx) const;
-    bool                has_sig(const pgp_sig_id_t &id) const;
-    void                add_sig(const pgp_sig_id_t &sig, bool begin = false);
-    void                replace_sig(const pgp_sig_id_t &id, const pgp_sig_id_t &newsig);
-    bool                del_sig(const pgp_sig_id_t &id);
-    void                clear_sigs();
+    size_t            sig_count() const;
+    const pgp::SigID &get_sig(size_t idx) const;
+    bool              has_sig(const pgp::SigID &id) const;
+    void              add_sig(const pgp::SigID &sig, bool begin = false);
+    void              replace_sig(const pgp::SigID &id, const pgp::SigID &newsig);
+    bool              del_sig(const pgp::SigID &id);
+    void              clear_sigs();
 
     /* No userid, i.e. direct-key signature */
     static const uint32_t None = (uint32_t) -1;
