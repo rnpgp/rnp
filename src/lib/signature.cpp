@@ -70,4 +70,28 @@ Signature::expired(uint64_t at) const
     }
     return expiration + sig.creation() < at;
 }
+
+static const id_str_pair revocation_code_map[] = {
+  {PGP_REVOCATION_NO_REASON, "No reason specified"},
+  {PGP_REVOCATION_SUPERSEDED, "Key is superseded"},
+  {PGP_REVOCATION_COMPROMISED, "Key material has been compromised"},
+  {PGP_REVOCATION_RETIRED, "Key is retired and no longer used"},
+  {PGP_REVOCATION_NO_LONGER_VALID, "User ID information is no longer valid"},
+  {0x00, NULL},
+};
+
+Revocation::Revocation(rnp::Signature &sig) : uid(sig.uid), sigid(sig.sigid)
+{
+    if (!sig.sig.has_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON)) {
+        RNP_LOG("Warning: no revocation reason in the revocation");
+        code = PGP_REVOCATION_NO_REASON;
+    } else {
+        code = sig.sig.revocation_code();
+        reason = sig.sig.revocation_reason();
+    }
+    if (reason.empty()) {
+        reason = id_str_pair::lookup(revocation_code_map, code);
+    }
+}
+
 } // namespace rnp

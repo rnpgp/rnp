@@ -53,9 +53,9 @@ typedef struct pgp_userid_t {
     pgp_userid_pkt_t pkt{};    /* User ID or User Attribute packet as it was loaded */
     rnp::RawPacket   rawpkt{}; /* Raw packet contents */
     std::string      str{};    /* Human-readable representation of the userid */
-    bool         valid{}; /* User ID is valid, i.e. has valid, non-expired self-signature */
-    bool         revoked{};
-    pgp_revoke_t revocation{};
+    bool            valid{}; /* User ID is valid, i.e. has valid, non-expired self-signature */
+    bool            revoked{};
+    rnp::Revocation revocation;
 
     pgp_userid_t(const pgp_userid_pkt_t &pkt);
 
@@ -92,12 +92,12 @@ struct pgp_key_t {
     pgp_fingerprint_t         primary_fp_{}; /* fingerprint of the primary key (for subkeys) */
     bool                      primary_fp_set_{};
     std::vector<pgp_fingerprint_t>
-                   subkey_fps_{}; /* array of subkey fingerprints (for primary keys) */
-    rnp::RawPacket rawpkt_;       /* key raw packet */
-    uint32_t       uid0_{};       /* primary uid index in uids array */
-    bool           uid0_set_{};   /* flag for the above */
-    bool           revoked_{};    /* key has been revoked */
-    pgp_revoke_t   revocation_{}; /* revocation reason */
+                    subkey_fps_{}; /* array of subkey fingerprints (for primary keys) */
+    rnp::RawPacket  rawpkt_;       /* key raw packet */
+    uint32_t        uid0_{};       /* primary uid index in uids array */
+    bool            uid0_set_{};   /* flag for the above */
+    bool            revoked_{};    /* key has been revoked */
+    rnp::Revocation revocation_;   /* revocation reason */
     std::vector<pgp_fingerprint_t> revokers_{};
     pgp_validity_t                 validity_{};   /* key's validity */
     uint64_t                       valid_till_{}; /* date till which key is/was valid */
@@ -123,36 +123,36 @@ struct pgp_key_t {
     pgp_key_t &operator=(const pgp_key_t &) = default;
     pgp_key_t &operator=(pgp_key_t &&) = default;
 
-    size_t                sig_count() const;
-    rnp::Signature &      get_sig(size_t idx);
-    const rnp::Signature &get_sig(size_t idx) const;
-    bool                  has_sig(const pgp_sig_id_t &id) const;
-    rnp::Signature &      replace_sig(const pgp_sig_id_t &id, const pgp_signature_t &newsig);
-    rnp::Signature &      get_sig(const pgp_sig_id_t &id);
-    const rnp::Signature &get_sig(const pgp_sig_id_t &id) const;
-    rnp::Signature &      add_sig(const pgp_signature_t &sig,
-                                  size_t                 uid = PGP_UID_NONE,
-                                  bool                   begin = false);
-    bool                  del_sig(const pgp_sig_id_t &sigid);
-    size_t                del_sigs(const std::vector<pgp_sig_id_t> &sigs);
-    size_t                keysig_count() const;
-    rnp::Signature &      get_keysig(size_t idx);
-    size_t                uid_count() const;
-    pgp_userid_t &        get_uid(size_t idx);
-    const pgp_userid_t &  get_uid(size_t idx) const;
-    size_t                get_uid_idx(const pgp_userid_pkt_t &uid) const;
-    pgp_userid_t &        add_uid(const pgp_transferable_userid_t &uid);
-    bool                  has_uid(const std::string &uid) const;
-    uint32_t              uid_idx(const pgp_userid_pkt_t &uid) const;
-    void                  del_uid(size_t idx);
-    bool                  has_primary_uid() const;
-    uint32_t              get_primary_uid() const;
-    bool                  revoked() const;
-    const pgp_revoke_t &  revocation() const;
-    void                  clear_revokes();
-    void                  add_revoker(const pgp_fingerprint_t &revoker);
-    bool                  has_revoker(const pgp_fingerprint_t &revoker) const;
-    size_t                revoker_count() const;
+    size_t                 sig_count() const;
+    rnp::Signature &       get_sig(size_t idx);
+    const rnp::Signature & get_sig(size_t idx) const;
+    bool                   has_sig(const pgp_sig_id_t &id) const;
+    rnp::Signature &       replace_sig(const pgp_sig_id_t &id, const pgp_signature_t &newsig);
+    rnp::Signature &       get_sig(const pgp_sig_id_t &id);
+    const rnp::Signature & get_sig(const pgp_sig_id_t &id) const;
+    rnp::Signature &       add_sig(const pgp_signature_t &sig,
+                                   size_t                 uid = PGP_UID_NONE,
+                                   bool                   begin = false);
+    bool                   del_sig(const pgp_sig_id_t &sigid);
+    size_t                 del_sigs(const std::vector<pgp_sig_id_t> &sigs);
+    size_t                 keysig_count() const;
+    rnp::Signature &       get_keysig(size_t idx);
+    size_t                 uid_count() const;
+    pgp_userid_t &         get_uid(size_t idx);
+    const pgp_userid_t &   get_uid(size_t idx) const;
+    size_t                 get_uid_idx(const pgp_userid_pkt_t &uid) const;
+    pgp_userid_t &         add_uid(const pgp_transferable_userid_t &uid);
+    bool                   has_uid(const std::string &uid) const;
+    uint32_t               uid_idx(const pgp_userid_pkt_t &uid) const;
+    void                   del_uid(size_t idx);
+    bool                   has_primary_uid() const;
+    uint32_t               get_primary_uid() const;
+    bool                   revoked() const;
+    const rnp::Revocation &revocation() const;
+    void                   clear_revokes();
+    void                   add_revoker(const pgp_fingerprint_t &revoker);
+    bool                   has_revoker(const pgp_fingerprint_t &revoker) const;
+    size_t                 revoker_count() const;
     const pgp_fingerprint_t &get_revoker(size_t idx) const;
 
     const pgp_key_pkt_t &   pkt() const noexcept;
@@ -506,11 +506,11 @@ struct pgp_key_t {
      * @param key key or subkey packet to revoke.
      * @param sig object to store revocation signature. Will be populated in method call.
      */
-    void gen_revocation(const pgp_revoke_t &  revoke,
-                        pgp_hash_alg_t        hash,
-                        const pgp_key_pkt_t & key,
-                        pgp_signature_t &     sig,
-                        rnp::SecurityContext &ctx);
+    void gen_revocation(const rnp::Revocation &rev,
+                        pgp_hash_alg_t         hash,
+                        const pgp_key_pkt_t &  key,
+                        pgp_signature_t &      sig,
+                        rnp::SecurityContext & ctx);
 
 #if defined(ENABLE_CRYPTO_REFRESH)
     /**

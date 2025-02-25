@@ -4003,10 +4003,10 @@ rnp_key_get_revoker(rnp_key_handle_t key)
 }
 
 static bool
-fill_revocation_reason(rnp_ffi_t     ffi,
-                       pgp_revoke_t &revinfo,
-                       const char *  code,
-                       const char *  reason)
+fill_revocation_reason(rnp_ffi_t        ffi,
+                       rnp::Revocation &revinfo,
+                       const char *     code,
+                       const char *     reason)
 {
     revinfo = {};
     if (code && !str_to_revocation_type(code, &revinfo.code)) {
@@ -4040,7 +4040,7 @@ rnp_key_get_revocation(rnp_ffi_t        ffi,
         FFI_LOG(ffi, "Unknown hash algorithm: %s", hash);
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    pgp_revoke_t revinfo = {};
+    rnp::Revocation revinfo;
     if (!fill_revocation_reason(ffi, revinfo, code, reason)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -6250,11 +6250,11 @@ try {
     if (!sig) {
         return RNP_ERROR_NULL_POINTER;
     }
-    pgp_revoke_t revinfo = {};
-    if (!fill_revocation_reason(sig->ffi, revinfo, code, reason)) {
+    rnp::Revocation rev;
+    if (!fill_revocation_reason(sig->ffi, rev, code, reason)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    sig->sig->sig.set_revocation_reason(revinfo.code, revinfo.reason);
+    sig->sig->sig.set_revocation_reason(rev.code, rev.reason);
     return RNP_SUCCESS;
 }
 FFI_GUARD
