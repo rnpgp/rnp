@@ -95,7 +95,7 @@ typedef struct pgp_signature_t {
     };
 
     /** @brief Calculate the unique signature identifier by hashing signature's fields. */
-    pgp_sig_id_t get_id() const;
+    pgp::SigID get_id() const;
 
     size_t find_subpkt(uint8_t type, bool hashed = true, size_t skip = 0) const;
     size_t find_subpkt(pgp::pkt::sigsub::Type type, bool hashed = true, size_t skip = 0) const;
