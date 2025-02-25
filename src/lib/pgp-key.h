@@ -43,7 +43,7 @@
 #include "sec_profile.hpp"
 
 namespace rnp {
-using SignatureMap = std::unordered_map<pgp_sig_id_t, Signature>;
+using SignatureMap = std::unordered_map<pgp::SigID, Signature>;
 class KeyStore;
 class CertParams;
 class BindingParams;
@@ -52,18 +52,18 @@ class BindingParams;
 /* describes a user's key */
 struct pgp_key_t {
   private:
-    rnp::SignatureMap         sigs_map_;  /* map with subsigs stored by their id */
-    std::vector<pgp_sig_id_t> sigs_{};    /* subsig ids to lookup actual sig in map */
-    std::vector<pgp_sig_id_t> keysigs_{}; /* direct-key signature ids in the original order */
-    std::vector<rnp::UserID>  uids_{};    /* array of user ids */
-    pgp_key_pkt_t             pkt_{};     /* pubkey/seckey data packet */
-    uint8_t                   flags_{};   /* key flags */
-    uint32_t                  expiration_{}; /* key expiration time, if available */
-    pgp_key_id_t              keyid_{};
-    pgp_fingerprint_t         fingerprint_{};
-    pgp_key_grip_t            grip_{};
-    pgp_fingerprint_t         primary_fp_{}; /* fingerprint of the primary key (for subkeys) */
-    bool                      primary_fp_set_{};
+    rnp::SignatureMap        sigs_map_; /* map with subsigs stored by their id */
+    pgp::SigIDs              sigs_;     /* subsig ids to lookup actual sig in map */
+    pgp::SigIDs              keysigs_;  /* direct-key signature ids in the original order */
+    std::vector<rnp::UserID> uids_{};   /* array of user ids */
+    pgp_key_pkt_t            pkt_{};    /* pubkey/seckey data packet */
+    uint8_t                  flags_{};  /* key flags */
+    uint32_t                 expiration_{}; /* key expiration time, if available */
+    pgp_key_id_t             keyid_{};
+    pgp_fingerprint_t        fingerprint_{};
+    pgp_key_grip_t           grip_{};
+    pgp_fingerprint_t        primary_fp_{}; /* fingerprint of the primary key (for subkeys) */
+    bool                     primary_fp_set_{};
     std::vector<pgp_fingerprint_t>
                     subkey_fps_{}; /* array of subkey fingerprints (for primary keys) */
     rnp::RawPacket  rawpkt_;       /* key raw packet */
@@ -96,36 +96,36 @@ struct pgp_key_t {
     pgp_key_t &operator=(const pgp_key_t &) = default;
     pgp_key_t &operator=(pgp_key_t &&) = default;
 
-    size_t                 sig_count() const;
-    rnp::Signature &       get_sig(size_t idx);
-    const rnp::Signature & get_sig(size_t idx) const;
-    bool                   has_sig(const pgp_sig_id_t &id) const;
-    rnp::Signature &       replace_sig(const pgp_sig_id_t &id, const pgp_signature_t &newsig);
-    rnp::Signature &       get_sig(const pgp_sig_id_t &id);
-    const rnp::Signature & get_sig(const pgp_sig_id_t &id) const;
-    rnp::Signature &       add_sig(const pgp_signature_t &sig,
-                                   size_t                 uid = rnp::UserID::None,
-                                   bool                   begin = false);
-    bool                   del_sig(const pgp_sig_id_t &sigid);
-    size_t                 del_sigs(const std::vector<pgp_sig_id_t> &sigs);
-    size_t                 keysig_count() const;
-    rnp::Signature &       get_keysig(size_t idx);
-    size_t                 uid_count() const;
-    rnp::UserID &          get_uid(size_t idx);
-    const rnp::UserID &    get_uid(size_t idx) const;
-    size_t                 get_uid_idx(const pgp_userid_pkt_t &uid) const;
-    rnp::UserID &          add_uid(const pgp_transferable_userid_t &uid);
-    bool                   has_uid(const std::string &uid) const;
-    uint32_t               uid_idx(const pgp_userid_pkt_t &uid) const;
-    void                   del_uid(size_t idx);
-    bool                   has_primary_uid() const;
-    uint32_t               get_primary_uid() const;
-    bool                   revoked() const;
-    const rnp::Revocation &revocation() const;
-    void                   clear_revokes();
-    void                   add_revoker(const pgp_fingerprint_t &revoker);
-    bool                   has_revoker(const pgp_fingerprint_t &revoker) const;
-    size_t                 revoker_count() const;
+    size_t                   sig_count() const;
+    rnp::Signature &         get_sig(size_t idx);
+    const rnp::Signature &   get_sig(size_t idx) const;
+    bool                     has_sig(const pgp::SigID &id) const;
+    rnp::Signature &         replace_sig(const pgp::SigID &id, const pgp_signature_t &newsig);
+    rnp::Signature &         get_sig(const pgp::SigID &id);
+    const rnp::Signature &   get_sig(const pgp::SigID &id) const;
+    rnp::Signature &         add_sig(const pgp_signature_t &sig,
+                                     size_t                 uid = rnp::UserID::None,
+                                     bool                   begin = false);
+    bool                     del_sig(const pgp::SigID &sigid);
+    size_t                   del_sigs(const pgp::SigIDs &sigs);
+    size_t                   keysig_count() const;
+    rnp::Signature &         get_keysig(size_t idx);
+    size_t                   uid_count() const;
+    rnp::UserID &            get_uid(size_t idx);
+    const rnp::UserID &      get_uid(size_t idx) const;
+    size_t                   get_uid_idx(const pgp_userid_pkt_t &uid) const;
+    rnp::UserID &            add_uid(const pgp_transferable_userid_t &uid);
+    bool                     has_uid(const std::string &uid) const;
+    uint32_t                 uid_idx(const pgp_userid_pkt_t &uid) const;
+    void                     del_uid(size_t idx);
+    bool                     has_primary_uid() const;
+    uint32_t                 get_primary_uid() const;
+    bool                     revoked() const;
+    const rnp::Revocation &  revocation() const;
+    void                     clear_revokes();
+    void                     add_revoker(const pgp_fingerprint_t &revoker);
+    bool                     has_revoker(const pgp_fingerprint_t &revoker) const;
+    size_t                   revoker_count() const;
     const pgp_fingerprint_t &get_revoker(size_t idx) const;
 
     const pgp_key_pkt_t &   pkt() const noexcept;

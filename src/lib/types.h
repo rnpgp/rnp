@@ -104,7 +104,10 @@ typedef struct pgp_fingerprint_t {
     std::vector<uint8_t> vec() const;
 } pgp_fingerprint_t;
 
-typedef std::array<uint8_t, PGP_KEY_GRIP_SIZE> pgp_sig_id_t;
+namespace pgp {
+using SigID = std::array<uint8_t, PGP_SHA1_HASH_SIZE>;
+using SigIDs = std::vector<SigID>;
+} // namespace pgp
 
 namespace std {
 template <> struct hash<pgp_fingerprint_t> {
@@ -122,14 +125,14 @@ template <> struct hash<pgp_fingerprint_t> {
     }
 };
 
-template <> struct hash<pgp_sig_id_t> {
+template <> struct hash<pgp::SigID> {
     std::size_t
-    operator()(pgp_sig_id_t const &sigid) const noexcept
+    operator()(pgp::SigID const &sigid) const noexcept
     {
         /* since signature id value is hash itself, we may use its low bytes */
         size_t res = 0;
-        static_assert(std::tuple_size<pgp_sig_id_t>::value >= sizeof(res),
-                      "pgp_sig_id_t size mismatch");
+        static_assert(std::tuple_size<pgp::SigID>::value >= sizeof(res),
+                      "pgp::SigID size mismatch");
         std::memcpy(&res, sigid.data(), sizeof(res));
         return res;
     }
