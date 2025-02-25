@@ -100,15 +100,6 @@ pgp_decrypt_seckey(const pgp_key_t &              key,
     }
 }
 
-static const id_str_pair ss_rr_code_map[] = {
-  {PGP_REVOCATION_NO_REASON, "No reason specified"},
-  {PGP_REVOCATION_SUPERSEDED, "Key is superseded"},
-  {PGP_REVOCATION_COMPROMISED, "Key material has been compromised"},
-  {PGP_REVOCATION_RETIRED, "Key is retired and no longer used"},
-  {PGP_REVOCATION_NO_LONGER_VALID, "User ID information is no longer valid"},
-  {0x00, NULL},
-};
-
 pgp_key_flags_t
 pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
 {
@@ -570,22 +561,6 @@ pgp_userid_t::clear_sigs()
     sigs_.clear();
 }
 
-pgp_revoke_t::pgp_revoke_t(rnp::Signature &sig)
-{
-    uid = sig.uid;
-    sigid = sig.sigid;
-    if (!sig.sig.has_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON)) {
-        RNP_LOG("Warning: no revocation reason in the revocation");
-        code = PGP_REVOCATION_NO_REASON;
-    } else {
-        code = sig.sig.revocation_code();
-        reason = sig.sig.revocation_reason();
-    }
-    if (reason.empty()) {
-        reason = id_str_pair::lookup(ss_rr_code_map, code);
-    }
-}
-
 pgp_key_t::pgp_key_t(const pgp_key_pkt_t &keypkt) : pkt_(keypkt)
 {
     if (!is_key_pkt(pkt_.tag) || !pkt_.material->alg()) {
@@ -979,7 +954,7 @@ pgp_key_t::revoked() const
     return revoked_;
 }
 
-const pgp_revoke_t &
+const rnp::Revocation &
 pgp_key_t::revocation() const
 {
     if (!revoked_) {
@@ -2368,15 +2343,15 @@ pgp_key_t::sign_binding(const pgp_key_pkt_t & key,
 }
 
 void
-pgp_key_t::gen_revocation(const pgp_revoke_t &  revoke,
-                          pgp_hash_alg_t        hash,
-                          const pgp_key_pkt_t & key,
-                          pgp_signature_t &     sig,
-                          rnp::SecurityContext &ctx)
+pgp_key_t::gen_revocation(const rnp::Revocation &rev,
+                          pgp_hash_alg_t         hash,
+                          const pgp_key_pkt_t &  key,
+                          pgp_signature_t &      sig,
+                          rnp::SecurityContext & ctx)
 {
     sign_init(ctx.rng, sig, hash, ctx.time(), key.version);
     sig.set_type(is_primary_key_pkt(key.tag) ? PGP_SIG_REV_KEY : PGP_SIG_REV_SUBKEY);
-    sig.set_revocation_reason(revoke.code, revoke.reason);
+    sig.set_revocation_reason(rev.code, rev.reason);
 
     if (is_primary_key_pkt(key.tag)) {
         sign_direct(key, sig, ctx);
@@ -2541,7 +2516,7 @@ pgp_key_t::refresh_revocations()
                 continue;
             }
             revoked_ = true;
-            revocation_ = pgp_revoke_t(sig);
+            revocation_ = rnp::Revocation(sig);
             continue;
         }
         if (is_uid_revocation(sig)) {
@@ -2554,7 +2529,7 @@ pgp_key_t::refresh_revocations()
                 continue;
             }
             uid.revoked = true;
-            uid.revocation = pgp_revoke_t(sig);
+            uid.revocation = rnp::Revocation(sig);
         }
     }
 }
@@ -2670,7 +2645,7 @@ pgp_key_t::refresh_data(pgp_key_t *primary, const rnp::SecurityContext &ctx)
         }
         revoked_ = true;
         try {
-            revocation_ = pgp_revoke_t(sig);
+            revocation_ = rnp::Revocation(sig);
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
             return false;
