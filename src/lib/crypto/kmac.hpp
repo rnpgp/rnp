@@ -30,7 +30,7 @@
 #include <repgp/repgp_def.h>
 #include "types.h"
 #include "config.h"
-#include "pgp-key.h"
+#include "key.hpp"
 
 namespace rnp {
 class KMAC256 {

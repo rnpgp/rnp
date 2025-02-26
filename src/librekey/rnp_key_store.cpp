@@ -49,7 +49,7 @@
 #include "key_store_g10.h"
 #include "kbx_blob.hpp"
 
-#include "pgp-key.h"
+#include "key.hpp"
 #include "fingerprint.h"
 #include "crypto/hash.hpp"
 #include "crypto/mem.h"
@@ -217,7 +217,7 @@ KeyStore::key_count() const
 }
 
 bool
-KeyStore::refresh_subkey_grips(pgp_key_t &key)
+KeyStore::refresh_subkey_grips(Key &key)
 {
     if (key.is_subkey()) {
         RNP_LOG("wrong argument");
@@ -263,10 +263,10 @@ KeyStore::refresh_subkey_grips(pgp_key_t &key)
     return true;
 }
 
-pgp_key_t *
-KeyStore::add_subkey(pgp_key_t &srckey, pgp_key_t *oldkey)
+Key *
+KeyStore::add_subkey(Key &srckey, Key *oldkey)
 {
-    pgp_key_t *primary = NULL;
+    Key *primary = NULL;
     if (oldkey) {
         primary = primary_key(*oldkey);
     }
@@ -279,7 +279,7 @@ KeyStore::add_subkey(pgp_key_t &srckey, pgp_key_t *oldkey)
         if (srckey.has_primary_fp() && oldkey->has_primary_fp() &&
             (srckey.primary_fp() != oldkey->primary_fp())) {
             RNP_LOG_KEY("Warning: different primary keys for subkey %s", &srckey);
-            pgp_key_t *srcprim = get_key(srckey.primary_fp());
+            auto *srcprim = get_key(srckey.primary_fp());
             if (srcprim && (srcprim != primary)) {
                 srcprim->remove_subkey_fp(srckey.fp());
             }
@@ -295,7 +295,7 @@ KeyStore::add_subkey(pgp_key_t &srckey, pgp_key_t *oldkey)
             keys.emplace_back();
             oldkey = &keys.back();
             keybyfp[srckey.fp()] = std::prev(keys.end());
-            *oldkey = pgp_key_t(srckey);
+            *oldkey = Key(srckey);
             if (primary) {
                 primary->link_subkey_fp(*oldkey);
             }
@@ -325,11 +325,11 @@ KeyStore::add_subkey(pgp_key_t &srckey, pgp_key_t *oldkey)
 }
 
 /* add a key to keyring */
-pgp_key_t *
-KeyStore::add_key(pgp_key_t &srckey)
+Key *
+KeyStore::add_key(Key &srckey)
 {
     assert(srckey.type() && srckey.version());
-    pgp_key_t *added_key = get_key(srckey.fp());
+    auto *added_key = get_key(srckey.fp());
     /* we cannot merge G10 keys - so just return it */
     if (added_key && (srckey.format == PGP_KEY_STORE_G10)) {
         return added_key;
@@ -349,7 +349,7 @@ KeyStore::add_key(pgp_key_t &srckey)
             keys.emplace_back();
             added_key = &keys.back();
             keybyfp[srckey.fp()] = std::prev(keys.end());
-            *added_key = pgp_key_t(srckey);
+            *added_key = Key(srckey);
             /* primary key may be added after subkeys, so let's handle this case correctly */
             if (!refresh_subkey_grips(*added_key)) {
                 RNP_LOG_KEY("failed to refresh subkey grips for %s", added_key);
@@ -392,13 +392,13 @@ KeyStore::add_key_sig(const pgp_fingerprint_t &keyfp,
                       const pgp_userid_pkt_t * uid,
                       bool                     front)
 {
-    pgp_key_t *key = get_key(keyfp);
+    auto *key = get_key(keyfp);
     if (!key) {
         return nullptr;
     }
 
-    bool       desig_rev = false;
-    pgp_key_t *signer = get_signer(sig);
+    bool  desig_rev = false;
+    auto *signer = get_signer(sig);
     switch (sig.type()) {
     case PGP_SIG_REV_KEY:
         desig_rev = signer && (signer->fp() != key->fp());
@@ -430,14 +430,14 @@ KeyStore::add_key_sig(const pgp_fingerprint_t &keyfp,
     return &newsig;
 }
 
-pgp_key_t *
-KeyStore::import_key(pgp_key_t &srckey, bool pubkey, pgp_key_import_status_t *status)
+Key *
+KeyStore::import_key(Key &srckey, bool pubkey, pgp_key_import_status_t *status)
 {
     /* add public key */
-    pgp_key_t *exkey = get_key(srckey.fp());
-    size_t     expackets = exkey ? exkey->rawpkt_count() : 0;
+    auto * exkey = get_key(srckey.fp());
+    size_t expackets = exkey ? exkey->rawpkt_count() : 0;
     try {
-        pgp_key_t keycp(srckey, pubkey);
+        Key keycp(srckey, pubkey);
         disable_validation = true;
         exkey = add_key(keycp);
         disable_validation = false;
@@ -466,12 +466,12 @@ KeyStore::import_key(pgp_key_t &srckey, bool pubkey, pgp_key_import_status_t *st
 }
 
 pgp_sig_import_status_t
-KeyStore::import_subkey_signature(pgp_key_t &key, const pgp_signature_t &sig)
+KeyStore::import_subkey_signature(Key &key, const pgp_signature_t &sig)
 {
     if ((sig.type() != PGP_SIG_SUBKEY) && (sig.type() != PGP_SIG_REV_SUBKEY)) {
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
     }
-    pgp_key_t *primary = get_signer(sig);
+    auto *primary = get_signer(sig);
     if (!primary || !key.has_primary_fp()) {
         RNP_LOG("No primary grip or primary key");
         return PGP_SIG_IMPORT_STATUS_UNKNOWN_KEY;
@@ -482,7 +482,7 @@ KeyStore::import_subkey_signature(pgp_key_t &key, const pgp_signature_t &sig)
     }
 
     try {
-        pgp_key_t tmpkey(key.pkt());
+        Key tmpkey(key.pkt());
         tmpkey.add_sig(sig);
         if (!tmpkey.refresh_data(primary, secctx)) {
             RNP_LOG("Failed to add signature to the key.");
@@ -506,7 +506,7 @@ KeyStore::import_subkey_signature(pgp_key_t &key, const pgp_signature_t &sig)
 }
 
 pgp_sig_import_status_t
-KeyStore::import_signature(pgp_key_t &key, const pgp_signature_t &sig)
+KeyStore::import_signature(Key &key, const pgp_signature_t &sig)
 {
     if (key.is_subkey()) {
         return import_subkey_signature(key, sig);
@@ -517,7 +517,7 @@ KeyStore::import_signature(pgp_key_t &key, const pgp_signature_t &sig)
     }
 
     try {
-        pgp_key_t tmpkey(key.pkt());
+        Key tmpkey(key.pkt());
         tmpkey.add_sig(sig);
         if (!tmpkey.refresh_data(secctx)) {
             RNP_LOG("Failed to add signature to the key.");
@@ -540,7 +540,7 @@ KeyStore::import_signature(pgp_key_t &key, const pgp_signature_t &sig)
     }
 }
 
-pgp_key_t *
+Key *
 KeyStore::import_signature(const pgp_signature_t &sig, pgp_sig_import_status_t *status)
 {
     pgp_sig_import_status_t tmp_status = PGP_SIG_IMPORT_STATUS_UNKNOWN;
@@ -554,7 +554,7 @@ KeyStore::import_signature(const pgp_signature_t &sig, pgp_sig_import_status_t *
         return nullptr;
     }
 
-    pgp_key_t *res_key = get_signer(sig);
+    auto *res_key = get_signer(sig);
     if (!res_key || !res_key->is_primary()) {
         *status = PGP_SIG_IMPORT_STATUS_UNKNOWN_KEY;
         return nullptr;
@@ -564,7 +564,7 @@ KeyStore::import_signature(const pgp_signature_t &sig, pgp_sig_import_status_t *
 }
 
 bool
-KeyStore::remove_key(const pgp_key_t &key, bool subkeys)
+KeyStore::remove_key(const Key &key, bool subkeys)
 {
     auto it = keybyfp.find(key.fp());
     if (it == keybyfp.end()) {
@@ -588,7 +588,7 @@ KeyStore::remove_key(const pgp_key_t &key, bool subkeys)
         }
     }
     if (key.is_subkey() && key.has_primary_fp()) {
-        pgp_key_t *primary = primary_key(key);
+        auto *primary = primary_key(key);
         if (primary) {
             primary->remove_subkey_fp(key.fp());
         }
@@ -599,7 +599,7 @@ KeyStore::remove_key(const pgp_key_t &key, bool subkeys)
     return true;
 }
 
-const pgp_key_t *
+const Key *
 KeyStore::get_key(const pgp_fingerprint_t &fpr) const
 {
     auto it = keybyfp.find(fpr);
@@ -609,7 +609,7 @@ KeyStore::get_key(const pgp_fingerprint_t &fpr) const
     return &*it->second;
 }
 
-pgp_key_t *
+Key *
 KeyStore::get_key(const pgp_fingerprint_t &fpr)
 {
     auto it = keybyfp.find(fpr);
@@ -619,8 +619,8 @@ KeyStore::get_key(const pgp_fingerprint_t &fpr)
     return &*it->second;
 }
 
-pgp_key_t *
-KeyStore::get_subkey(const pgp_key_t &key, size_t idx)
+Key *
+KeyStore::get_subkey(const Key &key, size_t idx)
 {
     if (idx >= key.subkey_count()) {
         return nullptr;
@@ -628,15 +628,15 @@ KeyStore::get_subkey(const pgp_key_t &key, size_t idx)
     return get_key(key.get_subkey_fp(idx));
 }
 
-pgp_key_t *
-KeyStore::primary_key(const pgp_key_t &subkey)
+Key *
+KeyStore::primary_key(const Key &subkey)
 {
     if (!subkey.is_subkey()) {
         return nullptr;
     }
 
     if (subkey.has_primary_fp()) {
-        pgp_key_t *primary = get_key(subkey.primary_fp());
+        Key *primary = get_key(subkey.primary_fp());
         return primary && primary->is_primary() ? primary : nullptr;
     }
 
@@ -646,7 +646,7 @@ KeyStore::primary_key(const pgp_key_t &subkey)
             continue;
         }
 
-        pgp_key_t *primary = get_signer(subsig.sig);
+        Key *primary = get_signer(subsig.sig);
         if (primary && primary->is_primary()) {
             return primary;
         }
@@ -654,8 +654,8 @@ KeyStore::primary_key(const pgp_key_t &subkey)
     return nullptr;
 }
 
-pgp_key_t *
-KeyStore::search(const KeySearch &search, pgp_key_t *after)
+Key *
+KeyStore::search(const KeySearch &search, Key *after)
 {
     // since keys are distinguished by fingerprint then just do map lookup
     if (search.type() == KeySearch::Type::Fingerprint) {
@@ -671,9 +671,8 @@ KeyStore::search(const KeySearch &search, pgp_key_t *after)
     }
 
     // if after is provided, make sure it is a member of the appropriate list
-    auto it = std::find_if(keys.begin(), keys.end(), [after](const pgp_key_t &key) {
-        return !after || (after == &key);
-    });
+    auto it = std::find_if(
+      keys.begin(), keys.end(), [after](const Key &key) { return !after || (after == &key); });
     if (after && (it == keys.end())) {
         RNP_LOG("searching with non-keyrings after param");
         return nullptr;
@@ -681,12 +680,12 @@ KeyStore::search(const KeySearch &search, pgp_key_t *after)
     if (after) {
         it = std::next(it);
     }
-    it = std::find_if(
-      it, keys.end(), [&search](const pgp_key_t &key) { return search.matches(key); });
+    it =
+      std::find_if(it, keys.end(), [&search](const Key &key) { return search.matches(key); });
     return (it == keys.end()) ? nullptr : &(*it);
 }
 
-pgp_key_t *
+Key *
 KeyStore::get_signer(const pgp_signature_t &sig, const KeyProvider *prov)
 {
     /* if we have fingerprint let's check it */

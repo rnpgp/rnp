@@ -35,20 +35,20 @@
 #include "keygen.hpp"
 
 struct rnp_key_handle_st {
-    rnp_ffi_t  ffi;
-    pgp_key_t *pub;
-    pgp_key_t *sec;
+    rnp_ffi_t ffi;
+    rnp::Key *pub;
+    rnp::Key *sec;
 
-    rnp_key_handle_st(rnp_ffi_t affi, pgp_key_t *apub = nullptr, pgp_key_t *asec = nullptr)
+    rnp_key_handle_st(rnp_ffi_t affi, rnp::Key *apub = nullptr, rnp::Key *asec = nullptr)
         : ffi(affi), pub(apub), sec(asec)
     {
     }
 };
 
 struct rnp_uid_handle_st {
-    rnp_ffi_t  ffi;
-    pgp_key_t *key;
-    size_t     idx;
+    rnp_ffi_t ffi;
+    rnp::Key *key;
+    size_t    idx;
 };
 
 struct rnp_signature_handle_st {
@@ -56,8 +56,8 @@ struct rnp_signature_handle_st {
     /**
      * @brief Key to which this signature belongs, if available.
      */
-    const pgp_key_t *key;
-    rnp::Signature * sig;
+    const rnp::Key *key;
+    rnp::Signature *sig;
     /**
      * @brief sig pointer is owned by structure and should be deallocated.
      */
@@ -67,11 +67,11 @@ struct rnp_signature_handle_st {
      */
     bool new_sig;
 
-    rnp_signature_handle_st(rnp_ffi_t        affi,
-                            const pgp_key_t *akey = nullptr,
-                            rnp::Signature * asig = nullptr,
-                            bool             aown_sig = false,
-                            bool             anew_sig = false)
+    rnp_signature_handle_st(rnp_ffi_t       affi,
+                            const rnp::Key *akey = nullptr,
+                            rnp::Signature *asig = nullptr,
+                            bool            aown_sig = false,
+                            bool            anew_sig = false)
         : ffi(affi), key(akey), sig(asig), own_sig(aown_sig), new_sig(anew_sig)
     {
     }
@@ -155,12 +155,12 @@ struct rnp_output_st {
 };
 
 struct rnp_op_generate_st {
-    rnp_ffi_t  ffi;
-    bool       primary{};
-    pgp_key_t *primary_sec{};
-    pgp_key_t *primary_pub{};
-    pgp_key_t *gen_sec{};
-    pgp_key_t *gen_pub{};
+    rnp_ffi_t ffi;
+    bool      primary{};
+    rnp::Key *primary_sec{};
+    rnp::Key *primary_pub{};
+    rnp::Key *gen_sec{};
+    rnp::Key *gen_pub{};
     /* password used to encrypt the key, if specified */
     rnp::secure_vector<char> password;
     /* request password for key encryption via ffi's password provider */
@@ -286,7 +286,7 @@ struct rnp_identifier_iterator_st {
     rnp_ffi_t                       ffi;
     rnp::KeySearch::Type            type;
     rnp::KeyStore *                 store;
-    std::list<pgp_key_t>::iterator *keyp;
+    std::list<rnp::Key>::iterator * keyp;
     size_t                          uididx;
     std::unordered_set<std::string> tbl;
     std::string                     item;
@@ -295,7 +295,7 @@ struct rnp_identifier_iterator_st {
         : ffi(affi), type(atype)
     {
         store = nullptr;
-        keyp = new std::list<pgp_key_t>::iterator();
+        keyp = new std::list<rnp::Key>::iterator();
         uididx = 0;
     }
 
@@ -308,7 +308,7 @@ struct rnp_identifier_iterator_st {
 struct rnp_decryption_kp_param_t {
     rnp_op_verify_t op;
     bool            has_hidden; /* key provider had hidden keyid request */
-    pgp_key_t *     last;       /* last key, returned in hidden keyid request */
+    rnp::Key *      last;       /* last key, returned in hidden keyid request */
 
     rnp_decryption_kp_param_t(rnp_op_verify_t opobj)
         : op(opobj), has_hidden(false), last(NULL){};

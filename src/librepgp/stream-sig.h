@@ -363,7 +363,7 @@ typedef struct pgp_signature_t {
      *
      * @param revoker revoker's key packet.
      */
-    void set_revoker(const pgp_key_t &revoker, bool sensitive = false);
+    void set_revoker(const rnp::Key &revoker, bool sensitive = false);
 
     /**
      * @brief Add subpacket to v4 and up signature

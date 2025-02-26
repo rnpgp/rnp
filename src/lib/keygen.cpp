@@ -192,11 +192,8 @@ KeygenParams::generate(pgp_key_pkt_t &seckey, bool primary)
 }
 
 static bool
-load_generated_g10_key(pgp_key_t *      dst,
-                       pgp_key_pkt_t *  newkey,
-                       pgp_key_t *      primary_key,
-                       pgp_key_t *      pubkey,
-                       SecurityContext &ctx)
+load_generated_g10_key(
+  Key *dst, pgp_key_pkt_t *newkey, Key *primary_key, Key *pubkey, SecurityContext &ctx)
 {
     // this should generally be zeroed
     assert(dst->type() == 0);
@@ -219,7 +216,7 @@ load_generated_g10_key(pgp_key_t *      dst,
         return false;
     }
 
-    std::vector<pgp_key_t *> key_ptrs; /* holds primary and pubkey, when used */
+    std::vector<Key *> key_ptrs; /* holds primary and pubkey, when used */
     // if this is a subkey, add the primary in first
     if (primary_key) {
         key_ptrs.push_back(primary_key);
@@ -237,14 +234,14 @@ load_generated_g10_key(pgp_key_t *      dst,
     }
     // if a primary key is provided, it should match the sub with regards to type
     assert(!primary_key || (primary_key->is_secret() == key_store->keys.front().is_secret()));
-    *dst = pgp_key_t(key_store->keys.front());
+    *dst = Key(key_store->keys.front());
     return true;
 }
 
 bool
 KeygenParams::generate(CertParams &           cert,
-                       pgp_key_t &            primary_sec,
-                       pgp_key_t &            primary_pub,
+                       Key &                  primary_sec,
+                       Key &                  primary_pub,
                        pgp_key_store_format_t secformat)
 {
     primary_sec = {};
@@ -264,8 +261,8 @@ KeygenParams::generate(CertParams &           cert,
         return false;
     }
 
-    pgp_key_t sec(secpkt);
-    pgp_key_t pub(secpkt, true);
+    Key sec(secpkt);
+    Key pub(secpkt, true);
 #if defined(ENABLE_CRYPTO_REFRESH)
     // for v6 packets, a direct-key sig is mandatory.
     if (sec.version() == PGP_V6) {
@@ -301,10 +298,10 @@ KeygenParams::generate(CertParams &           cert,
 
 bool
 KeygenParams::generate(BindingParams &                binding,
-                       pgp_key_t &                    primary_sec,
-                       pgp_key_t &                    primary_pub,
-                       pgp_key_t &                    subkey_sec,
-                       pgp_key_t &                    subkey_pub,
+                       Key &                          primary_sec,
+                       Key &                          primary_pub,
+                       Key &                          subkey_sec,
+                       Key &                          subkey_pub,
                        const pgp_password_provider_t &password_provider,
                        pgp_key_store_format_t         secformat)
 {
@@ -338,8 +335,8 @@ KeygenParams::generate(BindingParams &                binding,
         return false;
     }
     pgp_key_pkt_t pubpkt = pgp_key_pkt_t(secpkt, true);
-    pgp_key_t     sec(secpkt, primary_sec);
-    pgp_key_t     pub(pubpkt, primary_pub);
+    Key           sec(secpkt, primary_sec);
+    Key           pub(pubpkt, primary_pub);
     /* add binding */
     primary_sec.add_sub_binding(sec, pub, binding, hash(), ctx());
     /* copy to the result */

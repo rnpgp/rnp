@@ -39,7 +39,9 @@
 #include <cinttypes>
 #include <cassert>
 
-#include "pgp-key.h"
+#include "key.hpp"
+#include "kbx_blob.hpp"
+#include "rekey/rnp_key_store.h"
 #include <librepgp/stream-sig.h>
 
 /* same limit with GnuPG 2.1 */
@@ -504,7 +506,7 @@ kbx_write_header(const KeyStore &key_store, pgp_dest_t &dst)
 }
 
 bool
-kbx_write_pgp(const KeyStore &key_store, const pgp_key_t &key, pgp_dest_t &dst)
+kbx_write_pgp(const KeyStore &key_store, const Key &key, pgp_dest_t &dst)
 {
     MemoryDest mem(NULL, BLOB_SIZE_LIMIT);
 
@@ -643,7 +645,7 @@ kbx_write_pgp(const KeyStore &key_store, const pgp_key_t &key, pgp_dest_t &dst)
     }
 
     for (auto &sfp : key.subkey_fps()) {
-        const pgp_key_t *subkey = key_store.get_key(sfp);
+        auto *subkey = key_store.get_key(sfp);
         if (!subkey) {
             return false;
         }

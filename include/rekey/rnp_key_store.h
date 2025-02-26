@@ -31,7 +31,7 @@
 #include <stdbool.h>
 #include "rnp.h"
 #include "librepgp/stream-common.h"
-#include "pgp-key.h"
+#include "key.hpp"
 #include <string>
 #include <list>
 #include <map>
@@ -55,15 +55,14 @@ typedef enum pgp_sig_import_status_t {
     PGP_SIG_IMPORT_STATUS_NEW
 } pgp_sig_import_status_t;
 
-typedef std::unordered_map<pgp_fingerprint_t, std::list<pgp_key_t>::iterator> pgp_key_fp_map_t;
+typedef std::unordered_map<pgp_fingerprint_t, std::list<rnp::Key>::iterator> pgp_key_fp_map_t;
 
 namespace rnp {
 class KeyStore {
   private:
-    pgp_key_t *             add_subkey(pgp_key_t &srckey, pgp_key_t *oldkey);
-    pgp_sig_import_status_t import_subkey_signature(pgp_key_t &            key,
-                                                    const pgp_signature_t &sig);
-    bool                    refresh_subkey_grips(pgp_key_t &key);
+    Key *                   add_subkey(Key &srckey, Key *oldkey);
+    pgp_sig_import_status_t import_subkey_signature(Key &key, const pgp_signature_t &sig);
+    bool                    refresh_subkey_grips(Key &key);
 
   public:
     std::string            path;
@@ -72,7 +71,7 @@ class KeyStore {
     bool                   disable_validation =
       false; /* do not automatically validate keys, added to this key store */
 
-    std::list<pgp_key_t>                     keys;
+    std::list<Key>                           keys;
     pgp_key_fp_map_t                         keybyfp;
     std::vector<std::unique_ptr<kbx_blob_t>> blobs;
 
@@ -150,8 +149,8 @@ class KeyStore {
 
     size_t key_count() const;
 
-    pgp_key_t *      get_key(const pgp_fingerprint_t &fpr);
-    const pgp_key_t *get_key(const pgp_fingerprint_t &fpr) const;
+    Key *      get_key(const pgp_fingerprint_t &fpr);
+    const Key *get_key(const pgp_fingerprint_t &fpr) const;
 
     /**
      * @brief Get the key's subkey by its index
@@ -160,7 +159,7 @@ class KeyStore {
      * @param idx index of the subkey
      * @return pointer to the subkey or nullptr if subkey was found
      */
-    pgp_key_t *get_subkey(const pgp_key_t &key, size_t idx);
+    Key *get_subkey(const Key &key, size_t idx);
 
     /**
      * @brief Get the signer's key for signature
@@ -169,13 +168,13 @@ class KeyStore {
      * @param prov key provider to request needed key.
      * @return pointer to the key or nullptr if signer's key was not found.
      */
-    pgp_key_t *get_signer(const pgp_signature_t &sig, const KeyProvider *prov = nullptr);
+    Key *get_signer(const pgp_signature_t &sig, const KeyProvider *prov = nullptr);
 
     /**
      * @brief Add key to the keystore, copying it.
      * @return pointer to the added key or nullptr if failed.
      */
-    pgp_key_t *add_key(pgp_key_t &key);
+    Key *add_key(Key &key);
 
     /**
      * @brief Add signature of the specific key to the keystore, revalidating and refreshing
@@ -208,7 +207,7 @@ class KeyStore {
      * @param tskey parsed subkey.
      * @param pkey primary key, may be nullptr.
      */
-    bool add_ts_subkey(const pgp_transferable_subkey_t &tskey, pgp_key_t *pkey = nullptr);
+    bool add_ts_subkey(const pgp_transferable_subkey_t &tskey, Key *pkey = nullptr);
 
     /**
      * @brief Import key to the keystore.
@@ -216,16 +215,14 @@ class KeyStore {
      * @param srckey source key.
      * @param pubkey import just public key part.
      * @param status if not nullptr then import status will be stored here.
-     * @return pgp_key_t*
+     * @return Key*
      */
-    pgp_key_t *import_key(pgp_key_t &              srckey,
-                          bool                     pubkey,
-                          pgp_key_import_status_t *status = nullptr);
+    Key *import_key(Key &srckey, bool pubkey, pgp_key_import_status_t *status = nullptr);
 
     /**
      * @brief Import signature for the specified key.
      */
-    pgp_sig_import_status_t import_signature(pgp_key_t &key, const pgp_signature_t &sig);
+    pgp_sig_import_status_t import_signature(Key &key, const pgp_signature_t &sig);
 
     /**
      * @brief Import revocation or direct-key signature to the keystore.
@@ -235,7 +232,7 @@ class KeyStore {
      * @return pointer to the key to which this signature belongs (or nullptr if key was not
      * found)
      */
-    pgp_key_t *import_signature(const pgp_signature_t &sig, pgp_sig_import_status_t *status);
+    Key *import_signature(const pgp_signature_t &sig, pgp_sig_import_status_t *status);
 
     /**
      * @brief Remove key from the keystore.
@@ -244,14 +241,14 @@ class KeyStore {
      * @param subkeys remove subkeys or not.
      * @return true if key was successfully removed, or false if key was not found in keystore.
      */
-    bool remove_key(const pgp_key_t &key, bool subkeys = false);
+    bool remove_key(const Key &key, bool subkeys = false);
 
     /**
      * @brief Get primary key for the subkey, if any.
      */
-    pgp_key_t *primary_key(const pgp_key_t &subkey);
+    Key *primary_key(const Key &subkey);
 
-    pgp_key_t *search(const KeySearch &search, pgp_key_t *after = nullptr);
+    Key *search(const KeySearch &search, Key *after = nullptr);
 };
 } // namespace rnp
 

@@ -25,7 +25,7 @@
  */
 
 #include <rnp/rnp.h>
-#include "../lib/pgp-key.h"
+#include "../lib/key.hpp"
 #include "../librekey/key_store_g10.h"
 #include "../librepgp/stream-common.h"
 #include "../include/rekey/rnp_key_store.h"

@@ -24,8 +24,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef RNP_KEY_H
-#define RNP_KEY_H
+#ifndef RNP_KEY_HPP
+#define RNP_KEY_HPP
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -33,7 +33,6 @@
 #include <unordered_map>
 #include "pass-provider.h"
 #include "../librepgp/stream-key.h"
-#include <rekey/rnp_key_store.h>
 #include "../librepgp/stream-packet.h"
 #include "crypto/symmetric.h"
 #include "types.h"
@@ -47,10 +46,9 @@ using SignatureMap = std::unordered_map<pgp::SigID, Signature>;
 class KeyStore;
 class CertParams;
 class BindingParams;
-} // namespace rnp
 
 /* describes a user's key */
-struct pgp_key_t {
+class Key {
   private:
     rnp::SignatureMap        sigs_map_; /* map with subsigs stored by their id */
     pgp::SigIDs              sigs_;     /* subsig ids to lookup actual sig in map */
@@ -87,14 +85,14 @@ struct pgp_key_t {
   public:
     pgp_key_store_format_t format{}; /* the format of the key in packets[0] */
 
-    pgp_key_t() = default;
-    pgp_key_t(const pgp_key_pkt_t &pkt);
-    pgp_key_t(const pgp_key_pkt_t &pkt, pgp_key_t &primary);
-    pgp_key_t(const pgp_key_t &src, bool pubonly = false);
-    pgp_key_t(const pgp_transferable_key_t &src);
-    pgp_key_t(const pgp_transferable_subkey_t &src, pgp_key_t *primary);
-    pgp_key_t &operator=(const pgp_key_t &) = default;
-    pgp_key_t &operator=(pgp_key_t &&) = default;
+    Key() = default;
+    Key(const pgp_key_pkt_t &pkt);
+    Key(const pgp_key_pkt_t &pkt, Key &primary);
+    Key(const Key &src, bool pubonly = false);
+    Key(const pgp_transferable_key_t &src);
+    Key(const pgp_transferable_subkey_t &src, Key *primary);
+    Key &operator=(const Key &) = default;
+    Key &operator=(Key &&) = default;
 
     size_t                   sig_count() const;
     rnp::Signature &         get_sig(size_t idx);
@@ -194,7 +192,7 @@ struct pgp_key_t {
     /** @brief Clean primary_fp */
     void unset_primary_fp() noexcept;
     /** @brief Link key with subkey via primary_fp and subkey_fps list */
-    void link_subkey_fp(pgp_key_t &subkey);
+    void link_subkey_fp(Key &subkey);
     /**
      * @brief Add subkey fp to key's list.
      *        Note: this function will check for duplicates.
@@ -269,7 +267,7 @@ struct pgp_key_t {
      * @param uid index of uid to export
      * @return true on success or false otherwise
      */
-    bool write_autocrypt(pgp_dest_t &dst, pgp_key_t &sub, uint32_t uid);
+    bool write_autocrypt(pgp_dest_t &dst, Key &sub, uint32_t uid);
     /**
      * @brief Write key to vector.
      */
@@ -324,7 +322,7 @@ struct pgp_key_t {
      * @param sig signature to validate.
      * @param ctx Populated security context.
      */
-    void validate_sig(const pgp_key_t &           key,
+    void validate_sig(const Key &                 key,
                       rnp::Signature &            sig,
                       const rnp::SecurityContext &ctx) const noexcept;
 
@@ -360,7 +358,7 @@ struct pgp_key_t {
      * @param subkey subkey packet.
      */
     void validate_binding(rnp::SignatureInfo &        sinfo,
-                          const pgp_key_t &           subkey,
+                          const Key &                 subkey,
                           const rnp::SecurityContext &ctx) const;
 
     /**
@@ -391,7 +389,7 @@ struct pgp_key_t {
                           const rnp::SecurityContext &ctx) const;
 
     void validate_self_signatures(const rnp::SecurityContext &ctx);
-    void validate_self_signatures(pgp_key_t &primary, const rnp::SecurityContext &ctx);
+    void validate_self_signatures(Key &primary, const rnp::SecurityContext &ctx);
 
     /*
      * @brief Validate designated revocations. As those are issued by another key, this is
@@ -399,7 +397,7 @@ struct pgp_key_t {
      */
     bool validate_desig_revokes(rnp::KeyStore &keyring);
     void validate(rnp::KeyStore &keyring);
-    void validate_subkey(pgp_key_t *primary, const rnp::SecurityContext &ctx);
+    void validate_subkey(Key *primary, const rnp::SecurityContext &ctx);
     void revalidate(rnp::KeyStore &keyring);
     void mark_valid();
     /**
@@ -467,7 +465,7 @@ struct pgp_key_t {
      * @param sig signature, pre-populated with all of the required data, except the
      *            signature material.
      */
-    void sign_subkey_binding(pgp_key_t &           sub,
+    void sign_subkey_binding(Key &                 sub,
                              pgp_signature_t &     sig,
                              rnp::SecurityContext &ctx,
                              bool                  subsign = false);
@@ -499,7 +497,7 @@ struct pgp_key_t {
     void add_direct_sig(rnp::CertParams &     cert,
                         pgp_hash_alg_t        hash,
                         rnp::SecurityContext &ctx,
-                        pgp_key_t *           pubkey = nullptr);
+                        Key *                 pubkey = nullptr);
 #endif
 
     /**
@@ -515,7 +513,7 @@ struct pgp_key_t {
     void add_uid_cert(rnp::CertParams &     cert,
                       pgp_hash_alg_t        hash,
                       rnp::SecurityContext &ctx,
-                      pgp_key_t *           pubkey = nullptr);
+                      Key *                 pubkey = nullptr);
 
     /**
      * @brief Calculate and add subkey binding signature.
@@ -528,8 +526,8 @@ struct pgp_key_t {
      * @param hash hash algorithm to use (may be adjusted according to key and subkey
      *             algorithms)
      */
-    void add_sub_binding(pgp_key_t &               subsec,
-                         pgp_key_t &               subpub,
+    void add_sub_binding(Key &                     subsec,
+                         Key &                     subpub,
                          const rnp::BindingParams &binding,
                          pgp_hash_alg_t            hash,
                          rnp::SecurityContext &    ctx);
@@ -537,22 +535,21 @@ struct pgp_key_t {
     /** @brief Refresh internal fields after primary key is updated */
     bool refresh_data(const rnp::SecurityContext &ctx);
     /** @brief Refresh internal fields after subkey is updated */
-    bool refresh_data(pgp_key_t *primary, const rnp::SecurityContext &ctx);
+    bool refresh_data(Key *primary, const rnp::SecurityContext &ctx);
     /** @brief Refresh revocation status. */
     void refresh_revocations();
     /** @brief Merge primary key with the src, i.e. add all new userids/signatures/subkeys */
-    bool merge(const pgp_key_t &src);
+    bool merge(const Key &src);
     /** @brief Merge subkey with the source, i.e. add all new signatures */
-    bool merge(const pgp_key_t &src, pgp_key_t *primary);
+    bool merge(const Key &src, Key *primary);
 };
 
-namespace rnp {
 class KeyLocker {
-    bool       lock_;
-    pgp_key_t &key_;
+    bool lock_;
+    Key &key_;
 
   public:
-    KeyLocker(pgp_key_t &key) : lock_(key.is_locked()), key_(key)
+    KeyLocker(Key &key) : lock_(key.is_locked()), key_(key)
     {
     }
 
@@ -563,27 +560,24 @@ class KeyLocker {
         }
     }
 };
-}; // namespace rnp
 
 pgp_key_pkt_t *pgp_decrypt_seckey_pgp(const rnp::RawPacket &raw,
                                       const pgp_key_pkt_t & key,
                                       const char *          password);
 
-pgp_key_pkt_t *pgp_decrypt_seckey(const pgp_key_t &,
+pgp_key_pkt_t *pgp_decrypt_seckey(const Key &,
                                   const pgp_password_provider_t &,
                                   const pgp_password_ctx_t &);
 
-pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
-
-bool pgp_key_set_expiration(pgp_key_t *                    key,
-                            pgp_key_t *                    signer,
+bool pgp_key_set_expiration(Key *                          key,
+                            Key *                          signer,
                             uint32_t                       expiry,
                             const pgp_password_provider_t &prov,
                             rnp::SecurityContext &         ctx);
 
-bool pgp_subkey_set_expiration(pgp_key_t *                    sub,
-                               pgp_key_t *                    primsec,
-                               pgp_key_t *                    secsub,
+bool pgp_subkey_set_expiration(Key *                          sub,
+                               Key *                          primsec,
+                               Key *                          secsub,
                                uint32_t                       expiry,
                                const pgp_password_provider_t &prov,
                                rnp::SecurityContext &         ctx);
@@ -604,10 +598,14 @@ bool pgp_subkey_set_expiration(pgp_key_t *                    sub,
  *  @returns key or last created subkey with desired usage flag
  *           set or NULL if not found
  */
-pgp_key_t *find_suitable_key(pgp_op_t          op,
-                             pgp_key_t *       key,
-                             rnp::KeyProvider *key_provider,
-                             bool              no_primary = false,
-                             bool              pref_pqc_sub = false);
+Key *find_suitable_key(pgp_op_t          op,
+                       Key *             key,
+                       rnp::KeyProvider *key_provider,
+                       bool              no_primary = false,
+                       bool              pref_pqc_sub = false);
 
-#endif // RNP_PACKET_KEY_H
+} // namespace rnp
+
+pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
+
+#endif // RNP_KEY_HPP

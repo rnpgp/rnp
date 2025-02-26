@@ -38,7 +38,7 @@
 #include "crypto/common.h"
 #include "crypto/mem.h"
 #include "crypto/cipher.hpp"
-#include "pgp-key.h"
+#include "key.hpp"
 #include "time-utils.h"
 
 #include "g23_sexp.hpp"
@@ -940,7 +940,7 @@ KeyStore::load_g10(pgp_source_t &src, const KeyProvider *key_provider)
             return false;
         }
         /* copy public key fields if any */
-        pgp_key_t key;
+        Key key;
         if (key_provider) {
             pgp_key_grip_t grip = seckey.material->grip();
             auto           pubkey =
@@ -950,7 +950,7 @@ KeyStore::load_g10(pgp_source_t &src, const KeyProvider *key_provider)
             }
 
             /* public key packet has some more info then the secret part */
-            key = pgp_key_t(*pubkey, true);
+            key = Key(*pubkey, true);
             if (!copy_secret_fields(key.pkt(), seckey)) {
                 return false;
             }
@@ -1278,7 +1278,7 @@ g10_calculated_hash(const pgp_key_pkt_t &key, const char *protected_at, uint8_t 
 }
 
 bool
-rnp_key_store_gnupg_sexp_to_dst(pgp_key_t &key, pgp_dest_t &dest)
+rnp_key_store_gnupg_sexp_to_dst(rnp::Key &key, pgp_dest_t &dest)
 {
     if (key.format != PGP_KEY_STORE_G10) {
         RNP_LOG("incorrect format: %d", key.format);
