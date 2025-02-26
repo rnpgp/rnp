@@ -26,7 +26,7 @@
 
 #include "../librepgp/stream-packet.h"
 #include "../librepgp/stream-sig.h"
-#include "pgp-key.h"
+#include "key.hpp"
 
 #include "rnp_tests.h"
 #include "support.h"
@@ -42,7 +42,7 @@ TEST_F(rnp_tests, key_grip)
     rnp::KeyProvider key_provider(rnp_key_provider_store, pub_store);
     assert_true(sec_store->load(&key_provider));
 
-    const pgp_key_t *key = NULL;
+    const rnp::Key *key = NULL;
     // dsa-eg public/secret key
     assert_non_null(
       key = rnp_tests_get_key_by_grip(pub_store, "552286BEB2999F0A9E26A50385B90D9724001187"));
