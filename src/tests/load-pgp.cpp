@@ -26,7 +26,7 @@
 
 #include "../librepgp/stream-packet.h"
 #include "../librepgp/stream-sig.h"
-#include "pgp-key.h"
+#include "key.hpp"
 #include "utils.h"
 
 #include "rnp_tests.h"
@@ -48,7 +48,7 @@ TEST_F(rnp_tests, test_load_v3_keyring_pgp)
     assert_int_equal(1, key_store->key_count());
 
     // find the key by keyid
-    const pgp_key_t *key = rnp_tests_get_key_by_id(key_store, "DC70C124A50283F1");
+    const rnp::Key *key = rnp_tests_get_key_by_id(key_store, "DC70C124A50283F1");
     assert_non_null(key);
 
     // confirm the key flags are correct
@@ -111,7 +111,7 @@ TEST_F(rnp_tests, test_load_v4_keyring_pgp)
 
     // find the key by keyid
     static const std::string keyid = "8a05b89fad5aded1";
-    const pgp_key_t *        key = rnp_tests_get_key_by_id(key_store, keyid);
+    const rnp::Key *         key = rnp_tests_get_key_by_id(key_store, keyid);
     assert_non_null(key);
 
     // confirm the key flags are correct
@@ -187,7 +187,7 @@ TEST_F(rnp_tests, test_load_keyring_and_count_pgp)
  */
 TEST_F(rnp_tests, test_load_check_bitfields_and_times)
 {
-    const pgp_key_t *      key;
+    const rnp::Key *       key;
     const pgp_signature_t *sig = NULL;
 
     // load keyring
@@ -331,7 +331,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
 TEST_F(rnp_tests, test_load_check_bitfields_and_times_v3)
 {
     pgp_key_id_t           keyid = {};
-    const pgp_key_t *      key;
+    const rnp::Key *       key;
     const pgp_signature_t *sig = NULL;
 
     // load keyring
@@ -378,7 +378,7 @@ TEST_F(rnp_tests, test_load_armored_pub_sec)
     /* we must have 1 main key and 2 subkeys */
     assert_int_equal(key_store->key_count(), 3);
 
-    pgp_key_t *key = NULL;
+    rnp::Key *key = NULL;
     assert_non_null(key = rnp_tests_get_key_by_id(key_store, "9747D2A6B3A63124"));
     assert_true(key->valid());
     assert_true(key->is_primary());
@@ -446,7 +446,7 @@ load_keystore(rnp::KeyStore *keystore, const char *fname)
 }
 
 static bool
-check_subkey_fp(pgp_key_t *key, pgp_key_t *subkey, size_t index)
+check_subkey_fp(rnp::Key *key, rnp::Key *subkey, size_t index)
 {
     if (key->get_subkey_fp(index) != subkey->fp()) {
         return false;
@@ -459,7 +459,7 @@ check_subkey_fp(pgp_key_t *key, pgp_key_t *subkey, size_t index)
 
 TEST_F(rnp_tests, test_load_merge)
 {
-    pgp_key_t *               key, *skey1, *skey2;
+    rnp::Key *                key, *skey1, *skey2;
     pgp_transferable_key_t    tkey = {};
     pgp_transferable_subkey_t tskey = {};
     pgp_password_provider_t   provider = {};
@@ -681,13 +681,13 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     std::string sub1id = "AF1114A47F5F5B28";
     std::string sub2id = "16CD16F267CCDD4F";
 
-    pgp_key_t *key = NULL, *skey1 = NULL, *skey2 = NULL;
+    rnp::Key *key = nullptr, *skey1 = nullptr, *skey2 = nullptr;
     assert_non_null(key = rnp_tests_get_key_by_id(secstore, keyid));
     assert_non_null(skey1 = rnp_tests_get_key_by_id(secstore, sub1id));
     assert_non_null(skey2 = rnp_tests_get_key_by_id(secstore, sub2id));
 
     /* copy the secret key */
-    pgp_key_t keycp = pgp_key_t(*key, false);
+    rnp::Key keycp = rnp::Key(*key, false);
     assert_true(keycp.is_secret());
     assert_int_equal(keycp.subkey_count(), 2);
     assert_true(keycp.get_subkey_fp(0) == skey1->fp());
@@ -696,7 +696,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_int_equal(keycp.rawpkt().tag(), PGP_PKT_SECRET_KEY);
 
     /* copy the public part */
-    keycp = pgp_key_t(*key, true);
+    keycp = rnp::Key(*key, true);
     assert_false(keycp.is_secret());
     assert_int_equal(keycp.subkey_count(), 2);
     assert_true(check_subkey_fp(&keycp, skey1, 0));
@@ -708,7 +708,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_false(keycp.pkt().material->secret());
     pubstore->add_key(keycp);
     /* subkey 1 */
-    keycp = pgp_key_t(*skey1, true);
+    keycp = rnp::Key(*skey1, true);
     assert_false(keycp.is_secret());
     assert_int_equal(keycp.subkey_count(), 0);
     assert_true(check_subkey_fp(key, &keycp, 0));
@@ -720,7 +720,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_false(keycp.pkt().material->secret());
     pubstore->add_key(keycp);
     /* subkey 2 */
-    keycp = pgp_key_t(*skey2, true);
+    keycp = rnp::Key(*skey2, true);
     assert_false(keycp.is_secret());
     assert_int_equal(keycp.subkey_count(), 0);
     assert_true(check_subkey_fp(key, &keycp, 1));
@@ -932,7 +932,7 @@ TEST_F(rnp_tests, test_load_subkey)
     std::string sub2id = "16CD16F267CCDD4F";
 
     /* load first subkey with signature */
-    pgp_key_t *key = NULL, *skey1 = NULL, *skey2 = NULL;
+    rnp::Key *key = nullptr, *skey1 = nullptr, *skey2 = nullptr;
     assert_true(load_keystore(key_store, MERGE_PATH "key-pub-just-subkey-1.pgp"));
     assert_int_equal(key_store->key_count(), 1);
     assert_non_null(skey1 = rnp_tests_get_key_by_id(key_store, sub1id));

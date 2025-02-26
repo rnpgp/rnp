@@ -27,7 +27,7 @@
 #include <string>
 #include <map>
 #include "key-provider.h"
-#include "pgp-key.h"
+#include "key.hpp"
 #include "fingerprint.h"
 #include "types.h"
 #include "utils.h"
@@ -121,7 +121,7 @@ KeySearch::create(const std::string &name, const std::string &value)
 }
 
 bool
-KeyIDSearch::matches(const pgp_key_t &key) const
+KeyIDSearch::matches(const Key &key) const
 {
     return (key.keyid() == keyid_) || (keyid_ == pgp_key_id_t({}));
 }
@@ -151,7 +151,7 @@ KeyIDSearch::KeyIDSearch(const pgp_key_id_t &keyid)
 }
 
 bool
-KeyFingerprintSearch::matches(const pgp_key_t &key) const
+KeyFingerprintSearch::matches(const Key &key) const
 {
     return key.fp() == fp_;
 }
@@ -181,7 +181,7 @@ KeyFingerprintSearch::get_fp() const
 }
 
 bool
-KeyGripSearch::matches(const pgp_key_t &key) const
+KeyGripSearch::matches(const Key &key) const
 {
     return key.grip() == grip_;
 }
@@ -205,7 +205,7 @@ KeyGripSearch::KeyGripSearch(const pgp_key_grip_t &grip)
 }
 
 bool
-KeyUIDSearch::matches(const pgp_key_t &key) const
+KeyUIDSearch::matches(const Key &key) const
 {
     return key.has_uid(uid_);
 }
@@ -228,10 +228,10 @@ KeyUIDSearch::KeyUIDSearch(const std::string &uid)
     uid_ = uid;
 }
 
-pgp_key_t *
+Key *
 KeyProvider::request_key(const KeySearch &search, pgp_op_t op, bool secret) const
 {
-    pgp_key_t *key = nullptr;
+    Key *key = nullptr;
     if (!callback) {
         return key;
     }
@@ -247,10 +247,10 @@ KeyProvider::request_key(const KeySearch &search, pgp_op_t op, bool secret) cons
 }
 } // namespace rnp
 
-pgp_key_t *
+rnp::Key *
 rnp_key_provider_key_ptr_list(const pgp_key_request_ctx_t *ctx, void *userdata)
 {
-    std::vector<pgp_key_t *> *key_list = (std::vector<pgp_key_t *> *) userdata;
+    std::vector<rnp::Key *> *key_list = (std::vector<rnp::Key *> *) userdata;
     for (auto key : *key_list) {
         if (ctx->search.matches(*key) && (key->is_secret() == ctx->secret)) {
             return key;
@@ -259,14 +259,14 @@ rnp_key_provider_key_ptr_list(const pgp_key_request_ctx_t *ctx, void *userdata)
     return NULL;
 }
 
-pgp_key_t *
+rnp::Key *
 rnp_key_provider_chained(const pgp_key_request_ctx_t *ctx, void *userdata)
 {
     for (rnp::KeyProvider **pprovider = (rnp::KeyProvider **) userdata;
          pprovider && *pprovider;
          pprovider++) {
-        auto       provider = *pprovider;
-        pgp_key_t *key = nullptr;
+        auto      provider = *pprovider;
+        rnp::Key *key = nullptr;
         if ((key = provider->callback(ctx, provider->userdata))) {
             return key;
         }
@@ -274,12 +274,12 @@ rnp_key_provider_chained(const pgp_key_request_ctx_t *ctx, void *userdata)
     return NULL;
 }
 
-pgp_key_t *
+rnp::Key *
 rnp_key_provider_store(const pgp_key_request_ctx_t *ctx, void *userdata)
 {
     auto ks = (rnp::KeyStore *) userdata;
 
-    for (pgp_key_t *key = ks->search(ctx->search); key; key = ks->search(ctx->search, key)) {
+    for (rnp::Key *key = ks->search(ctx->search); key; key = ks->search(ctx->search, key)) {
         if (key->is_secret() == ctx->secret) {
             return key;
         }

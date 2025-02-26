@@ -29,12 +29,12 @@
 
 #include "config.h"
 #include <string>
+#include <vector>
 #include <stdarg.h>
 #include <stddef.h>
 #include <setjmp.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -56,6 +56,7 @@
 #include "../rnp/fficli.h"
 #include "file-utils.h"
 #include "crypto/mem.h"
+#include "key.hpp"
 
 #ifdef _WIN32
 #define pipe(fds) _pipe(fds, 256, O_BINARY)
@@ -218,13 +219,13 @@ bool check_json_field_int(json_object *obj, const std::string &field, int value)
 bool check_json_field_bool(json_object *obj, const std::string &field, bool value);
 bool check_json_pkt_type(json_object *pkt, int tag);
 
-pgp_key_t *rnp_tests_get_key_by_id(rnp::KeyStore *    keyring,
-                                   const std::string &keyid,
-                                   pgp_key_t *        after = NULL);
-pgp_key_t *rnp_tests_get_key_by_fpr(rnp::KeyStore *keyring, const std::string &keyid);
-pgp_key_t *rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const std::string &grip);
-pgp_key_t *rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const pgp_key_grip_t &grip);
-pgp_key_t *rnp_tests_key_search(rnp::KeyStore *keyring, const std::string &uid);
+rnp::Key *rnp_tests_get_key_by_id(rnp::KeyStore *    keyring,
+                                  const std::string &keyid,
+                                  rnp::Key *         after = NULL);
+rnp::Key *rnp_tests_get_key_by_fpr(rnp::KeyStore *keyring, const std::string &keyid);
+rnp::Key *rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const std::string &grip);
+rnp::Key *rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const pgp_key_grip_t &grip);
+rnp::Key *rnp_tests_key_search(rnp::KeyStore *keyring, const std::string &uid);
 
 /* key load/reload  shortcuts */
 void reload_pubring(rnp_ffi_t *ffi);

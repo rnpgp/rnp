@@ -28,11 +28,11 @@
 #include <rekey/rnp_key_store.h>
 #include "rnp_tests.h"
 #include "support.h"
-#include "pgp-key.h"
+#include "key.hpp"
 #include "keygen.hpp"
 
 static const rnp::Signature *
-find_subsig(const pgp_key_t *key, const char *userid)
+find_subsig(const rnp::Key *key, const char *userid)
 {
     // find the userid index
     int uididx = -1;
@@ -66,7 +66,7 @@ TEST_F(rnp_tests, test_load_user_prefs)
         const char *userid = "key1-uid0";
 
         // find the key
-        pgp_key_t *key = NULL;
+        rnp::Key *key = nullptr;
         assert_non_null(key = rnp_tests_key_search(pubring, userid));
 
         auto subsig = find_subsig(key, userid);
@@ -94,7 +94,7 @@ TEST_F(rnp_tests, test_load_user_prefs)
         const char *userid = "key0-uid0";
 
         // find the key
-        pgp_key_t *key = NULL;
+        rnp::Key *key = nullptr;
         assert_non_null(key = rnp_tests_key_search(pubring, userid));
 
         auto subsig = find_subsig(key, userid);

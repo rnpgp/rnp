@@ -28,7 +28,7 @@
 #include "utils.h"
 #include "logging.h"
 #include "librepgp/stream-sig.h"
-#include "pgp-key.h"
+#include "key.hpp"
 #include <cinttypes>
 #include <cassert>
 

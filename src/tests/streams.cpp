@@ -29,7 +29,7 @@
 #include "rnp.h"
 #include "crypto/hash.hpp"
 #include "crypto/signatures.h"
-#include "pgp-key.h"
+#include "key.hpp"
 #include <time.h>
 #include "rnp.h"
 #include <librepgp/stream-ctx.h>
@@ -336,7 +336,7 @@ TEST_F(rnp_tests, test_stream_signatures)
 {
     pgp_signature_t sig;
     pgp_source_t    sigsrc;
-    pgp_key_t *     key = NULL;
+    rnp::Key *      key = nullptr;
 
     /* load keys */
     auto pubring =
@@ -994,7 +994,7 @@ TEST_F(rnp_tests, test_stream_key_signatures)
 {
     pgp_source_t       keysrc = {0};
     pgp_key_sequence_t keyseq;
-    pgp_key_t *        pkey = NULL;
+    rnp::Key *         pkey = nullptr;
     rnp::SignatureInfo sinfo;
 
     /* v3 public key */
@@ -1075,7 +1075,7 @@ TEST_F(rnp_tests, test_stream_key_signatures)
             assert_rnp_success(pgp_keyid(subid, subkey.subkey));
             char ssubid[PGP_KEY_ID_SIZE * 2 + 1];
             assert_true(rnp::hex_encode(subid.data(), subid.size(), ssubid, sizeof(ssubid)));
-            pgp_key_t *psub = rnp_tests_get_key_by_id(pubring, ssubid);
+            rnp::Key *psub = rnp_tests_get_key_by_id(pubring, ssubid);
             assert_non_null(psub);
             sinfo.validity.reset();
             pkey->validate_binding(sinfo, *psub, global_ctx);
@@ -1111,7 +1111,7 @@ TEST_F(rnp_tests, test_stream_key_signature_validate)
       new rnp::KeyStore(PGP_KEY_STORE_GPG, "data/keyrings/4/rsav3-p.asc", global_ctx);
     assert_true(pubring->load());
     assert_int_equal(pubring->key_count(), 1);
-    pgp_key_t &pkey = pubring->keys.front();
+    rnp::Key &pkey = pubring->keys.front();
     pkey.validate(*pubring);
     /* MD5 signature is marked as invalid by default */
     assert_false(pkey.valid());
