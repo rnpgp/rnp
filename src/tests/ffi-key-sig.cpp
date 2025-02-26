@@ -27,7 +27,7 @@
 #include <sstream>
 #include <rnp/rnp.h>
 #include <librepgp/stream-ctx.h>
-#include "pgp-key.h"
+#include "key.hpp"
 #include "ffi-priv-types.h"
 #include "rnp_tests.h"
 #include "support.h"

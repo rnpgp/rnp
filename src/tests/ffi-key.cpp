@@ -28,7 +28,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include <librepgp/stream-ctx.h>
-#include "pgp-key.h"
+#include "key.hpp"
 #include "ffi-priv-types.h"
 #include "str-utils.h"
 #ifndef RNP_USE_STD_REGEX
@@ -3230,13 +3230,13 @@ TEST_F(rnp_tests, test_ffi_v6_cert_import)
       from the correct input data) vs the computed fingerprint value of the primary key.
       Issuer fingerprint is the priamry's key fingerprint for the primary and its subkeys */
     pgp_fingerprint_t primary_fp;
-    for (pgp_key_t key : ffi->pubring->keys) {
+    for (rnp::Key key : ffi->pubring->keys) {
         if (key.is_primary()) {
             primary_fp = key.fp();
         }
     }
 
-    for (pgp_key_t key : ffi->pubring->keys) {
+    for (rnp::Key key : ffi->pubring->keys) {
         /* get first sig and its issuer fpr subpacket */
         rnp::Signature subsig = key.get_sig(0);
         auto issuer_fpr = subsig.sig.get_subpkt(pgp::pkt::sigsub::Type::IssuerFingerprint);

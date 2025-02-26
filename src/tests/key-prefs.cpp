@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "pgp-key.h"
+#include "key.hpp"
 
 #include "rnp_tests.h"
 #include "support.h"

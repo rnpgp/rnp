@@ -34,15 +34,16 @@
 #include "crypto/mem.h"
 
 #include "types.h"
-#include "pgp-key.h"
+#include "key.hpp"
+#include "rekey/rnp_key_store.h"
 
 namespace rnp {
 bool
-KeyStore::add_ts_subkey(const pgp_transferable_subkey_t &tskey, pgp_key_t *pkey)
+KeyStore::add_ts_subkey(const pgp_transferable_subkey_t &tskey, Key *pkey)
 {
     try {
         /* create subkey */
-        pgp_key_t skey(tskey, pkey);
+        Key skey(tskey, pkey);
         /* add it to the storage */
         return add_key(skey);
     } catch (const std::exception &e) {
@@ -58,11 +59,11 @@ KeyStore::add_ts_subkey(const pgp_transferable_subkey_t &tskey, pgp_key_t *pkey)
 bool
 KeyStore::add_ts_key(pgp_transferable_key_t &tkey)
 {
-    pgp_key_t *addkey = nullptr;
+    Key *addkey = nullptr;
 
     /* create key from transferable key */
     try {
-        pgp_key_t key(tkey);
+        Key key(tkey);
         /* temporary disable key validation */
         disable_validation = true;
         /* add key to the storage before subkeys */
@@ -176,7 +177,7 @@ do_write(rnp::KeyStore &key_store, pgp_dest_t &dst, bool secret)
             return false;
         }
         for (auto &sfp : key.subkey_fps()) {
-            pgp_key_t *subkey = key_store.get_key(sfp);
+            auto *subkey = key_store.get_key(sfp);
             if (!subkey) {
                 RNP_LOG("Missing subkey");
                 continue;

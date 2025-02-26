@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "pgp-key.h"
+#include "key.hpp"
 #include "rnp_tests.h"
 #include "support.h"
 #include "keygen.hpp"
@@ -33,7 +33,7 @@
  */
 TEST_F(rnp_tests, test_key_add_userid)
 {
-    pgp_key_t *        key = NULL;
+    rnp::Key *         key = NULL;
     pgp_source_t       src = {};
     pgp_dest_t         dst = {};
     const uint32_t     base_expiry = 1234567890;

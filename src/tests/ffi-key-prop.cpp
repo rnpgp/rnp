@@ -29,7 +29,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include <librepgp/stream-ctx.h>
-#include "pgp-key.h"
+#include "key.hpp"
 #include "ffi-priv-types.h"
 
 TEST_F(rnp_tests, test_ffi_key_set_expiry_multiple_uids)

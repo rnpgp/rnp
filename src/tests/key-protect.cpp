@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "pgp-key.h"
+#include "key.hpp"
 
 #include "rnp_tests.h"
 #include "support.h"
@@ -52,7 +52,7 @@ rsa_sec_filled(const pgp::KeyMaterial &key)
  */
 TEST_F(rnp_tests, test_key_protect_load_pgp)
 {
-    pgp_key_t *        key = NULL;
+    rnp::Key *         key = NULL;
     static const char *keyids[] = {"7bc6709b15c23a4a", // primary
                                    "1ed63ee56fadc34d",
                                    "1d7e8a5393c997a8",
@@ -71,7 +71,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
         src.close();
 
         for (size_t i = 0; i < ARRAY_SIZE(keyids); i++) {
-            pgp_key_t *key = NULL;
+            rnp::Key *key = NULL;
             assert_non_null(key = rnp_tests_get_key_by_id(ks, keyids[i]));
             assert_non_null(key);
             // all keys in this keyring are encrypted and thus should be both protected and
@@ -80,11 +80,11 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
             assert_true(key->is_locked());
         }
 
-        pgp_key_t *tmp = NULL;
+        rnp::Key *tmp = NULL;
         assert_non_null(tmp = rnp_tests_get_key_by_id(ks, keyids[0]));
 
         // steal this key from the store
-        key = new pgp_key_t(*tmp);
+        key = new rnp::Key(*tmp);
         assert_non_null(key);
         delete ks;
     }
@@ -137,7 +137,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
         assert_rnp_success(ks->load_pgp(memsrc.src()));
 
         // grab the first key
-        pgp_key_t *reloaded_key = NULL;
+        rnp::Key *reloaded_key = NULL;
         assert_non_null(reloaded_key = rnp_tests_get_key_by_id(ks, keyids[0]));
         assert_non_null(reloaded_key);
 
@@ -238,7 +238,7 @@ TEST_F(rnp_tests, test_key_protect_sec_data)
     rnp::BindingParams binding;
 
     /* generate raw unprotected keypair */
-    pgp_key_t               skey, pkey, ssub, psub;
+    rnp::Key                skey, pkey, ssub, psub;
     pgp_password_provider_t prov = {};
     assert_true(keygen.generate(cert, skey, pkey, PGP_KEY_STORE_GPG));
     assert_true(keygen.generate(binding, skey, pkey, ssub, psub, prov, PGP_KEY_STORE_GPG));
