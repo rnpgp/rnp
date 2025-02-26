@@ -43,7 +43,7 @@
 #include "stream-sig.h"
 #include "types.h"
 #include "fingerprint.h"
-#include "pgp-key.h"
+#include "key.hpp"
 #include "crypto/signatures.h"
 #include "crypto/mem.h"
 #include "str-utils.h"

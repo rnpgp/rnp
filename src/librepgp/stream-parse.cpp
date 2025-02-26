@@ -46,7 +46,7 @@
 #include "crypto/s2k.h"
 #include "crypto/signatures.h"
 #include "fingerprint.h"
-#include "pgp-key.h"
+#include "key.hpp"
 #ifdef ENABLE_CRYPTO_REFRESH
 #include "crypto/hkdf.hpp"
 #include "v2_seipd.h"
@@ -1561,7 +1561,7 @@ check_decrypted_symkey(pgp_pubkey_alg_t alg, size_t keylen, rnp::secure_bytes &d
 static bool
 encrypted_try_key(pgp_source_encrypted_param_t *param,
                   pgp_pk_sesskey_t &            sesskey,
-                  pgp_key_t &                   seckey,
+                  rnp::Key &                    seckey,
                   rnp::SecurityContext &        ctx)
 {
     auto encmaterial = sesskey.parse_material();

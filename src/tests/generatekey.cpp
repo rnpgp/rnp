@@ -32,7 +32,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include "crypto/common.h"
-#include "pgp-key.h"
+#include "key.hpp"
 #include "librepgp/stream-ctx.h"
 #include "librepgp/stream-sig.h"
 #include "librepgp/stream-key.h"
@@ -1015,15 +1015,15 @@ TEST_F(rnp_tests, generatekeyECDSA_explicitlySetUnknownDigest_ShouldFail)
  */
 TEST_F(rnp_tests, test_generated_key_sigs)
 {
-    auto       pubring = new rnp::KeyStore(global_ctx);
-    auto       secring = new rnp::KeyStore(global_ctx);
-    pgp_key_t *primary_pub = NULL, *primary_sec = NULL;
-    pgp_key_t *sub_pub = NULL, *sub_sec = NULL;
+    auto      pubring = new rnp::KeyStore(global_ctx);
+    auto      secring = new rnp::KeyStore(global_ctx);
+    rnp::Key *primary_pub = NULL, *primary_sec = NULL;
+    rnp::Key *sub_pub = NULL, *sub_sec = NULL;
 
     // primary
     {
-        pgp_key_t          pub;
-        pgp_key_t          sec;
+        rnp::Key           pub;
+        rnp::Key           sec;
         pgp_signature_t *  psig = NULL;
         pgp_signature_t *  ssig = NULL;
         rnp::SignatureInfo psiginfo;
@@ -1156,8 +1156,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
 
     // sub
     {
-        pgp_key_t          pub;
-        pgp_key_t          sec;
+        rnp::Key           pub;
+        rnp::Key           sec;
         pgp_signature_t *  psig = NULL;
         pgp_signature_t *  ssig = NULL;
         rnp::SignatureInfo psiginfo;

@@ -376,7 +376,7 @@ add_library(librnp-obj OBJECT
   signature.cpp
   userid.cpp
   keygen.cpp
-  pgp-key.cpp
+  key.cpp
   rnp.cpp
 )
 

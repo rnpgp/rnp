@@ -28,7 +28,7 @@
 #include "rnp_tests.h"
 #include "str-utils.h"
 #include <librepgp/stream-ctx.h>
-#include "pgp-key.h"
+#include "key.hpp"
 #include "librepgp/stream-armor.h"
 #include "ffi-priv-types.h"
 
@@ -44,7 +44,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#include <pgp-key.h>
+#include <key.hpp>
 #include <fstream>
 #include <vector>
 #include <algorithm>
@@ -738,8 +738,8 @@ check_json_pkt_type(json_object *pkt, int tag)
     return check_json_field_int(hdr, "tag", tag);
 }
 
-pgp_key_t *
-rnp_tests_get_key_by_id(rnp::KeyStore *keyring, const std::string &keyid, pgp_key_t *after)
+rnp::Key *
+rnp_tests_get_key_by_id(rnp::KeyStore *keyring, const std::string &keyid, rnp::Key *after)
 {
     if (!keyring || keyid.empty() || !rnp::is_hex(keyid)) {
         return NULL;
@@ -753,7 +753,7 @@ rnp_tests_get_key_by_id(rnp::KeyStore *keyring, const std::string &keyid, pgp_ke
     return keyring->search(search, after);
 }
 
-pgp_key_t *
+rnp::Key *
 rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const std::string &grip)
 {
     if (!keyring || grip.empty() || !rnp::is_hex(grip)) {
@@ -767,7 +767,7 @@ rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const std::string &grip)
     return rnp_tests_get_key_by_grip(keyring, grip_bin);
 }
 
-pgp_key_t *
+rnp::Key *
 rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const pgp_key_grip_t &grip)
 {
     if (!keyring) {
@@ -776,7 +776,7 @@ rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const pgp_key_grip_t &grip)
     return keyring->search(rnp::KeyGripSearch(grip));
 }
 
-pgp_key_t *
+rnp::Key *
 rnp_tests_get_key_by_fpr(rnp::KeyStore *keyring, const std::string &fpstr)
 {
     if (!keyring || fpstr.empty() || !rnp::is_hex(fpstr)) {
@@ -793,7 +793,7 @@ rnp_tests_get_key_by_fpr(rnp::KeyStore *keyring, const std::string &fpstr)
     return keyring->get_key(fp);
 }
 
-pgp_key_t *
+rnp::Key *
 rnp_tests_key_search(rnp::KeyStore *keyring, const std::string &uid)
 {
     if (!keyring || uid.empty()) {
@@ -1322,7 +1322,7 @@ ripemd160_enabled()
 bool
 test_load_gpg_check_key(rnp::KeyStore *pub, rnp::KeyStore *sec, const char *id)
 {
-    pgp_key_t *key = rnp_tests_get_key_by_id(pub, id);
+    rnp::Key *key = rnp_tests_get_key_by_id(pub, id);
     if (!key) {
         return false;
     }

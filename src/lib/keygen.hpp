@@ -31,7 +31,7 @@
 #include "types.h"
 #include "sec_profile.hpp"
 #include "key_material.hpp"
-#include "pgp-key.h"
+#include "key.hpp"
 
 namespace rnp {
 
@@ -107,16 +107,16 @@ class KeygenParams {
 
     /* Generate primary key with self-certification */
     bool generate(CertParams &           cert,
-                  pgp_key_t &            primary_sec,
-                  pgp_key_t &            primary_pub,
+                  Key &                  primary_sec,
+                  Key &                  primary_pub,
                   pgp_key_store_format_t secformat);
 
     /* Generate a subkey for already existing primary key*/
     bool generate(BindingParams &                binding,
-                  pgp_key_t &                    primary_sec,
-                  pgp_key_t &                    primary_pub,
-                  pgp_key_t &                    subkey_sec,
-                  pgp_key_t &                    subkey_pub,
+                  Key &                          primary_sec,
+                  Key &                          primary_pub,
+                  Key &                          subkey_sec,
+                  Key &                          subkey_pub,
                   const pgp_password_provider_t &password_provider,
                   pgp_key_store_format_t         secformat);
 };

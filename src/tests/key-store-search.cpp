@@ -26,7 +26,7 @@
 
 #include <algorithm>
 #include <set>
-#include "pgp-key.h"
+#include "key.hpp"
 
 #include "rnp_tests.h"
 #include "support.h"
@@ -52,7 +52,7 @@ TEST_F(rnp_tests, test_key_store_search)
     // add our fake test keys
     for (size_t i = 0; i < ARRAY_SIZE(testdata); i++) {
         for (size_t n = 0; n < testdata[i].count; n++) {
-            pgp_key_t key;
+            rnp::Key key;
 
             key.pkt().tag = PGP_PKT_PUBLIC_KEY;
             key.pkt().version = PGP_V4;
@@ -86,9 +86,9 @@ TEST_F(rnp_tests, test_key_store_search)
 
     // keyid search
     for (size_t i = 0; i < ARRAY_SIZE(testdata); i++) {
-        std::string           keyid = testdata[i].keyid;
-        std::set<pgp_key_t *> seen_keys;
-        for (pgp_key_t *key = rnp_tests_get_key_by_id(store, keyid); key;
+        std::string          keyid = testdata[i].keyid;
+        std::set<rnp::Key *> seen_keys;
+        for (rnp::Key *key = rnp_tests_get_key_by_id(store, keyid); key;
              key = rnp_tests_get_key_by_id(store, keyid, key)) {
             // check that the keyid actually matches
             assert_true(cmp_keyid(key->keyid(), keyid));
@@ -101,8 +101,8 @@ TEST_F(rnp_tests, test_key_store_search)
     }
     // keyid search (by_name)
     for (size_t i = 0; i < ARRAY_SIZE(testdata); i++) {
-        std::set<pgp_key_t *> seen_keys;
-        pgp_key_t *           key = NULL;
+        std::set<rnp::Key *> seen_keys;
+        rnp::Key *           key = nullptr;
         key = rnp_tests_get_key_by_id(store, testdata[i].keyid);
         while (key) {
             // check that the keyid actually matches
@@ -126,9 +126,9 @@ TEST_F(rnp_tests, test_key_store_search)
     }
     for (size_t i = 0; i < ARRAY_SIZE(testdata); i++) {
         for (size_t uidn = 0; testdata[i].userids[uidn]; uidn++) {
-            std::set<pgp_key_t *> seen_keys;
-            const std::string     userid = testdata[i].userids[uidn];
-            pgp_key_t *           key = rnp_tests_key_search(store, userid);
+            std::set<rnp::Key *> seen_keys;
+            const std::string    userid = testdata[i].userids[uidn];
+            rnp::Key *           key = rnp_tests_key_search(store, userid);
             while (key) {
                 // check that the userid actually matches
                 bool found = false;
@@ -155,11 +155,11 @@ TEST_F(rnp_tests, test_key_store_search)
 
 TEST_F(rnp_tests, test_key_store_search_by_name)
 {
-    const pgp_key_t *key;
-    pgp_key_t *      primsec;
-    pgp_key_t *      subsec;
-    pgp_key_t *      primpub;
-    pgp_key_t *      subpub;
+    const rnp::Key *key;
+    rnp::Key *      primsec;
+    rnp::Key *      subsec;
+    rnp::Key *      primpub;
+    rnp::Key *      subpub;
 
     // load pubring
     auto pub_store =

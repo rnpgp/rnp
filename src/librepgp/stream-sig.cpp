@@ -42,7 +42,7 @@
 #include "stream-sig.h"
 #include "stream-packet.h"
 #include "stream-armor.h"
-#include "pgp-key.h"
+#include "key.hpp"
 #include "crypto/signatures.h"
 #include <cassert>
 
@@ -692,7 +692,7 @@ pgp_signature_t::revoker() const noexcept
 }
 
 void
-pgp_signature_t::set_revoker(const pgp_key_t &revoker, bool sensitive)
+pgp_signature_t::set_revoker(const rnp::Key &revoker, bool sensitive)
 {
     auto sub = std::unique_ptr<sigsub::RevocationKey>(new sigsub::RevocationKey());
     sub->set_rev_class(sensitive ? 0xC0 : 0x80);

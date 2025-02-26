@@ -39,7 +39,7 @@
 #include <string>
 #include "file-utils.h"
 #include <librepgp/stream-ctx.h>
-#include "pgp-key.h"
+#include "key.hpp"
 #include "ffi-priv-types.h"
 
 static bool

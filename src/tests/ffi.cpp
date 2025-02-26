@@ -41,7 +41,7 @@
 #include "file-utils.h"
 #include "str-utils.h"
 #include <librepgp/stream-ctx.h>
-#include "pgp-key.h"
+#include "key.hpp"
 #include "ffi-priv-types.h"
 
 TEST_F(rnp_tests, test_ffi_homedir)
