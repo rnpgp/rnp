@@ -6900,14 +6900,23 @@ try {
     if (!sig) {
         return RNP_ERROR_NULL_POINTER;
     }
-    if (!sig->sig || sig->own_sig || flags) {
+    if (!sig->sig || sig->own_sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    bool revalidate = extract_flag(flags, RNP_SIGNATURE_REVALIDATE);
+    if (flags) {
+        RNP_LOG("Unknown flags: %" PRIu32, flags);
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     auto ssig = sig->sig;
+    if (revalidate) {
+        ssig->validity.reset();
+    }
     if (!ssig->validity.validated()) {
         pgp_key_t *signer = sig->ffi->pubring->get_signer(ssig->sig, &sig->ffi->key_provider);
         if (!signer) {
+            ssig->validity.mark_validated(RNP_ERROR_SIG_NO_SIGNER_KEY);
             return RNP_ERROR_KEY_NOT_FOUND;
         }
         signer->validate_sig(*sig->key, *ssig, sig->ffi->context);
