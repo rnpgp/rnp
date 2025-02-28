@@ -169,6 +169,12 @@ typedef uint32_t rnp_result_t;
 #define RNP_KEY_SERVER_NO_MODIFY (1U << 7)
 
 /**
+ *  Signature validation flags.
+ */
+
+#define RNP_SIGNATURE_REVALIDATE (1U << 0)
+
+/**
  * Return a constant string describing the result code
  */
 RNP_API const char *rnp_result_to_string(rnp_result_t result);
@@ -2216,11 +2222,14 @@ RNP_API rnp_result_t rnp_signature_get_trust_level(rnp_signature_handle_t sig,
  * @brief Get signature validity, revalidating it if didn't before.
  *
  * @param sig key/userid/document signature handle
- * @param flags validation flags, currently must be zero.
+ * @param flags validation flags. Currently supported only single flag:
+ *              RNP_SIGNATURE_REVALIDATE - force revalidation of the signature even if it was
+ *                  validated previously. Makes sense only for key signatures.
  *
  * @return Following error codes represents the validation status. For more detailed
  *         information why signature is invalid it is recommended to use
  *         rnp_signature_error_count()/rnp_signature_error_at() functions.
+ *
  *         RNP_SUCCESS : operation succeeds and signature is valid
  *         RNP_ERROR_KEY_NOT_FOUND : signer's key not found
  *         RNP_ERROR_VERIFICATION_FAILED: verification failed, so validity cannot be checked
