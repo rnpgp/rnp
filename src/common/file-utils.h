@@ -39,9 +39,12 @@ int     rnp_open(const char *filename, int oflag, int pmode);
 FILE *  rnp_fopen(const char *filename, const char *mode);
 FILE *  rnp_fdopen(int fildes, const char *mode);
 int     rnp_access(const char *path, int mode);
-int     rnp_stat(const char *filename, struct stat *statbuf);
-int     rnp_rename(const char *oldpath, const char *newpath);
-int     rnp_unlink(const char *path);
+#ifdef _WIN32 /* Default to __stat64 structure */
+#define stat __stat64
+#endif
+int rnp_stat(const char *filename, struct stat *statbuf);
+int rnp_rename(const char *oldpath, const char *newpath);
+int rnp_unlink(const char *path);
 
 #ifdef _WIN32
 #define rnp_closedir _wclosedir
