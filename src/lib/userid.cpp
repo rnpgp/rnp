@@ -52,10 +52,7 @@ UserID::sig_count() const
 const pgp::SigID &
 UserID::get_sig(size_t idx) const
 {
-    if (idx >= sigs_.size()) {
-        throw std::out_of_range("idx");
-    }
-    return sigs_[idx];
+    return sigs_.at(idx);
 }
 
 bool

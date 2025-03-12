@@ -519,19 +519,13 @@ Key::sig_count() const
 Signature &
 Key::get_sig(size_t idx)
 {
-    if (idx >= sigs_.size()) {
-        throw std::out_of_range("idx");
-    }
-    return get_sig(sigs_[idx]);
+    return get_sig(sigs_.at(idx));
 }
 
 const Signature &
 Key::get_sig(size_t idx) const
 {
-    if (idx >= sigs_.size()) {
-        throw std::out_of_range("idx");
-    }
-    return get_sig(sigs_[idx]);
+    return get_sig(sigs_.at(idx));
 }
 
 bool
@@ -676,10 +670,7 @@ Key::keysig_count() const
 Signature &
 Key::get_keysig(size_t idx)
 {
-    if (idx >= keysigs_.size()) {
-        throw std::out_of_range("idx");
-    }
-    return get_sig(keysigs_[idx]);
+    return get_sig(keysigs_.at(idx));
 }
 
 size_t
@@ -691,19 +682,13 @@ Key::uid_count() const
 UserID &
 Key::get_uid(size_t idx)
 {
-    if (idx >= uids_.size()) {
-        throw std::out_of_range("idx");
-    }
-    return uids_[idx];
+    return uids_.at(idx);
 }
 
 const UserID &
 Key::get_uid(size_t idx) const
 {
-    if (idx >= uids_.size()) {
-        throw std::out_of_range("idx");
-    }
-    return uids_[idx];
+    return uids_.at(idx);
 }
 
 size_t
@@ -857,10 +842,7 @@ Key::revoker_count() const
 const pgp_fingerprint_t &
 Key::get_revoker(size_t idx) const
 {
-    if (idx >= revokers_.size()) {
-        throw std::out_of_range("idx");
-    }
-    return revokers_[idx];
+    return revokers_.at(idx);
 }
 
 const pgp_key_pkt_t &
