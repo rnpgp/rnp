@@ -107,7 +107,7 @@ class SigValidity {
         return (errors_.size() == 1) && (errors_[0] == RNP_ERROR_SIG_NO_SIGNER_KEY);
     }
 };
-    
+
 class SignatureInfo {
   public:
     bool             signer_valid{};      /* assume that signing key is valid */

@@ -80,7 +80,7 @@ static const id_str_pair revocation_code_map[] = {
   {0x00, NULL},
 };
 
-Revocation::Revocation(rnp::Signature &sig) : uid(sig.uid), sigid(sig.sigid)
+Revocation::Revocation(Signature &sig) : uid(sig.uid), sigid(sig.sigid)
 {
     if (!sig.sig.has_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON)) {
         RNP_LOG("Warning: no revocation reason in the revocation");
