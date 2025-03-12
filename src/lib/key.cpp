@@ -2469,13 +2469,13 @@ Key::refresh_data(Key *primary, const SecurityContext &ctx)
     /* revocation */
     clear_revokes();
     for (size_t i = 0; i < sig_count(); i++) {
-        auto &sig = get_sig(i);
-        if (!sig.validity.valid() || !is_revocation(sig)) {
+        auto &rev = get_sig(i);
+        if (!rev.validity.valid() || !is_revocation(rev)) {
             continue;
         }
         revoked_ = true;
         try {
-            revocation_ = Revocation(sig);
+            revocation_ = Revocation(rev);
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
             return false;
