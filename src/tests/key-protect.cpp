@@ -52,7 +52,7 @@ rsa_sec_filled(const pgp::KeyMaterial &key)
  */
 TEST_F(rnp_tests, test_key_protect_load_pgp)
 {
-    rnp::Key *         key = NULL;
+    rnp::Key *         key = nullptr;
     static const char *keyids[] = {"7bc6709b15c23a4a", // primary
                                    "1ed63ee56fadc34d",
                                    "1d7e8a5393c997a8",
@@ -71,17 +71,16 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
         src.close();
 
         for (size_t i = 0; i < ARRAY_SIZE(keyids); i++) {
-            rnp::Key *key = NULL;
-            assert_non_null(key = rnp_tests_get_key_by_id(ks, keyids[i]));
-            assert_non_null(key);
+            rnp::Key *tmp = rnp_tests_get_key_by_id(ks, keyids[i]);
+            assert_non_null(tmp);
             // all keys in this keyring are encrypted and thus should be both protected and
             // locked initially
-            assert_true(key->is_protected());
-            assert_true(key->is_locked());
+            assert_true(tmp->is_protected());
+            assert_true(tmp->is_locked());
         }
 
-        rnp::Key *tmp = NULL;
-        assert_non_null(tmp = rnp_tests_get_key_by_id(ks, keyids[0]));
+        rnp::Key *tmp = rnp_tests_get_key_by_id(ks, keyids[0]);
+        assert_non_null(tmp);
 
         // steal this key from the store
         key = new rnp::Key(*tmp);
