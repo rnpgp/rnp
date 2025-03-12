@@ -172,6 +172,18 @@ if(CRYPTO_BACKEND_BOTAN)
   else()
     set(_botan_required_features ${_botan_required_features} DL_SCHEME RAW_HASH_FN)
   endif()
+  if(BOTAN_VERSION VERSION_GREATER_EQUAL 3.7.0)
+    set(_botan_required_features ${_botan_required_features}
+        # Basic curves, see below for Brainpool/SM2
+        PCURVES
+        PCURVES_IMPL
+        PCURVES_SECP192R1
+        PCURVES_SECP256K1
+        PCURVES_SECP256R1
+        PCURVES_SECP384R1
+        PCURVES_SECP521R1
+    )
+  endif()
   foreach(feature ${_botan_required_features})
     check_cxx_symbol_exists("BOTAN_HAS_${feature}" botan/build.h _botan_has_${feature})
     if (NOT _botan_has_${feature})
@@ -188,8 +200,12 @@ if(CRYPTO_BACKEND_BOTAN)
   resolve_feature_state(ENABLE_BLOWFISH "BLOWFISH")
   resolve_feature_state(ENABLE_CAST5 "CAST_128")
   resolve_feature_state(ENABLE_RIPEMD160 "RIPEMD_160")
-  # Botan supports Brainpool curves together with SECP via the ECC_GROUP define
-
+  if(BOTAN_VERSION VERSION_GREATER_EQUAL 3.7.0)
+    # Separate SM2 curve since 3.7.0
+    resolve_feature_state(ENABLE_SM2 "PCURVES_SM2P256V1")
+    # Botan supports Brainpool curves together with SECP via the ECC_GROUP define before the 3.7.0
+    resolve_feature_state(ENABLE_BRAINPOOL "PCURVES_BRAINPOOL256R1;PCURVES_BRAINPOOL384R1;PCURVES_BRAINPOOL512R1")
+  endif()
 
   set(CMAKE_REQUIRED_INCLUDES)
 endif()
