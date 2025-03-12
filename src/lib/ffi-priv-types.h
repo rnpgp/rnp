@@ -215,9 +215,10 @@ struct rnp_op_sign_st {
 };
 
 struct rnp_op_verify_signature_st {
-    rnp_ffi_t       ffi;
-    rnp_result_t    verify_status;
-    pgp_signature_t sig_pkt;
+    rnp_ffi_t        ffi;
+    rnp_result_t     verify_status;
+    rnp::SigValidity validity;
+    pgp_signature_t  sig_pkt;
 };
 
 struct rnp_op_verify_st {

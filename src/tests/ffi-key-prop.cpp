@@ -202,6 +202,18 @@ TEST_F(rnp_tests, test_ffi_key_expired_certification_and_direct_sig)
     assert_rnp_success(rnp_key_get_signature_at(key, 0, &sig));
     assert_non_null(sig);
     assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_ERROR_SIGNATURE_EXPIRED);
+    size_t errors = 0;
+    assert_int_equal(rnp_signature_error_count(NULL, &errors), RNP_ERROR_NULL_POINTER);
+    assert_int_equal(rnp_signature_error_count(sig, NULL), RNP_ERROR_NULL_POINTER);
+    assert_rnp_success(rnp_signature_error_count(sig, &errors));
+    assert_int_equal(errors, 1);
+    uint32_t error = 0;
+    assert_int_equal(rnp_signature_error_at(NULL, 0, &error), RNP_ERROR_NULL_POINTER);
+    assert_int_equal(rnp_signature_error_at(sig, 0, NULL), RNP_ERROR_NULL_POINTER);
+    assert_int_equal(rnp_signature_error_at(sig, 1, &error), RNP_ERROR_BAD_PARAMETERS);
+    assert_int_equal(rnp_signature_error_at(sig, 10000, &error), RNP_ERROR_BAD_PARAMETERS);
+    assert_rnp_success(rnp_signature_error_at(sig, 0, &error));
+    assert_int_equal(error, RNP_ERROR_SIG_EXPIRED);
     rnp_signature_handle_destroy(sig);
     assert_true(check_key_valid(key, false));
     assert_true(check_uid_valid(key, 0, true));
