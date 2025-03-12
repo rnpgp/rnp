@@ -29,13 +29,15 @@
 #include <cstddef>
 #include <cstdint>
 
-typedef struct pgp_key_t pgp_key_t;
+namespace rnp {
+class Key;
+}
 
 typedef struct pgp_password_ctx_t {
-    uint8_t          op;
-    const pgp_key_t *key;
+    uint8_t         op;
+    const rnp::Key *key;
 
-    pgp_password_ctx_t(uint8_t anop, const pgp_key_t *akey = NULL) : op(anop), key(akey){};
+    pgp_password_ctx_t(uint8_t anop, const rnp::Key *akey = NULL) : op(anop), key(akey){};
 } pgp_password_ctx_t;
 
 typedef bool pgp_password_callback_t(const pgp_password_ctx_t *ctx,

@@ -42,7 +42,7 @@
 #include "stream-sig.h"
 #include "stream-packet.h"
 #include "stream-armor.h"
-#include "pgp-key.h"
+#include "key.hpp"
 #include "crypto/signatures.h"
 #include <cassert>
 
@@ -201,15 +201,15 @@ pgp_signature_t::operator!=(const pgp_signature_t &src) const
     return !(*this == src);
 }
 
-pgp_sig_id_t
+pgp::SigID
 pgp_signature_t::get_id() const
 {
     auto hash = rnp::Hash::create(PGP_HASH_SHA1);
     hash->add(hashed_data);
     hash->add(material_buf);
-    pgp_sig_id_t res = {0};
+    pgp::SigID res = {0};
     static_assert(std::tuple_size<decltype(res)>::value == PGP_SHA1_HASH_SIZE,
-                  "pgp_sig_id_t size mismatch");
+                  "pgp::SigID size mismatch");
     hash->finish(res.data());
     return res;
 }
@@ -692,7 +692,7 @@ pgp_signature_t::revoker() const noexcept
 }
 
 void
-pgp_signature_t::set_revoker(const pgp_key_t &revoker, bool sensitive)
+pgp_signature_t::set_revoker(const rnp::Key &revoker, bool sensitive)
 {
     auto sub = std::unique_ptr<sigsub::RevocationKey>(new sigsub::RevocationKey());
     sub->set_rev_class(sensitive ? 0xC0 : 0x80);

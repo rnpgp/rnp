@@ -72,7 +72,7 @@ rnp_ctx_t::add_encryption_password(const std::string &password,
 bool
 rnp_ctx_t::pkeskv6_capable()
 {
-    for (pgp_key_t *key : recipients) {
+    for (auto *key : recipients) {
         if (key->version() < PGP_V6) {
             return false;
         }

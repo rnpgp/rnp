@@ -28,11 +28,11 @@
 #include <rekey/rnp_key_store.h>
 #include "rnp_tests.h"
 #include "support.h"
-#include "pgp-key.h"
+#include "key.hpp"
 #include "keygen.hpp"
 
-static const pgp_subsig_t *
-find_subsig(const pgp_key_t *key, const char *userid)
+static const rnp::Signature *
+find_subsig(const rnp::Key *key, const char *userid)
 {
     // find the userid index
     int uididx = -1;
@@ -47,7 +47,7 @@ find_subsig(const pgp_key_t *key, const char *userid)
     }
     // find the subsig index
     for (size_t i = 0; i < key->sig_count(); i++) {
-        const pgp_subsig_t &subsig = key->get_sig(i);
+        auto &subsig = key->get_sig(i);
         if ((int) subsig.uid == uididx) {
             return &subsig;
         }
@@ -66,10 +66,10 @@ TEST_F(rnp_tests, test_load_user_prefs)
         const char *userid = "key1-uid0";
 
         // find the key
-        pgp_key_t *key = NULL;
+        rnp::Key *key = nullptr;
         assert_non_null(key = rnp_tests_key_search(pubring, userid));
 
-        const pgp_subsig_t *subsig = find_subsig(key, userid);
+        auto subsig = find_subsig(key, userid);
         assert_non_null(subsig);
 
         const rnp::UserPrefs prefs(subsig->sig);
@@ -94,10 +94,10 @@ TEST_F(rnp_tests, test_load_user_prefs)
         const char *userid = "key0-uid0";
 
         // find the key
-        pgp_key_t *key = NULL;
+        rnp::Key *key = nullptr;
         assert_non_null(key = rnp_tests_key_search(pubring, userid));
 
-        const pgp_subsig_t *subsig = find_subsig(key, userid);
+        auto subsig = find_subsig(key, userid);
         assert_non_null(subsig);
 
         const rnp::UserPrefs prefs(subsig->sig);

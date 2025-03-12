@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022 Ribose Inc.
+ * Copyright (c) 2017-2025 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,71 +24,75 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <cassert>
-#include "logging.h"
-#include "hash_sha1cd.hpp"
+#include "userid.hpp"
+#include <algorithm>
+#include <stdexcept>
 
 namespace rnp {
-Hash_SHA1CD::Hash_SHA1CD() : Hash(PGP_HASH_SHA1)
+
+UserID::UserID(const pgp_userid_pkt_t &uidpkt) : UserID()
 {
-    assert(size_ == 20);
-    SHA1DCInit(&ctx_);
+    /* copy packet data */
+    pkt = uidpkt;
+    rawpkt = RawPacket(uidpkt);
+    /* populate uid string */
+    if (uidpkt.tag == PGP_PKT_USER_ID) {
+        str.assign(uidpkt.uid.data(), uidpkt.uid.data() + uidpkt.uid.size());
+    } else {
+        str = "(photo)";
+    }
 }
 
-Hash_SHA1CD::Hash_SHA1CD(const Hash_SHA1CD &src) : Hash(PGP_HASH_SHA1)
-{
-    ctx_ = src.ctx_;
-}
-
-Hash_SHA1CD::~Hash_SHA1CD()
-{
-}
-
-std::unique_ptr<Hash_SHA1CD>
-Hash_SHA1CD::create()
-{
-    return std::unique_ptr<Hash_SHA1CD>(new Hash_SHA1CD());
-}
-
-std::unique_ptr<Hash>
-Hash_SHA1CD::clone() const
-{
-    return std::unique_ptr<Hash>(new Hash_SHA1CD(*this));
-}
-
-/* This produces runtime error: load of misaligned address 0x60d0000030a9 for type 'const
- * uint32_t' (aka 'const unsigned int'), which requires 4 byte alignment */
-#if defined(__clang__)
-__attribute__((no_sanitize("undefined")))
-#endif
-void
-Hash_SHA1CD::add(const void *buf, size_t len)
-{
-    SHA1DCUpdate(&ctx_, (const char *) buf, len);
-}
-
-#if defined(__clang__)
-__attribute__((no_sanitize("undefined")))
-#endif
 size_t
-Hash_SHA1CD::finish(uint8_t *digest)
+UserID::sig_count() const
 {
-    unsigned char fixed_digest[20];
-    int           res = SHA1DCFinal(fixed_digest, &ctx_);
-    if (res && digest) {
-        /* Show warning only if digest is non-null */
-        RNP_LOG("Warning! SHA1 collision detected and mitigated.");
+    return sigs_.size();
+}
+
+const pgp::SigID &
+UserID::get_sig(size_t idx) const
+{
+    return sigs_.at(idx);
+}
+
+bool
+UserID::has_sig(const pgp::SigID &id) const
+{
+    return std::find(sigs_.begin(), sigs_.end(), id) != sigs_.end();
+}
+
+void
+UserID::add_sig(const pgp::SigID &sig, bool begin)
+{
+    size_t idx = begin ? 0 : sigs_.size();
+    sigs_.insert(sigs_.begin() + idx, sig);
+}
+
+void
+UserID::replace_sig(const pgp::SigID &id, const pgp::SigID &newsig)
+{
+    auto it = std::find(sigs_.begin(), sigs_.end(), id);
+    if (it == sigs_.end()) {
+        throw std::invalid_argument("id");
     }
-    if (res) {
-        return 0;
+    *it = newsig;
+}
+
+bool
+UserID::del_sig(const pgp::SigID &id)
+{
+    auto it = std::find(sigs_.begin(), sigs_.end(), id);
+    if (it == sigs_.end()) {
+        return false;
     }
-    if (digest) {
-        memcpy(digest, fixed_digest, 20);
-    }
-    return 20;
+    sigs_.erase(it);
+    return true;
+}
+
+void
+UserID::clear_sigs()
+{
+    sigs_.clear();
 }
 
 } // namespace rnp

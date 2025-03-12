@@ -29,7 +29,7 @@
 #include "librepgp/stream-key.h"
 #include "librepgp/stream-packet.h"
 #include "fingerprint.h"
-#include "pgp-key.h"
+#include "key.hpp"
 #include "crypto/signatures.h"
 
 static bool

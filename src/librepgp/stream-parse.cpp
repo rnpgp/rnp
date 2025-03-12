@@ -46,7 +46,7 @@
 #include "crypto/s2k.h"
 #include "crypto/signatures.h"
 #include "fingerprint.h"
-#include "pgp-key.h"
+#include "key.hpp"
 #ifdef ENABLE_CRYPTO_REFRESH
 #include "crypto/hkdf.hpp"
 #include "v2_seipd.h"
@@ -150,11 +150,11 @@ typedef struct pgp_source_signed_param_t {
     pgp_literal_hdr_t lhdr{};
     bool              has_lhdr = false;
 
-    std::vector<pgp_one_pass_sig_t>   onepasses;  /* list of one-pass signatures */
-    std::list<pgp_signature_t>        sigs;       /* list of signatures */
-    std::vector<pgp_signature_info_t> siginfos;   /* signature validation info */
-    rnp::HashList                     hashes;     /* hash contexts */
-    rnp::HashList                     txt_hashes; /* hash contexts for text-mode sigs */
+    std::vector<pgp_one_pass_sig_t> onepasses;  /* list of one-pass signatures */
+    std::list<pgp_signature_t>      sigs;       /* list of signatures */
+    std::vector<rnp::SignatureInfo> siginfos;   /* signature validation info */
+    rnp::HashList                   hashes;     /* hash contexts */
+    rnp::HashList                   txt_hashes; /* hash contexts for text-mode sigs */
 
     pgp_source_signed_param_t() = default;
     ~pgp_source_signed_param_t() = default;
@@ -858,7 +858,7 @@ add_hash_for_sig(pgp_source_signed_param_t *param, pgp_sig_type_t stype, pgp_has
 }
 
 static const rnp::Hash *
-get_hash_for_sig(pgp_source_signed_param_t &param, pgp_signature_info_t &sinfo)
+get_hash_for_sig(pgp_source_signed_param_t &param, rnp::SignatureInfo &sinfo)
 {
     /* Cleartext always uses param->hashes instead of param->txt_hashes */
     if (!param.cleartext && (sinfo.sig->type() == PGP_SIG_TEXT)) {
@@ -868,13 +868,12 @@ get_hash_for_sig(pgp_source_signed_param_t &param, pgp_signature_info_t &sinfo)
 }
 
 static void
-signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t &sinfo)
+signed_validate_signature(pgp_source_signed_param_t &param, rnp::SignatureInfo &sinfo)
 {
     /* Check signature type */
     if (!sinfo.sig->is_document()) {
         RNP_LOG("Invalid document signature type: %d", (int) sinfo.sig->type());
-        sinfo.valid = false;
-        return;
+        sinfo.validity.add_error(RNP_ERROR_SIG_NOT_DOCUMENT);
     }
     /* Find signing key */
     std::unique_ptr<rnp::KeySearch> search;
@@ -885,7 +884,7 @@ signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t
         search = rnp::KeySearch::create(sinfo.sig->keyid());
     } else {
         RNP_LOG("cannot get signer's key fp or id from signature.");
-        sinfo.unknown = true;
+        sinfo.validity.add_error(RNP_ERROR_SIG_NO_SIGNER_ID);
         return;
     }
     /* Get the public key */
@@ -894,26 +893,20 @@ signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t
         /* fallback to secret key */
         if (!(key = param.handler->key_provider->request_key(*search, PGP_OP_VERIFY, true))) {
             RNP_LOG("signer's key not found");
-            sinfo.no_signer = true;
+            sinfo.validity.add_error(RNP_ERROR_SIG_NO_SIGNER_KEY);
             return;
         }
     }
-    try {
-        /* Get the hash context and clone it. */
-        auto hash = get_hash_for_sig(param, sinfo);
-        if (!hash) {
-            RNP_LOG("failed to get hash context.");
-            return;
-        }
-        auto shash = hash->clone();
-        key->validate_sig(
-          sinfo, *shash, param.handler->ctx->sec_ctx, param.has_lhdr ? &param.lhdr : NULL);
-    } catch (const std::exception &e) {
-        /* LCOV_EXCL_START */
-        RNP_LOG("Signature validation failed: %s", e.what());
-        sinfo.valid = false;
-        /* LCOV_EXCL_END */
+    /* Get the hash context and clone it. */
+    auto hash = get_hash_for_sig(param, sinfo);
+    if (!hash) {
+        RNP_LOG("failed to get hash context.");
+        sinfo.validity.add_error(RNP_ERROR_SIG_NO_HASH_CTX);
+        return;
     }
+    auto shash = hash->clone();
+    key->validate_sig(
+      sinfo, *shash, param.handler->ctx->sec_ctx, param.has_lhdr ? &param.lhdr : NULL);
 }
 
 static long
@@ -1070,11 +1063,11 @@ signed_read_single_signature(pgp_source_signed_param_t *param,
 
     try {
         param->siginfos.emplace_back();
-        pgp_signature_info_t &siginfo = param->siginfos.back();
-        pgp_signature_t       readsig;
+        rnp::SignatureInfo &siginfo = param->siginfos.back();
+        pgp_signature_t     readsig;
         if (readsig.parse(*readsrc)) {
             RNP_LOG("failed to parse signature");
-            siginfo.unknown = true;
+            siginfo.validity.add_error(RNP_ERROR_SIG_PARSE_ERROR);
             if (sig) {
                 *sig = NULL;
             }
@@ -1174,20 +1167,22 @@ signed_src_finish(pgp_source_t *src)
     }
 
     /* validating signatures */
+    ret = RNP_ERROR_SIGNATURE_INVALID;
     for (auto &sinfo : param->siginfos) {
         if (!sinfo.sig) {
             continue;
         }
-        signed_validate_signature(*param, sinfo);
-    }
-
-    /* checking the validation results */
-    ret = RNP_ERROR_SIGNATURE_INVALID;
-    for (auto &sinfo : param->siginfos) {
-        if (sinfo.valid) {
+        try {
+            signed_validate_signature(*param, sinfo);
+        } catch (const std::exception &e) {
+            /* LCOV_EXCL_START */
+            RNP_LOG("Signature validation failed: %s", e.what());
+            sinfo.validity.add_error(RNP_ERROR_SIG_ERROR);
+            /* LCOV_EXCL_END */
+        }
+        if (sinfo.validity.valid()) {
             /* If we have at least one valid signature then data is safe to process */
             ret = RNP_SUCCESS;
-            break;
         }
     }
 
@@ -1566,7 +1561,7 @@ check_decrypted_symkey(pgp_pubkey_alg_t alg, size_t keylen, rnp::secure_bytes &d
 static bool
 encrypted_try_key(pgp_source_encrypted_param_t *param,
                   pgp_pk_sesskey_t &            sesskey,
-                  pgp_key_t &                   seckey,
+                  rnp::Key &                    seckey,
                   rnp::SecurityContext &        ctx)
 {
     auto encmaterial = sesskey.parse_material();

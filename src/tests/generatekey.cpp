@@ -32,7 +32,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include "crypto/common.h"
-#include "pgp-key.h"
+#include "key.hpp"
 #include "librepgp/stream-ctx.h"
 #include "librepgp/stream-sig.h"
 #include "librepgp/stream-key.h"
@@ -1015,19 +1015,19 @@ TEST_F(rnp_tests, generatekeyECDSA_explicitlySetUnknownDigest_ShouldFail)
  */
 TEST_F(rnp_tests, test_generated_key_sigs)
 {
-    auto       pubring = new rnp::KeyStore(global_ctx);
-    auto       secring = new rnp::KeyStore(global_ctx);
-    pgp_key_t *primary_pub = NULL, *primary_sec = NULL;
-    pgp_key_t *sub_pub = NULL, *sub_sec = NULL;
+    auto      pubring = new rnp::KeyStore(global_ctx);
+    auto      secring = new rnp::KeyStore(global_ctx);
+    rnp::Key *primary_pub = NULL, *primary_sec = NULL;
+    rnp::Key *sub_pub = NULL, *sub_sec = NULL;
 
     // primary
     {
-        pgp_key_t            pub;
-        pgp_key_t            sec;
-        pgp_signature_t *    psig = NULL;
-        pgp_signature_t *    ssig = NULL;
-        pgp_signature_info_t psiginfo = {};
-        pgp_signature_info_t ssiginfo = {};
+        rnp::Key           pub;
+        rnp::Key           sec;
+        pgp_signature_t *  psig = NULL;
+        pgp_signature_t *  ssig = NULL;
+        rnp::SignatureInfo psiginfo;
+        rnp::SignatureInfo ssiginfo;
 
         rnp::KeygenParams keygen(PGP_PKA_RSA, global_ctx);
         auto &            rsa = dynamic_cast<pgp::RSAKeyParams &>(keygen.key_params());
@@ -1065,14 +1065,14 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_int_not_equal(psig->material_buf.size(), 0);
         assert_int_not_equal(ssig->material_buf.size(), 0);
         // make sure we're targeting the right packet
-        assert_int_equal(PGP_PKT_SIGNATURE, pub.get_sig(0).rawpkt.tag);
-        assert_int_equal(PGP_PKT_SIGNATURE, sec.get_sig(0).rawpkt.tag);
+        assert_int_equal(PGP_PKT_SIGNATURE, pub.get_sig(0).raw.tag());
+        assert_int_equal(PGP_PKT_SIGNATURE, sec.get_sig(0).raw.tag());
 
         // validate the userid self-sig
 
         psiginfo.sig = psig;
         pub.validate_cert(psiginfo, pub.pkt(), pub.get_uid(0).pkt, global_ctx);
-        assert_true(psiginfo.valid);
+        assert_true(psiginfo.validity.valid());
         assert_true(psig->keyfp() == pub.fp());
         // check subpackets and their contents
         auto subpkt = psig->get_subpkt(pgp::pkt::sigsub::Type::IssuerFingerprint);
@@ -1090,7 +1090,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
 
         ssiginfo.sig = ssig;
         sec.validate_cert(ssiginfo, sec.pkt(), sec.get_uid(0).pkt, global_ctx);
-        assert_true(ssiginfo.valid);
+        assert_true(ssiginfo.validity.valid());
         assert_true(ssig->keyfp() == sec.fp());
 
         // modify a hashed portion of the sig packets
@@ -1098,9 +1098,9 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         ssig->hashed_data[32] ^= 0xff;
         // ensure validation fails
         pub.validate_cert(psiginfo, pub.pkt(), pub.get_uid(0).pkt, global_ctx);
-        assert_false(psiginfo.valid);
+        assert_false(psiginfo.validity.valid());
         sec.validate_cert(ssiginfo, sec.pkt(), sec.get_uid(0).pkt, global_ctx);
-        assert_false(ssiginfo.valid);
+        assert_false(ssiginfo.validity.valid());
         // restore the original data
         psig->hashed_data[32] ^= 0xff;
         ssig->hashed_data[32] ^= 0xff;
@@ -1111,9 +1111,9 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         uid.uid.assign(fake, fake + strlen(fake));
 
         pub.validate_cert(psiginfo, pub.pkt(), uid, global_ctx);
-        assert_false(psiginfo.valid);
+        assert_false(psiginfo.validity.valid());
         sec.validate_cert(ssiginfo, sec.pkt(), uid, global_ctx);
-        assert_false(ssiginfo.valid);
+        assert_false(ssiginfo.validity.valid());
 
         // validate via an alternative method
         // primary_pub + pubring
@@ -1137,9 +1137,9 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(primary_sec->validated());
         assert_false(primary_sec->expired());
         // modify a hashed portion of the sig packet, offset may change in future
-        pgp_subsig_t &sig = primary_pub->get_sig(0);
+        rnp::Signature &sig = primary_pub->get_sig(0);
         sig.sig.hashed_data[10] ^= 0xff;
-        sig.validity.validated = false;
+        sig.validity.reset();
         // ensure validation fails
         primary_pub->validate(*pubring);
         assert_false(primary_pub->valid());
@@ -1147,7 +1147,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_false(primary_pub->expired());
         // restore the original data
         sig.sig.hashed_data[10] ^= 0xff;
-        sig.validity.validated = false;
+        sig.validity.reset();
         primary_pub->validate(*pubring);
         assert_true(primary_pub->valid());
         assert_true(primary_pub->validated());
@@ -1156,12 +1156,12 @@ TEST_F(rnp_tests, test_generated_key_sigs)
 
     // sub
     {
-        pgp_key_t            pub;
-        pgp_key_t            sec;
-        pgp_signature_t *    psig = NULL;
-        pgp_signature_t *    ssig = NULL;
-        pgp_signature_info_t psiginfo = {};
-        pgp_signature_info_t ssiginfo = {};
+        rnp::Key           pub;
+        rnp::Key           sec;
+        pgp_signature_t *  psig = NULL;
+        pgp_signature_t *  ssig = NULL;
+        rnp::SignatureInfo psiginfo;
+        rnp::SignatureInfo ssiginfo;
 
         rnp::KeygenParams keygen(PGP_PKA_RSA, global_ctx);
         auto &            rsa = dynamic_cast<pgp::RSAKeyParams &>(keygen.key_params());
@@ -1190,12 +1190,12 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_int_not_equal(psig->material_buf.size(), 0);
         assert_int_not_equal(ssig->material_buf.size(), 0);
         // make sure we're targeting the right packet
-        assert_int_equal(PGP_PKT_SIGNATURE, pub.get_sig(0).rawpkt.tag);
-        assert_int_equal(PGP_PKT_SIGNATURE, sec.get_sig(0).rawpkt.tag);
+        assert_int_equal(PGP_PKT_SIGNATURE, pub.get_sig(0).raw.tag());
+        assert_int_equal(PGP_PKT_SIGNATURE, sec.get_sig(0).raw.tag());
         // validate the binding sig
         psiginfo.sig = psig;
         primary_pub->validate_binding(psiginfo, pub, global_ctx);
-        assert_true(psiginfo.valid);
+        assert_true(psiginfo.validity.valid());
         assert_true(psig->keyfp() == primary_pub->fp());
         // check subpackets and their contents
         auto subpkt = psig->get_subpkt(pgp::pkt::sigsub::Type::IssuerFingerprint);
@@ -1214,7 +1214,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
 
         ssiginfo.sig = ssig;
         primary_pub->validate_binding(ssiginfo, sec, global_ctx);
-        assert_true(ssiginfo.valid);
+        assert_true(ssiginfo.validity.valid());
         assert_true(ssig->keyfp() == primary_sec->fp());
 
         // modify a hashed portion of the sig packets
@@ -1222,9 +1222,9 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         ssig->hashed_data[10] ^= 0xff;
         // ensure validation fails
         primary_pub->validate_binding(psiginfo, pub, global_ctx);
-        assert_false(psiginfo.valid);
+        assert_false(psiginfo.validity.valid());
         primary_pub->validate_binding(ssiginfo, sec, global_ctx);
-        assert_false(ssiginfo.valid);
+        assert_false(ssiginfo.validity.valid());
         // restore the original data
         psig->hashed_data[10] ^= 0xff;
         ssig->hashed_data[10] ^= 0xff;

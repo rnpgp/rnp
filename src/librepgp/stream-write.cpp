@@ -50,7 +50,7 @@
 #include "stream-packet.h"
 #include "stream-armor.h"
 #include "stream-sig.h"
-#include "pgp-key.h"
+#include "key.hpp"
 #include "fingerprint.h"
 #include "types.h"
 #include "crypto/signatures.h"
@@ -137,7 +137,7 @@ typedef struct pgp_dest_encrypted_param_t {
 
 typedef struct pgp_dest_signer_info_t {
     pgp_one_pass_sig_t onepass;
-    pgp_key_t *        key;
+    rnp::Key *         key;
     pgp_hash_alg_t     halg;
     int64_t            sigcreate;
     uint64_t           sigexpire;
@@ -576,7 +576,7 @@ encrypted_dst_close(pgp_dest_t *dst, bool discard)
 static rnp_result_t
 encrypted_add_recipient(rnp_ctx_t &              ctx,
                         pgp_dest_t &             dst,
-                        pgp_key_t *              userkey,
+                        rnp::Key *               userkey,
                         const rnp::secure_bytes &key,
                         pgp_pkesk_version_t      pkesk_version)
 {

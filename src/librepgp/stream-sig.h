@@ -95,7 +95,7 @@ typedef struct pgp_signature_t {
     };
 
     /** @brief Calculate the unique signature identifier by hashing signature's fields. */
-    pgp_sig_id_t get_id() const;
+    pgp::SigID get_id() const;
 
     size_t find_subpkt(uint8_t type, bool hashed = true, size_t skip = 0) const;
     size_t find_subpkt(pgp::pkt::sigsub::Type type, bool hashed = true, size_t skip = 0) const;
@@ -363,7 +363,7 @@ typedef struct pgp_signature_t {
      *
      * @param revoker revoker's key packet.
      */
-    void set_revoker(const pgp_key_t &revoker, bool sensitive = false);
+    void set_revoker(const rnp::Key &revoker, bool sensitive = false);
 
     /**
      * @brief Add subpacket to v4 and up signature
@@ -431,17 +431,6 @@ typedef struct pgp_signature_t {
 } pgp_signature_t;
 
 typedef std::vector<pgp_signature_t> pgp_signature_list_t;
-
-/* information about the validated signature */
-typedef struct pgp_signature_info_t {
-    pgp_signature_t *sig{};     /* signature, or NULL if there were parsing error */
-    bool             valid{};   /* signature is cryptographically valid (but may be expired) */
-    bool             unknown{}; /* signature is unknown - parsing error, wrong version, etc */
-    bool             no_signer{};     /* no signer's public key available */
-    bool             expired{};       /* signature is expired */
-    bool             signer_valid{};  /* assume that signing key is valid */
-    bool             ignore_expiry{}; /* ignore signer's key expiration time */
-} pgp_signature_info_t;
 
 /**
  * @brief Hash key packet. Used in signatures and v4 fingerprint calculation.

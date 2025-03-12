@@ -29,6 +29,7 @@
 
 #include "crypto/hash.hpp"
 #include "key_material.hpp"
+#include "signature.hpp"
 
 /**
  * @brief Initialize a signature computation.
@@ -66,10 +67,10 @@ void signature_calculate(pgp_signature_t &        sig,
  * @param hdr literal packet header for attached document signatures or NULL otherwise.
  * @return RNP_SUCCESS if signature was successfully validated or error code otherwise.
  */
-rnp_result_t signature_validate(const pgp_signature_t &     sig,
-                                const pgp::KeyMaterial &    key,
-                                rnp::Hash &                 hash,
-                                const rnp::SecurityContext &ctx,
-                                const pgp_literal_hdr_t *   hdr = NULL);
+rnp::SigValidity signature_validate(const pgp_signature_t &     sig,
+                                    const pgp::KeyMaterial &    key,
+                                    rnp::Hash &                 hash,
+                                    const rnp::SecurityContext &ctx,
+                                    const pgp_literal_hdr_t *   hdr = NULL);
 
 #endif

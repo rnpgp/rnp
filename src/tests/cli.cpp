@@ -621,7 +621,7 @@ key_expiration_check(rnp::KeyStore *keystore, const char *userid, uint32_t expec
 {
     int res = -1; // not found
     for (auto &key : keystore->keys) {
-        pgp_key_t *pk;
+        rnp::Key *pk;
         if (key.is_primary()) {
             pk = &key;
         } else {

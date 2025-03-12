@@ -33,7 +33,7 @@
 #include "types.h"
 #include <string>
 #include <list>
-#include "pgp-key.h"
+#include "key.hpp"
 #include "crypto/mem.h"
 #include "key-provider.h"
 #include "pass-provider.h"
@@ -41,7 +41,7 @@
 
 /* signature info structure */
 typedef struct rnp_signer_info_t {
-    pgp_key_t *    key{};
+    rnp::Key *     key{};
     pgp_hash_alg_t halg{};
     int64_t        sigcreate{};
     uint64_t       sigexpire{};
@@ -116,7 +116,7 @@ typedef struct rnp_ctx_t {
 #if defined(ENABLE_PQC)
     bool pref_pqc_enc_subkey{}; /* prefer to encrypt to PQC subkey */
 #endif
-    std::list<pgp_key_t *>               recipients; /* recipients of the encrypted message */
+    std::list<rnp::Key *>                recipients; /* recipients of the encrypted message */
     std::list<rnp_symmetric_pass_info_t> passwords;  /* passwords to encrypt message */
     std::list<rnp_signer_info_t>         signers;    /* keys to which sign message */
     rnp::SecurityContext &               sec_ctx;    /* security context */
