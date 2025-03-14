@@ -1136,8 +1136,8 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_rnp_success(rnp_signature_get_type(sighandle, &sigtype));
     assert_string_equal(sigtype, "binary");
     rnp_buffer_destroy(sigtype);
-    /* attempt to validate it via wrong function */
-    assert_int_equal(rnp_signature_is_valid(sighandle, 0), RNP_ERROR_BAD_PARAMETERS);
+    /* make sure it is valid */
+    assert_rnp_success(rnp_signature_is_valid(sighandle, 0));
     /* cleanup, making sure that sighandle doesn't depend on verify */
     assert_rnp_success(rnp_op_verify_destroy(verify));
     assert_rnp_success(rnp_input_destroy(input));
@@ -1236,8 +1236,8 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_rnp_success(rnp_signature_get_type(sighandle, &sigtype));
     assert_string_equal(sigtype, "text");
     rnp_buffer_destroy(sigtype);
-    /* attempt to validate it via wrong function */
-    assert_int_equal(rnp_signature_is_valid(sighandle, 0), RNP_ERROR_BAD_PARAMETERS);
+    /* make sure it is valid */
+    assert_rnp_success(rnp_signature_is_valid(sighandle, 0));
     /* cleanup, making sure that sighandle doesn't depend on verify */
     assert_rnp_success(rnp_op_verify_destroy(verify));
     assert_rnp_success(rnp_input_destroy(input));
@@ -1334,8 +1334,8 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_rnp_success(rnp_signature_get_type(sighandle, &sigtype));
     assert_string_equal(sigtype, "timestamp");
     rnp_buffer_destroy(sigtype);
-    /* attempt to validate it via wrong function */
-    assert_int_equal(rnp_signature_is_valid(sighandle, 0), RNP_ERROR_BAD_PARAMETERS);
+    /* make sure validity status could be checked */
+    assert_int_equal(rnp_signature_is_valid(sighandle, 0), RNP_ERROR_SIGNATURE_INVALID);
     /* cleanup, making sure that sighandle doesn't depend on verify */
     assert_rnp_success(rnp_op_verify_destroy(verify));
     assert_rnp_success(rnp_input_destroy(input));
