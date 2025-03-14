@@ -4982,6 +4982,11 @@ class Encryption(unittest.TestCase):
         self.assertRegex(err, r'(?s)Good signature made.*using SM2 key 3a143c1695ae14c9.*')
         shutil.rmtree(RNPDIR2, ignore_errors=True)        
 
+    def test_decrypt_signonly_key(self):
+        ret, _, err = run_proc(RNP, ['--keyfile', data_path('test_messages/key-rsas-rsae.asc'), '--decrypt', data_path('test_messages/message-encrypted-rsas.txt.pgp')])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*failed to obtain decrypting key or password.*')
+
 class Compression(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -5199,6 +5204,13 @@ class SignDefault(unittest.TestCase):
 
         shutil.rmtree(RNP2, ignore_errors=True)
         clear_workfiles()
+
+    def test_verify_enconly_key(self):
+        ret, _, err = run_proc(RNP, ['--keyfile', data_path('test_messages/key-rsas-rsae.asc'), '--verify', data_path('test_messages/message-signed-rsae.txt.pgp')])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*key is not usable for verification.*')
+        self.assertNotRegex(err, r'(?s)^.*Good signature.*')
+        self.assertRegex(err, r'(?s)^.*BAD signature.*Signature verification failure: 1 invalid signature')
 
 class Encrypt(unittest.TestCase, TestIdMixin, KeyLocationChooserMixin):
     def _encrypt_decrypt(self, e1, e2, failenc = False, faildec = False):

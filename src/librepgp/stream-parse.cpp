@@ -897,6 +897,11 @@ signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t
             return;
         }
     }
+    if (!key->can_sign()) {
+        RNP_LOG("key is not usable for verification");
+        sinfo.validity.mark_validated(RNP_ERROR_SIG_UNUSABLE_KEY);
+        return;
+    }
     /* Get the hash context and clone it. */
     auto hash = get_hash_for_sig(param, sinfo);
     if (!hash) {
