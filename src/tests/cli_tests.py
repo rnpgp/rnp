@@ -51,6 +51,7 @@ RNP_RIPEMD160 = True
 RNP_SM2 = True
 # Botan may cause AV during OCB decryption in certain cases, see https://github.com/randombit/botan/issues/3812
 RNP_BOTAN_OCB_AV = False
+RNP_BACKEND = ''
 
 if sys.version_info >= (3,):
     unichr = chr
@@ -883,6 +884,7 @@ def gpg_check_features():
 def rnp_check_features():
     global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_AEAD_EAX, RNP_AEAD_OCB, RNP_AEAD_OCB_AES, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160, RNP_PQC, RNP_SM2
     global RNP_BOTAN_OCB_AV
+    global RNP_BACKEND
     ret, out, _ = run_proc(RNP, ['--version'])
     if ret != 0:
         raise_err('Failed to get RNP version.')
@@ -891,14 +893,20 @@ def rnp_check_features():
     RNP_AEAD_OCB = re.match(r'(?s)^.*AEAD:.*OCB.*', out) is not None
     RNP_AEAD = RNP_AEAD_EAX or RNP_AEAD_OCB
     RNP_AEAD_OCB_AES = RNP_AEAD_OCB and re.match(r'(?s)^.*Backend.*OpenSSL.*', out) is not None
+    # OpenSSL backend
+    if re.match(r'(?s)^.*Backend.*OpenSSL.*', out):
+        RNP_BACKEND = 'openssl'
     # Botan OCB crash
     if re.match(r'(?s)^.*Backend.*Botan.*', out):
+        RNP_BACKEND = 'botan'
         match = re.match(r'(?s)^.*Backend version: ([\d]+)\.([\d]+)\.([\d]+).*$', out)
         ver = [int(match.group(1)), int(match.group(2)), int(match.group(3))]
         if ver <= [2, 19, 3]:
             RNP_BOTAN_OCB_AV = True
         if (ver >= [3, 0, 0]) and (ver <= [3, 2, 0]):
             RNP_BOTAN_OCB_AV = True
+    if not RNP_BACKEND:
+        raise_err('Failed to detect backend!')
     # Twofish
     RNP_TWOFISH = re.match(r'(?s)^.*Encryption:.*TWOFISH.*', out) is not None
     # Brainpool curves
@@ -5148,6 +5156,49 @@ class SignDefault(unittest.TestCase):
         self.assertRegex(err, r'(?s)^.*Invalid document signature type: 19.*')
         self.assertNotRegex(err, r'(?s)^.*Good signature.*')
         self.assertRegex(err, r'(?s)^.*BAD signature.*Signature verification failure: 1 invalid signature')
+
+    def test_dsa4096_key(self):
+        RNP2 = RNPDIR + '2'
+        os.mkdir(RNP2, 0o700)
+        src, dst, ver = reg_workfiles('cleartext', '.txt', '.rnp', '.ver')
+        # Generate random file of required size
+        random_text(src, 1000)
+
+        # Make sure we can import a public key
+        ret, out, err = run_proc(RNPK, ['--homedir', RNP2, '--import', data_path('test_stream_key_load/dsa4096-eg4096.pub.asc')])
+        self.assertEqual(ret, 0)
+        if RNP_BACKEND == 'botan':
+            self.assertRegex(out, r'(?s)^.*pub.*4096/DSA.*7146fc248bf7c656.*SC.*sub.*4096/ElGamal.*0e6f2feced5d0e7f.*')
+            self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 2 new public keys.*')
+        else:
+            self.assertRegex(out, r'(?s)^.*pub.*4096/DSA.*7146fc248bf7c656.*INVALID.*sub.*4096/ElGamal.*0e6f2feced5d0e7f.*')
+            self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 2 new public keys.*')
+            shutil.rmtree(RNP2, ignore_errors=True)
+            clear_workfiles()
+            return
+
+        # Make sure we can verify signature
+        ret, _, err = run_proc(RNP, ['--homedir', RNP2, '--verify', data_path('test_messages/message.txt.signed-dsa4096')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Good signature made.*4096/DSA.*7146fc248bf7c656.*')
+        self.assertRegex(err, r'(?s)^.*Signature\(s\) verified successfully.*')
+        # Make sure we can import a secret key
+        ret, out, err = run_proc(RNPK, ['--homedir', RNP2, '--import', data_path('test_stream_key_load/dsa4096-eg4096.sec.asc')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*sec.*4096/DSA.*7146fc248bf7c656.*SC.*ssb.*4096/ElGamal.*0e6f2feced5d0e7f.*')
+        self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, .*2 new secret keys.*')
+        # Make sure we can sign with it
+        ret, _, _ = run_proc(RNP, ['--homedir', RNP2, '--password', PASSWORD, '-u', 'dsa4096', '--sign', src, '--output', dst])
+        self.assertEqual(ret, 0)
+        ret, _, _ = run_proc(RNP, ['--homedir', RNP2, '--verify', dst, '--output', ver])
+        self.assertEqual(ret, 0)
+        # Make sure we can add subkey
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNP2, '--password', PASSWORD, '--edit-key', 'dsa4096', '--add-subkey'], 'y\n')
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*ssb.*2048/RSA.*EXPIRES.*')
+
+        shutil.rmtree(RNP2, ignore_errors=True)
+        clear_workfiles()
 
 class Encrypt(unittest.TestCase, TestIdMixin, KeyLocationChooserMixin):
     def _encrypt_decrypt(self, e1, e2, failenc = False, faildec = False):

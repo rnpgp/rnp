@@ -887,6 +887,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_dsa)
     assert_non_null(key);
     assert_rnp_success(rnp_key_get_subkey_count(key, &subkeys));
     assert_int_equal(subkeys, 0);
+    /* make sure we fail to generate 4096-bit DSA key */
+    assert_rnp_failure(rnp_generate_key_dsa_eg(ffi, 4096, 0, "dsa_4096", NULL, &key));
     /* cleanup */
     assert_rnp_success(rnp_key_handle_destroy(key));
     assert_rnp_success(rnp_ffi_destroy(ffi));
