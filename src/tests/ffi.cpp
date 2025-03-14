@@ -1136,8 +1136,8 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_rnp_success(rnp_signature_get_type(sighandle, &sigtype));
     assert_string_equal(sigtype, "binary");
     rnp_buffer_destroy(sigtype);
-    /* attempt to validate it via wrong function */
-    assert_int_equal(rnp_signature_is_valid(sighandle, 0), RNP_ERROR_BAD_PARAMETERS);
+    /* make sure it is valid */
+    assert_rnp_success(rnp_signature_is_valid(sighandle, 0));
     /* cleanup, making sure that sighandle doesn't depend on verify */
     assert_rnp_success(rnp_op_verify_destroy(verify));
     assert_rnp_success(rnp_input_destroy(input));
@@ -1236,8 +1236,8 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_rnp_success(rnp_signature_get_type(sighandle, &sigtype));
     assert_string_equal(sigtype, "text");
     rnp_buffer_destroy(sigtype);
-    /* attempt to validate it via wrong function */
-    assert_int_equal(rnp_signature_is_valid(sighandle, 0), RNP_ERROR_BAD_PARAMETERS);
+    /* make sure it is valid */
+    assert_rnp_success(rnp_signature_is_valid(sighandle, 0));
     /* cleanup, making sure that sighandle doesn't depend on verify */
     assert_rnp_success(rnp_op_verify_destroy(verify));
     assert_rnp_success(rnp_input_destroy(input));
@@ -1334,8 +1334,8 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_rnp_success(rnp_signature_get_type(sighandle, &sigtype));
     assert_string_equal(sigtype, "timestamp");
     rnp_buffer_destroy(sigtype);
-    /* attempt to validate it via wrong function */
-    assert_int_equal(rnp_signature_is_valid(sighandle, 0), RNP_ERROR_BAD_PARAMETERS);
+    /* make sure validity status could be checked */
+    assert_int_equal(rnp_signature_is_valid(sighandle, 0), RNP_ERROR_SIGNATURE_INVALID);
     /* cleanup, making sure that sighandle doesn't depend on verify */
     assert_rnp_success(rnp_op_verify_destroy(verify));
     assert_rnp_success(rnp_input_destroy(input));
@@ -4280,6 +4280,41 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
     assert_int_equal(sigcount, 1);
     assert_true(check_signature(verify, 0, RNP_ERROR_SIGNATURE_INVALID));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* message signed with encrypt-only subkey */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    import_pub_keys(ffi, "data/test_messages/key-rsas-rsae.asc");
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message-signed-rsae.txt.pgp"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    verify = NULL;
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    sigcount = 255;
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 1);
+    rnp_op_verify_signature_t vsig = NULL;
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &vsig));
+    assert_int_equal(rnp_op_verify_signature_get_status(vsig), RNP_ERROR_SIGNATURE_INVALID);
+    rnp_signature_handle_t sig = NULL;
+    assert_rnp_success(rnp_op_verify_signature_get_handle(vsig, &sig));
+    char *type = NULL;
+    assert_rnp_success(rnp_signature_get_type(sig, &type));
+    assert_string_equal(type, "binary");
+    rnp_buffer_destroy(type);
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_ERROR_SIGNATURE_INVALID);
+    size_t errors = 0;
+    assert_rnp_success(rnp_signature_error_count(sig, &errors));
+    assert_int_equal(errors, 1);
+    rnp_result_t error = 0;
+    assert_rnp_success(rnp_signature_error_at(sig, 0, &error));
+    assert_int_equal(error, RNP_ERROR_SIG_UNUSABLE_KEY);
+    assert_int_equal(rnp_signature_is_valid(sig, RNP_SIGNATURE_REVALIDATE),
+                     RNP_ERROR_SIGNATURE_INVALID);
+    rnp_signature_handle_destroy(sig);
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(input);
     rnp_output_destroy(output);
