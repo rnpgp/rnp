@@ -884,7 +884,7 @@ signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t
         search = rnp::KeySearch::create(sinfo.sig->keyid());
     } else {
         RNP_LOG("cannot get signer's key fp or id from signature.");
-        sinfo.validity.add_error(RNP_ERROR_SIG_NO_SIGNER_ID);
+        sinfo.validity.mark_validated(RNP_ERROR_SIG_NO_SIGNER_ID);
         return;
     }
     /* Get the public key */
@@ -893,7 +893,7 @@ signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t
         /* fallback to secret key */
         if (!(key = param.handler->key_provider->request_key(*search, PGP_OP_VERIFY, true))) {
             RNP_LOG("signer's key not found");
-            sinfo.validity.add_error(RNP_ERROR_SIG_NO_SIGNER_KEY);
+            sinfo.validity.mark_validated(RNP_ERROR_SIG_NO_SIGNER_KEY);
             return;
         }
     }
@@ -901,7 +901,7 @@ signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t
     auto hash = get_hash_for_sig(param, sinfo);
     if (!hash) {
         RNP_LOG("failed to get hash context.");
-        sinfo.validity.add_error(RNP_ERROR_SIG_NO_HASH_CTX);
+        sinfo.validity.mark_validated(RNP_ERROR_SIG_NO_HASH_CTX);
         return;
     }
     auto shash = hash->clone();
@@ -1177,7 +1177,7 @@ signed_src_finish(pgp_source_t *src)
         } catch (const std::exception &e) {
             /* LCOV_EXCL_START */
             RNP_LOG("Signature validation failed: %s", e.what());
-            sinfo.validity.add_error(RNP_ERROR_SIG_ERROR);
+            sinfo.validity.mark_validated(RNP_ERROR_SIG_ERROR);
             /* LCOV_EXCL_END */
         }
         if (sinfo.validity.valid()) {
