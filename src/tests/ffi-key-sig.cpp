@@ -2069,9 +2069,12 @@ TEST_F(rnp_tests, test_ffi_create_self_certification_signature)
     assert_rnp_success(rnp_key_certification_create(key, uid, NULL, &newsig));
     const char *hash = "SHA384";
     assert_rnp_success(rnp_key_signature_set_hash(newsig, hash));
+    assert_int_equal(rnp_signature_is_valid(newsig, 0), RNP_ERROR_BAD_PARAMETERS);
     assert_rnp_failure(rnp_key_signature_sign(newsig));
     rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password");
     assert_rnp_success(rnp_key_signature_sign(newsig));
+    assert_rnp_success(rnp_signature_is_valid(newsig, 0));
+    assert_rnp_success(rnp_signature_is_valid(newsig, RNP_SIGNATURE_REVALIDATE));
     rnp_signature_handle_destroy(newsig);
     /* Create self certification with non-default type */
     assert_rnp_success(
