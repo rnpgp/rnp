@@ -2295,6 +2295,7 @@ RNP_API rnp_result_t rnp_signature_error_count(rnp_signature_handle_t sig, size_
  *        RNP_ERROR_SIG_BINDING_PARSE : failed to parse primary key binding signature
  *        RNP_ERROR_SIG_WRONG_BIND_TYPE : wrong primary key binding type
  *        RNP_ERROR_SIG_INVALID_BINDING : invalid primary key binding
+ *        RNP_ERROR_SIG_UNUSABLE_KEY : key is not usable for verification, i.e. wrong key flags
  *
  * @return RNP_SUCCESS on success or some other value in case of error.
  */
