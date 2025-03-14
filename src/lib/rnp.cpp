@@ -6897,19 +6897,41 @@ try {
 }
 FFI_GUARD
 
+static rnp_result_t
+validation_status(const rnp::SigValidity &validity)
+{
+    if (!validity.validated()) {
+        return RNP_ERROR_VERIFICATION_FAILED;
+    }
+    if (validity.expired()) {
+        return RNP_ERROR_SIGNATURE_EXPIRED;
+    }
+    if (validity.no_signer()) {
+        return RNP_ERROR_KEY_NOT_FOUND;
+    }
+    return validity.valid() ? RNP_SUCCESS : RNP_ERROR_SIGNATURE_INVALID;
+}
+
 rnp_result_t
 rnp_signature_is_valid(rnp_signature_handle_t sig, uint32_t flags)
 try {
     if (!sig) {
         return RNP_ERROR_NULL_POINTER;
     }
-    if (!sig->sig || sig->own_sig) {
+    if (!sig->sig || sig->new_sig) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     bool revalidate = extract_flag(flags, RNP_SIGNATURE_REVALIDATE);
     if (flags) {
         RNP_LOG("Unknown flags: %" PRIu32, flags);
         return RNP_ERROR_BAD_PARAMETERS;
+    }
+    /* We do not revalidate document or new signatures */
+    if (sig->own_sig) {
+        if (revalidate) {
+            RNP_LOG("revalidate flag for document signature - ignoring");
+        }
+        return validation_status(sig->sig->validity);
     }
 
     auto ssig = sig->sig;
@@ -6925,16 +6947,7 @@ try {
         signer->validate_sig(*sig->key, *ssig, sig->ffi->context);
     }
 
-    if (!ssig->validity.validated()) {
-        return RNP_ERROR_VERIFICATION_FAILED;
-    }
-    if (ssig->validity.expired()) {
-        return RNP_ERROR_SIGNATURE_EXPIRED;
-    }
-    if (ssig->validity.no_signer()) {
-        return RNP_ERROR_KEY_NOT_FOUND;
-    }
-    return ssig->validity.valid() ? RNP_SUCCESS : RNP_ERROR_SIGNATURE_INVALID;
+    return validation_status(ssig->validity);
 }
 FFI_GUARD
 
