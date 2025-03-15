@@ -55,10 +55,7 @@ Key::get_min_hash(size_t qsize)
 size_t
 Key::choose_qsize(size_t psize)
 {
-    return (psize == 1024) ? 160 :
-           (psize <= 2047) ? 224 :
-           (psize <= 3072) ? DSA_MAX_Q_BITLEN :
-                             0;
+    return (psize == 1024) ? 160 : (psize <= 2047) ? 224 : (psize <= 3072) ? 256 : 0;
 }
 
 } // namespace dsa
