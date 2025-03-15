@@ -33,8 +33,6 @@
 #include "crypto/mpi.h"
 #include "crypto/mem.h"
 
-#define DSA_MAX_Q_BITLEN 256
-
 namespace pgp {
 namespace dsa {
 
