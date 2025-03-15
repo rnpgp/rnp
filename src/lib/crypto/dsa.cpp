@@ -79,11 +79,6 @@ Key::sign(rnp::RNG &rng, Signature &sig, const rnp::secure_bytes &hash) const
 {
     sig = {};
     size_t q_order = q.bytes();
-    if (q_order > 2 * BITS_TO_BYTES(DSA_MAX_Q_BITLEN)) {
-        RNP_LOG("wrong q order");
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
     // As 'Raw' is used we need to reduce hash size (as per FIPS-186-4, 4.6)
     size_t z_len = std::min(hash.size(), q_order);
 
@@ -131,10 +126,6 @@ rnp_result_t
 Key::verify(const Signature &sig, const rnp::secure_bytes &hash) const
 {
     size_t q_order = q.bytes();
-    if (q_order > BITS_TO_BYTES(DSA_MAX_Q_BITLEN)) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
     size_t z_len = std::min(hash.size(), q_order);
     size_t r_blen = sig.r.bytes();
     size_t s_blen = sig.s.bytes();
