@@ -33,7 +33,10 @@
 #include <string.h>
 #include <stdint.h>
 #include <time.h>
-#include <inttypes.h>
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
+#include <cinttypes>
 #include <cassert>
 
 #include "pgp-key.h"
