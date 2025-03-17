@@ -45,10 +45,13 @@
 #include <stdlib.h>
 #ifdef _MSC_VER
 #include "uniwin.h"
-#include <inttypes.h>
 #else
 #include <unistd.h>
 #endif
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
+#include <cinttypes>
 #include <string.h>
 #include <sys/stat.h>
 #include <stdexcept>
