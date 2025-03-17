@@ -197,36 +197,6 @@ armor_read_crc(pgp_source_armored_param_t *param)
 }
 
 static bool
-armor_skip_chars(pgp_source_t &src, const char *chars)
-{
-    uint8_t ch;
-    size_t  read;
-
-    do {
-        bool found = false;
-        if (!src.peek(&ch, 1, &read)) {
-            return false;
-        }
-        if (!read) {
-            /* return true only if there is no underlying read error */
-            return true;
-        }
-        for (const char *chptr = chars; *chptr; chptr++) {
-            if (ch == *chptr) {
-                src.skip(1);
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            break;
-        }
-    } while (1);
-
-    return true;
-}
-
-static bool
 armor_read_trailer(pgp_source_armored_param_t *param)
 {
     char   st[64];
@@ -234,7 +204,7 @@ armor_read_trailer(pgp_source_armored_param_t *param)
     size_t stlen;
 
     /* Space or tab could get between armor and trailer, see issue #2199 */
-    if (!armor_skip_chars(*param->readsrc, "\r\n \t")) {
+    if (!param->readsrc->skip_chars("\r\n \t")) {
         return false;
     }
 
@@ -252,7 +222,7 @@ armor_read_trailer(pgp_source_armored_param_t *param)
         return false;
     }
     param->readsrc->skip(stlen);
-    (void) armor_skip_chars(*param->readsrc, "\t ");
+    (void) param->readsrc->skip_chars("\t ");
     (void) param->readsrc->skip_eol();
     return true;
 }
@@ -694,7 +664,7 @@ armor_parse_header(pgp_source_armored_param_t *param)
     memcpy(param->armorhdr, armhdr + 5, armhdrlen - 10);
     param->armorhdr[armhdrlen - 10] = '\0';
     param->readsrc->skip(armhdr - hdr + armhdrlen);
-    armor_skip_chars(*param->readsrc, "\t ");
+    param->readsrc->skip_chars("\t ");
     return true;
 }
 
