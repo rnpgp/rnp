@@ -1629,6 +1629,8 @@ rnp_input_dearmor_if_needed(rnp_input_t input, bool noheaders = false)
         delete base;
         /* we should not mix armored data with binary */
         require_armor = true;
+        /* skip spaces before the next armored block or EOF */
+        input->src.skip_chars("\r\n \t");
     }
     if (input->src.eof()) {
         return RNP_ERROR_EOF;
