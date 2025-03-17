@@ -34,7 +34,10 @@
 #include "uniwin.h"
 #endif
 #include <string.h>
-#include <inttypes.h>
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
+#include <cinttypes>
 #include <rnp/rnp_def.h>
 #include "types.h"
 #include "crypto/mem.h"
