@@ -4317,6 +4317,18 @@ class Misc(unittest.TestCase):
         self.assertEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*\[signature_validate\(\) [/\\]lib[/\\]crypto[/\\]signatures.cpp:[0-9]*\] Insecure hash algorithm [0-9]*, marking signature as invalid.*$')
 
+    def test_armor_with_spaces_import(self):
+        RNP2 = RNPDIR + '2'
+        os.mkdir(RNP2, 0o700)
+
+        ret, out, err = run_proc(RNPK, ['--homedir', RNP2, '--import', data_path('test_stream_key_load/ecc-25519-pub.spaces.asc')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*pub.*255/EdDSA.*cc786278981b0728.*')
+        self.assertRegex(err, r'(?s)^.*Import finished: 1 key processed, 1 new public keys.*')
+
+        clear_workfiles()
+        shutil.rmtree(RNP2, ignore_errors=True)
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
