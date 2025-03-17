@@ -35,7 +35,10 @@
 #endif
 #include <string.h>
 #include <time.h>
-#include <inttypes.h>
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
+#include <cinttypes>
 #include "stream-def.h"
 #include "stream-key.h"
 #include "stream-armor.h"
