@@ -157,6 +157,13 @@ typedef struct pgp_source_t {
      */
     bool skip_eol();
 
+    /**
+     * @brief skip specified chars starting from the current position in input
+     * @param chars null-terminated string with chars to skip
+     * @return true on success or false otherwise
+     */
+    bool skip_chars(const std::string &chars);
+
     /** @brief peek the line on the source
      *  @param buf preallocated buffer to store the result. Result include NULL character and
      *             doesn't include the end of line sequence.

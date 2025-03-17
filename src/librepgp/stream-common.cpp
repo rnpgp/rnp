@@ -310,6 +310,26 @@ pgp_source_t::skip_eol()
 }
 
 bool
+pgp_source_t::skip_chars(const std::string &chars)
+{
+    do {
+        char   ch = 0;
+        size_t read = 0;
+        if (!peek(&ch, 1, &read)) {
+            return false;
+        }
+        if (!read) {
+            /* return true only if there is no underlying read error */
+            return true;
+        }
+        if (chars.find(ch) == std::string::npos) {
+            return true;
+        }
+        skip(1);
+    } while (1);
+}
+
+bool
 pgp_source_t::peek_line(char *buf, size_t len, size_t *readres)
 {
     size_t scan_pos = 0;
