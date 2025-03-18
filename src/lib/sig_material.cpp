@@ -55,7 +55,7 @@ SigMaterial::create(pgp_pubkey_alg_t palg, pgp_hash_alg_t halg)
 #if defined(ENABLE_PQC)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
+    // TODO: Add case for PGP_PKA_DILITHIUM5_ED448 with FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
