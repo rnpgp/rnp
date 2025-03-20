@@ -292,8 +292,8 @@ rnp_cfg::get_list(const std::string &key) const
 int
 rnp_cfg::get_pswdtries() const
 {
-    const std::string &numtries = get_str(CFG_NUMTRIES);
-    int                num = atoi(numtries.c_str());
+    auto &numtries = get_str(CFG_NUMTRIES);
+    int   num = atoi(numtries.c_str());
     if (numtries.empty() || (num <= 0)) {
         return MAX_PASSWORD_ATTEMPTS;
     } else if (numtries == "unlimited") {
@@ -305,7 +305,7 @@ rnp_cfg::get_pswdtries() const
 const std::string
 rnp_cfg::get_hashalg() const
 {
-    const std::string hash_alg = get_str(CFG_HASH);
+    auto &hash_alg = get_str(CFG_HASH);
     if (!hash_alg.empty()) {
         return hash_alg;
     }
@@ -315,7 +315,7 @@ rnp_cfg::get_hashalg() const
 const std::string
 rnp_cfg::get_cipher() const
 {
-    const std::string cipher_alg = get_str(CFG_CIPHER);
+    auto &cipher_alg = get_str(CFG_CIPHER);
     if (!cipher_alg.empty()) {
         return cipher_alg;
     }

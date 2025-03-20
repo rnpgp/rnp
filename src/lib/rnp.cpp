@@ -3712,14 +3712,9 @@ try {
     }
 
     std::unique_ptr<rnp::Signature> subsig(new rnp::Signature(sig->sig_pkt));
-    *handle = new rnp_signature_handle_st(sig->ffi, nullptr, subsig.get(), true);
-    if (!*handle) {
-        /* LCOV_EXCL_START */
-        return RNP_ERROR_OUT_OF_MEMORY;
-        /* LCOV_EXCL_END */
-    }
+    *handle = new rnp_signature_handle_st(sig->ffi, nullptr, nullptr, true);
+    (*handle)->sig = subsig.release();
     (*handle)->sig->validity = sig->validity;
-    subsig.release();
 
     return RNP_SUCCESS;
 }
@@ -5963,22 +5958,14 @@ create_key_signature(rnp_ffi_t               ffi,
     default:
         return RNP_ERROR_NOT_IMPLEMENTED;
     }
-    try {
-        pgp_signature_t sigpkt;
-        sigkey.sign_init(
-          ffi->rng(), sigpkt, DEFAULT_PGP_HASH_ALG, ffi->context.time(), sigkey.version());
-        sigpkt.set_type(type);
-        std::unique_ptr<rnp::Signature> subsig(new rnp::Signature(sigpkt));
-        subsig->uid = uid;
-        sig = new rnp_signature_handle_st(ffi, &tgkey, subsig.get(), true, true);
-        subsig.release();
-    } catch (const std::exception &e) {
-        /* LCOV_EXCL_START */
-        FFI_LOG(ffi, "%s", e.what());
-        return RNP_ERROR_OUT_OF_MEMORY;
-        /* LCOV_EXCL_END */
-    }
-
+    pgp_signature_t sigpkt;
+    sigkey.sign_init(
+      ffi->rng(), sigpkt, DEFAULT_PGP_HASH_ALG, ffi->context.time(), sigkey.version());
+    sigpkt.set_type(type);
+    std::unique_ptr<rnp::Signature> subsig(new rnp::Signature(sigpkt));
+    subsig->uid = uid;
+    sig = new rnp_signature_handle_st(ffi, &tgkey, nullptr, true, true);
+    sig->sig = subsig.release();
     return RNP_SUCCESS;
 }
 
