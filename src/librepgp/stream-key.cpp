@@ -755,6 +755,8 @@ pgp_key_pkt_t::pgp_key_pkt_t(const pgp_key_pkt_t &src, bool pubonly)
         }
         memcpy(sec_data, src.sec_data, sec_len);
     }
+    v5_s2k_len = src.v5_s2k_len;
+    v5_sec_len = src.v5_sec_len;
     sec_protection = src.sec_protection;
 }
 
@@ -772,6 +774,7 @@ pgp_key_pkt_t::pgp_key_pkt_t(pgp_key_pkt_t &&src)
     sec_len = src.sec_len;
     v5_s2k_len = src.v5_s2k_len;
     v5_sec_len = src.v5_sec_len;
+    v5_pub_len = src.v5_pub_len;
     sec_data = src.sec_data;
     src.sec_data = NULL;
     sec_protection = src.sec_protection;
