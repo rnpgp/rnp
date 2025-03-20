@@ -1960,7 +1960,7 @@ Key::validate_primary(KeyStore &keyring)
     bool has_expired = false;
     /* check whether key is revoked */
     for (auto &sigid : sigs_) {
-        auto sig = get_sig(sigid);
+        auto &sig = get_sig(sigid);
         if (!sig.validity.valid()) {
             continue;
         }
