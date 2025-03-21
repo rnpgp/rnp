@@ -492,14 +492,14 @@ str_to_key_flag(const char *str, uint8_t *flag)
 }
 
 static bool
-parse_ks_format(pgp_key_store_format_t *key_store_format, const char *format)
+parse_ks_format(rnp::KeyFormat *key_store_format, const char *format)
 {
     if (!strcmp(format, RNP_KEYSTORE_GPG)) {
-        *key_store_format = PGP_KEY_STORE_GPG;
+        *key_store_format = rnp::KeyFormat::GPG;
     } else if (!strcmp(format, RNP_KEYSTORE_KBX)) {
-        *key_store_format = PGP_KEY_STORE_KBX;
+        *key_store_format = rnp::KeyFormat::KBX;
     } else if (!strcmp(format, RNP_KEYSTORE_G10)) {
-        *key_store_format = PGP_KEY_STORE_G10;
+        *key_store_format = rnp::KeyFormat::G10;
     } else {
         return false;
     }
@@ -605,11 +605,11 @@ ffi_exception(FILE *fp, const char *func, const char *msg, uint32_t ret = RNP_ER
 
 #define FFI_GUARD FFI_GUARD_FP((stderr))
 
-rnp_ffi_st::rnp_ffi_st(pgp_key_store_format_t pub_fmt, pgp_key_store_format_t sec_fmt)
+rnp_ffi_st::rnp_ffi_st(rnp::KeyFormat pub_fmt, rnp::KeyFormat sec_fmt)
 {
     errs = stderr;
-    pubring = new rnp::KeyStore(pub_fmt, "", context);
-    secring = new rnp::KeyStore(sec_fmt, "", context);
+    pubring = new rnp::KeyStore("", context, pub_fmt);
+    secring = new rnp::KeyStore("", context, sec_fmt);
     getkeycb = NULL;
     getkeycb_ctx = NULL;
     getpasscb = NULL;
@@ -640,8 +640,8 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    pgp_key_store_format_t pub_ks_format = PGP_KEY_STORE_UNKNOWN;
-    pgp_key_store_format_t sec_ks_format = PGP_KEY_STORE_UNKNOWN;
+    auto pub_ks_format = rnp::KeyFormat::Unknown;
+    auto sec_ks_format = rnp::KeyFormat::Unknown;
     if (!parse_ks_format(&pub_ks_format, pub_format) ||
         !parse_ks_format(&sec_ks_format, sec_format)) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -1451,8 +1451,8 @@ load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp::KeyStore *store)
 static bool
 key_needs_conversion(const rnp::Key *key, const rnp::KeyStore *store)
 {
-    pgp_key_store_format_t key_format = key->format;
-    pgp_key_store_format_t store_format = store->format;
+    auto key_format = key->format;
+    auto store_format = store->format;
     /* rnp::Key->format is only ever GPG or G10.
      *
      * The key store, however, could have a format of KBX, GPG, or G10.
@@ -1460,26 +1460,23 @@ key_needs_conversion(const rnp::Key *key, const rnp::KeyStore *store)
      * A G10 key store can only handle a rnp::Key with a format of G10.
      */
     // should never be the case
-    assert(key_format != PGP_KEY_STORE_KBX);
+    assert(key_format != rnp::KeyFormat::KBX);
     // normalize the store format
-    if (store_format == PGP_KEY_STORE_KBX) {
-        store_format = PGP_KEY_STORE_GPG;
+    if (store_format == rnp::KeyFormat::KBX) {
+        store_format = rnp::KeyFormat::GPG;
     }
     // from here, both the key and store formats can only be GPG or G10
     return key_format != store_format;
 }
 
 static rnp_result_t
-do_load_keys(rnp_ffi_t              ffi,
-             rnp_input_t            input,
-             pgp_key_store_format_t format,
-             key_type_t             key_type)
+do_load_keys(rnp_ffi_t ffi, rnp_input_t input, rnp::KeyFormat format, key_type_t key_type)
 {
     // create a temporary key store to hold the keys
     std::unique_ptr<rnp::KeyStore> tmp_store;
     try {
         tmp_store =
-          std::unique_ptr<rnp::KeyStore>(new rnp::KeyStore(format, "", ffi->context));
+          std::unique_ptr<rnp::KeyStore>(new rnp::KeyStore("", ffi->context, format));
     } catch (const std::invalid_argument &e) {
         FFI_LOG(ffi, "Failed to create key store of format: %d", (int) format);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -1507,7 +1504,7 @@ do_load_keys(rnp_ffi_t              ffi,
         }
 
         // add public key part if needed
-        if ((key.format == PGP_KEY_STORE_G10) ||
+        if ((key.format == rnp::KeyFormat::G10) ||
             ((key_type != KEY_TYPE_ANY) && (key_type != KEY_TYPE_PUBLIC))) {
             continue;
         }
@@ -1570,7 +1567,7 @@ try {
         FFI_LOG(ffi, "invalid flags - must have public and/or secret keys");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    pgp_key_store_format_t ks_format = PGP_KEY_STORE_UNKNOWN;
+    auto ks_format = rnp::KeyFormat::Unknown;
     if (!parse_ks_format(&ks_format, format)) {
         FFI_LOG(ffi, "invalid key store format: %s", format);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -1709,7 +1706,7 @@ try {
     }
 
     rnp_result_t  ret = RNP_ERROR_GENERIC;
-    rnp::KeyStore tmp_store(PGP_KEY_STORE_GPG, "", ffi->context);
+    rnp::KeyStore tmp_store("", ffi->context);
 
     /* check whether input is base64 */
     if (base64 && input->src.is_base64()) {
@@ -1895,15 +1892,12 @@ copy_store_keys(rnp_ffi_t ffi, rnp::KeyStore *dest, rnp::KeyStore *src)
 }
 
 static rnp_result_t
-do_save_keys(rnp_ffi_t              ffi,
-             rnp_output_t           output,
-             pgp_key_store_format_t format,
-             key_type_t             key_type)
+do_save_keys(rnp_ffi_t ffi, rnp_output_t output, rnp::KeyFormat format, key_type_t key_type)
 {
     // create a temporary key store to hold the keys
     rnp::KeyStore *tmp_store = nullptr;
     try {
-        tmp_store = new rnp::KeyStore(format, "", ffi->context);
+        tmp_store = new rnp::KeyStore("", ffi->context, format);
     } catch (const std::invalid_argument &e) {
         /* LCOV_EXCL_START */
         FFI_LOG(ffi, "Failed to create key store of format: %d", (int) format);
@@ -1969,7 +1963,7 @@ try {
         FFI_LOG(ffi, "unexpected flags remaining: 0x%X", flags);
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    pgp_key_store_format_t ks_format = PGP_KEY_STORE_UNKNOWN;
+    auto ks_format = rnp::KeyFormat::Unknown;
     if (!parse_ks_format(&ks_format, format)) {
         FFI_LOG(ffi, "unknown key store format: %s", format);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -3879,7 +3873,7 @@ try {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
     // only PGP packets supported for now
-    if (key->format != PGP_KEY_STORE_GPG && key->format != PGP_KEY_STORE_KBX) {
+    if (key->format != rnp::KeyFormat::GPG && key->format != rnp::KeyFormat::KBX) {
         return RNP_ERROR_NOT_IMPLEMENTED;
     }
     if (armored) {
@@ -5709,7 +5703,7 @@ try {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
     auto *public_key = get_key_prefer_public(handle);
-    if (!public_key && secret_key->format == PGP_KEY_STORE_G10) {
+    if (!public_key && secret_key->format == rnp::KeyFormat::G10) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
     rnp::KeyLocker seclock(*secret_key);
@@ -7952,7 +7946,7 @@ try {
         return RNP_ERROR_NULL_POINTER;
 
     auto *key = get_key_prefer_public(handle);
-    if (key->format == PGP_KEY_STORE_G10) {
+    if (key->format == rnp::KeyFormat::G10) {
         // we can't currently determine this for a G10 secret key
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
@@ -7968,7 +7962,7 @@ try {
         return RNP_ERROR_NULL_POINTER;
 
     auto *key = get_key_prefer_public(handle);
-    if (key->format == PGP_KEY_STORE_G10) {
+    if (key->format == rnp::KeyFormat::G10) {
         // we can't currently determine this for a G10 secret key
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
@@ -8680,7 +8674,7 @@ try {
     }
 
     rnp::Key *key = secret ? handle->sec : handle->pub;
-    if (!key || (key->format == PGP_KEY_STORE_G10)) {
+    if (!key || (key->format == rnp::KeyFormat::G10)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
