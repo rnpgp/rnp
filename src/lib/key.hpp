@@ -47,6 +47,8 @@ class KeyStore;
 class CertParams;
 class BindingParams;
 
+enum class KeyFormat { Unknown, GPG, KBX, G10 };
+
 /* describes a user's key */
 class Key {
   private:
@@ -83,7 +85,7 @@ class Key {
                              RNG &              rng);
 
   public:
-    pgp_key_store_format_t format{}; /* the format of the key in packets[0] */
+    KeyFormat format = KeyFormat::Unknown; /* the format of the key in packets[0] */
 
     Key() = default;
     Key(const pgp_key_pkt_t &pkt);

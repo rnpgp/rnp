@@ -34,11 +34,11 @@
 TEST_F(rnp_tests, key_grip)
 {
     auto pub_store = new rnp::KeyStore(
-      PGP_KEY_STORE_KBX, "data/test_stream_key_load/g10/pubring.kbx", global_ctx);
+      "data/test_stream_key_load/g10/pubring.kbx", global_ctx, rnp::KeyFormat::KBX);
     assert_true(pub_store->load());
 
     auto sec_store = new rnp::KeyStore(
-      PGP_KEY_STORE_G10, "data/test_stream_key_load/g10/private-keys-v1.d", global_ctx);
+      "data/test_stream_key_load/g10/private-keys-v1.d", global_ctx, rnp::KeyFormat::G10);
     rnp::KeyProvider key_provider(rnp_key_provider_store, pub_store);
     assert_true(sec_store->load(&key_provider));
 

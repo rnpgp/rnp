@@ -106,10 +106,10 @@ class KeygenParams {
     bool generate(pgp_key_pkt_t &seckey, bool primary);
 
     /* Generate primary key with self-certification */
-    bool generate(CertParams &           cert,
-                  Key &                  primary_sec,
-                  Key &                  primary_pub,
-                  pgp_key_store_format_t secformat);
+    bool generate(CertParams &cert,
+                  Key &       primary_sec,
+                  Key &       primary_pub,
+                  KeyFormat   secformat = KeyFormat::GPG);
 
     /* Generate a subkey for already existing primary key*/
     bool generate(BindingParams &                binding,
@@ -118,7 +118,7 @@ class KeygenParams {
                   Key &                          subkey_sec,
                   Key &                          subkey_pub,
                   const pgp_password_provider_t &password_provider,
-                  pgp_key_store_format_t         secformat);
+                  KeyFormat                      secformat = KeyFormat::GPG);
 };
 
 class UserPrefs {

@@ -944,7 +944,7 @@ KeyStore::load_g10(pgp_source_t &src, const KeyProvider *key_provider)
         if (key_provider) {
             pgp_key_grip_t grip = seckey.material->grip();
             auto           pubkey =
-              key_provider->request_key(*rnp::KeySearch::create(grip), PGP_OP_MERGE_INFO);
+              key_provider->request_key(*KeySearch::create(grip), PGP_OP_MERGE_INFO);
             if (!pubkey) {
                 return false;
             }
@@ -959,8 +959,8 @@ KeyStore::load_g10(pgp_source_t &src, const KeyProvider *key_provider)
         }
         /* set rawpkt */
         key.set_rawpkt(
-          rnp::RawPacket((uint8_t *) memsrc.memory(), memsrc.size(), PGP_PKT_RESERVED));
-        key.format = PGP_KEY_STORE_G10;
+          RawPacket((uint8_t *) memsrc.memory(), memsrc.size(), PGP_PKT_RESERVED));
+        key.format = KeyFormat::G10;
         if (!add_key(key)) {
             return false;
         }
@@ -1280,7 +1280,7 @@ g10_calculated_hash(const pgp_key_pkt_t &key, const char *protected_at, uint8_t 
 bool
 rnp_key_store_gnupg_sexp_to_dst(rnp::Key &key, pgp_dest_t &dest)
 {
-    if (key.format != PGP_KEY_STORE_G10) {
+    if (key.format != rnp::KeyFormat::G10) {
         RNP_LOG("incorrect format: %d", key.format);
         return false;
     }
