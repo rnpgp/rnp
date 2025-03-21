@@ -191,8 +191,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     const pgp_signature_t *sig = NULL;
 
     // load keyring
-    auto key_store =
-      new rnp::KeyStore(PGP_KEY_STORE_GPG, "data/keyrings/1/pubring.gpg", global_ctx);
+    auto key_store = new rnp::KeyStore("data/keyrings/1/pubring.gpg", global_ctx);
     assert_true(key_store->load());
 
     // find
@@ -335,8 +334,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times_v3)
     const pgp_signature_t *sig = NULL;
 
     // load keyring
-    auto key_store =
-      new rnp::KeyStore(PGP_KEY_STORE_GPG, "data/keyrings/2/pubring.gpg", global_ctx);
+    auto key_store = new rnp::KeyStore("data/keyrings/2/pubring.gpg", global_ctx);
     assert_true(key_store->load());
 
     // find
@@ -371,8 +369,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times_v3)
 
 TEST_F(rnp_tests, test_load_armored_pub_sec)
 {
-    auto key_store =
-      new rnp::KeyStore(PGP_KEY_STORE_GPG, MERGE_PATH "key-both.asc", global_ctx);
+    auto key_store = new rnp::KeyStore(MERGE_PATH "key-both.asc", global_ctx);
     assert_true(key_store->load());
 
     /* we must have 1 main key and 2 subkeys */
@@ -466,7 +463,7 @@ TEST_F(rnp_tests, test_load_merge)
     provider.callback = string_copy_password_callback;
     provider.userdata = (void *) "password";
 
-    auto        key_store = new rnp::KeyStore(PGP_KEY_STORE_GPG, "", global_ctx);
+    auto        key_store = new rnp::KeyStore("", global_ctx);
     std::string keyid = "9747D2A6B3A63124";
     std::string sub1id = "AF1114A47F5F5B28";
     std::string sub2id = "16CD16F267CCDD4F";
@@ -673,9 +670,9 @@ TEST_F(rnp_tests, test_load_merge)
 
 TEST_F(rnp_tests, test_load_public_from_secret)
 {
-    auto secstore = new rnp::KeyStore(PGP_KEY_STORE_GPG, MERGE_PATH "key-sec.asc", global_ctx);
+    auto secstore = new rnp::KeyStore(MERGE_PATH "key-sec.asc", global_ctx);
     assert_true(secstore->load());
-    auto pubstore = new rnp::KeyStore(PGP_KEY_STORE_GPG, "pubring.gpg", global_ctx);
+    auto pubstore = new rnp::KeyStore("pubring.gpg", global_ctx);
 
     std::string keyid = "9747D2A6B3A63124";
     std::string sub1id = "AF1114A47F5F5B28";
@@ -735,7 +732,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_true(pubstore->write());
     delete pubstore;
     /* reload */
-    pubstore = new rnp::KeyStore(PGP_KEY_STORE_GPG, "pubring.gpg", global_ctx);
+    pubstore = new rnp::KeyStore("pubring.gpg", global_ctx);
     assert_true(pubstore->load());
     assert_non_null(key = rnp_tests_get_key_by_id(pubstore, keyid));
     assert_non_null(skey1 = rnp_tests_get_key_by_id(pubstore, sub1id));
@@ -926,7 +923,7 @@ TEST_F(rnp_tests, test_key_import)
 
 TEST_F(rnp_tests, test_load_subkey)
 {
-    auto        key_store = new rnp::KeyStore(PGP_KEY_STORE_GPG, "", global_ctx);
+    auto        key_store = new rnp::KeyStore("", global_ctx);
     std::string keyid = "9747D2A6B3A63124";
     std::string sub1id = "AF1114A47F5F5B28";
     std::string sub2id = "16CD16F267CCDD4F";

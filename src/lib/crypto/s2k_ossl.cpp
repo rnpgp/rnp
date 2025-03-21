@@ -75,7 +75,7 @@ pgp_s2k_iterated(pgp_hash_alg_t alg,
                     left -= to_hash;
                 }
             }
-            auto dgst = hash->sec_finish();
+            auto   dgst = hash->sec_finish();
             size_t out_cpy = std::min(dgst.size(), output_len);
             memcpy(out, dgst.data(), out_cpy);
             output_len -= out_cpy;
