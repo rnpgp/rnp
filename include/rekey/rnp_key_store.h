@@ -55,9 +55,10 @@ typedef enum pgp_sig_import_status_t {
     PGP_SIG_IMPORT_STATUS_NEW
 } pgp_sig_import_status_t;
 
-typedef std::unordered_map<pgp_fingerprint_t, std::list<rnp::Key>::iterator> pgp_key_fp_map_t;
-
 namespace rnp {
+
+typedef std::unordered_map<pgp_fingerprint_t, std::list<Key>::iterator> pgp_key_fp_map_t;
+
 class KeyStore {
   private:
     Key *                   add_subkey(Key &srckey, Key *oldkey);
@@ -65,10 +66,10 @@ class KeyStore {
     bool                    refresh_subkey_grips(Key &key);
 
   public:
-    std::string            path;
-    pgp_key_store_format_t format;
-    rnp::SecurityContext & secctx;
-    bool                   disable_validation =
+    std::string      path;
+    KeyFormat        format;
+    SecurityContext &secctx;
+    bool             disable_validation =
       false; /* do not automatically validate keys, added to this key store */
 
     std::list<Key>                           keys;
@@ -76,11 +77,8 @@ class KeyStore {
     std::vector<std::unique_ptr<kbx_blob_t>> blobs;
 
     ~KeyStore();
-    KeyStore(rnp::SecurityContext &ctx)
-        : path(""), format(PGP_KEY_STORE_UNKNOWN), secctx(ctx){};
-    KeyStore(pgp_key_store_format_t format,
-             const std::string &    path,
-             rnp::SecurityContext & ctx);
+    KeyStore(SecurityContext &ctx) : path(""), format(KeyFormat::Unknown), secctx(ctx){};
+    KeyStore(const std::string &path, SecurityContext &ctx, KeyFormat format = KeyFormat::GPG);
     /* make sure we use only empty constructor */
     KeyStore(KeyStore &&src) = delete;
     KeyStore &operator=(KeyStore &&) = delete;
@@ -189,10 +187,10 @@ class KeyStore {
      * @return pointer to the newly added signature or nullptr if error occurred (key not
      *         found, whatever else).
      */
-    rnp::Signature *add_key_sig(const pgp_fingerprint_t &keyfp,
-                                const pgp_signature_t &  sig,
-                                const pgp_userid_pkt_t * uid,
-                                bool                     front);
+    Signature *add_key_sig(const pgp_fingerprint_t &keyfp,
+                           const pgp_signature_t &  sig,
+                           const pgp_userid_pkt_t * uid,
+                           bool                     front);
 
     /**
      * @brief Add transferable key to the keystore.

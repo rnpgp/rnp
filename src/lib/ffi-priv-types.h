@@ -120,7 +120,7 @@ struct rnp_ffi_st {
     pgp_password_provider_t pass_provider;
     rnp::SecurityContext    context;
 
-    rnp_ffi_st(pgp_key_store_format_t pub_fmt, pgp_key_store_format_t sec_fmt);
+    rnp_ffi_st(rnp::KeyFormat pub_fmt, rnp::KeyFormat sec_fmt);
     ~rnp_ffi_st();
 
     rnp::RNG &            rng() noexcept;

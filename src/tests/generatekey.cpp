@@ -1037,7 +1037,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         cert.userid = "test";
 
         // generate
-        assert_true(keygen.generate(cert, sec, pub, PGP_KEY_STORE_GPG));
+        assert_true(keygen.generate(cert, sec, pub));
 
         // add to our rings
         assert_true(pubring->add_key(pub));
@@ -1170,8 +1170,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         // generate
         pgp_password_provider_t prov = {};
         rnp::BindingParams      binding;
-        assert_true(keygen.generate(
-          binding, *primary_sec, *primary_pub, sec, pub, prov, PGP_KEY_STORE_GPG));
+        assert_true(keygen.generate(binding, *primary_sec, *primary_pub, sec, pub, prov));
         assert_true(pub.valid());
         assert_true(pub.validated());
         assert_false(pub.expired());
