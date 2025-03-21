@@ -136,6 +136,22 @@ Hash::add(const pgp::mpi &val)
     add(val.mpi + idx, len - idx);
 }
 
+std::vector<uint8_t>
+Hash::finish()
+{
+    std::vector<uint8_t> res(size_, 0);
+    finish(res.data());
+    return res;
+}
+
+rnp::secure_bytes
+Hash::sec_finish()
+{
+    rnp::secure_bytes res(size_, 0);
+    finish(res.data());
+    return res;
+}
+
 Hash::~Hash()
 {
 }

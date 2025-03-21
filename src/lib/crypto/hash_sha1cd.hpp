@@ -44,8 +44,8 @@ class Hash_SHA1CD : public Hash {
     static std::unique_ptr<Hash_SHA1CD> create();
     std::unique_ptr<Hash>               clone() const override;
 
-    void   add(const void *buf, size_t len) override;
-    size_t finish(uint8_t *digest = NULL) override;
+    void add(const void *buf, size_t len) override;
+    void finish(uint8_t *digest) override;
 };
 
 } // namespace rnp
