@@ -52,7 +52,8 @@ try {
         auto  hash = rnp::Hash::create(PGP_HASH_MD5);
         hash->add(rsa.n());
         hash->add(rsa.e());
-        fp.length = hash->finish(fp.fingerprint);
+        fp.length = hash->size();
+        hash->finish(fp.fingerprint);
         return RNP_SUCCESS;
     }
     case PGP_V4:
@@ -64,7 +65,8 @@ try {
         auto halg = key.version == PGP_V4 ? PGP_HASH_SHA1 : PGP_HASH_SHA256;
         auto hash = rnp::Hash::create(halg);
         signature_hash_key(key, *hash, key.version);
-        fp.length = hash->finish(fp.fingerprint);
+        fp.length = hash->size();
+        hash->finish(fp.fingerprint);
         return RNP_SUCCESS;
     }
     default:

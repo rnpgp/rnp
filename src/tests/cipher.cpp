@@ -482,8 +482,8 @@ TEST_F(rnp_tests, sm2_sm3_signature_test)
 
     assert_rnp_success(pgp::sm2::compute_za(sm2_key, *hash, "sm2_p256_test@example.com"));
     hash->add(msg, strlen(msg));
-    rnp::secure_bytes digest(hash_len, 0);
-    assert_int_equal(hash->finish(digest.data()), hash_len);
+    rnp::secure_bytes digest = hash->sec_finish();
+    assert_int_equal(digest.size(), hash_len);
 
     // First generate a signature, then verify it
     assert_rnp_success(pgp::sm2::sign(global_ctx.rng, sig, hash_alg, digest, sm2_key));
@@ -523,8 +523,8 @@ TEST_F(rnp_tests, sm2_sha256_signature_test)
     auto hash = rnp::Hash::create(hash_alg);
     assert_rnp_success(pgp::sm2::compute_za(sm2_key, *hash, "sm2test@example.com"));
     hash->add(msg, strlen(msg));
-    rnp::secure_bytes digest(hash_len, 0);
-    assert_int_equal(hash->finish(digest.data()), hash_len);
+    rnp::secure_bytes digest = hash->sec_finish();
+    assert_int_equal(digest.size(), hash_len);
 
     // First generate a signature, then verify it
     assert_rnp_success(pgp::sm2::sign(global_ctx.rng, sig, hash_alg, digest, sm2_key));
