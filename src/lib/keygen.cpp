@@ -239,10 +239,10 @@ load_generated_g10_key(
 }
 
 bool
-KeygenParams::generate(CertParams &           cert,
-                       Key &                  primary_sec,
-                       Key &                  primary_pub,
-                       pgp_key_store_format_t secformat)
+KeygenParams::generate(CertParams &cert,
+                       Key &       primary_sec,
+                       Key &       primary_pub,
+                       KeyFormat   secformat)
 {
     primary_sec = {};
     primary_pub = {};
@@ -272,12 +272,12 @@ KeygenParams::generate(CertParams &           cert,
     sec.add_uid_cert(cert, hash(), ctx(), &pub);
 
     switch (secformat) {
-    case PGP_KEY_STORE_GPG:
-    case PGP_KEY_STORE_KBX:
+    case KeyFormat::GPG:
+    case KeyFormat::KBX:
         primary_sec = std::move(sec);
         primary_pub = std::move(pub);
         break;
-    case PGP_KEY_STORE_G10:
+    case KeyFormat::G10:
         primary_pub = std::move(pub);
         if (!load_generated_g10_key(&primary_sec, &secpkt, NULL, &primary_pub, ctx())) {
             RNP_LOG("failed to load generated key");
@@ -303,7 +303,7 @@ KeygenParams::generate(BindingParams &                binding,
                        Key &                          subkey_sec,
                        Key &                          subkey_pub,
                        const pgp_password_provider_t &password_provider,
-                       pgp_key_store_format_t         secformat)
+                       KeyFormat                      secformat)
 {
     // validate args
     if (!primary_sec.is_primary() || !primary_pub.is_primary() || !primary_sec.is_secret() ||
@@ -342,11 +342,11 @@ KeygenParams::generate(BindingParams &                binding,
     /* copy to the result */
     subkey_pub = std::move(pub);
     switch (secformat) {
-    case PGP_KEY_STORE_GPG:
-    case PGP_KEY_STORE_KBX:
+    case KeyFormat::GPG:
+    case KeyFormat::KBX:
         subkey_sec = std::move(sec);
         break;
-    case PGP_KEY_STORE_G10:
+    case KeyFormat::G10:
         if (!load_generated_g10_key(&subkey_sec, &secpkt, &primary_sec, &subkey_pub, ctx())) {
             RNP_LOG("failed to load generated key");
             return false;

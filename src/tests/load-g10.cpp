@@ -34,11 +34,11 @@ TEST_F(rnp_tests, test_invalid_g10)
     rnp::KeyProvider key_provider(rnp_key_provider_store);
     // load pubring
     auto pub_store =
-      new rnp::KeyStore(PGP_KEY_STORE_KBX, "data/keyrings/3/pubring.kbx", global_ctx);
+      new rnp::KeyStore("data/keyrings/3/pubring.kbx", global_ctx, rnp::KeyFormat::KBX);
     assert_true(pub_store->load());
     // trigger "Unsupported public key algorithm:" error message
     auto sec_store = new rnp::KeyStore(
-      PGP_KEY_STORE_G10, "data/test_invalid_g10/private-keys-v1.d", global_ctx);
+      "data/test_invalid_g10/private-keys-v1.d", global_ctx, rnp::KeyFormat::G10);
     key_provider.userdata = pub_store;
     assert_true(sec_store->load(&key_provider));
     // NULL key_provider
@@ -57,11 +57,11 @@ TEST_F(rnp_tests, test_load_g10)
 
     // load pubring
     auto pub_store =
-      new rnp::KeyStore(PGP_KEY_STORE_KBX, "data/keyrings/3/pubring.kbx", global_ctx);
+      new rnp::KeyStore("data/keyrings/3/pubring.kbx", global_ctx, rnp::KeyFormat::KBX);
     assert_true(pub_store->load());
     // load secring
     auto sec_store =
-      new rnp::KeyStore(PGP_KEY_STORE_G10, "data/keyrings/3/private-keys-v1.d", global_ctx);
+      new rnp::KeyStore("data/keyrings/3/private-keys-v1.d", global_ctx, rnp::KeyFormat::G10);
     key_provider.userdata = pub_store;
     assert_true(sec_store->load(&key_provider));
 
@@ -75,10 +75,10 @@ TEST_F(rnp_tests, test_load_g10)
 
     /* another store */
     pub_store = new rnp::KeyStore(
-      PGP_KEY_STORE_KBX, "data/test_stream_key_load/g10/pubring.kbx", global_ctx);
+      "data/test_stream_key_load/g10/pubring.kbx", global_ctx, rnp::KeyFormat::KBX);
     assert_true(pub_store->load());
     sec_store = new rnp::KeyStore(
-      PGP_KEY_STORE_G10, "data/test_stream_key_load/g10/private-keys-v1.d", global_ctx);
+      "data/test_stream_key_load/g10/private-keys-v1.d", global_ctx, rnp::KeyFormat::G10);
     key_provider.userdata = pub_store;
     assert_true(sec_store->load(&key_provider));
 

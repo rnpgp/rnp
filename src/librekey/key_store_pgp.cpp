@@ -168,7 +168,7 @@ do_write(rnp::KeyStore &key_store, pgp_dest_t &dst, bool secret)
             continue;
         }
 
-        if (key.format != PGP_KEY_STORE_GPG) {
+        if (key.format != rnp::KeyFormat::GPG) {
             RNP_LOG("incorrect format (conversions not supported): %d", key.format);
             return false;
         }

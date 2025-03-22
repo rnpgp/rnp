@@ -239,8 +239,8 @@ TEST_F(rnp_tests, test_key_protect_sec_data)
     /* generate raw unprotected keypair */
     rnp::Key                skey, pkey, ssub, psub;
     pgp_password_provider_t prov = {};
-    assert_true(keygen.generate(cert, skey, pkey, PGP_KEY_STORE_GPG));
-    assert_true(keygen.generate(binding, skey, pkey, ssub, psub, prov, PGP_KEY_STORE_GPG));
+    assert_true(keygen.generate(cert, skey, pkey));
+    assert_true(keygen.generate(binding, skey, pkey, ssub, psub, prov));
     assert_non_null(skey.pkt().sec_data);
     assert_non_null(ssub.pkt().sec_data);
     assert_null(pkey.pkt().sec_data);

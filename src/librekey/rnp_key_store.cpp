@@ -64,7 +64,7 @@ KeyStore::load(const KeyProvider *key_provider)
 {
     pgp_source_t src = {};
 
-    if (format == PGP_KEY_STORE_G10) {
+    if (format == KeyFormat::G10) {
         auto dir = rnp_opendir(path.c_str());
         if (!dir) {
             RNP_LOG("Can't open G10 directory %s: %s", path.c_str(), strerror(errno));
@@ -73,7 +73,7 @@ KeyStore::load(const KeyProvider *key_provider)
 
         std::string dirname;
         while (!((dirname = rnp_readdir_name(dir)).empty())) {
-            std::string apath = rnp::path::append(path, dirname);
+            std::string apath = path::append(path, dirname);
 
             if (init_file_src(&src, apath.c_str())) {
                 RNP_LOG("failed to read file %s", apath.c_str());
@@ -104,11 +104,11 @@ bool
 KeyStore::load(pgp_source_t &src, const KeyProvider *key_provider)
 {
     switch (format) {
-    case PGP_KEY_STORE_GPG:
+    case KeyFormat::GPG:
         return !load_pgp(src);
-    case PGP_KEY_STORE_KBX:
+    case KeyFormat::KBX:
         return load_kbx(src, key_provider);
-    case PGP_KEY_STORE_G10:
+    case KeyFormat::G10:
         return load_g10(src, key_provider);
     default:
         RNP_LOG("Unsupported load from memory for key-store format: %d", format);
@@ -124,7 +124,7 @@ KeyStore::write()
     pgp_dest_t keydst = {};
 
     /* write g10 key store to the directory */
-    if (format == PGP_KEY_STORE_G10) {
+    if (format == KeyFormat::G10) {
         char chpath[MAXPATHLEN];
 
         struct stat path_stat;
@@ -145,7 +145,7 @@ KeyStore::write()
         }
 
         for (auto &key : keys) {
-            auto grip = rnp::bin_to_hex(key.grip().data(), key.grip().size());
+            auto grip = bin_to_hex(key.grip().data(), key.grip().size());
             snprintf(chpath, sizeof(chpath), "%s/%s.key", path.c_str(), grip.c_str());
 
             if (init_tmpfile_dest(&keydst, chpath, true)) {
@@ -191,9 +191,9 @@ bool
 KeyStore::write(pgp_dest_t &dst)
 {
     switch (format) {
-    case PGP_KEY_STORE_GPG:
+    case KeyFormat::GPG:
         return write_pgp(dst);
-    case PGP_KEY_STORE_KBX:
+    case KeyFormat::KBX:
         return write_kbx(dst);
     default:
         RNP_LOG("Unsupported write to memory for key-store format: %d", format);
@@ -233,7 +233,7 @@ KeyStore::refresh_subkey_grips(Key &key)
         }
 
         for (size_t i = 0; i < skey.sig_count(); i++) {
-            const rnp::Signature &subsig = skey.get_sig(i);
+            auto &subsig = skey.get_sig(i);
 
             if (subsig.sig.type() != PGP_SIG_SUBKEY) {
                 continue;
@@ -331,7 +331,7 @@ KeyStore::add_key(Key &srckey)
     assert(srckey.type() && srckey.version());
     auto *added_key = get_key(srckey.fp());
     /* we cannot merge G10 keys - so just return it */
-    if (added_key && (srckey.format == PGP_KEY_STORE_G10)) {
+    if (added_key && (srckey.format == KeyFormat::G10)) {
         return added_key;
     }
     /* different processing for subkeys */
@@ -386,7 +386,7 @@ KeyStore::add_key(Key &srckey)
     return added_key;
 }
 
-rnp::Signature *
+Signature *
 KeyStore::add_key_sig(const pgp_fingerprint_t &keyfp,
                       const pgp_signature_t &  sig,
                       const pgp_userid_pkt_t * uid,
@@ -410,15 +410,15 @@ KeyStore::add_key_sig(const pgp_fingerprint_t &keyfp,
         break;
     }
     /* Add to the keyring(s) */
-    uint32_t uididx = rnp::UserID::None;
+    uint32_t uididx = UserID::None;
     if (uid) {
         uididx = key->uid_idx(*uid);
-        if (uididx == rnp::UserID::None) {
+        if (uididx == UserID::None) {
             RNP_LOG("Attempt to add signature on non-existing userid.");
             return nullptr;
         }
     }
-    rnp::Signature &newsig = key->add_sig(sig, uididx, front);
+    auto &newsig = key->add_sig(sig, uididx, front);
     if (desig_rev) {
         key->validate_desig_revokes(*this);
     }
@@ -706,12 +706,10 @@ KeyStore::get_signer(const pgp_signature_t &sig, const KeyProvider *prov)
     return prov->request_key(*ks, PGP_OP_VERIFY);
 }
 
-KeyStore::KeyStore(pgp_key_store_format_t _format,
-                   const std::string &    _path,
-                   rnp::SecurityContext & ctx)
+KeyStore::KeyStore(const std::string &_path, SecurityContext &ctx, KeyFormat _format)
     : secctx(ctx)
 {
-    if (_format == PGP_KEY_STORE_UNKNOWN) {
+    if (_format == KeyFormat::Unknown) {
         RNP_LOG("Invalid key store format");
         throw std::invalid_argument("format");
     }

@@ -105,10 +105,10 @@ pgp_decrypt_seckey(const Key &                    key,
     }
     // attempt to decrypt with the provided password
     switch (key.format) {
-    case PGP_KEY_STORE_GPG:
-    case PGP_KEY_STORE_KBX:
+    case KeyFormat::GPG:
+    case KeyFormat::KBX:
         return pgp_decrypt_seckey_pgp(key.rawpkt(), key.pkt(), password.data());
-    case PGP_KEY_STORE_G10:
+    case KeyFormat::G10:
         return g10_decrypt_seckey(key.rawpkt(), key.pkt(), password.data());
     default:
         RNP_LOG("unexpected format: %d", key.format);
@@ -147,14 +147,14 @@ Key::write_sec_rawpkt(pgp_key_pkt_t &seckey, const std::string &password, Securi
     try {
         MemoryDest memdst;
         switch (format) {
-        case PGP_KEY_STORE_GPG:
-        case PGP_KEY_STORE_KBX:
+        case KeyFormat::GPG:
+        case KeyFormat::KBX:
             if (!write_sec_pgp(memdst.dst(), seckey, password, ctx.rng)) {
                 RNP_LOG("failed to write secret key");
                 return false;
             }
             break;
-        case PGP_KEY_STORE_G10:
+        case KeyFormat::G10:
             if (!g10_write_seckey(&memdst.dst(), &seckey, password.c_str(), ctx)) {
                 RNP_LOG("failed to write g10 secret key");
                 return false;
@@ -436,7 +436,7 @@ Key::Key(const pgp_key_pkt_t &keypkt) : pkt_(keypkt)
     }
     /* add rawpacket */
     rawpkt_ = RawPacket(pkt_);
-    format = PGP_KEY_STORE_GPG;
+    format = KeyFormat::GPG;
 }
 
 Key::Key(const pgp_key_pkt_t &pkt, Key &primary) : Key(pkt)
@@ -447,7 +447,7 @@ Key::Key(const pgp_key_pkt_t &pkt, Key &primary) : Key(pkt)
 Key::Key(const Key &src, bool pubonly)
 {
     /* Do some checks for g10 keys */
-    if (src.format == PGP_KEY_STORE_G10) {
+    if (src.format == KeyFormat::G10) {
         if (pubonly) {
             RNP_LOG("attempt to copy public part from g10 key");
             throw std::invalid_argument("pubonly");
@@ -935,7 +935,7 @@ Key::has_secret() const noexcept
     if (!is_secret()) {
         return false;
     }
-    if ((format == PGP_KEY_STORE_GPG) && !pkt_.sec_len) {
+    if ((format == KeyFormat::GPG) && !pkt_.sec_len) {
         return false;
     }
     if (pkt_.sec_protection.s2k.usage == PGP_S2KU_NONE) {
@@ -1223,7 +1223,7 @@ Key::subkey_fps() const
 size_t
 Key::rawpkt_count() const
 {
-    if (format == PGP_KEY_STORE_G10) {
+    if (format == KeyFormat::G10) {
         return 1;
     }
     return 1 + uid_count() + sig_count();
@@ -1392,7 +1392,7 @@ Key::write(pgp_dest_t &dst) const
     /* write key rawpacket */
     rawpkt_.write(dst);
 
-    if (format == PGP_KEY_STORE_G10) {
+    if (format == KeyFormat::G10) {
         return;
     }
 
@@ -2243,7 +2243,7 @@ Key::add_uid_cert(CertParams &cert, pgp_hash_alg_t hash, SecurityContext &ctx, K
         throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
     // this isn't really valid for this format
-    if (format == PGP_KEY_STORE_G10) {
+    if (format == KeyFormat::G10) {
         RNP_LOG("Unsupported key store type");
         throw rnp_exception(RNP_ERROR_BAD_STATE);
     }

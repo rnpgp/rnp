@@ -44,8 +44,8 @@ class Hash_Botan : public Hash {
     static std::unique_ptr<Hash_Botan> create(pgp_hash_alg_t alg);
     std::unique_ptr<Hash>              clone() const override;
 
-    void   add(const void *buf, size_t len) override;
-    size_t finish(uint8_t *digest = NULL) override;
+    void add(const void *buf, size_t len) override;
+    void finish(uint8_t *digest) override;
 
     static const char *name_backend(pgp_hash_alg_t alg);
 };
