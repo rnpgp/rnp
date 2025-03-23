@@ -534,7 +534,7 @@ kbx_write_pgp(const KeyStore &key_store, const Key &key, pgp_dest_t &dst)
         return false;
     }
 
-    if (!pbuf(mem.dst(), key.fp().fingerprint, key.fp().length) ||
+    if (!pbuf(mem.dst(), key.fp().data(), key.fp().size()) ||
         !pu32(mem.dst(), mem.writeb() - 8) || // offset to keyid (part of fpr for V4)
         !pu16(mem.dst(), 0) ||                // flags, not used by GnuPG
         !pu16(mem.dst(), 0)) {                // RFU
@@ -545,7 +545,7 @@ kbx_write_pgp(const KeyStore &key_store, const Key &key, pgp_dest_t &dst)
     std::vector<uint32_t> subkey_sig_expirations;
     for (auto &sfp : key.subkey_fps()) {
         auto *subkey = key_store.get_key(sfp);
-        if (!subkey || !pbuf(mem.dst(), subkey->fp().fingerprint, subkey->fp().length) ||
+        if (!subkey || !pbuf(mem.dst(), subkey->fp().data(), subkey->fp().size()) ||
             !pu32(mem.dst(), mem.writeb() - 8) || // offset to keyid (part of fpr for V4)
             !pu16(mem.dst(), 0) ||                // flags, not used by GnuPG
             !pu16(mem.dst(), 0)) {                // RFU

@@ -31,7 +31,7 @@
 
 #include "rnp_tests.h"
 #include "support.h"
-#include "fingerprint.h"
+#include "fingerprint.hpp"
 #include "keygen.hpp"
 
 TEST_F(rnp_tests, hash_test_success)
@@ -224,8 +224,7 @@ TEST_F(rnp_tests, rnp_test_x25519)
     assert_int_equal(ec.x().mpi[0] & 128, 0);
     assert_int_equal(ec.x().mpi[0] & 64, 64);
     /* encrypt */
-    pgp_fingerprint_t fp = {};
-    assert_rnp_success(pgp_fingerprint(fp, seckey));
+    pgp::Fingerprint     fp(seckey);
     rnp::secure_bytes    in({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
     pgp::ECDHEncMaterial enc;
     pgp::SM2EncMaterial  enc2;
@@ -353,9 +352,7 @@ TEST_F(rnp_tests, ecdh_roundtrip)
         pgp_key_pkt_t ecdh_key1{};
         assert_true(keygen.generate(ecdh_key1, true));
 
-        pgp_fingerprint_t ecdh_key1_fpr{};
-        assert_rnp_success(pgp_fingerprint(ecdh_key1_fpr, ecdh_key1));
-
+        pgp::Fingerprint   ecdh_key1_fpr(ecdh_key1);
         pgp::ECSigMaterial sig(keygen.hash());
         rnp::secure_bytes  hash(rnp::Hash::size(keygen.hash()));
         assert_rnp_failure(ecdh_key1.material->sign(global_ctx, sig, hash));
@@ -408,9 +405,7 @@ TEST_F(rnp_tests, ecdh_decryptionNegativeCases)
     pgp_key_pkt_t ecdh_key1;
     assert_true(keygen.generate(ecdh_key1, true));
 
-    pgp_fingerprint_t ecdh_key1_fpr = {};
-    assert_rnp_success(pgp_fingerprint(ecdh_key1_fpr, ecdh_key1));
-
+    pgp::Fingerprint     ecdh_key1_fpr(ecdh_key1);
     pgp::ECDHEncMaterial enc;
     enc.enc.fp = ecdh_key1_fpr.vec();
     assert_rnp_success(ecdh_key1.material->encrypt(global_ctx, enc, in));

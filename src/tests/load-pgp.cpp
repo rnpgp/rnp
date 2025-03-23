@@ -329,7 +329,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
  */
 TEST_F(rnp_tests, test_load_check_bitfields_and_times_v3)
 {
-    pgp_key_id_t           keyid = {};
+    pgp::KeyID             keyid = {};
     const rnp::Key *       key;
     const pgp_signature_t *sig = NULL;
 
