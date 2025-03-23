@@ -434,8 +434,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     pgp_source_t               keysrc = {0};
     pgp_dest_t                 keydst = {0};
     pgp_key_sequence_t         keyseq;
-    pgp_key_id_t               keyid = {};
-    pgp_fingerprint_t          keyfp;
+    pgp::Fingerprint           keyfp;
     pgp_transferable_key_t *   key = NULL;
     pgp_transferable_subkey_t *skey = NULL;
 
@@ -488,9 +487,9 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
-    assert_rnp_success(pgp_keyid(keyid, key->key));
-    assert_true(cmp_keyid(keyid, "7D0BC10E933404C9"));
-    assert_false(cmp_keyid(keyid, "1D0BC10E933404C9"));
+    keyfp = pgp::Fingerprint(key->key);
+    assert_true(cmp_keyid(keyfp.keyid(), "7D0BC10E933404C9"));
+    assert_false(cmp_keyid(keyfp.keyid(), "1D0BC10E933404C9"));
     keysrc.close();
 
     /* armored v3 secret key */
@@ -498,8 +497,8 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
-    assert_rnp_success(pgp_keyid(keyid, key->key));
-    assert_true(cmp_keyid(keyid, "7D0BC10E933404C9"));
+    keyfp = pgp::Fingerprint(key->key);
+    assert_true(cmp_keyid(keyfp.keyid(), "7D0BC10E933404C9"));
     keysrc.close();
 
     /* rsa/rsa public key */
@@ -507,10 +506,9 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
-    assert_rnp_success(pgp_fingerprint(keyfp, key->key));
+    keyfp = pgp::Fingerprint(key->key);
     assert_true(cmp_keyfp(keyfp, "6BC04A5A3DDB35766B9A40D82FB9179118898E8B"));
-    assert_rnp_success(pgp_keyid(keyid, key->key));
-    assert_true(cmp_keyid(keyid, "2FB9179118898E8B"));
+    assert_true(cmp_keyid(keyfp.keyid(), "2FB9179118898E8B"));
     assert_int_equal(key->subkeys.size(), 1);
     assert_non_null(key->subkeys[0].subkey.hashed_data);
     keysrc.close();
@@ -520,10 +518,9 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
-    assert_rnp_success(pgp_fingerprint(keyfp, key->key));
+    keyfp = pgp::Fingerprint(key->key);
     assert_true(cmp_keyfp(keyfp, "6BC04A5A3DDB35766B9A40D82FB9179118898E8B"));
-    assert_rnp_success(pgp_keyid(keyid, key->key));
-    assert_true(cmp_keyid(keyid, "2FB9179118898E8B"));
+    assert_true(cmp_keyid(keyfp.keyid(), "2FB9179118898E8B"));
     assert_int_equal(key->subkeys.size(), 1);
     assert_non_null(key->subkeys[0].subkey.hashed_data);
     keysrc.close();
@@ -533,12 +530,12 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
-    assert_rnp_success(pgp_fingerprint(keyfp, key->key));
+    keyfp = pgp::Fingerprint(key->key);
     assert_true(cmp_keyfp(keyfp, "091C44CE9CFBC3FF7EC7A64DC8A10A7D78273E10"));
     assert_int_equal(key->subkeys.size(), 1);
     assert_non_null(skey = &key->subkeys.front());
-    assert_rnp_success(pgp_keyid(keyid, skey->subkey));
-    assert_true(cmp_keyid(keyid, "02A5715C3537717E"));
+    keyfp = pgp::Fingerprint(skey->subkey);
+    assert_true(cmp_keyid(keyfp.keyid(), "02A5715C3537717E"));
     keysrc.close();
 
     /* dsa/el-gamal secret key */
@@ -555,7 +552,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
-    assert_rnp_success(pgp_fingerprint(keyfp, key->key));
+    keyfp = pgp::Fingerprint(key->key);
     assert_true(cmp_keyfp(keyfp, "21FC68274AAE3B5DE39A4277CC786278981B0728"));
     keysrc.close();
 
@@ -572,12 +569,12 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
-    assert_rnp_success(pgp_fingerprint(keyfp, key->key));
+    keyfp = pgp::Fingerprint(key->key);
     assert_true(cmp_keyfp(keyfp, "4C9738A6F2BE4E1A796C9B7B941822A0FC1B30A5"));
     assert_int_equal(key->subkeys.size(), 1);
     assert_non_null(skey = &key->subkeys.front());
-    assert_rnp_success(pgp_keyid(keyid, skey->subkey));
-    assert_true(cmp_keyid(keyid, "C711187E594376AF"));
+    keyfp = pgp::Fingerprint(skey->subkey);
+    assert_true(cmp_keyid(keyfp.keyid(), "C711187E594376AF"));
     keysrc.close();
 
     /* eddsa/x25519 ecc secret key */
@@ -594,11 +591,11 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
-    assert_rnp_success(pgp_fingerprint(keyfp, key->key));
+    keyfp = pgp::Fingerprint(key->key);
     assert_true(cmp_keyfp(keyfp, "B54FDEBBB673423A5D0AA54423674F21B2441527"));
     assert_non_null(skey = &key->subkeys.front());
-    assert_rnp_success(pgp_keyid(keyid, skey->subkey));
-    assert_true(cmp_keyid(keyid, "37E285E9E9851491"));
+    keyfp = pgp::Fingerprint(skey->subkey);
+    assert_true(cmp_keyid(keyfp.keyid(), "37E285E9E9851491"));
     keysrc.close();
 
     /* p-256 ecc secret key */
@@ -615,11 +612,11 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
-    assert_rnp_success(pgp_fingerprint(keyfp, key->key));
+    keyfp = pgp::Fingerprint(key->key);
     assert_true(cmp_keyfp(keyfp, "AB25CBA042DD924C3ACC3ED3242A3AA5EA85F44A"));
     assert_non_null(skey = &key->subkeys.front());
-    assert_rnp_success(pgp_keyid(keyid, skey->subkey));
-    assert_true(cmp_keyid(keyid, "E210E3D554A4FAD9"));
+    keyfp = pgp::Fingerprint(skey->subkey);
+    assert_true(cmp_keyid(keyfp.keyid(), "E210E3D554A4FAD9"));
     keysrc.close();
 
     /* p-384 ecc secret key */
@@ -636,11 +633,11 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
-    assert_rnp_success(pgp_fingerprint(keyfp, key->key));
+    keyfp = pgp::Fingerprint(key->key);
     assert_true(cmp_keyfp(keyfp, "4FB39FF6FA4857A4BD7EF5B42092CA8324263B6A"));
     assert_non_null(skey = &key->subkeys.front());
-    assert_rnp_success(pgp_keyid(keyid, skey->subkey));
-    assert_true(cmp_keyid(keyid, "9853DF2F6D297442"));
+    keyfp = pgp::Fingerprint(skey->subkey);
+    assert_true(cmp_keyid(keyfp.keyid(), "9853DF2F6D297442"));
     keysrc.close();
 
     /* p-521 ecc secret key */
@@ -657,11 +654,11 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
-    assert_rnp_success(pgp_fingerprint(keyfp, key->key));
+    keyfp = pgp::Fingerprint(key->key);
     assert_true(cmp_keyfp(keyfp, "0633C5F72A198F51E650E4ABD0C8A3DAF9E0634A"));
     assert_non_null(skey = &key->subkeys.front());
-    assert_rnp_success(pgp_keyid(keyid, skey->subkey));
-    assert_true(cmp_keyid(keyid, "2EDABB94D3055F76"));
+    keyfp = pgp::Fingerprint(skey->subkey);
+    assert_true(cmp_keyid(keyfp.keyid(), "2EDABB94D3055F76"));
     keysrc.close();
 
     /* Brainpool P256 ecc secret key */
@@ -678,11 +675,11 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
-    assert_rnp_success(pgp_fingerprint(keyfp, key->key));
+    keyfp = pgp::Fingerprint(key->key);
     assert_true(cmp_keyfp(keyfp, "5B8A254C823CED98DECD10ED6CF2DCE85599ADA2"));
     assert_non_null(skey = &key->subkeys.front());
-    assert_rnp_success(pgp_keyid(keyid, skey->subkey));
-    assert_true(cmp_keyid(keyid, "CFF1BB6F16D28191"));
+    keyfp = pgp::Fingerprint(skey->subkey);
+    assert_true(cmp_keyid(keyfp.keyid(), "CFF1BB6F16D28191"));
     keysrc.close();
 
     /* Brainpool P384 ecc secret key */
@@ -699,11 +696,11 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
-    assert_rnp_success(pgp_fingerprint(keyfp, key->key));
+    keyfp = pgp::Fingerprint(key->key);
     assert_true(cmp_keyfp(keyfp, "4C59AB9272AA6A1F60B85BD0AA5C58D14F7B8F48"));
     assert_non_null(skey = &key->subkeys.front());
-    assert_rnp_success(pgp_keyid(keyid, skey->subkey));
-    assert_true(cmp_keyid(keyid, "20CDAA1482BA79CE"));
+    keyfp = pgp::Fingerprint(skey->subkey);
+    assert_true(cmp_keyid(keyfp.keyid(), "20CDAA1482BA79CE"));
     keysrc.close();
 
     /* Brainpool P512 ecc secret key */
@@ -720,11 +717,11 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
-    assert_rnp_success(pgp_fingerprint(keyfp, key->key));
+    keyfp = pgp::Fingerprint(key->key);
     assert_true(cmp_keyfp(keyfp, "81F772B57D4EBFE7000A66233EA5BB6F9692C1A0"));
     assert_non_null(skey = &key->subkeys.front());
-    assert_rnp_success(pgp_keyid(keyid, skey->subkey));
-    assert_true(cmp_keyid(keyid, "7635401F90D3E533"));
+    keyfp = pgp::Fingerprint(skey->subkey);
+    assert_true(cmp_keyid(keyfp.keyid(), "7635401F90D3E533"));
     keysrc.close();
 
     /* secp256k1 ecc secret key */
@@ -1068,9 +1065,8 @@ TEST_F(rnp_tests, test_stream_key_signatures)
             assert_non_null(pkey = pubring->get_signer(sig));
             /* high level interface */
             sinfo.sig = &sig;
-            pgp_key_id_t subid;
-            assert_rnp_success(pgp_keyid(subid, subkey.subkey));
-            char ssubid[PGP_KEY_ID_SIZE * 2 + 1];
+            pgp::KeyID subid = pgp::Fingerprint(subkey.subkey).keyid();
+            char       ssubid[PGP_KEY_ID_SIZE * 2 + 1];
             assert_true(rnp::hex_encode(subid.data(), subid.size(), ssubid, sizeof(ssubid)));
             rnp::Key *psub = rnp_tests_get_key_by_id(pubring, ssubid);
             assert_non_null(psub);

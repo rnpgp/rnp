@@ -51,7 +51,7 @@
 #include "stream-armor.h"
 #include "stream-sig.h"
 #include "key.hpp"
-#include "fingerprint.h"
+#include "fingerprint.hpp"
 #include "types.h"
 #include "crypto/signatures.h"
 #include "defaults.h"

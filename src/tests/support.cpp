@@ -373,15 +373,15 @@ hex2mpi(pgp::mpi *val, const char *hex)
 }
 
 bool
-cmp_keyid(const pgp_key_id_t &id, const std::string &val)
+cmp_keyid(const pgp::KeyID &id, const std::string &val)
 {
     return bin_eq_hex(id.data(), id.size(), val.c_str());
 }
 
 bool
-cmp_keyfp(const pgp_fingerprint_t &fp, const std::string &val)
+cmp_keyfp(const pgp::Fingerprint &fp, const std::string &val)
 {
-    return bin_eq_hex(fp.fingerprint, fp.length, val.c_str());
+    return bin_eq_hex(fp.data(), fp.size(), val.c_str());
 }
 
 void
@@ -744,8 +744,8 @@ rnp_tests_get_key_by_id(rnp::KeyStore *keyring, const std::string &keyid, rnp::K
     if (!keyring || keyid.empty() || !rnp::is_hex(keyid)) {
         return NULL;
     }
-    pgp_key_id_t keyid_bin = {};
-    size_t       binlen = rnp::hex_decode(keyid.c_str(), keyid_bin.data(), keyid_bin.size());
+    pgp::KeyID keyid_bin = {};
+    size_t     binlen = rnp::hex_decode(keyid.c_str(), keyid_bin.data(), keyid_bin.size());
     if (binlen > PGP_KEY_ID_SIZE) {
         return NULL;
     }
@@ -787,9 +787,7 @@ rnp_tests_get_key_by_fpr(rnp::KeyStore *keyring, const std::string &fpstr)
     if (binlen > PGP_MAX_FINGERPRINT_SIZE) {
         return NULL;
     }
-    pgp_fingerprint_t fp;
-    memcpy(fp.fingerprint, fp_bin.data(), binlen);
-    fp.length = binlen;
+    pgp::Fingerprint fp(fp_bin.data(), binlen);
     return keyring->get_key(fp);
 }
 

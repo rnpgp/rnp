@@ -45,7 +45,7 @@
 #include "types.h"
 #include "crypto/s2k.h"
 #include "crypto/signatures.h"
-#include "fingerprint.h"
+#include "fingerprint.hpp"
 #include "key.hpp"
 #ifdef ENABLE_CRYPTO_REFRESH
 #include "crypto/hkdf.hpp"
@@ -2304,10 +2304,10 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
 #if defined(ENABLE_CRYPTO_REFRESH)
             if (pubenc.version == PGP_PKSK_V3) {
 #endif
-                hidden = (pubenc.key_id == pgp_key_id_t({}));
+                hidden = (pubenc.key_id == pgp::KeyID({}));
 #if defined(ENABLE_CRYPTO_REFRESH)
             } else { // PGP_PKSK_V6
-                hidden = (pubenc.fp.length == 0);
+                hidden = !pubenc.fp.size();
             }
 #endif
             if (!hidden || (++hidden_tries >= MAX_HIDDEN_TRIES)) {

@@ -27,7 +27,7 @@
 #define RNP_KEY_PROVIDER_H
 
 #include "types.h"
-#include "fingerprint.h"
+#include "fingerprint.hpp"
 
 namespace rnp {
 class Key;
@@ -54,8 +54,8 @@ class KeySearch {
     virtual std::string       value() const = 0;
     virtual ~KeySearch() = default;
 
-    static std::unique_ptr<KeySearch> create(const pgp_key_id_t &keyid);
-    static std::unique_ptr<KeySearch> create(const pgp_fingerprint_t &fp);
+    static std::unique_ptr<KeySearch> create(const pgp::KeyID &keyid);
+    static std::unique_ptr<KeySearch> create(const pgp::Fingerprint &fp);
     static std::unique_ptr<KeySearch> create(const pgp_key_grip_t &grip);
     static std::unique_ptr<KeySearch> create(const std::string &uid);
     static std::unique_ptr<KeySearch> create(const std::string &name,
@@ -66,7 +66,7 @@ class KeySearch {
 };
 
 class KeyIDSearch : public KeySearch {
-    pgp_key_id_t keyid_;
+    pgp::KeyID keyid_;
 
   public:
     bool              matches(const Key &key) const;
@@ -74,19 +74,19 @@ class KeyIDSearch : public KeySearch {
     std::string       value() const;
     bool              hidden() const;
 
-    KeyIDSearch(const pgp_key_id_t &keyid);
+    KeyIDSearch(const pgp::KeyID &keyid);
 };
 
 class KeyFingerprintSearch : public KeySearch {
-    pgp_fingerprint_t fp_;
+    pgp::Fingerprint fp_;
 
   public:
     bool              matches(const Key &key) const;
     const std::string name() const;
     std::string       value() const;
 
-    KeyFingerprintSearch(const pgp_fingerprint_t &fp);
-    const pgp_fingerprint_t &get_fp() const;
+    KeyFingerprintSearch(const pgp::Fingerprint &fp);
+    const pgp::Fingerprint &get_fp() const;
 };
 
 class KeyGripSearch : public KeySearch {

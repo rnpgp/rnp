@@ -45,7 +45,7 @@
 #include "ctype.h"
 #include "crypto/symmetric.h"
 #include "crypto/s2k.h"
-#include "fingerprint.h"
+#include "fingerprint.hpp"
 #include "key.hpp"
 #include "json-utils.h"
 #include <algorithm>
@@ -463,15 +463,15 @@ dst_print_hex(
 }
 
 static void
-dst_print_keyid(pgp_dest_t *dst, const std::string &name, const pgp_key_id_t &keyid)
+dst_print_keyid(pgp_dest_t *dst, const std::string &name, const pgp::KeyID &keyid)
 {
     dst_print_hex(dst, name, keyid.data(), keyid.size(), false);
 }
 
 static void
-dst_print_fp(pgp_dest_t *dst, const std::string &name, const pgp_fingerprint_t &fp)
+dst_print_fp(pgp_dest_t *dst, const std::string &name, const pgp::Fingerprint &fp)
 {
-    dst_print_hex(dst, name, fp.fingerprint, fp.length, true);
+    dst_print_hex(dst, name, fp.data(), fp.size(), true);
 }
 
 static void
@@ -1035,9 +1035,9 @@ stream_dump_key_material(rnp_dump_ctx_t &        ctx,
 static rnp_result_t
 stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
-    pgp_key_pkt_t     key;
-    rnp_result_t      ret;
-    pgp_fingerprint_t keyfp = {};
+    pgp_key_pkt_t    key;
+    rnp_result_t     ret;
+    pgp::Fingerprint keyfp;
 
     try {
         ret = key.parse(*src);
@@ -1101,19 +1101,15 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         indent_dest_decrease(dst);
     }
 
-    pgp_key_id_t keyid = {};
-    if (!pgp_keyid(keyid, key)) {
-        dst_print_hex(dst, "keyid", keyid.data(), keyid.size(), false);
-    } else {
-        dst_printf(dst, "keyid: failed to calculate\n");
-    }
+    try {
+        pgp::Fingerprint fp(key);
+        dst_print_hex(dst, "keyid", fp.keyid().data(), fp.keyid().size(), false);
 
-    if ((key.version > PGP_V3) && (ctx->dump_grips)) {
-        if (!pgp_fingerprint(keyfp, key)) {
-            dst_print_hex(dst, "fingerprint", keyfp.fingerprint, keyfp.length, false);
-        } else {
-            dst_printf(dst, "fingerprint: failed to calculate\n");
+        if (ctx->dump_grips) {
+            dst_print_hex(dst, "fingerprint", fp.data(), fp.size(), false);
         }
+    } catch (const std::exception &e) {
+        dst_printf(dst, "failed to calculate fingerprint and/or keyid\n");
     }
 
     if (ctx->dump_grips) {
@@ -2309,17 +2305,21 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
         }
     }
 
-    pgp_key_id_t keyid = {};
-    if (pgp_keyid(keyid, key) || !json_add(pkt, "keyid", keyid)) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
-
-    if (ctx->dump_grips) {
-        pgp_fingerprint_t keyfp = {};
-        if (pgp_fingerprint(keyfp, key) || !json_add(pkt, "fingerprint", keyfp)) {
+    try {
+        pgp::Fingerprint fp(key);
+        if (!json_add(pkt, "keyid", fp.keyid())) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
 
+        if (ctx->dump_grips && !json_add(pkt, "fingerprint", fp)) {
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+        }
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to calculate fingerprint and/or keyid: %s\n", e.what());
+        return RNP_ERROR_GENERIC;
+    }
+
+    if (ctx->dump_grips) {
         if (key.material) {
             pgp_key_grip_t grip = key.material->grip();
             if (!json_add_hex(pkt, "grip", grip.data(), grip.size())) {

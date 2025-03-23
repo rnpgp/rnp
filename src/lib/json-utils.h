@@ -32,6 +32,7 @@
 #include "json_object.h"
 #include "json.h"
 #include "types.h"
+#include "fingerprint.hpp"
 
 /**
  * @brief Add field to the json object.
@@ -82,12 +83,12 @@ bool json_add_hex(json_object *obj, const char *name, const std::vector<uint8_t>
 /**
  * @brief Shortcut to add keyid via json_add_hex().
  */
-bool json_add(json_object *obj, const char *name, const pgp_key_id_t &keyid);
+bool json_add(json_object *obj, const char *name, const pgp::KeyID &keyid);
 
 /**
  * @brief Shortcut to add fingerprint via json_add_hex().
  */
-bool json_add(json_object *obj, const char *name, const pgp_fingerprint_t &fp);
+bool json_add(json_object *obj, const char *name, const pgp::Fingerprint &fp);
 
 /**
  * @brief Shortcut to add string to the json array.
