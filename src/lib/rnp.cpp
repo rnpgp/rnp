@@ -558,13 +558,13 @@ get_map_value(const id_str_pair *map, int val, char **res)
 }
 
 static rnp_result_t
-ret_fingerprint(const pgp_fingerprint_t &fp, char **res)
+ret_fingerprint(const pgp::Fingerprint &fp, char **res)
 {
-    return hex_encode_value(fp.fingerprint, fp.length, res);
+    return hex_encode_value(fp.data(), fp.size(), res);
 }
 
 static rnp_result_t
-ret_keyid(const pgp_key_id_t &keyid, char **res)
+ret_keyid(const pgp::KeyID &keyid, char **res)
 {
     return hex_encode_value(keyid.data(), keyid.size(), res);
 }
@@ -1813,14 +1813,11 @@ add_sig_status(json_object *           sigs,
         /* LCOV_EXCL_END */
     }
 
-    if (signer) {
-        const pgp_fingerprint_t &fp = signer->fp();
-        if (!json_add(jsosig, "signer fingerprint", fp)) {
-            /* LCOV_EXCL_START */
-            json_object_put(jsosig);
-            return RNP_ERROR_OUT_OF_MEMORY;
-            /* LCOV_EXCL_END */
-        }
+    if (signer && !json_add(jsosig, "signer fingerprint", signer->fp())) {
+        /* LCOV_EXCL_START */
+        json_object_put(jsosig);
+        return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
 
     if (!json_array_add(sigs, jsosig)) {
@@ -4646,7 +4643,7 @@ static rnp_result_t
 gen_json_primary_key(rnp_ffi_t                    ffi,
                      json_object *                jsoparams,
                      rnp_key_protection_params_t &prot,
-                     pgp_fingerprint_t &          fp,
+                     pgp::Fingerprint &           fp,
                      bool                         protect)
 {
     rnp::CertParams cert;
@@ -4678,11 +4675,11 @@ gen_json_primary_key(rnp_ffi_t                    ffi,
 }
 
 static rnp_result_t
-gen_json_subkey(rnp_ffi_t          ffi,
-                json_object *      jsoparams,
-                rnp::Key &         prim_pub,
-                rnp::Key &         prim_sec,
-                pgp_fingerprint_t &fp)
+gen_json_subkey(rnp_ffi_t         ffi,
+                json_object *     jsoparams,
+                rnp::Key &        prim_pub,
+                rnp::Key &        prim_sec,
+                pgp::Fingerprint &fp)
 {
     rnp::BindingParams          binding;
     rnp_key_protection_params_t prot = {};
@@ -4769,7 +4766,7 @@ try {
     rnp::Key *                  prim_pub = nullptr;
     rnp::Key *                  prim_sec = nullptr;
     rnp_key_protection_params_t prim_prot = {};
-    pgp_fingerprint_t           fp;
+    pgp::Fingerprint            fp;
     if (jsoprimary) {
         ret = gen_json_primary_key(ffi, jsoprimary, prim_prot, fp, !jsosub);
         if (ret) {
@@ -7350,7 +7347,7 @@ try {
 FFI_GUARD
 
 static const pgp_key_grip_t *
-rnp_get_grip_by_fp(rnp_ffi_t ffi, const pgp_fingerprint_t &fp)
+rnp_get_grip_by_fp(rnp_ffi_t ffi, const pgp::Fingerprint &fp)
 {
     auto *key = ffi->pubring->get_key(fp);
     if (!key) {
@@ -8350,8 +8347,8 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const rnp::Signat
         if (!jsosigner) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
-        char         keyid[PGP_KEY_ID_SIZE * 2 + 1];
-        pgp_key_id_t signer = sig->keyid();
+        char       keyid[PGP_KEY_ID_SIZE * 2 + 1];
+        pgp::KeyID signer = sig->keyid();
         if (!rnp::hex_encode(signer.data(), signer.size(), keyid, sizeof(keyid))) {
             return RNP_ERROR_GENERIC;
         }
@@ -8479,7 +8476,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     }
     // fingerprint
     char fpr[PGP_FINGERPRINT_HEX_SIZE] = {0};
-    if (!rnp::hex_encode(key->fp().fingerprint, key->fp().length, fpr, sizeof(fpr))) {
+    if (!rnp::hex_encode(key->fp().data(), key->fp().size(), fpr, sizeof(fpr))) {
         return RNP_ERROR_GENERIC;
     }
     if (!json_add(jso, "fingerprint", fpr)) {
@@ -8812,7 +8809,7 @@ key_iter_get_item(const rnp_identifier_iterator_t it)
     case rnp::KeySearch::Type::KeyID:
         return rnp::bin_to_hex(key.keyid().data(), key.keyid().size());
     case rnp::KeySearch::Type::Fingerprint:
-        return rnp::bin_to_hex(key.fp().fingerprint, key.fp().length);
+        return rnp::bin_to_hex(key.fp().data(), key.fp().size());
     case rnp::KeySearch::Type::Grip:
         return rnp::bin_to_hex(key.grip().data(), key.grip().size());
     case rnp::KeySearch::Type::UserID:

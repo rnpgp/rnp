@@ -118,15 +118,15 @@ json_add_hex(json_object *obj, const char *name, const std::vector<uint8_t> &vec
 }
 
 bool
-json_add(json_object *obj, const char *name, const pgp_key_id_t &keyid)
+json_add(json_object *obj, const char *name, const pgp::KeyID &keyid)
 {
     return json_add_hex(obj, name, keyid.data(), keyid.size());
 }
 
 bool
-json_add(json_object *obj, const char *name, const pgp_fingerprint_t &fp)
+json_add(json_object *obj, const char *name, const pgp::Fingerprint &fp)
 {
-    return json_add_hex(obj, name, fp.fingerprint, fp.length);
+    return json_add_hex(obj, name, fp.data(), fp.size());
 }
 
 bool

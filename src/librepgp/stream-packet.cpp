@@ -570,10 +570,10 @@ pgp_packet_body_t::get(std::vector<uint8_t> &val, size_t len)
 }
 
 bool
-pgp_packet_body_t::get(pgp_key_id_t &val) noexcept
+pgp_packet_body_t::get(pgp::KeyID &val) noexcept
 {
-    static_assert(std::tuple_size<pgp_key_id_t>::value == PGP_KEY_ID_SIZE,
-                  "pgp_key_id_t size mismatch");
+    static_assert(std::tuple_size<pgp::KeyID>::value == PGP_KEY_ID_SIZE,
+                  "pgp::KeyID size mismatch");
     return get(val.data(), val.size());
 }
 
@@ -738,7 +738,7 @@ pgp_packet_body_t::add_uint32(uint32_t val)
 }
 
 void
-pgp_packet_body_t::add(const pgp_key_id_t &val)
+pgp_packet_body_t::add(const pgp::KeyID &val)
 {
     add(val.data(), val.size());
 }
@@ -1074,9 +1074,9 @@ pgp_pk_sesskey_t::write(pgp_dest_t &dst) const
         pktbody.add(key_id);
 #if defined(ENABLE_CRYPTO_REFRESH)
     } else {                             // PGP_PKSK_V6
-        pktbody.add_byte(1 + fp.length); // A one-octet size of the following two fields.
-        pktbody.add_byte((fp.length == PGP_FINGERPRINT_V6_SIZE) ? PGP_V6 : PGP_V4);
-        pktbody.add(fp.fingerprint, fp.length);
+        pktbody.add_byte(1 + fp.size()); // A one-octet size of the following two fields.
+        pktbody.add_byte((fp.size() == PGP_FINGERPRINT_V6_SIZE) ? PGP_V6 : PGP_V4);
+        pktbody.add(fp.vec());
     }
 #endif
     pktbody.add_byte(alg);
@@ -1151,15 +1151,16 @@ pgp_pk_sesskey_t::parse(pgp_source_t &src)
             RNP_LOG("wrong key version used with PKESK v6");
             return RNP_ERROR_BAD_FORMAT;
         }
-        fp.length = fp_len;
-        if (fp.length && (fp.length + 1 != fp_and_key_ver_len)) {
+        if (fp_len && (fp_len + 1 != fp_and_key_ver_len)) {
             RNP_LOG("size mismatch (fingerprint size and fp+key version length field)");
             return RNP_ERROR_BAD_FORMAT;
         }
-        if (!pkt.get(fp.fingerprint, fp.length)) {
+        std::vector<uint8_t> vec(fp_len, 0);
+        if (!pkt.get(vec.data(), vec.size())) {
             RNP_LOG("Error when reading fingerprint");
             return RNP_ERROR_BAD_FORMAT;
         }
+        fp = pgp::Fingerprint(vec.data(), vec.size());
     }
 #endif
 

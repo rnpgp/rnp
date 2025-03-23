@@ -28,7 +28,7 @@
 #include <map>
 #include "key-provider.h"
 #include "key.hpp"
-#include "fingerprint.h"
+#include "fingerprint.hpp"
 #include "types.h"
 #include "utils.h"
 #include "str-utils.h"
@@ -52,13 +52,13 @@ KeySearch::find_type(const std::string &name)
 }
 
 std::unique_ptr<KeySearch>
-KeySearch::create(const pgp_key_id_t &keyid)
+KeySearch::create(const pgp::KeyID &keyid)
 {
     return std::unique_ptr<KeySearch>(new KeyIDSearch(keyid));
 }
 
 std::unique_ptr<KeySearch>
-KeySearch::create(const pgp_fingerprint_t &fp)
+KeySearch::create(const pgp::Fingerprint &fp)
 {
     return std::unique_ptr<KeySearch>(new KeyFingerprintSearch(fp));
 }
@@ -92,17 +92,17 @@ KeySearch::create(const std::string &name, const std::string &value)
     }
     switch (type) {
     case Type::Fingerprint:
-        if (!pgp_fingerprint_t::size_valid(binval.size())) {
+        if (!pgp::Fingerprint::size_valid(binval.size())) {
             RNP_LOG("Invalid fingerprint: %s", value.c_str());
             return nullptr;
         }
-        return create(pgp_fingerprint_t(binval));
+        return create(pgp::Fingerprint(binval.data(), binval.size()));
     case Type::KeyID: {
         if (binval.size() != PGP_KEY_ID_SIZE) {
             RNP_LOG("Invalid keyid: %s", value.c_str());
             return nullptr;
         }
-        pgp_key_id_t keyid{};
+        pgp::KeyID keyid{};
         memcpy(keyid.data(), binval.data(), keyid.size());
         return create(keyid);
     }
@@ -123,7 +123,7 @@ KeySearch::create(const std::string &name, const std::string &value)
 bool
 KeyIDSearch::matches(const Key &key) const
 {
-    return (key.keyid() == keyid_) || (keyid_ == pgp_key_id_t({}));
+    return (key.keyid() == keyid_) || (keyid_ == pgp::KeyID({}));
 }
 
 const std::string
@@ -141,10 +141,10 @@ KeyIDSearch::value() const
 bool
 KeyIDSearch::hidden() const
 {
-    return keyid_ == pgp_key_id_t({});
+    return keyid_ == pgp::KeyID({});
 }
 
-KeyIDSearch::KeyIDSearch(const pgp_key_id_t &keyid)
+KeyIDSearch::KeyIDSearch(const pgp::KeyID &keyid)
 {
     type_ = Type::KeyID;
     keyid_ = keyid;
@@ -165,16 +165,16 @@ KeyFingerprintSearch::name() const
 std::string
 KeyFingerprintSearch::value() const
 {
-    return bin_to_hex(fp_.fingerprint, fp_.length);
+    return bin_to_hex(fp_.data(), fp_.size());
 }
 
-KeyFingerprintSearch::KeyFingerprintSearch(const pgp_fingerprint_t &fp)
+KeyFingerprintSearch::KeyFingerprintSearch(const pgp::Fingerprint &fp)
 {
     type_ = Type::Fingerprint;
     fp_ = fp;
 }
 
-const pgp_fingerprint_t &
+const pgp::Fingerprint &
 KeyFingerprintSearch::get_fp() const
 {
     return fp_;
