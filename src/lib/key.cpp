@@ -814,23 +814,15 @@ Key::clear_revokes()
 void
 Key::add_revoker(const pgp_fingerprint_t &revoker)
 {
-    for (auto &rev : revokers_) {
-        if (rev == revoker) {
-            return;
-        }
+    if (std::find(revokers_.begin(), revokers_.end(), revoker) == revokers_.end()) {
+        revokers_.push_back(revoker);
     }
-    revokers_.push_back(revoker);
 }
 
 bool
 Key::has_revoker(const pgp_fingerprint_t &revoker) const
 {
-    for (auto &rev : revokers_) {
-        if (rev == revoker) {
-            return true;
-        }
-    }
-    return false;
+    return std::find(revokers_.begin(), revokers_.end(), revoker) != revokers_.end();
 }
 
 size_t
@@ -2106,8 +2098,8 @@ void
 Key::mark_valid()
 {
     validity_.mark_valid();
-    for (size_t i = 0; i < sig_count(); i++) {
-        get_sig(i).validity.reset(true);
+    for (auto &sigid: sigs_) {
+        get_sig(sigid).validity.reset(true);
     }
 }
 
@@ -2318,8 +2310,8 @@ void
 Key::refresh_revocations()
 {
     clear_revokes();
-    for (size_t i = 0; i < sig_count(); i++) {
-        auto &sig = get_sig(i);
+    for (auto &sigid: sigs_) {
+        auto &sig = get_sig(sigid);
         if (!sig.validity.valid()) {
             continue;
         }
@@ -2385,8 +2377,8 @@ Key::refresh_data(const SecurityContext &ctx)
     }
     /* designated revokers */
     revokers_.clear();
-    for (size_t i = 0; i < sig_count(); i++) {
-        auto &sig = get_sig(i);
+    for (auto &sigid: sigs_) {
+        auto &sig = get_sig(sigid);
         /* pick designated revokers only from direct-key signatures */
         if (!sig.validity.valid() || !is_direct_self(sig)) {
             continue;
@@ -2401,11 +2393,11 @@ Key::refresh_data(const SecurityContext &ctx)
     /* valid till */
     valid_till_ = valid_till_common(expired());
     /* userid validities */
-    for (size_t i = 0; i < uid_count(); i++) {
-        get_uid(i).valid = false;
+    for (auto &uid: uids_) {
+        uid.valid = false;
     }
-    for (size_t i = 0; i < sig_count(); i++) {
-        auto &sig = get_sig(i);
+    for (auto &sigid: sigs_) {
+        auto &sig = get_sig(sigid);
         /* consider userid as valid if it has at least one non-expired self-sig */
         if (!sig.validity.valid() || !sig.is_cert() || !is_signer(sig) ||
             sig.expired(ctx.time())) {
@@ -2417,8 +2409,7 @@ Key::refresh_data(const SecurityContext &ctx)
         get_uid(sig.uid).valid = true;
     }
     /* check whether uid is revoked */
-    for (size_t i = 0; i < uid_count(); i++) {
-        auto &uid = get_uid(i);
+    for (auto &uid: uids_) {
         if (uid.revoked) {
             uid.valid = false;
         }
@@ -2450,8 +2441,8 @@ Key::refresh_data(Key *primary, const SecurityContext &ctx)
     }
     /* revocation */
     clear_revokes();
-    for (size_t i = 0; i < sig_count(); i++) {
-        auto &rev = get_sig(i);
+    for (auto &sigid: sigs_) {
+        auto &rev = get_sig(sigid);
         if (!rev.validity.valid() || !is_revocation(rev)) {
             continue;
         }
@@ -2510,7 +2501,7 @@ Key::merge(const Key &src)
     /* merge user ids and their signatures */
     for (auto &srcuid : src.uids_) {
         /* check whether we have this uid and add if needed */
-        size_t uididx = get_uid_idx(srcuid.pkt);
+        auto uididx = uid_idx(srcuid.pkt);
         if (uididx == UserID::None) {
             uididx = uid_count();
             uids_.emplace_back(srcuid.pkt);
