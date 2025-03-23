@@ -48,8 +48,7 @@ KeyStore::add_ts_subkey(const pgp_transferable_subkey_t &tskey, Key *pkey)
         return add_key(skey);
     } catch (const std::exception &e) {
         /* LCOV_EXCL_START */
-        RNP_LOG("%s", e.what());
-        RNP_LOG_KEY_PKT("failed to create subkey %s", tskey.subkey);
+        RNP_LOG("failed to create subkey: %s", e.what());
         RNP_LOG_KEY("primary key is %s", pkey);
         return false;
         /* LCOV_EXCL_END */
@@ -70,7 +69,7 @@ KeyStore::add_ts_key(pgp_transferable_key_t &tkey)
         addkey = add_key(key);
     } catch (const std::exception &e) {
         disable_validation = false;
-        RNP_LOG_KEY_PKT("failed to add key %s", tkey.key);
+        RNP_LOG("failed to add key: %s", e.what());
         return false;
     }
 
