@@ -88,19 +88,6 @@ class LogStop {
         RNP_LOG(msg, keyid);                                                      \
     } while (0)
 
-#define RNP_LOG_KEY_PKT(msg, key)                                                             \
-    do {                                                                                      \
-        pgp_key_id_t keyid = {};                                                              \
-        if (pgp_keyid(keyid, (key))) {                                                        \
-            RNP_LOG(msg, "unknown");                                                          \
-            break;                                                                            \
-        };                                                                                    \
-        char keyidhex[PGP_KEY_ID_SIZE * 2 + 1] = {0};                                         \
-        rnp::hex_encode(                                                                      \
-          keyid.data(), keyid.size(), keyidhex, sizeof(keyidhex), rnp::HexFormat::Lowercase); \
-        RNP_LOG(msg, keyidhex);                                                               \
-    } while (0)
-
 #if defined(ENABLE_PQC_DBG_LOG)
 
 #define RNP_LOG_FD_NO_POS_INFO(fd, ...)    \
