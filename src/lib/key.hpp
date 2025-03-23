@@ -59,21 +59,19 @@ class Key {
     pgp_key_pkt_t       pkt_{};        /* pubkey/seckey data packet */
     uint8_t             flags_{};      /* key flags */
     uint32_t            expiration_{}; /* key expiration time, if available */
-    pgp_key_id_t        keyid_{};
-    pgp_fingerprint_t   fingerprint_{};
+    pgp::Fingerprint    fingerprint_;
     pgp_key_grip_t      grip_{};
-    pgp_fingerprint_t   primary_fp_{}; /* fingerprint of the primary key (for subkeys) */
+    pgp::Fingerprint    primary_fp_; /* fingerprint of the primary key (for subkeys) */
     bool                primary_fp_set_{};
-    std::vector<pgp_fingerprint_t>
-               subkey_fps_{}; /* array of subkey fingerprints (for primary keys) */
-    RawPacket  rawpkt_;       /* key raw packet */
-    uint32_t   uid0_{};       /* primary uid index in uids array */
-    bool       uid0_set_{};   /* flag for the above */
-    bool       revoked_{};    /* key has been revoked */
-    Revocation revocation_;   /* revocation reason */
-    std::vector<pgp_fingerprint_t> revokers_{};
-    pgp_validity_t                 validity_{};   /* key's validity */
-    uint64_t                       valid_till_{}; /* date till which key is/was valid */
+    pgp::Fingerprints   subkey_fps_; /* array of subkey fingerprints (for primary keys) */
+    RawPacket           rawpkt_;     /* key raw packet */
+    uint32_t            uid0_{};     /* primary uid index in uids array */
+    bool                uid0_set_{}; /* flag for the above */
+    bool                revoked_{};  /* key has been revoked */
+    Revocation          revocation_; /* revocation reason */
+    pgp::Fingerprints   revokers_;
+    pgp_validity_t      validity_{};   /* key's validity */
+    uint64_t            valid_till_{}; /* date till which key is/was valid */
 
     Signature *latest_uid_selfcert(uint32_t uid);
     void       validate_primary(KeyStore &keyring);
@@ -96,36 +94,36 @@ class Key {
     Key &operator=(const Key &) = default;
     Key &operator=(Key &&) = default;
 
-    size_t                   sig_count() const;
-    Signature &              get_sig(size_t idx);
-    const Signature &        get_sig(size_t idx) const;
-    bool                     has_sig(const pgp::SigID &id) const;
-    Signature &              replace_sig(const pgp::SigID &id, const pgp_signature_t &newsig);
-    Signature &              get_sig(const pgp::SigID &id);
-    const Signature &        get_sig(const pgp::SigID &id) const;
-    Signature &              add_sig(const pgp_signature_t &sig,
-                                     size_t                 uid = UserID::None,
-                                     bool                   begin = false);
-    bool                     del_sig(const pgp::SigID &sigid);
-    size_t                   del_sigs(const pgp::SigIDs &sigs);
-    size_t                   keysig_count() const;
-    Signature &              get_keysig(size_t idx);
-    size_t                   uid_count() const;
-    UserID &                 get_uid(size_t idx);
-    const UserID &           get_uid(size_t idx) const;
-    UserID &                 add_uid(const pgp_transferable_userid_t &uid);
-    bool                     has_uid(const std::string &uid) const;
-    uint32_t                 uid_idx(const pgp_userid_pkt_t &uid) const;
-    void                     del_uid(size_t idx);
-    bool                     has_primary_uid() const;
-    uint32_t                 get_primary_uid() const;
-    bool                     revoked() const;
-    const Revocation &       revocation() const;
-    void                     clear_revokes();
-    void                     add_revoker(const pgp_fingerprint_t &revoker);
-    bool                     has_revoker(const pgp_fingerprint_t &revoker) const;
-    size_t                   revoker_count() const;
-    const pgp_fingerprint_t &get_revoker(size_t idx) const;
+    size_t                  sig_count() const;
+    Signature &             get_sig(size_t idx);
+    const Signature &       get_sig(size_t idx) const;
+    bool                    has_sig(const pgp::SigID &id) const;
+    Signature &             replace_sig(const pgp::SigID &id, const pgp_signature_t &newsig);
+    Signature &             get_sig(const pgp::SigID &id);
+    const Signature &       get_sig(const pgp::SigID &id) const;
+    Signature &             add_sig(const pgp_signature_t &sig,
+                                    size_t                 uid = UserID::None,
+                                    bool                   begin = false);
+    bool                    del_sig(const pgp::SigID &sigid);
+    size_t                  del_sigs(const pgp::SigIDs &sigs);
+    size_t                  keysig_count() const;
+    Signature &             get_keysig(size_t idx);
+    size_t                  uid_count() const;
+    UserID &                get_uid(size_t idx);
+    const UserID &          get_uid(size_t idx) const;
+    UserID &                add_uid(const pgp_transferable_userid_t &uid);
+    bool                    has_uid(const std::string &uid) const;
+    uint32_t                uid_idx(const pgp_userid_pkt_t &uid) const;
+    void                    del_uid(size_t idx);
+    bool                    has_primary_uid() const;
+    uint32_t                get_primary_uid() const;
+    bool                    revoked() const;
+    const Revocation &      revocation() const;
+    void                    clear_revokes();
+    void                    add_revoker(const pgp::Fingerprint &revoker);
+    bool                    has_revoker(const pgp::Fingerprint &revoker) const;
+    size_t                  revoker_count() const;
+    const pgp::Fingerprint &get_revoker(size_t idx) const;
 
     const pgp_key_pkt_t &   pkt() const noexcept;
     pgp_key_pkt_t &         pkt() noexcept;
@@ -179,15 +177,15 @@ class Key {
     bool valid_at(uint64_t timestamp) const noexcept;
 
     /** @brief Get key's id */
-    const pgp_key_id_t &keyid() const noexcept;
+    const pgp::KeyID &keyid() const noexcept;
     /** @brief Get key's fingerprint */
-    const pgp_fingerprint_t &fp() const noexcept;
+    const pgp::Fingerprint &fp() const noexcept;
     /** @brief Get key's grip */
     const pgp_key_grip_t &grip() const noexcept;
     /** @brief Get primary key's fingerprint for the subkey, if it is available.
      *         Note: will throw if it is not available, use has_primary_fp() to check.
      */
-    const pgp_fingerprint_t &primary_fp() const;
+    const pgp::Fingerprint &primary_fp() const;
     /** @brief Check whether key has primary key's fingerprint */
     bool has_primary_fp() const noexcept;
     /** @brief Clean primary_fp */
@@ -198,17 +196,17 @@ class Key {
      * @brief Add subkey fp to key's list.
      *        Note: this function will check for duplicates.
      */
-    void add_subkey_fp(const pgp_fingerprint_t &fp);
+    void add_subkey_fp(const pgp::Fingerprint &fp);
     /** @brief Get the number of pgp key's subkeys. */
     size_t subkey_count() const noexcept;
     /** @brief Remove subkey fingerprint from key's list. */
-    void remove_subkey_fp(const pgp_fingerprint_t &fp);
+    void remove_subkey_fp(const pgp::Fingerprint &fp);
     /**
      *  @brief Get the pgp key's subkey fingerprint
      *  @return fingerprint or throws std::out_of_range exception
      */
-    const pgp_fingerprint_t &             get_subkey_fp(size_t idx) const;
-    const std::vector<pgp_fingerprint_t> &subkey_fps() const;
+    const pgp::Fingerprint & get_subkey_fp(size_t idx) const;
+    const pgp::Fingerprints &subkey_fps() const;
 
     size_t           rawpkt_count() const;
     RawPacket &      rawpkt();

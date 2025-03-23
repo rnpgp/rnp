@@ -125,10 +125,10 @@ bool bin_eq_hex(const uint8_t *data, size_t len, const char *val);
 bool hex2mpi(pgp::mpi *val, const char *hex);
 
 /* check whether key id is equal to hex string */
-bool cmp_keyid(const pgp_key_id_t &id, const std::string &val);
+bool cmp_keyid(const pgp::KeyID &id, const std::string &val);
 
 /* check whether key fp is equal to hex string */
-bool cmp_keyfp(const pgp_fingerprint_t &fp, const std::string &val);
+bool cmp_keyfp(const pgp::Fingerprint &fp, const std::string &val);
 
 void test_ffi_init(rnp_ffi_t *ffi);
 

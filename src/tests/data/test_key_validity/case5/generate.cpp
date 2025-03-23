@@ -84,8 +84,8 @@ main(int argc, char **argv)
     }
 
     /* now let's rebuild binding using the other key */
-    uint8_t           keyid[PGP_KEY_ID_SIZE];
-    pgp_fingerprint_t keyfp;
+    uint8_t          keyid[PGP_KEY_ID_SIZE];
+    pgp::Fingerprint keyfp;
 
     free(binding->hashed_data);
     binding->hashed_data = NULL;

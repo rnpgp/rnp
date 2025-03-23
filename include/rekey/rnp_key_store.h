@@ -57,7 +57,7 @@ typedef enum pgp_sig_import_status_t {
 
 namespace rnp {
 
-typedef std::unordered_map<pgp_fingerprint_t, std::list<Key>::iterator> pgp_key_fp_map_t;
+typedef std::unordered_map<pgp::Fingerprint, std::list<Key>::iterator> KeyFingerprintMap;
 
 class KeyStore {
   private:
@@ -73,7 +73,7 @@ class KeyStore {
       false; /* do not automatically validate keys, added to this key store */
 
     std::list<Key>                           keys;
-    pgp_key_fp_map_t                         keybyfp;
+    KeyFingerprintMap                        keybyfp;
     std::vector<std::unique_ptr<kbx_blob_t>> blobs;
 
     ~KeyStore();
@@ -147,8 +147,8 @@ class KeyStore {
 
     size_t key_count() const;
 
-    Key *      get_key(const pgp_fingerprint_t &fpr);
-    const Key *get_key(const pgp_fingerprint_t &fpr) const;
+    Key *      get_key(const pgp::Fingerprint &fpr);
+    const Key *get_key(const pgp::Fingerprint &fpr) const;
 
     /**
      * @brief Get the key's subkey by its index
@@ -187,10 +187,10 @@ class KeyStore {
      * @return pointer to the newly added signature or nullptr if error occurred (key not
      *         found, whatever else).
      */
-    Signature *add_key_sig(const pgp_fingerprint_t &keyfp,
-                           const pgp_signature_t &  sig,
-                           const pgp_userid_pkt_t * uid,
-                           bool                     front);
+    Signature *add_key_sig(const pgp::Fingerprint &keyfp,
+                           const pgp_signature_t & sig,
+                           const pgp_userid_pkt_t *uid,
+                           bool                    front);
 
     /**
      * @brief Add transferable key to the keystore.

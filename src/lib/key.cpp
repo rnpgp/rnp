@@ -30,7 +30,6 @@
 #include "crypto/s2k.h"
 #include "crypto/mem.h"
 #include "crypto/signatures.h"
-#include "fingerprint.h"
 #include "keygen.hpp"
 
 #include <librepgp/stream-packet.h>
@@ -419,9 +418,7 @@ Key::Key(const pgp_key_pkt_t &keypkt) : pkt_(keypkt)
     if (!is_key_pkt(pkt_.tag) || !pkt_.material->alg()) {
         throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    if (pgp_keyid(keyid_, pkt_) || pgp_fingerprint(fingerprint_, pkt_)) {
-        throw rnp_exception(RNP_ERROR_GENERIC);
-    }
+    fingerprint_ = pgp::Fingerprint(pkt_);
     grip_ = pkt_.material->grip();
 
     /* parse secret key if not encrypted */
@@ -471,7 +468,6 @@ Key::Key(const Key &src, bool pubonly)
     primary_fp_ = src.primary_fp_;
     expiration_ = src.expiration_;
     flags_ = src.flags_;
-    keyid_ = src.keyid_;
     fingerprint_ = src.fingerprint_;
     grip_ = src.grip_;
     uid0_ = src.uid0_;
@@ -691,17 +687,6 @@ Key::get_uid(size_t idx) const
     return uids_.at(idx);
 }
 
-size_t
-Key::get_uid_idx(const pgp_userid_pkt_t &uid) const
-{
-    for (size_t idx = 0; idx < uids_.size(); idx++) {
-        if (uids_[idx].pkt == uid) {
-            return idx;
-        }
-    }
-    return UserID::None;
-}
-
 bool
 Key::has_uid(const std::string &uidstr) const
 {
@@ -812,7 +797,7 @@ Key::clear_revokes()
 }
 
 void
-Key::add_revoker(const pgp_fingerprint_t &revoker)
+Key::add_revoker(const pgp::Fingerprint &revoker)
 {
     if (std::find(revokers_.begin(), revokers_.end(), revoker) == revokers_.end()) {
         revokers_.push_back(revoker);
@@ -820,7 +805,7 @@ Key::add_revoker(const pgp_fingerprint_t &revoker)
 }
 
 bool
-Key::has_revoker(const pgp_fingerprint_t &revoker) const
+Key::has_revoker(const pgp::Fingerprint &revoker) const
 {
     return std::find(revokers_.begin(), revokers_.end(), revoker) != revokers_.end();
 }
@@ -831,7 +816,7 @@ Key::revoker_count() const
     return revokers_.size();
 }
 
-const pgp_fingerprint_t &
+const pgp::Fingerprint &
 Key::get_revoker(size_t idx) const
 {
     return revokers_.at(idx);
@@ -1126,13 +1111,13 @@ Key::valid_at(uint64_t timestamp) const noexcept
     return (timestamp >= creation()) && timestamp && (timestamp <= valid_till());
 }
 
-const pgp_key_id_t &
+const pgp::KeyID &
 Key::keyid() const noexcept
 {
-    return keyid_;
+    return fingerprint_.keyid();
 }
 
-const pgp_fingerprint_t &
+const pgp::Fingerprint &
 Key::fp() const noexcept
 {
     return fingerprint_;
@@ -1144,7 +1129,7 @@ Key::grip() const noexcept
     return grip_;
 }
 
-const pgp_fingerprint_t &
+const pgp::Fingerprint &
 Key::primary_fp() const
 {
     if (!primary_fp_set_) {
@@ -1178,7 +1163,7 @@ Key::link_subkey_fp(Key &subkey)
 }
 
 void
-Key::add_subkey_fp(const pgp_fingerprint_t &fp)
+Key::add_subkey_fp(const pgp::Fingerprint &fp)
 {
     if (std::find(subkey_fps_.begin(), subkey_fps_.end(), fp) == subkey_fps_.end()) {
         subkey_fps_.push_back(fp);
@@ -1192,7 +1177,7 @@ Key::subkey_count() const noexcept
 }
 
 void
-Key::remove_subkey_fp(const pgp_fingerprint_t &fp)
+Key::remove_subkey_fp(const pgp::Fingerprint &fp)
 {
     auto it = std::find(subkey_fps_.begin(), subkey_fps_.end(), fp);
     if (it != subkey_fps_.end()) {
@@ -1200,13 +1185,13 @@ Key::remove_subkey_fp(const pgp_fingerprint_t &fp)
     }
 }
 
-const pgp_fingerprint_t &
+const pgp::Fingerprint &
 Key::get_subkey_fp(size_t idx) const
 {
     return subkey_fps_[idx];
 }
 
-const std::vector<pgp_fingerprint_t> &
+const pgp::Fingerprints &
 Key::subkey_fps() const
 {
     return subkey_fps_;
@@ -1419,9 +1404,9 @@ Key::write_xfer(pgp_dest_t &dst, const KeyStore *keyring) const
     for (auto &fp : subkey_fps_) {
         const Key *subkey = keyring->get_key(fp);
         if (!subkey) {
-            char fphex[PGP_FINGERPRINT_HEX_SIZE] = {0};
-            hex_encode(fp.fingerprint, fp.length, fphex, sizeof(fphex), HexFormat::Lowercase);
-            RNP_LOG("Warning! Subkey %s not found.", fphex);
+            std::vector<char> fphex(fp.size() * 2 + 1, 0);
+            hex_encode(fp.data(), fp.size(), fphex.data(), fphex.size(), HexFormat::Lowercase);
+            RNP_LOG("Warning! Subkey %s not found.", fphex.data());
             continue;
         }
         subkey->write(dst);
@@ -2098,7 +2083,7 @@ void
 Key::mark_valid()
 {
     validity_.mark_valid();
-    for (auto &sigid: sigs_) {
+    for (auto &sigid : sigs_) {
         get_sig(sigid).validity.reset(true);
     }
 }
@@ -2310,7 +2295,7 @@ void
 Key::refresh_revocations()
 {
     clear_revokes();
-    for (auto &sigid: sigs_) {
+    for (auto &sigid : sigs_) {
         auto &sig = get_sig(sigid);
         if (!sig.validity.valid()) {
             continue;
@@ -2377,7 +2362,7 @@ Key::refresh_data(const SecurityContext &ctx)
     }
     /* designated revokers */
     revokers_.clear();
-    for (auto &sigid: sigs_) {
+    for (auto &sigid : sigs_) {
         auto &sig = get_sig(sigid);
         /* pick designated revokers only from direct-key signatures */
         if (!sig.validity.valid() || !is_direct_self(sig)) {
@@ -2393,10 +2378,10 @@ Key::refresh_data(const SecurityContext &ctx)
     /* valid till */
     valid_till_ = valid_till_common(expired());
     /* userid validities */
-    for (auto &uid: uids_) {
+    for (auto &uid : uids_) {
         uid.valid = false;
     }
-    for (auto &sigid: sigs_) {
+    for (auto &sigid : sigs_) {
         auto &sig = get_sig(sigid);
         /* consider userid as valid if it has at least one non-expired self-sig */
         if (!sig.validity.valid() || !sig.is_cert() || !is_signer(sig) ||
@@ -2409,7 +2394,7 @@ Key::refresh_data(const SecurityContext &ctx)
         get_uid(sig.uid).valid = true;
     }
     /* check whether uid is revoked */
-    for (auto &uid: uids_) {
+    for (auto &uid : uids_) {
         if (uid.revoked) {
             uid.valid = false;
         }
@@ -2441,7 +2426,7 @@ Key::refresh_data(Key *primary, const SecurityContext &ctx)
     }
     /* revocation */
     clear_revokes();
-    for (auto &sigid: sigs_) {
+    for (auto &sigid : sigs_) {
         auto &rev = get_sig(sigid);
         if (!rev.validity.valid() || !is_revocation(rev)) {
             continue;

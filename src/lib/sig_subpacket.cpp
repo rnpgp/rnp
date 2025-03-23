@@ -413,10 +413,10 @@ PreferredAEADv6::clone() const
 void
 RevocationKey::write_data()
 {
-    data_.resize(2 + fp_.length);
+    data_.resize(2 + fp_.size());
     data_[0] = rev_class_;
     data_[1] = alg_;
-    memcpy(data_.data() + 2, fp_.fingerprint, fp_.length);
+    memcpy(data_.data() + 2, fp_.data(), fp_.size());
 }
 
 bool
@@ -430,8 +430,7 @@ RevocationKey::parse_data(const uint8_t *data, size_t size)
 {
     rev_class_ = data[0];
     alg_ = static_cast<pgp_pubkey_alg_t>(data[1]);
-    fp_.length = size - 2;
-    memcpy(fp_.fingerprint, data + 2, fp_.length);
+    fp_ = pgp::Fingerprint(data + 2, size - 2);
     return true;
 }
 
@@ -709,9 +708,9 @@ EmbeddedSignature::clone() const
 void
 IssuerFingerprint::write_data()
 {
-    data_.resize(fp_.length + 1);
+    data_.resize(fp_.size() + 1);
     data_[0] = version_;
-    memcpy(data_.data() + 1, fp_.fingerprint, fp_.length);
+    memcpy(data_.data() + 1, fp_.data(), fp_.size());
 }
 
 bool
@@ -724,9 +723,7 @@ bool
 IssuerFingerprint::parse_data(const uint8_t *data, size_t size)
 {
     version_ = data[0];
-    assert(sizeof(fp_.fingerprint) >= size - 1);
-    fp_.length = size - 1;
-    memcpy(fp_.fingerprint, data + 1, fp_.length);
+    fp_ = pgp::Fingerprint(data + 1, size - 1);
     return true;
 }
 

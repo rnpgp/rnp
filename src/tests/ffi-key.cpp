@@ -3227,7 +3227,7 @@ TEST_F(rnp_tests, test_ffi_v6_cert_import)
     /* check that fingerprint is correct by checking the fingerprint in the signature (coming
       from the correct input data) vs the computed fingerprint value of the primary key.
       Issuer fingerprint is the priamry's key fingerprint for the primary and its subkeys */
-    pgp_fingerprint_t primary_fp;
+    pgp::Fingerprint primary_fp;
     for (rnp::Key key : ffi->pubring->keys) {
         if (key.is_primary()) {
             primary_fp = key.fp();
@@ -3241,10 +3241,10 @@ TEST_F(rnp_tests, test_ffi_v6_cert_import)
         assert_non_null(issuer_fpr);
 
         /* check that fingerprints match */
-        assert_int_equal(key.fp().length, PGP_FINGERPRINT_V6_SIZE);
+        assert_int_equal(key.fp().size(), PGP_FINGERPRINT_V6_SIZE);
         assert_memory_equal(issuer_fpr->data().data() + 1,
-                            primary_fp.fingerprint,
-                            primary_fp.length); // first byte in data is the version - skip
+                            primary_fp.data(),
+                            primary_fp.size()); // first byte in data is the version - skip
     }
     rnp_ffi_destroy(ffi);
 }
