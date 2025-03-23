@@ -81,8 +81,8 @@ class LogStop {
             RNP_LOG(msg, "(null)");                                               \
             break;                                                                \
         }                                                                         \
-        char                keyid[PGP_KEY_ID_SIZE * 2 + 1] = {0};                 \
-        const pgp_key_id_t &id = (key)->keyid();                                  \
+        char              keyid[PGP_KEY_ID_SIZE * 2 + 1] = {0};                   \
+        const pgp::KeyID &id = (key)->keyid();                                    \
         rnp::hex_encode(                                                          \
           id.data(), id.size(), keyid, sizeof(keyid), rnp::HexFormat::Lowercase); \
         RNP_LOG(msg, keyid);                                                      \

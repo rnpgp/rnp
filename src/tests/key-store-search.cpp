@@ -66,11 +66,11 @@ TEST_F(rnp_tests, test_key_store_search)
             assert_true(rnp::hex_decode(testdata[i].keyid, grip.data(), grip.size()));
             grip[0] = (uint8_t) n;
             // and fingerprint
-            pgp_fingerprint_t &fp = (pgp_fingerprint_t &) key.fp();
-            assert_true(
-              rnp::hex_decode(testdata[i].keyid, fp.fingerprint, PGP_FINGERPRINT_V4_SIZE));
-            fp.fingerprint[0] = (uint8_t) n;
-            fp.length = PGP_FINGERPRINT_V4_SIZE;
+            pgp::Fingerprint &    fp = (pgp::Fingerprint &) key.fp();
+            std::vector<uint8_t> &vec = (std::vector<uint8_t> &) fp.vec();
+            vec.resize(PGP_FINGERPRINT_V4_SIZE);
+            assert_true(rnp::hex_decode(testdata[i].keyid, vec.data(), vec.size()));
+            vec[0] = (uint8_t) n;
             // set the userids
             for (size_t uidn = 0; testdata[i].userids[uidn]; uidn++) {
                 pgp_transferable_userid_t tuid;

@@ -59,8 +59,8 @@ typedef struct pgp_signature_t {
     std::vector<uint8_t>   material_buf; /* raw signature material */
 
     /* v3 - only fields */
-    uint32_t     creation_time;
-    pgp_key_id_t signer{};
+    uint32_t   creation_time;
+    pgp::KeyID signer{};
 
     /* common v4, v5 and v6 fields */
     pgp::pkt::sigsub::List subpkts;
@@ -120,10 +120,10 @@ typedef struct pgp_signature_t {
      * @brief Get signer's key id if available. Availability may be checked via has_keyid().
      * @return signer's key id if available, or empty (zero-filled) keyid otherwise.
      */
-    pgp_key_id_t keyid() const noexcept;
+    pgp::KeyID keyid() const noexcept;
     /** @brief Set the signer's key id for the signature being populated. Version should be set
      *         prior of setting key id. */
-    void set_keyid(const pgp_key_id_t &id);
+    void set_keyid(const pgp::KeyID &id);
     /**
      * @brief Check whether signature has valid issuer fingerprint subpacket.
      * @return true if there is one, and it can be safely returned via keyfp() method or false
@@ -135,11 +135,11 @@ typedef struct pgp_signature_t {
      *        has_keyfp() method.
      * @return fingerprint (or empty zero-size fp in case it is unavailable)
      */
-    pgp_fingerprint_t keyfp() const noexcept;
+    pgp::Fingerprint keyfp() const noexcept;
 
     /** @brief Set signing key's fingerprint. Works only for signatures with version 4 and up,
      *         so version should be set prior to fingerprint. */
-    void set_keyfp(const pgp_fingerprint_t &fp);
+    void set_keyfp(const pgp::Fingerprint &fp);
 
     /**
      * @brief Get signature's creation time
@@ -356,7 +356,7 @@ typedef struct pgp_signature_t {
      * @brief Get the revocation key fingerprint, if it is available. Otherwise empty
      * fingerprint will be returned.
      */
-    pgp_fingerprint_t revoker() const noexcept;
+    pgp::Fingerprint revoker() const noexcept;
 
     /**
      * @brief Set the revocation key.

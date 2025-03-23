@@ -87,7 +87,7 @@ struct rnp_sig_subpacket_st {
 
 struct rnp_recipient_handle_st {
     rnp_ffi_t        ffi;
-    pgp_key_id_t     keyid;
+    pgp::KeyID       keyid;
     pgp_pubkey_alg_t palg;
 
     rnp_recipient_handle_st() : ffi(NULL), palg(PGP_PKA_NOTHING)
