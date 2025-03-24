@@ -111,7 +111,7 @@ pgp_decrypt_seckey(const Key &                    key,
     case KeyFormat::G10:
         return g10_decrypt_seckey(key.rawpkt(), key.pkt(), password.data());
     default:
-        RNP_LOG("unexpected format: %d", key.format);
+        RNP_LOG("unexpected format: %d", static_cast<int>(key.format));
         return NULL;
     }
 }
