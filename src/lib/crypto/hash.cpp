@@ -98,6 +98,7 @@ Hash_Botan::add(const void *buf, size_t len)
 void
 Hash_Botan::finish(uint8_t *digest)
 {
+    assert(fn_);
     if (!fn_) {
         return;
     }

@@ -120,6 +120,7 @@ Hash_OpenSSL::add(const void *buf, size_t len)
 void
 Hash_OpenSSL::finish(uint8_t *digest)
 {
+    assert(fn_);
     if (!fn_) {
         return;
     }
