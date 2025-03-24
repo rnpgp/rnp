@@ -1281,7 +1281,7 @@ bool
 rnp_key_store_gnupg_sexp_to_dst(rnp::Key &key, pgp_dest_t &dest)
 {
     if (key.format != rnp::KeyFormat::G10) {
-        RNP_LOG("incorrect format: %d", key.format);
+        RNP_LOG("incorrect format: %d", static_cast<int>(key.format));
         return false;
     }
     dst_write(dest, key.rawpkt().data());

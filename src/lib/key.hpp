@@ -47,7 +47,7 @@ class KeyStore;
 class CertParams;
 class BindingParams;
 
-enum class KeyFormat { Unknown, GPG, KBX, G10 };
+enum class KeyFormat : int { Unknown, GPG, KBX, G10 };
 
 /* describes a user's key */
 class Key {
