@@ -111,7 +111,8 @@ KeyStore::load(pgp_source_t &src, const KeyProvider *key_provider)
     case KeyFormat::G10:
         return load_g10(src, key_provider);
     default:
-        RNP_LOG("Unsupported load from memory for key-store format: %d", format);
+        RNP_LOG("Unsupported load from memory for key-store format: %d",
+                static_cast<int>(format));
     }
 
     return false;
@@ -196,7 +197,8 @@ KeyStore::write(pgp_dest_t &dst)
     case KeyFormat::KBX:
         return write_kbx(dst);
     default:
-        RNP_LOG("Unsupported write to memory for key-store format: %d", format);
+        RNP_LOG("Unsupported write to memory for key-store format: %d",
+                static_cast<int>(format));
     }
 
     return false;
