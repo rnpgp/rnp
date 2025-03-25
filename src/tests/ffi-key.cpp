@@ -2126,13 +2126,11 @@ static json_object *
 get_json_obj(json_object *jso, const char *field)
 {
     const char *start = field;
-    const char *end;
     char        buf[32];
 
-    do {
-        end = strchr(start, '.');
-
-        size_t len = end ? (end - start) : strlen(start);
+    while (start && *start) {
+        const char *end = strchr(start, '.');
+        size_t      len = end ? (end - start) : strlen(start);
         if (len >= sizeof(buf)) {
             return NULL;
         }
@@ -2143,8 +2141,8 @@ get_json_obj(json_object *jso, const char *field)
             return NULL;
         }
 
-        start = end + 1;
-    } while (end);
+        start = end ? end + 1 : NULL;
+    };
     return jso;
 }
 
