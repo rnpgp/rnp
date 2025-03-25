@@ -1404,9 +1404,8 @@ Key::write_xfer(pgp_dest_t &dst, const KeyStore *keyring) const
     for (auto &fp : subkey_fps_) {
         const Key *subkey = keyring->get_key(fp);
         if (!subkey) {
-            std::vector<char> fphex(fp.size() * 2 + 1, 0);
-            hex_encode(fp.data(), fp.size(), fphex.data(), fphex.size(), HexFormat::Lowercase);
-            RNP_LOG("Warning! Subkey %s not found.", fphex.data());
+            std::string fphex = bin_to_hex(fp.data(), fp.size(), HexFormat::Lowercase);
+            RNP_LOG("Warning! Subkey %s not found.", fphex.c_str());
             continue;
         }
         subkey->write(dst);
