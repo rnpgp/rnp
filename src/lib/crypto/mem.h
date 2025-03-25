@@ -169,22 +169,29 @@ bool   hex_encode(const uint8_t *buf,
 size_t hex_decode(const char *hex, uint8_t *buf, size_t buf_len);
 
 inline std::string
-bin_to_hex(const uint8_t *data, size_t len, HexFormat format = rnp::HexFormat::Uppercase)
+bin_to_hex(const uint8_t *data, size_t len, HexFormat format = HexFormat::Uppercase)
 {
     std::string res(len * 2 + 1, '\0');
     hex_encode(data, len, &res.front(), res.size(), format);
+    res.resize(len * 2);
     return res;
+}
+
+inline std::string
+bin_to_hex(const std::vector<uint8_t> &vec, HexFormat format = HexFormat::Uppercase)
+{
+    return bin_to_hex(vec.data(), vec.size(), format);
 }
 
 inline std::vector<uint8_t>
 hex_to_bin(const std::string &str)
 {
-    if (str.empty() || !rnp::is_hex(str)) {
+    if (str.empty() || !is_hex(str)) {
         return {};
     }
     /* 1 extra char for case of non-even input , 1 for terminating zero */
     std::vector<uint8_t> res(str.size() / 2 + 2);
-    size_t               len = rnp::hex_decode(str.c_str(), res.data(), res.size());
+    size_t               len = hex_decode(str.c_str(), res.data(), res.size());
     res.resize(len);
     return res;
 }
