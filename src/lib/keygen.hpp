@@ -158,7 +158,7 @@ class CertParams {
     uint8_t     flags{};          /* key flags */
     uint32_t    key_expiration{}; /* key expiration time (sec), 0 = no expiration */
     UserPrefs   prefs;            /* user preferences, optional */
-    bool        primary;          /* mark this as the primary user id */
+    bool        primary{};        /* mark this as the primary user id */
 
     void check_defaults(const KeygenParams &params);
 
