@@ -33,7 +33,7 @@
 #else
 #include "uniwin.h"
 #endif
-#include <string.h>
+#include <cstring>
 #include <time.h>
 #ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
@@ -707,7 +707,9 @@ pgp_userid_pkt_t::parse(pgp_source_t &src)
     /* userid type, i.e. tag */
     tag = (pgp_pkt_type_t) stag;
     uid.resize(pkt.size());
-    memcpy(uid.data(), pkt.data(), pkt.size());
+    if (pkt.size()) {
+        std::memcpy(uid.data(), pkt.data(), pkt.size());
+    }
     return RNP_SUCCESS;
 }
 
