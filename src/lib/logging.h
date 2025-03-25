@@ -75,17 +75,15 @@ class LogStop {
 
 #define RNP_LOG(...) RNP_LOG_FD(stderr, __VA_ARGS__)
 
-#define RNP_LOG_KEY(msg, key)                                                     \
-    do {                                                                          \
-        if (!(key)) {                                                             \
-            RNP_LOG(msg, "(null)");                                               \
-            break;                                                                \
-        }                                                                         \
-        char              keyid[PGP_KEY_ID_SIZE * 2 + 1] = {0};                   \
-        const pgp::KeyID &id = (key)->keyid();                                    \
-        rnp::hex_encode(                                                          \
-          id.data(), id.size(), keyid, sizeof(keyid), rnp::HexFormat::Lowercase); \
-        RNP_LOG(msg, keyid);                                                      \
+#define RNP_LOG_KEY(msg, key)                                                           \
+    do {                                                                                \
+        if (!(key)) {                                                                   \
+            RNP_LOG(msg, "(null)");                                                     \
+            break;                                                                      \
+        }                                                                               \
+        auto keyid = (key)->keyid();                                                    \
+        auto idhex = bin_to_hex(keyid.data(), keyid.size(), rnp::HexFormat::Lowercase); \
+        RNP_LOG(msg, idhex.c_str());                                                    \
     } while (0)
 
 #if defined(ENABLE_PQC_DBG_LOG)
@@ -101,19 +99,14 @@ class LogStop {
 
 #define RNP_LOG_NO_POS_INFO(...) RNP_LOG_FD_NO_POS_INFO(stderr, __VA_ARGS__)
 
-#define RNP_LOG_U8VEC(msg, vec)                             \
-    do {                                                    \
-        if (vec.size() == 0) {                              \
+#define RNP_LOG_U8VEC(msg, vec)                                             \
+    do {                                                                    \
+        if (vec.empty() {                                   \
             RNP_LOG(msg, "(empty)");                        \
             break;                                          \
         }                                                   \
-        std::vector<char> _tmp_hex_vec(vec.size() * 2 + 1); \
-        rnp::hex_encode(vec.data(),                         \
-                        vec.size(),                         \
-                        _tmp_hex_vec.data(),                \
-                        _tmp_hex_vec.size(),                \
-                        rnp::HexFormat::Lowercase);         \
-        RNP_LOG_NO_POS_INFO(msg, _tmp_hex_vec.data());      \
+        auto _tmp_hex_vec = rnp::hex_to_bin(vec, rnp::HexFormat::Lowercase) \
+        RNP_LOG_NO_POS_INFO(msg, _tmp_hex_vec.c_str());                     \
     } while (0)
 #endif
 
