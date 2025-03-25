@@ -94,21 +94,7 @@ json_add_hex(json_object *obj, const char *name, const uint8_t *val, size_t val_
         val_len = 1024 * 1024;
     }
 
-    char   smallbuf[64] = {0};
-    size_t hexlen = val_len * 2 + 1;
-
-    char *hexbuf = hexlen < sizeof(smallbuf) ? smallbuf : (char *) malloc(hexlen);
-    if (!hexbuf) {
-        return false;
-    }
-
-    bool res = rnp::hex_encode(val, val_len, hexbuf, hexlen, rnp::HexFormat::Lowercase) &&
-               json_add(obj, name, json_object_new_string(hexbuf));
-
-    if (hexbuf != smallbuf) {
-        free(hexbuf);
-    }
-    return res;
+    return json_add(obj, name, bin_to_hex(val, val_len, rnp::HexFormat::Lowercase));
 }
 
 bool
