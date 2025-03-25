@@ -414,7 +414,7 @@ Key::generate(rnp::RNG &rng, size_t keybits)
             return RNP_ERROR_GENERIC;
             /* LCOV_EXCL_END */
         }
-        if (BITS_TO_BYTES(BN_num_bits(DH_get0_pub_key(dh))) != BITS_TO_BYTES(keybits)) {
+        if (BITS_TO_BYTES(BN_num_bits(DH_get0_pub_key(dh))) != BITS_TO_BYTES((int) keybits)) {
             /* This code chunk is rarely hit, so ignoring it for the coverage report */
             continue; // LCOV_EXCL_LINE
         }

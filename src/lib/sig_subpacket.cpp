@@ -492,8 +492,8 @@ NotationData::check_size(size_t size) const noexcept
 bool
 NotationData::parse_data(const uint8_t *data, size_t size)
 {
-    uint16_t nlen = read_uint16(data + 4);
-    uint16_t vlen = read_uint16(data + 6);
+    size_t nlen = read_uint16(data + 4);
+    size_t vlen = read_uint16(data + 6);
     if (size != nlen + vlen + 8) {
         return false;
     }

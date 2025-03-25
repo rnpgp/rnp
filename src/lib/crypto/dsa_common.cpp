@@ -28,6 +28,7 @@
 #include "defaults.h"
 #include "repgp/repgp_def.h"
 #include "dsa.h"
+#include "ecdsa.h"
 #include <cstddef>
 
 namespace pgp {
