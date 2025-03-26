@@ -45,7 +45,6 @@
 #include "stream-packet.h"
 #include "stream-sig.h"
 #include "types.h"
-#include "fingerprint.h"
 #include "key.hpp"
 #include "crypto/signatures.h"
 #include "crypto/mem.h"

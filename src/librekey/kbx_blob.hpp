@@ -29,6 +29,7 @@
 
 #include <vector>
 #include "repgp/repgp_def.h"
+#include "fingerprint.hpp"
 
 typedef enum : uint8_t {
     KBX_EMPTY_BLOB = 0,

@@ -73,36 +73,7 @@ class id_str_pair {
                               int                         notfound = 0);
 };
 
-typedef std::array<uint8_t, PGP_KEY_ID_SIZE>   pgp_key_id_t;
 typedef std::array<uint8_t, PGP_KEY_GRIP_SIZE> pgp_key_grip_t;
-
-/** pgp_fingerprint_t */
-typedef struct pgp_fingerprint_t {
-    uint8_t  fingerprint[PGP_MAX_FINGERPRINT_SIZE];
-    unsigned length;
-    bool     operator==(const pgp_fingerprint_t &src) const;
-    bool     operator!=(const pgp_fingerprint_t &src) const;
-
-    pgp_fingerprint_t() = default;
-    pgp_fingerprint_t(const std::vector<uint8_t> &src)
-    {
-        if (!size_valid(src.size())) {
-            throw std::invalid_argument("src");
-        }
-        memcpy(fingerprint, src.data(), src.size());
-        length = src.size();
-    }
-
-    static bool
-    size_valid(size_t size)
-    {
-        return (size == PGP_FINGERPRINT_V4_SIZE) || (size == PGP_FINGERPRINT_V3_SIZE) ||
-               (size == PGP_FINGERPRINT_V5_SIZE);
-    }
-
-    pgp_key_id_t         keyid() const;
-    std::vector<uint8_t> vec() const;
-} pgp_fingerprint_t;
 
 namespace pgp {
 using SigID = std::array<uint8_t, PGP_SHA1_HASH_SIZE>;
@@ -110,21 +81,6 @@ using SigIDs = std::vector<SigID>;
 } // namespace pgp
 
 namespace std {
-template <> struct hash<pgp_fingerprint_t> {
-    std::size_t
-    operator()(pgp_fingerprint_t const &fp) const noexcept
-    {
-        /* since fingerprint value is hash itself, we may use its low bytes */
-        size_t res = 0;
-        static_assert(sizeof(fp.fingerprint) == PGP_MAX_FINGERPRINT_SIZE,
-                      "pgp_fingerprint_t size mismatch");
-        static_assert(PGP_MAX_FINGERPRINT_SIZE >= sizeof(res),
-                      "pgp_fingerprint_t size mismatch");
-        std::memcpy(&res, fp.fingerprint, sizeof(res));
-        return res;
-    }
-};
-
 template <> struct hash<pgp::SigID> {
     std::size_t
     operator()(pgp::SigID const &sigid) const noexcept

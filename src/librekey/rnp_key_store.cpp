@@ -50,7 +50,7 @@
 #include "kbx_blob.hpp"
 
 #include "key.hpp"
-#include "fingerprint.h"
+#include "fingerprint.hpp"
 #include "crypto/hash.hpp"
 #include "crypto/mem.h"
 #include "file-utils.h"
@@ -389,10 +389,10 @@ KeyStore::add_key(Key &srckey)
 }
 
 Signature *
-KeyStore::add_key_sig(const pgp_fingerprint_t &keyfp,
-                      const pgp_signature_t &  sig,
-                      const pgp_userid_pkt_t * uid,
-                      bool                     front)
+KeyStore::add_key_sig(const pgp::Fingerprint &keyfp,
+                      const pgp_signature_t & sig,
+                      const pgp_userid_pkt_t *uid,
+                      bool                    front)
 {
     auto *key = get_key(keyfp);
     if (!key) {
@@ -602,7 +602,7 @@ KeyStore::remove_key(const Key &key, bool subkeys)
 }
 
 const Key *
-KeyStore::get_key(const pgp_fingerprint_t &fpr) const
+KeyStore::get_key(const pgp::Fingerprint &fpr) const
 {
     auto it = keybyfp.find(fpr);
     if (it == keybyfp.end()) {
@@ -612,7 +612,7 @@ KeyStore::get_key(const pgp_fingerprint_t &fpr) const
 }
 
 Key *
-KeyStore::get_key(const pgp_fingerprint_t &fpr)
+KeyStore::get_key(const pgp::Fingerprint &fpr)
 {
     auto it = keybyfp.find(fpr);
     if (it == keybyfp.end()) {

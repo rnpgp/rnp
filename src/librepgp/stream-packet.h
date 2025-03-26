@@ -33,6 +33,7 @@
 #include "types.h"
 #include "stream-common.h"
 #include "enc_material.hpp"
+#include "fingerprint.hpp"
 
 /* maximum size of the 'small' packet */
 #define PGP_MAX_PKT_SIZE 0x100000
@@ -119,7 +120,7 @@ typedef struct pgp_packet_body_t {
      *  @param val result will be stored here on success
      *  @return true on success or false otherwise (if end of the packet is reached)
      **/
-    bool get(pgp_key_id_t &val) noexcept;
+    bool get(pgp::KeyID &val) noexcept;
     /** @brief get next mpi from the packet body, populated with read() call.
      *  @param val result will be stored here on success
      *  @return true on success or false otherwise (if end of the packet is reached
@@ -141,7 +142,7 @@ typedef struct pgp_packet_body_t {
     /** @brief append big endian 32-bit value to the packet body */
     void add_uint32(uint32_t val);
     /** @brief append keyid to the packet body */
-    void add(const pgp_key_id_t &val);
+    void add(const pgp::KeyID &val);
     /** @brief add pgp mpi (including header) to the packet body */
     void add(const pgp::mpi &val);
     /**
@@ -175,12 +176,12 @@ typedef struct pgp_pk_sesskey_t {
     std::vector<uint8_t> material_buf{};
 
     /* v3 PKESK */
-    pgp_key_id_t   key_id{};
+    pgp::KeyID     key_id{};
     pgp_symm_alg_t salg;
 
 #if defined(ENABLE_CRYPTO_REFRESH)
     /* v6 PKESK */
-    pgp_fingerprint_t fp{};
+    pgp::Fingerprint fp;
 #endif
 
     void         write(pgp_dest_t &dst) const;
@@ -219,7 +220,7 @@ typedef struct pgp_one_pass_sig_t {
     pgp_sig_type_t   type{};
     pgp_hash_alg_t   halg{};
     pgp_pubkey_alg_t palg{};
-    pgp_key_id_t     keyid{};
+    pgp::KeyID       keyid{};
     unsigned         nested{};
 
     void         write(pgp_dest_t &dst) const;

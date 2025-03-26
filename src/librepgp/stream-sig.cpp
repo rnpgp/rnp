@@ -256,7 +256,7 @@ pgp_signature_t::has_keyid() const
            has_keyfp();
 }
 
-pgp_key_id_t
+pgp::KeyID
 pgp_signature_t::keyid() const noexcept
 {
     /* version 3 uses signature field */
@@ -277,7 +277,7 @@ pgp_signature_t::keyid() const noexcept
 }
 
 void
-pgp_signature_t::set_keyid(const pgp_key_id_t &id)
+pgp_signature_t::set_keyid(const pgp::KeyID &id)
 {
     if (version < PGP_V4) {
         signer = id;
@@ -299,27 +299,27 @@ pgp_signature_t::has_keyfp() const
     }
     switch (version) {
     case PGP_V4:
-        return sub->fp().length == PGP_FINGERPRINT_V4_SIZE;
+        return sub->fp().size() == PGP_FINGERPRINT_V4_SIZE;
     case PGP_V5:
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_V6:
 #endif
-        return sub->fp().length == PGP_FINGERPRINT_V5_SIZE;
+        return sub->fp().size() == PGP_FINGERPRINT_V5_SIZE;
     default:
         return false;
     }
 }
 
-pgp_fingerprint_t
+pgp::Fingerprint
 pgp_signature_t::keyfp() const noexcept
 {
     auto sub = dynamic_cast<const sigsub::IssuerFingerprint *>(
       get_subpkt(sigsub::Type::IssuerFingerprint));
-    return sub ? sub->fp() : pgp_fingerprint_t{};
+    return sub ? sub->fp() : pgp::Fingerprint{};
 }
 
 void
-pgp_signature_t::set_keyfp(const pgp_fingerprint_t &fp)
+pgp_signature_t::set_keyfp(const pgp::Fingerprint &fp)
 {
     auto sub = std::unique_ptr<sigsub::IssuerFingerprint>(new sigsub::IssuerFingerprint());
 #if defined(ENABLE_CRYPTO_REFRESH)
@@ -684,11 +684,11 @@ pgp_signature_t::has_revoker() const noexcept
     return revoker_subpkt();
 }
 
-pgp_fingerprint_t
+pgp::Fingerprint
 pgp_signature_t::revoker() const noexcept
 {
     auto sub = revoker_subpkt();
-    return sub ? sub->fp() : pgp_fingerprint_t();
+    return sub ? sub->fp() : pgp::Fingerprint();
 }
 
 void

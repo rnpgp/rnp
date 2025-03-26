@@ -91,24 +91,6 @@
 /* Salt size for hashing */
 #define PGP_SALT_SIZE 8
 
-/* Size of the keyid */
-#define PGP_KEY_ID_SIZE 8
-
-/* Size of the fingerprint */
-#define PGP_FINGERPRINT_V3_SIZE 16
-#define PGP_FINGERPRINT_V4_SIZE 20
-#define PGP_FINGERPRINT_V5_SIZE 32
-#define PGP_MAX_FINGERPRINT_SIZE 32
-#define PGP_FINGERPRINT_HEX_SIZE (PGP_MAX_FINGERPRINT_SIZE * 2) + 1
-
-static_assert(PGP_MAX_FINGERPRINT_SIZE >= PGP_FINGERPRINT_V4_SIZE, "FP size mismatch.");
-static_assert(PGP_MAX_FINGERPRINT_SIZE >= PGP_FINGERPRINT_V5_SIZE, "FP size mismatch.");
-#if defined(ENABLE_CRYPTO_REFRESH)
-#define PGP_FINGERPRINT_V6_SIZE 32
-static_assert(PGP_MAX_FINGERPRINT_SIZE >= PGP_FINGERPRINT_V6_SIZE, "FP size mismatch.");
-static_assert(PGP_FINGERPRINT_V5_SIZE == PGP_FINGERPRINT_V6_SIZE, "FP size mismatch.");
-#endif
-
 /* SEIPDv2 salt length */
 #ifdef ENABLE_CRYPTO_REFRESH
 #define PGP_SEIPDV2_SALT_LEN 32

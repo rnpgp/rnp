@@ -32,7 +32,8 @@
 #include <string>
 #include <memory>
 #include "repgp/repgp_def.h"
-#include "fingerprint.h"
+#include "fingerprint.hpp"
+#include "types.h"
 
 /**
  * @brief Signature subpacket classes.
@@ -460,9 +461,9 @@ class PreferredAEADv6 : public Preferred {
 /* Revocation key signature subpacket */
 class RevocationKey : public Raw {
   private:
-    uint8_t           rev_class_;
-    pgp_pubkey_alg_t  alg_;
-    pgp_fingerprint_t fp_;
+    uint8_t          rev_class_;
+    pgp_pubkey_alg_t alg_;
+    Fingerprint      fp_;
 
   protected:
     void write_data() override;
@@ -500,14 +501,14 @@ class RevocationKey : public Raw {
         data_.clear();
     }
 
-    const pgp_fingerprint_t &
+    const Fingerprint &
     fp() const noexcept
     {
         return fp_;
     }
 
     void
-    set_fp(const pgp_fingerprint_t &fp)
+    set_fp(const Fingerprint &fp)
     {
         fp_ = fp;
         data_.clear();
@@ -519,7 +520,7 @@ class RevocationKey : public Raw {
 /* Issuer Key ID signature subpacet */
 class IssuerKeyID : public Raw {
   private:
-    pgp_key_id_t keyid_;
+    KeyID keyid_;
 
   protected:
     void write_data() override;
@@ -532,14 +533,14 @@ class IssuerKeyID : public Raw {
     {
     }
 
-    const pgp_key_id_t &
+    const KeyID &
     keyid() const noexcept
     {
         return keyid_;
     }
 
     void
-    set_keyid(const pgp_key_id_t &value) noexcept
+    set_keyid(const KeyID &value) noexcept
     {
         keyid_ = value;
         data_.clear();
@@ -857,8 +858,8 @@ class EmbeddedSignature : public Raw {
 /* Issuer fingerprint signature subpacket */
 class IssuerFingerprint : public Raw {
   private:
-    uint8_t           version_;
-    pgp_fingerprint_t fp_;
+    uint8_t     version_;
+    Fingerprint fp_;
 
   protected:
     void write_data() override;
@@ -884,14 +885,14 @@ class IssuerFingerprint : public Raw {
         data_.clear();
     }
 
-    const pgp_fingerprint_t &
+    const Fingerprint &
     fp() const noexcept
     {
         return fp_;
     }
 
     void
-    set_fp(const pgp_fingerprint_t &fp) noexcept
+    set_fp(const Fingerprint &fp) noexcept
     {
         fp_ = fp;
         data_.clear();
