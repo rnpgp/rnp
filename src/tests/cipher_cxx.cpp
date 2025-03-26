@@ -177,7 +177,9 @@ test_cipher(pgp_symm_alg_t    alg,
     output_written += written;
     decrypted.resize(output_written);
     assert_int_equal(decrypted.size(), pt.size());
-    assert_memory_equal(decrypted.data(), pt.data(), pt.size());
+    if (pt.size()) {
+        assert_memory_equal(decrypted.data(), pt.data(), pt.size());
+    }
 
     // decrypt with a bad tag
     if (tag_size != 0) {
