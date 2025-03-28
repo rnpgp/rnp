@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2020 Ribose Inc.
+# Copyright (c) 2018-2025 Ribose Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,11 +33,13 @@ find_package(ZLIB REQUIRED)
 find_package(JSON-C 0.11 REQUIRED)
 if (CRYPTO_BACKEND_BOTAN3)
   find_package(Botan 3.0.0 REQUIRED)
+  set(CRYPTO_BACKEND_VERSION "${BOTAN_VERSION}")
 elseif (CRYPTO_BACKEND_BOTAN)
   find_package(Botan 2.14.0 REQUIRED)
   if(BOTAN_VERSION VERSION_GREATER_EQUAL 3.0.0)
     set(CRYPTO_BACKEND_BOTAN3 1)
   endif()
+  set(CRYPTO_BACKEND_VERSION "${BOTAN_VERSION}")
 endif()
 if (CRYPTO_BACKEND_OPENSSL)
   find_package(OpenSSL 1.1.1 REQUIRED)
@@ -45,6 +47,7 @@ if (CRYPTO_BACKEND_OPENSSL)
   if("${OPENSSL_VERSION}" VERSION_GREATER_EQUAL "3.0.0")
     set(CRYPTO_BACKEND_OPENSSL3 1)
   endif()
+  set(CRYPTO_BACKEND_VERSION "${OPENSSL_VERSION}")
 endif()
 
 if(CRYPTO_BACKEND_BOTAN3)
@@ -86,8 +89,6 @@ check_cxx_symbol_exists(_O_BINARY fcntl.h HAVE__O_BINARY)
 check_cxx_symbol_exists(_tempnam stdio.h HAVE__TEMPNAM)
 set(HAVE_ZLIB_H "${ZLIB_FOUND}")
 set(HAVE_BZLIB_H "${BZIP2_FOUND}")
-# generate a version.h
-configure_file(version.h.in version.h)
 
 # Checks feature in CRYPTO_BACKEND and puts the result into variable whose name is stored in RESULT_VARNAME variable.
 function(backend_has_feature FEATURE RESULT_VARNAME)
@@ -207,6 +208,9 @@ if(CRYPTO_BACKEND_BOTAN)
     resolve_feature_state(ENABLE_BRAINPOOL "PCURVES_BRAINPOOL256R1;PCURVES_BRAINPOOL384R1;PCURVES_BRAINPOOL512R1")
   endif()
 
+  set(ENABLE_AEAD_EAX "${ENABLE_AEAD}")
+  set(ENABLE_AEAD_OCB "${ENABLE_AEAD}")
+
   set(CMAKE_REQUIRED_INCLUDES)
 endif()
 if(CRYPTO_BACKEND_OPENSSL)
@@ -251,9 +255,26 @@ if(CRYPTO_BACKEND_OPENSSL)
   openssl_nope(ENABLE_TWOFISH "Twofish isn't and won't be supported by OpenSSL, see https://github.com/openssl/openssl/issues/2046")
   openssl_nope(ENABLE_CRYPTO_REFRESH, "not yet implemented")
   openssl_nope(ENABLE_PQC, "not yet implemented")
+  set(ENABLE_AEAD_EAX "Off")
+  set(ENABLE_AEAD_OCB "${ENABLE_AEAD}")
 endif()
 
 configure_file(config.h.in config.h)
+# generate a version.h
+configure_file(version.h.in version.h)
+# append enabled features defines
+set(HAS_FEATURES BRAINPOOL IDEA BLOWFISH CAST5 RIPEMD160 AEAD AEAD_EAX AEAD_OCB SM2 TWOFISH)
+list(SORT HAS_FEATURES)
+set(HAS_FEATURES_MACROS "")
+foreach(FEATURE ${HAS_FEATURES})
+    if(ENABLE_${FEATURE})
+        set(VALUE 1)
+    else()
+        set(VALUE 0)
+    endif()
+    string(APPEND HAS_FEATURES_MACROS "#define RNP_HAS_${FEATURE} ${VALUE}\n")
+endforeach()
+file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/version.h "${HAS_FEATURES_MACROS}")
 
 if(CRYPTO_BACKEND_OPENSSL)
   set(CRYPTO_SOURCES
@@ -599,6 +620,16 @@ install(
     "${CMAKE_INSTALL_INCLUDEDIR}/rnp"
   RENAME
     rnp_export.h
+)
+install(
+  FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/version.h"
+  COMPONENT
+    development
+  DESTINATION
+    "${CMAKE_INSTALL_INCLUDEDIR}/rnp"
+  RENAME
+    rnp_ver.h
 )
 
 # .cmake installs
