@@ -1023,7 +1023,7 @@ init_encrypted_dst(rnp_ctx_t &ctx, pgp_dest_t &dst, pgp_dest_t &writedst)
 #if defined(ENABLE_CRYPTO_REFRESH)
     /* in the case of PKESK (pkeycount > 0) and all keys are PKESKv6/SEIPDv2 capable, upgrade
      * to AEADv2 */
-    if (ctx.enable_pkesk_v6 && ctx.pkeskv6_capable() && !ctx.recipients.empty()) {
+    if (ctx.enable_pkesk_v6 && ctx.pkeskv6_capable(&ctx.key_provider) && !ctx.recipients.empty()) {
         param->auth_type = rnp::AuthType::AEADv2;
     }
 #endif
