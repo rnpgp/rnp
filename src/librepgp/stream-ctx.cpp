@@ -68,14 +68,56 @@ rnp_ctx_t::add_encryption_password(const std::string &password,
     return RNP_SUCCESS;
 }
 
+/* TODO: refactor. Checking for subpackets should be done in a central place */
 #if defined(ENABLE_CRYPTO_REFRESH)
+#define PGP_UID_PRIMARY ((uint32_t) -2)
+#define PGP_UID_ANY ((uint32_t) -3)
+
 bool
-rnp_ctx_t::pkeskv6_capable()
+rnp_ctx_t::pkeskv6_capable(rnp::KeyProvider* key_provider)
 {
+    /* either the features flag is set, or the key version is >= v6 */
     for (auto *key : recipients) {
-        if (key->version() < PGP_V6) {
+        if (key->version() >= PGP_V6) {
+            continue;
+        }
+
+        rnp::Key *primary = NULL;
+        if(key->is_primary()) {
+            primary = key;
+        }
+        else {
+            if(key->has_primary_fp())
+            {
+                rnp::KeyFingerprintSearch fpsrch(key->primary_fp());
+                primary = key_provider->request_key(fpsrch);
+            }
+        }
+       
+        if(!primary)
+        {
+            // can't find primary
             return false;
         }
+
+        /* get latest self sig */
+        /* if we have direct-key signature, then it has higher priority */
+        rnp::Signature *dirsig = primary->latest_selfsig(rnp::UserID::None);
+        if (dirsig) {
+            return dirsig->sig.key_has_features(PGP_KEY_FEATURE_SEIPDV2);
+        }
+        /* if we have primary uid and it is more restrictive, then use it as well */
+        rnp::Signature *prisig = primary->latest_selfsig(PGP_UID_PRIMARY);
+        if (prisig) {
+            return prisig->sig.key_has_features(PGP_KEY_FEATURE_SEIPDV2);
+        }
+        /* if we don't have direct-key sig and primary uid, use the latest self-cert */
+        rnp::Signature *latest = primary->latest_selfsig(PGP_UID_ANY);
+        if (latest) {
+            return latest->sig.key_has_features(PGP_KEY_FEATURE_SEIPDV2);
+        }
+        /* no applicable sig found */
+        return false;
     }
     return true;
 }
