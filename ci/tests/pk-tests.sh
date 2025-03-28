@@ -1,6 +1,6 @@
 #! /bin/bash
 #
-# Copyright (c) 2023 [Ribose Inc](https://www.ribose.com).
+# Copyright (c) 2023-2025 [Ribose Inc](https://www.ribose.com).
 # All rights reserved.
 # This file is a part of rnp
 #
@@ -37,9 +37,13 @@ DIR_CMAKE="$INSTALL_PREFIX/lib64/cmake/rnp"
 create_source_file() {
     cat <<"EOF" > find_package_test.cpp
         #include <rnp/rnp.h>
+        #include <rnp/rnp_ver.h>
 
         int main(int argc, char *argv[]) {
             printf("RNP version: %s\n", rnp_version_string());
+            printf("RNP backend: %s\n", RNP_BACKEND);
+            printf("RNP backend version: %s\n", RNP_BACKEND_VERSION);
+            printf("RNP has AEAD: %d\n", RNP_HAS_AEAD);
             return 0;
         }
 EOF
