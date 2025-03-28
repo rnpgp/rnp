@@ -142,7 +142,7 @@ typedef struct rnp_ctx_t {
                                          size_t             iterations = 0);
 
 #if defined(ENABLE_CRYPTO_REFRESH)
-    bool pkeskv6_capable(rnp::KeyProvider* key_provider);
+    bool pkeskv6_capable(rnp::KeyProvider *key_provider);
 #endif
 } rnp_ctx_t;
 
