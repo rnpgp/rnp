@@ -74,7 +74,7 @@ rnp_ctx_t::add_encryption_password(const std::string &password,
 #define PGP_UID_ANY ((uint32_t) -3)
 
 bool
-rnp_ctx_t::pkeskv6_capable(rnp::KeyProvider* key_provider)
+rnp_ctx_t::pkeskv6_capable(rnp::KeyProvider *key_provider)
 {
     /* either the features flag is set, or the key version is >= v6 */
     for (auto *key : recipients) {
@@ -83,19 +83,16 @@ rnp_ctx_t::pkeskv6_capable(rnp::KeyProvider* key_provider)
         }
 
         rnp::Key *primary = NULL;
-        if(key->is_primary()) {
+        if (key->is_primary()) {
             primary = key;
-        }
-        else {
-            if(key->has_primary_fp())
-            {
+        } else {
+            if (key->has_primary_fp()) {
                 rnp::KeyFingerprintSearch fpsrch(key->primary_fp());
                 primary = key_provider->request_key(fpsrch);
             }
         }
-       
-        if(!primary)
-        {
+
+        if (!primary) {
             // can't find primary
             return false;
         }
