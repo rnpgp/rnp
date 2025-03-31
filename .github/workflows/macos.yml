@@ -159,6 +159,28 @@ jobs:
           export PATH="$PWD/build/src/lib:$PATH"
           ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure
 
+      - name: Configure and build with botan-config.cmake
+        if:  matrix.backend == 'botan3'
+        run: |
+            rm -rf build
+            rm -rf ./cmake/Modules/FindBotan.cmake
+            shopt -s nullglob
+            files=(/opt/homebrew/lib/cmake/Botan-*/botan-config.cmake)
+            shopt -u nullglob
+
+            if [[ ${#files[@]} -eq 0 ]]; then
+              echo "Error: No botan-config.cmake found." >&2
+              exit 1
+            fi
+
+            brew install asciidoctor
+            cmake -B build -DBUILD_SHARED_LIBS=${{ matrix.shared_libs }}   \
+                           -DCMAKE_BUILD_TYPE=Release                      \
+                           -DDOWNLOAD_GTEST=OFF                            \
+                           -DCRYPTO_BACKEND=botan3 .  
+            cmake --build build --config Release --parallel ${{ env.CORES }}
+            sudo cmake --install build
+
       - name: Checkout shell test framework
         if: matrix.shared_libs == 'on'
         uses: actions/checkout@v4
