@@ -46,7 +46,7 @@
 #   BOTAN_FOUND          - true if the headers and library were found
 #   BOTAN_INCLUDE_DIRS   - where to find headers
 #   BOTAN_LIBRARIES      - list of libraries to link
-#   BOTAN_VERSION        - library version that was found, if any
+#   Botan_VERSION        - library version that was found, if any
 #
 # Hints
 # ^^^^^
@@ -130,14 +130,14 @@ if(BOTAN_INCLUDE_DIR AND EXISTS "${BOTAN_INCLUDE_DIR}/botan/build.h")
            "\\1" _botan_version_minor "${botan_version_str}")
     string(REGEX REPLACE ".*#define[\t ]+BOTAN_VERSION_PATCH[\t ]+([0-9]+).*"
            "\\1" _botan_version_patch "${botan_version_str}")
-    set(BOTAN_VERSION "${_botan_version_major}.${_botan_version_minor}.${_botan_version_patch}"
+    set(Botan_VERSION "${_botan_version_major}.${_botan_version_minor}.${_botan_version_patch}"
                        CACHE INTERNAL "The version of Botan which was detected")
 endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Botan
   REQUIRED_VARS BOTAN_LIBRARY BOTAN_INCLUDE_DIR
-  VERSION_VAR BOTAN_VERSION
+  VERSION_VAR Botan_VERSION
 )
 
 if (BOTAN_FOUND)

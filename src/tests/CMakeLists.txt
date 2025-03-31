@@ -70,7 +70,7 @@ if (CRYPTO_BACKEND_BOTAN3)
   find_package(Botan 3.0.0 REQUIRED)
 elseif (CRYPTO_BACKEND_BOTAN)
   find_package(Botan 2.14.0 REQUIRED)
-  if(BOTAN_VERSION VERSION_GREATER_EQUAL 3.0.0)
+  if(Botan_VERSION VERSION_GREATER_EQUAL 3.0.0)
     set(CRYPTO_BACKEND_BOTAN3 1)
   endif()
 endif()
@@ -192,6 +192,9 @@ if(MSVC)
       "${SHLWAPI_LIBRARY}"
       "${GETOPT_LIBRARY}"
     )
+endif()
+if (CRYPTO_BACKEND_BOTAN)
+  get_target_property(BOTAN_INCLUDE_DIRS Botan::Botan INTERFACE_INCLUDE_DIRECTORIES)
 endif()
 target_include_directories(rnp_tests
   PRIVATE
