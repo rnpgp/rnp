@@ -33,13 +33,19 @@ find_package(ZLIB REQUIRED)
 find_package(JSON-C 0.11 REQUIRED)
 if (CRYPTO_BACKEND_BOTAN3)
   find_package(Botan 3.0.0 REQUIRED)
-  set(CRYPTO_BACKEND_VERSION "${BOTAN_VERSION}")
 elseif (CRYPTO_BACKEND_BOTAN)
+  # botan-config.cmake from Botan distribution doesn't support version 2.x, 
+  # so use -DCRYPTO_BACKEND=botan3 to configure
   find_package(Botan 2.14.0 REQUIRED)
-  if(BOTAN_VERSION VERSION_GREATER_EQUAL 3.0.0)
+  if(Botan_VERSION VERSION_GREATER_EQUAL 3.0.0)
     set(CRYPTO_BACKEND_BOTAN3 1)
   endif()
-  set(CRYPTO_BACKEND_VERSION "${BOTAN_VERSION}")
+endif()
+if (CRYPTO_BACKEND_BOTAN)
+  # botan-config.cmake from Botan distribution sets Botan_VERSION instead of BOTAN_VERSION
+  # like we did and doesn't set BOTAN_INCLUDE_DIRS like our built-in did.
+  get_target_property(BOTAN_INCLUDE_DIRS Botan::Botan INTERFACE_INCLUDE_DIRECTORIES)
+  set(CRYPTO_BACKEND_VERSION "${Botan_VERSION}")
 endif()
 if (CRYPTO_BACKEND_OPENSSL)
   find_package(OpenSSL 1.1.1 REQUIRED)
@@ -168,12 +174,12 @@ if(CRYPTO_BACKEND_BOTAN)
       # public-key operations etc
       EME_PKCS1v15 EMSA_PKCS1 EMSA_RAW KDF_BASE RFC3394_KEYWRAP SP800_56A
   )
-  if(BOTAN_VERSION VERSION_LESS 3.0.0)
+  if(Botan_VERSION VERSION_LESS 3.0.0)
     set(_botan_required_features ${_botan_required_features} DL_PUBLIC_KEY_FAMILY)
   else()
     set(_botan_required_features ${_botan_required_features} DL_SCHEME RAW_HASH_FN)
   endif()
-  if(BOTAN_VERSION VERSION_GREATER_EQUAL 3.7.0)
+  if(Botan_VERSION VERSION_GREATER_EQUAL 3.7.0)
     set(_botan_required_features ${_botan_required_features}
         # Basic curves, see below for Brainpool/SM2
         PCURVES
@@ -186,7 +192,7 @@ if(CRYPTO_BACKEND_BOTAN)
     )
   endif()
   foreach(feature ${_botan_required_features})
-    check_cxx_symbol_exists("BOTAN_HAS_${feature}" botan/build.h _botan_has_${feature})
+    backend_has_feature("${feature}" _botan_has_${feature})
     if (NOT _botan_has_${feature})
       message(FATAL_ERROR "A required botan feature is missing: ${feature}")
     endif()
@@ -201,7 +207,7 @@ if(CRYPTO_BACKEND_BOTAN)
   resolve_feature_state(ENABLE_BLOWFISH "BLOWFISH")
   resolve_feature_state(ENABLE_CAST5 "CAST_128")
   resolve_feature_state(ENABLE_RIPEMD160 "RIPEMD_160")
-  if(BOTAN_VERSION VERSION_GREATER_EQUAL 3.7.0)
+  if(Botan_VERSION VERSION_GREATER_EQUAL 3.7.0)
     # Separate SM2 curve since 3.7.0
     resolve_feature_state(ENABLE_SM2 "PCURVES_SM2P256V1")
     # Botan supports Brainpool curves together with SECP via the ECC_GROUP define before the 3.7.0
