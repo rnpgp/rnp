@@ -479,7 +479,7 @@ find_armor_header(const std::string &str, size_t &hdrlen, std::string &type)
 static pgp_armored_msg_t
 armor_str_to_data_type(const std::string &str)
 {
-    if (str == "MESSAGE") {
+    if ((str == "MESSAGE") || (str == "ARMORED FILE")) {
         return PGP_ARMORED_MESSAGE;
     }
     if ((str == "PUBLIC KEY BLOCK") || (str == "PUBLIC KEY")) {
