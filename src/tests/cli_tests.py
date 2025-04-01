@@ -4329,6 +4329,12 @@ class Misc(unittest.TestCase):
         clear_workfiles()
         shutil.rmtree(RNP2, ignore_errors=True)
 
+    def test_gpg_armored(self):
+        ret, out, err = run_proc(RNP, ['--homedir', RNP, '--dearmor', data_path('test_messages/message.txt.gpg-armored')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*This is test message to be signed.*')
+        self.assertFalse(err)
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
