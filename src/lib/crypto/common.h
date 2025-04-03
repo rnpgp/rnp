@@ -28,7 +28,7 @@
 #define RNP_CRYPTO_COMMON_H_
 
 /* base */
-#include "mpi.h"
+#include "mpi.hpp"
 #include "rng.h"
 /* asymmetric crypto */
 #include "rsa.h"

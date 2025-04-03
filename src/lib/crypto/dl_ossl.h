@@ -27,7 +27,7 @@
 #ifndef DL_OSSL_H_
 #define DL_OSSL_H_
 
-#include "mpi.h"
+#include "mpi.hpp"
 #include <rnp/rnp_def.h>
 #include "ossl_utils.hpp"
 

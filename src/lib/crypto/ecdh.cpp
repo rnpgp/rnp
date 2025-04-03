@@ -49,8 +49,8 @@ compute_kek(uint8_t *                   kek,
             const rnp::botan::Privkey & ec_prvkey,
             const pgp_hash_alg_t        hash_alg)
 {
-    const uint8_t *p = ec_pubkey.mpi;
-    uint8_t        p_len = ec_pubkey.len;
+    auto * p = ec_pubkey.data();
+    size_t p_len = ec_pubkey.size();
 
     if (curve_desc->rnp_curve_id == PGP_CURVE_25519) {
         if ((p_len != 33) || (p[0] != 0x40)) {
@@ -60,9 +60,9 @@ compute_kek(uint8_t *                   kek,
         p_len--;
     }
 
-    rnp::secure_array<uint8_t, MAX_CURVE_BYTELEN * 2 + 1> s;
-    size_t                                                s_len = s.size();
-    rnp::botan::op::KeyAgreement                          op;
+    rnp::secure_bytes            s(MAX_CURVE_BYTELEN * 2 + 1, 0);
+    size_t                       s_len = s.size();
+    rnp::botan::op::KeyAgreement op;
     if (botan_pk_op_key_agreement_create(&op.get(), ec_prvkey.get(), "Raw", 0) ||
         botan_pk_op_key_agreement(op.get(), s.data(), &s_len, p, p_len, NULL, 0)) {
         return false;
@@ -85,22 +85,22 @@ load_public_key(rnp::botan::Pubkey &pubkey, const ec::Key &key)
     }
 
     if (curve->rnp_curve_id == PGP_CURVE_25519) {
-        if ((key.p.len != 33) || (key.p.mpi[0] != 0x40)) {
+        if ((key.p.size() != 33) || (key.p[0] != 0x40)) {
             return false;
         }
         rnp::secure_array<uint8_t, 32> pkey;
-        memcpy(pkey.data(), key.p.mpi + 1, 32);
+        memcpy(pkey.data(), key.p.data() + 1, 32);
         return !botan_pubkey_load_x25519(&pubkey.get(), pkey.data());
     }
 
-    if (!key.p.bytes() || (key.p.mpi[0] != 0x04)) {
+    if (!key.p.size() || (key.p[0] != 0x04)) {
         RNP_LOG("Failed to load public key");
         return false;
     }
 
     const size_t curve_order = curve->bytes();
-    rnp::bn      px(&key.p.mpi[1], curve_order);
-    rnp::bn      py(&key.p.mpi[1 + curve_order], curve_order);
+    rnp::bn      px(&key.p[1], curve_order);
+    rnp::bn      py(&key.p[1 + curve_order], curve_order);
 
     if (!px || !py) {
         return false;
@@ -122,14 +122,14 @@ load_secret_key(rnp::botan::Privkey &seckey, const ec::Key &key)
     }
 
     if (curve->rnp_curve_id == PGP_CURVE_25519) {
-        if (key.x.len != 32) {
+        if (key.x.size() != 32) {
             RNP_LOG("wrong x25519 key");
             return false;
         }
         /* need to reverse byte order since in mpi we have big-endian */
         rnp::secure_array<uint8_t, 32> prkey;
         for (int i = 0; i < 32; i++) {
-            prkey[i] = key.x.mpi[31 - i];
+            prkey[i] = key.x[31 - i];
         }
         return !botan_privkey_load_x25519(&seckey.get(), prkey.data());
     }
@@ -228,21 +228,23 @@ encrypt_pkcs5(rnp::RNG &rng, Encrypted &out, const rnp::secure_bytes &in, const 
     }
     out.m.resize(mlen);
 
+    /* export ephemeral public key */
+    out.p.resize(MAX_CURVE_BYTELEN * 2 + 1);
+    size_t plen = out.p.size();
     /* we need to prepend 0x40 for the x25519 */
     if (key.curve == PGP_CURVE_25519) {
-        out.p.len = sizeof(out.p.mpi) - 1;
+        plen--;
         if (botan_pk_op_key_agreement_export_public(
-              eph_prv_key.get(), out.p.mpi + 1, &out.p.len)) {
+              eph_prv_key.get(), out.p.data() + 1, &plen)) {
             return RNP_ERROR_GENERIC;
         }
-        out.p.mpi[0] = 0x40;
-        out.p.len++;
+        out.p[0] = 0x40;
+        out.p.resize(plen + 1);
     } else {
-        out.p.len = sizeof(out.p.mpi);
-        if (botan_pk_op_key_agreement_export_public(
-              eph_prv_key.get(), out.p.mpi, &out.p.len)) {
+        if (botan_pk_op_key_agreement_export_public(eph_prv_key.get(), out.p.data(), &plen)) {
             return RNP_ERROR_GENERIC;
         }
+        out.p.resize(plen);
     }
     // All OK
     return RNP_SUCCESS;
@@ -251,7 +253,7 @@ encrypt_pkcs5(rnp::RNG &rng, Encrypted &out, const rnp::secure_bytes &in, const 
 rnp_result_t
 decrypt_pkcs5(rnp::secure_bytes &out, const Encrypted &in, const ec::Key &key)
 {
-    if (!key.x.bytes()) {
+    if (!key.x.size()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 

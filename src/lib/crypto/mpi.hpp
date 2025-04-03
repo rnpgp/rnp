@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2018, 2024 Ribose Inc.
+ * Copyright (c) 2018-2025 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,12 +24,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef RNP_MPI_H_
-#define RNP_MPI_H_
+#ifndef RNP_MPI_HPP_
+#define RNP_MPI_HPP_
 
 #include <cstdint>
 #include <cstdbool>
 #include <cstddef>
+#include <vector>
 
 /* 16384 bits should be pretty enough for now */
 #define PGP_MPINT_BITS (16384)
@@ -38,20 +39,26 @@
 /** multi-precision integer, used in signatures and public/secret keys */
 namespace pgp {
 
-typedef struct mpi {
-    /* Change this to vector once opaqueness is not required anymore */
-    uint8_t mpi[PGP_MPINT_SIZE];
-    size_t  len;
+class mpi {
+    std::vector<uint8_t> data_;
 
-    bool operator==(const struct mpi &src) const;
+  public:
+    bool           operator==(const mpi &src) const;
+    bool           operator!=(const mpi &src) const;
+    uint8_t &      operator[](size_t idx);
+    const uint8_t &operator[](size_t idx) const;
 
-    bool   from_mem(const void *mem, size_t len) noexcept;
-    void   to_mem(void *mem) const noexcept;
-    size_t bits() const noexcept;
-    size_t bytes() const noexcept;
-    void   forget() noexcept;
-} mpi;
+    void assign(const uint8_t *val, size_t size);
+    void copy(uint8_t *dst) const noexcept;
+    void resize(size_t size, uint8_t fill = 0);
+    void forget() noexcept;
+
+    uint8_t *      data() noexcept;
+    const uint8_t *data() const noexcept;
+    size_t         size() const noexcept;
+    size_t         bits() const noexcept;
+};
 
 } // namespace pgp
 
-#endif // MPI_H_
+#endif // MPI_HPP_

@@ -30,7 +30,7 @@
 #include <cstdio>
 #include <cstdint>
 #include "config.h"
-#include "mpi.h"
+#include "mpi.hpp"
 #include <cassert>
 #include <memory>
 #include <openssl/bn.h>
@@ -72,7 +72,7 @@ class bn {
         }
 
         _bn = BN_new();
-        if (_bn && !BN_bin2bn(val->mpi, val->len, _bn)) {
+        if (_bn && !BN_bin2bn(val->data(), val->size(), _bn)) {
             BN_free(_bn);
             _bn = NULL;
         }
@@ -159,11 +159,12 @@ class bn {
     static bool
     mpi(const BIGNUM *num, pgp::mpi &mpi) noexcept
     {
-        assert((size_t) BN_num_bytes(num) <= sizeof(mpi.mpi));
-        if (BN_bn2bin(num, mpi.mpi) < 0) {
+        size_t bytes = (size_t) BN_num_bytes(num);
+        assert(bytes <= PGP_MPINT_SIZE);
+        mpi.resize(bytes);
+        if (BN_bn2bin(num, mpi.data()) < 0) {
             return false;
         }
-        mpi.len = BN_num_bytes(num);
         return true;
     }
 

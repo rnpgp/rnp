@@ -85,7 +85,7 @@ sign(rnp::RNG &               rng,
      const rnp::secure_bytes &hash,
      const ec::Key &          key)
 {
-    if (!key.x.bytes()) {
+    if (!key.x.size()) {
         RNP_LOG("private key not set");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -107,12 +107,14 @@ sign(rnp::RNG &               rng,
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
     }
-    sig.s.len = PGP_MPINT_SIZE;
-    if (EVP_PKEY_sign(ctx.get(), sig.s.mpi, &sig.s.len, hash.data(), hash.size()) <= 0) {
+    /* DER encoded {r, s} pair, 16 bytes of overhead is enough */
+    std::vector<uint8_t> dersig(2 * MAX_CURVE_BYTELEN + 16, 0);
+    size_t               siglen = dersig.size();
+    if (EVP_PKEY_sign(ctx.get(), dersig.data(), &siglen, hash.data(), hash.size()) <= 0) {
         RNP_LOG("Signing failed: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
     }
-    if (!decode_sig(sig.s.mpi, sig.s.len, sig)) {
+    if (!decode_sig(dersig.data(), siglen, sig)) {
         RNP_LOG("Failed to parse ECDSA sig: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
     }
@@ -141,11 +143,13 @@ verify(const ec::Signature &    sig,
         RNP_LOG("Failed to initialize verify: %lu", ERR_peek_last_error());
         return RNP_ERROR_SIGNATURE_INVALID;
     }
-    mpi sigbuf;
-    if (!encode_sig(sigbuf.mpi, &sigbuf.len, sig)) {
+    /* signature is two coordinates + DER encoding, 16 is safe enough */
+    std::vector<uint8_t> sigbuf(sig.r.size() + sig.s.size() + 16);
+    size_t               siglen = sigbuf.size();
+    if (!encode_sig(sigbuf.data(), &siglen, sig)) {
         return RNP_ERROR_SIGNATURE_INVALID;
     }
-    if (EVP_PKEY_verify(ctx.get(), sigbuf.mpi, sigbuf.len, hash.data(), hash.size()) < 1) {
+    if (EVP_PKEY_verify(ctx.get(), sigbuf.data(), siglen, hash.data(), hash.size()) < 1) {
         return RNP_ERROR_SIGNATURE_INVALID;
     }
     return RNP_SUCCESS;

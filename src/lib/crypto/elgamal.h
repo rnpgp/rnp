@@ -29,7 +29,7 @@
 
 #include <stdint.h>
 #include "crypto/rng.h"
-#include "crypto/mpi.h"
+#include "crypto/mpi.hpp"
 #include "mem.h"
 
 namespace pgp {

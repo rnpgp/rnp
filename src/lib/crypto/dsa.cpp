@@ -78,7 +78,7 @@ rnp_result_t
 Key::sign(rnp::RNG &rng, Signature &sig, const rnp::secure_bytes &hash) const
 {
     sig = {};
-    size_t q_order = q.bytes();
+    size_t q_order = q.size();
     // As 'Raw' is used we need to reduce hash size (as per FIPS-186-4, 4.6)
     size_t z_len = std::min(hash.size(), q_order);
 
@@ -115,20 +115,18 @@ Key::sign(rnp::RNG &rng, Signature &sig, const rnp::secure_bytes &hash) const
     }
 
     // Now load the DSA (r,s) values from the signature.
-    if (!sig.r.from_mem(sign_buf.data(), q_order) ||
-        !sig.s.from_mem(sign_buf.data() + q_order, q_order)) {
-        return RNP_ERROR_SIGNING_FAILED;
-    }
+    sig.r.assign(sign_buf.data(), q_order);
+    sig.s.assign(sign_buf.data() + q_order, q_order);
     return RNP_SUCCESS;
 }
 
 rnp_result_t
 Key::verify(const Signature &sig, const rnp::secure_bytes &hash) const
 {
-    size_t q_order = q.bytes();
+    size_t q_order = q.size();
     size_t z_len = std::min(hash.size(), q_order);
-    size_t r_blen = sig.r.bytes();
-    size_t s_blen = sig.s.bytes();
+    size_t r_blen = sig.r.size();
+    size_t s_blen = sig.s.size();
     if ((r_blen > q_order) || (s_blen > q_order)) {
         RNP_LOG("Wrong signature");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -151,8 +149,8 @@ Key::verify(const Signature &sig, const rnp::secure_bytes &hash) const
     }
 
     std::vector<uint8_t> sign_buf(q_order * 2, 0);
-    sig.r.to_mem(sign_buf.data() + q_order - r_blen);
-    sig.s.to_mem(sign_buf.data() + 2 * q_order - s_blen);
+    sig.r.copy(sign_buf.data() + q_order - r_blen);
+    sig.s.copy(sign_buf.data() + 2 * q_order - s_blen);
 
     rnp::botan::op::Verify verify_op;
     if (botan_pk_op_verify_create(&verify_op.get(), dsa_key.get(), "Raw", 0)) {

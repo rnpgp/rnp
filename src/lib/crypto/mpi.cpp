@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2018, 2024 Ribose Inc.
+ * Copyright (c) 2018-2025 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include "mpi.h"
+#include "mpi.hpp"
 #include "mem.h"
 #include "utils.h"
 
@@ -39,11 +39,11 @@ mpi::bits() const noexcept
     size_t  idx = 0;
     uint8_t bt;
 
-    for (idx = 0; (idx < len) && !mpi[idx]; idx++)
+    for (idx = 0; (idx < size()) && !data_[idx]; idx++)
         ;
 
-    if (idx < len) {
-        for (bits = (len - idx - 1) << 3, bt = mpi[idx]; bt; bits++, bt = bt >> 1)
+    if (idx < size()) {
+        for (bits = (size() - idx - 1) << 3, bt = data_[idx]; bt; bits++, bt = bt >> 1)
             ;
     }
 
@@ -51,50 +51,80 @@ mpi::bits() const noexcept
 }
 
 size_t
-mpi::bytes() const noexcept
+mpi::size() const noexcept
 {
-    return len;
+    return data_.size();
+}
+
+uint8_t *
+mpi::data() noexcept
+{
+    return data_.data();
+}
+
+const uint8_t *
+mpi::data() const noexcept
+{
+    return data_.data();
 }
 
 bool
-mpi::from_mem(const void *mem, size_t mlen) noexcept
-{
-    if (mlen > sizeof(mpi)) {
-        return false;
-    }
-
-    memcpy(mpi, mem, mlen);
-    len = mlen;
-    return true;
-}
-
-void
-mpi::to_mem(void *mem) const noexcept
-{
-    memcpy(mem, mpi, len);
-}
-
-bool
-mpi::operator==(const struct mpi &src) const
+mpi::operator==(const mpi &src) const
 {
     size_t idx1 = 0;
     size_t idx2 = 0;
 
-    for (idx1 = 0; (idx1 < this->len) && !this->mpi[idx1]; idx1++)
+    for (idx1 = 0; (idx1 < size()) && !data_[idx1]; idx1++)
         ;
 
-    for (idx2 = 0; (idx2 < src.len) && !src.mpi[idx2]; idx2++)
+    for (idx2 = 0; (idx2 < src.size()) && !src[idx2]; idx2++)
         ;
 
-    return ((this->len - idx1) == (src.len - idx2) &&
-            !memcmp(this->mpi + idx1, src.mpi + idx2, this->len - idx1));
+    return ((size() - idx1) == (src.size() - idx2) &&
+            !memcmp(data() + idx1, src.data() + idx2, size() - idx1));
+}
+
+bool
+mpi::operator!=(const mpi &src) const
+{
+    return !(*this == src);
+}
+
+uint8_t &
+mpi::operator[](size_t idx)
+{
+    return data_.at(idx);
+}
+
+const uint8_t &
+mpi::operator[](size_t idx) const
+{
+    return data_.at(idx);
+}
+
+void
+mpi::assign(const uint8_t *val, size_t size)
+{
+    data_.assign(val, val + size);
+}
+
+void
+mpi::copy(uint8_t *dst) const noexcept
+{
+    memcpy(dst, data_.data(), data_.size());
+}
+
+void
+mpi::resize(size_t size, uint8_t fill)
+{
+    data_.resize(size, fill);
 }
 
 void
 mpi::forget() noexcept
 {
-    secure_clear(mpi, sizeof(mpi));
-    len = 0;
+    secure_clear(data_.data(), data_.size());
+    data_.resize(0);
 }
 
 } // namespace pgp
