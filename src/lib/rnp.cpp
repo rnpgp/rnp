@@ -8076,7 +8076,7 @@ add_json_mpis(json_object *jso, ...)
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
-        if (!json_add_hex(jso, name, val->mpi, val->len)) {
+        if (!json_add_hex(jso, name, val->data(), val->size())) {
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }

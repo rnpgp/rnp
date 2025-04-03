@@ -26,6 +26,7 @@
 
 #include <string>
 #include <cassert>
+#include <algorithm>
 #include "ec.h"
 #include "ec_ossl.h"
 #include "types.h"
@@ -104,21 +105,21 @@ static bool
 write_raw_seckey(const rnp::ossl::evp::PKey &pkey, ec::Key &key)
 {
     /* EdDSA and X25519 keys are saved in a different way */
-    static_assert(sizeof(key.x.mpi) > 32, "mpi is too small.");
-    key.x.len = sizeof(key.x.mpi);
-    if (EVP_PKEY_get_raw_private_key(pkey.get(), key.x.mpi, &key.x.len) <= 0) {
+    std::vector<uint8_t> raw(32, 0);
+    size_t               rlen = raw.size();
+    if (EVP_PKEY_get_raw_private_key(pkey.get(), raw.data(), &rlen) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed get raw private key: %lu", ERR_peek_last_error());
         return false;
         /* LCOV_EXCL_END */
     }
-    assert(key.x.len == 32);
+    assert(rlen == 32);
+    raw.resize(rlen);
     if (EVP_PKEY_id(pkey.get()) == EVP_PKEY_X25519) {
         /* in OpenSSL private key is exported as little-endian, while MPI is big-endian */
-        for (size_t i = 0; i < 16; i++) {
-            std::swap(key.x.mpi[i], key.x.mpi[31 - i]);
-        }
+        std::reverse(raw.begin(), raw.end());
     }
+    key.x.assign(raw.data(), raw.size());
     return true;
 }
 
@@ -177,12 +178,12 @@ load_raw_key(const mpi &keyp, const mpi *keyx, int nid)
 {
     if (!keyx) {
         /* as per RFC, EdDSA & 25519 keys must use 0x40 byte for encoding */
-        if ((keyp.bytes() != 33) || (keyp.mpi[0] != 0x40)) {
+        if ((keyp.size() != 33) || (keyp[0] != 0x40)) {
             RNP_LOG("Invalid 25519 public key.");
             return nullptr;
         }
         rnp::ossl::evp::PKey evpkey(
-          EVP_PKEY_new_raw_public_key(nid, NULL, &keyp.mpi[1], keyp.bytes() - 1));
+          EVP_PKEY_new_raw_public_key(nid, NULL, &keyp[1], keyp.size() - 1));
         if (!evpkey) {
             RNP_LOG("Failed to load public key: %lu", ERR_peek_last_error()); // LCOV_EXCL_LINE
         }
@@ -191,24 +192,22 @@ load_raw_key(const mpi &keyp, const mpi *keyx, int nid)
 
     EVP_PKEY *evpkey = NULL;
     if (nid == EVP_PKEY_X25519) {
-        if (keyx->len != 32) {
+        if (keyx->size() != 32) {
             RNP_LOG("Invalid 25519 secret key");
             return nullptr;
         }
         /* need to reverse byte order since in mpi we have big-endian */
-        rnp::secure_array<uint8_t, 32> prkey;
-        for (int i = 0; i < 32; i++) {
-            prkey[i] = keyx->mpi[31 - i];
-        }
-        evpkey = EVP_PKEY_new_raw_private_key(nid, NULL, prkey.data(), keyx->len);
+        rnp::secure_bytes prkey(keyx->data(), keyx->data() + keyx->size());
+        std::reverse(prkey.begin(), prkey.end());
+        evpkey = EVP_PKEY_new_raw_private_key(nid, NULL, prkey.data(), prkey.size());
     } else {
-        if (keyx->len > 32) {
+        if (keyx->size() > 32) {
             RNP_LOG("Invalid Ed25519 secret key");
             return nullptr;
         }
-        /* keyx->len may be smaller then 32 as high byte is random and could become 0 */
+        /* keyx->size() may be smaller then 32 as high byte is random and could become 0 */
         rnp::secure_array<uint8_t, 32> prkey{};
-        memcpy(prkey.data() + 32 - keyx->len, keyx->mpi, keyx->len);
+        memcpy(prkey.data() + 32 - keyx->size(), keyx->data(), keyx->size());
         evpkey = EVP_PKEY_new_raw_private_key(nid, NULL, prkey.data(), 32);
     }
     if (!evpkey) {
@@ -227,7 +226,8 @@ build_params(const mpi &p, const mpi *x, const char *curve)
     }
     rnp::bn bx(x);
     if (!OSSL_PARAM_BLD_push_utf8_string(bld.get(), OSSL_PKEY_PARAM_GROUP_NAME, curve, 0) ||
-        !OSSL_PARAM_BLD_push_octet_string(bld.get(), OSSL_PKEY_PARAM_PUB_KEY, p.mpi, p.len) ||
+        !OSSL_PARAM_BLD_push_octet_string(
+          bld.get(), OSSL_PKEY_PARAM_PUB_KEY, p.data(), p.size()) ||
         (x && !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_PRIV_KEY, bx.get()))) {
         return nullptr; // LCOV_EXCL_LINE
     }
@@ -309,7 +309,7 @@ load_key(const mpi &keyp, const mpi *keyx, pgp_curve_t curve)
         return nullptr;
         /* LCOV_EXCL_END */
     }
-    if (EC_POINT_oct2point(group, p.get(), keyp.mpi, keyp.len, NULL) <= 0) {
+    if (EC_POINT_oct2point(group, p.get(), keyp.data(), keyp.size(), NULL) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to decode point: %lu", ERR_peek_last_error());
         return nullptr;
@@ -361,10 +361,10 @@ validate_key(const Key &key, bool secret)
     if (key.curve == PGP_CURVE_25519) {
         /* No key check implementation for x25519 in the OpenSSL yet, so just basic size checks
          */
-        if ((key.p.bytes() != 33) || (key.p.mpi[0] != 0x40)) {
+        if ((key.p.size() != 33) || (key.p[0] != 0x40)) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
-        if (secret && key.x.bytes() != 32) {
+        if (secret && key.x.size() != 32) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
         return RNP_SUCCESS;
@@ -398,24 +398,24 @@ write_pubkey(const rnp::ossl::evp::PKey &pkey, mpi &mpi, pgp_curve_t curve)
 {
     if (is_raw_key(curve)) {
         /* EdDSA and X25519 keys are saved in a different way */
-        mpi.len = sizeof(mpi.mpi) - 1;
-        if (EVP_PKEY_get_raw_public_key(pkey.get(), &mpi.mpi[1], &mpi.len) <= 0) {
+        mpi.resize(33);
+        size_t mlen = mpi.size() - 1;
+        if (EVP_PKEY_get_raw_public_key(pkey.get(), &mpi[1], &mlen) <= 0) {
             /* LCOV_EXCL_START */
             RNP_LOG("Failed get raw public key: %lu", ERR_peek_last_error());
             return false;
             /* LCOV_EXCL_END */
         }
-        assert(mpi.len == 32);
-        mpi.mpi[0] = 0x40;
-        mpi.len++;
+        assert(mlen == 32);
+        mpi[0] = 0x40;
         return true;
     }
-#if defined(CRYPTO_BACKEND_OPENSSL3)
     auto ec_desc = Curve::get(curve);
     if (!ec_desc) {
         return false;
     }
-    size_t  flen = ec_desc->bytes();
+    size_t flen = ec_desc->bytes();
+#if defined(CRYPTO_BACKEND_OPENSSL3)
     rnp::bn qx, qy;
     /* OpenSSL before 3.0.9 by default uses compressed point for OSSL_PKEY_PARAM_PUB_KEY so use
      * this approach */
@@ -427,10 +427,9 @@ write_pubkey(const rnp::ossl::evp::PKey &pkey, mpi &mpi, pgp_curve_t curve)
     size_t xlen = qx.bytes();
     size_t ylen = qy.bytes();
     assert((xlen <= flen) && (ylen <= flen));
-    memset(mpi.mpi, 0, sizeof(mpi.mpi));
-    mpi.mpi[0] = 0x04;
-    mpi.len = 2 * flen + 1;
-    return qx.bin(&mpi.mpi[1 + flen - xlen]) && qy.bin(&mpi.mpi[1 + 2 * flen - ylen]);
+    mpi.resize(2 * flen + 1);
+    mpi[0] = 0x04;
+    return qx.bin(&mpi[1 + flen - xlen]) && qy.bin(&mpi[1 + 2 * flen - ylen]);
 #else
     auto ec = EVP_PKEY_get0_EC_KEY(pkey.get());
     if (!ec) {
@@ -447,12 +446,14 @@ write_pubkey(const rnp::ossl::evp::PKey &pkey, mpi &mpi, pgp_curve_t curve)
         /* LCOV_EXCL_END */
     }
     /* call below adds leading zeroes if needed */
-    mpi.len = EC_POINT_point2oct(
-      EC_KEY_get0_group(ec), p, POINT_CONVERSION_UNCOMPRESSED, mpi.mpi, sizeof(mpi.mpi), NULL);
-    if (!mpi.len) {
+    mpi.resize(2 * flen + 1);
+    size_t mlen = EC_POINT_point2oct(
+      EC_KEY_get0_group(ec), p, POINT_CONVERSION_UNCOMPRESSED, mpi.data(), mpi.size(), NULL);
+    if (!mlen) {
         RNP_LOG("Failed to encode public key: %lu", ERR_peek_last_error()); // LCOV_EXCL_LINE
     }
-    return mpi.len;
+    mpi.resize(mlen);
+    return true;
 #endif
 }
 
