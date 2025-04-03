@@ -30,7 +30,7 @@
 #include <rnp/rnp_def.h>
 #include <repgp/repgp_def.h>
 #include "crypto/rng.h"
-#include "crypto/mpi.h"
+#include "crypto/mpi.hpp"
 #include "crypto/mem.h"
 #include "utils.h"
 #include <vector>

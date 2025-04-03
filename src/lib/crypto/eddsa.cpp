@@ -43,10 +43,10 @@ load_public_key(rnp::botan::Pubkey &pubkey, const ec::Key &keydata)
     /*
      * See draft-ietf-openpgp-rfc4880bis-01 section 13.3
      */
-    if ((keydata.p.bytes() != 33) || (keydata.p.mpi[0] != 0x40)) {
+    if ((keydata.p.size() != 33) || (keydata.p[0] != 0x40)) {
         return false;
     }
-    if (botan_pubkey_load_ed25519(&pubkey.get(), keydata.p.mpi + 1)) {
+    if (botan_pubkey_load_ed25519(&pubkey.get(), &keydata.p[1])) {
         return false;
     }
     return true;
@@ -58,12 +58,12 @@ load_secret_key(rnp::botan::Privkey &seckey, const ec::Key &keydata)
     if (keydata.curve != PGP_CURVE_ED25519) {
         return false;
     }
-    size_t sz = keydata.x.bytes();
+    size_t sz = keydata.x.size();
     if (!sz || (sz > 32)) {
         return false;
     }
     uint8_t keybuf[32] = {0};
-    keydata.x.to_mem(keybuf + 32 - sz);
+    keydata.x.copy(keybuf + 32 - sz);
     if (botan_privkey_load_ed25519(&seckey.get(), keybuf)) {
         return false;
     }
@@ -106,10 +106,10 @@ generate(rnp::RNG &rng, ec::Key &key)
 
     // First 32 bytes of key_bits are the EdDSA seed (private key)
     // Second 32 bytes are the EdDSA public key
-    key.x.from_mem(key_bits, 32);
+    key.x.assign(key_bits, 32);
     // insert the required 0x40 prefix on the public key
     key_bits[31] = 0x40;
-    key.p.from_mem(key_bits + 31, 33);
+    key.p.assign(key_bits + 31, 33);
     key.curve = PGP_CURVE_ED25519;
     return RNP_SUCCESS;
 }
@@ -118,7 +118,7 @@ rnp_result_t
 verify(const ec::Signature &sig, const rnp::secure_bytes &hash, const ec::Key &key)
 {
     // Unexpected size for Ed25519 signature
-    if ((sig.r.bytes() > 32) || (sig.s.bytes() > 32)) {
+    if ((sig.r.size() > 32) || (sig.s.size() > 32)) {
         return RNP_ERROR_SIGNATURE_INVALID;
     }
 
@@ -134,8 +134,8 @@ verify(const ec::Signature &sig, const rnp::secure_bytes &hash, const ec::Key &k
     }
 
     uint8_t bn_buf[64] = {0};
-    sig.r.to_mem(bn_buf + 32 - sig.r.bytes());
-    sig.s.to_mem(bn_buf + 64 - sig.s.bytes());
+    sig.r.copy(bn_buf + 32 - sig.r.size());
+    sig.s.copy(bn_buf + 64 - sig.s.size());
 
     if (botan_pk_op_verify_finish(verify_op.get(), bn_buf, 64)) {
         return RNP_ERROR_SIGNATURE_INVALID;
@@ -164,8 +164,8 @@ sign(rnp::RNG &rng, ec::Signature &sig, const rnp::secure_bytes &hash, const ec:
     }
     // Unexpected size...
     assert(sig_size == 64);
-    sig.r.from_mem(bn_buf, 32);
-    sig.s.from_mem(bn_buf + 32, 32);
+    sig.r.assign(bn_buf, 32);
+    sig.s.assign(bn_buf + 32, 32);
     return RNP_SUCCESS;
 }
 } // namespace eddsa

@@ -369,7 +369,8 @@ bool
 hex2mpi(pgp::mpi *val, const char *hex)
 {
     auto hexbin = rnp::hex_to_bin(hex);
-    return val->from_mem(hexbin.data(), hexbin.size());
+    val->assign(hexbin.data(), hexbin.size());
+    return true;
 }
 
 bool
@@ -397,8 +398,7 @@ test_ffi_init(rnp_ffi_t *ffi)
 bool
 mpi_empty(const pgp::mpi &val)
 {
-    pgp::mpi zero{};
-    return (val.len == 0) && !memcmp(val.mpi, zero.mpi, PGP_MPINT_SIZE);
+    return val.size() == 0;
 }
 
 bool

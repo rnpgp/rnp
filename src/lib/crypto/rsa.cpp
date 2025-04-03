@@ -95,14 +95,16 @@ Key::encrypt_pkcs1(rnp::RNG &rng, Encrypted &out, const rnp::secure_bytes &in) c
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    out.m.len = PGP_MPINT_SIZE;
+    out.m.resize(n.size());
+    size_t                  mlen = out.m.size();
     rnp::botan::op::Encrypt enc_op;
     if (botan_pk_op_encrypt_create(&enc_op.get(), rsa_key.get(), "PKCS1v15", 0) ||
         botan_pk_op_encrypt(
-          enc_op.get(), rng.handle(), out.m.mpi, &out.m.len, in.data(), in.size())) {
-        out.m.len = 0;
+          enc_op.get(), rng.handle(), out.m.data(), &mlen, in.data(), in.size())) {
+        out.m.resize(0);
         return RNP_ERROR_GENERIC;
     }
+    out.m.resize(mlen);
     return RNP_SUCCESS;
 }
 
@@ -124,7 +126,7 @@ Key::verify_pkcs1(const Signature &        sig,
     rnp::botan::op::Verify verify_op;
     if (botan_pk_op_verify_create(&verify_op.get(), rsa_key.get(), pad, 0) ||
         botan_pk_op_verify_update(verify_op.get(), hash.data(), hash.size()) ||
-        botan_pk_op_verify_finish(verify_op.get(), sig.s.mpi, sig.s.len)) {
+        botan_pk_op_verify_finish(verify_op.get(), sig.s.data(), sig.s.size())) {
         return RNP_ERROR_SIGNATURE_INVALID;
     }
     return RNP_SUCCESS;
@@ -136,7 +138,7 @@ Key::sign_pkcs1(rnp::RNG &               rng,
                 pgp_hash_alg_t           hash_alg,
                 const rnp::secure_bytes &hash) const noexcept
 {
-    if (!q.bytes()) {
+    if (!q.size()) {
         RNP_LOG("private key not set");
         return RNP_ERROR_GENERIC;
     }
@@ -151,21 +153,23 @@ Key::sign_pkcs1(rnp::RNG &               rng,
     snprintf(
       pad, sizeof(pad), "EMSA-PKCS1-v1_5(Raw,%s)", rnp::Hash_Botan::name_backend(hash_alg));
 
-    sig.s.len = PGP_MPINT_SIZE;
+    sig.s.resize(n.size());
+    size_t               slen = sig.s.size();
     rnp::botan::op::Sign sign_op;
     if (botan_pk_op_sign_create(&sign_op.get(), rsa_key.get(), pad, 0) ||
         botan_pk_op_sign_update(sign_op.get(), hash.data(), hash.size()) ||
-        botan_pk_op_sign_finish(sign_op.get(), rng.handle(), sig.s.mpi, &sig.s.len)) {
-        sig.s.len = 0;
+        botan_pk_op_sign_finish(sign_op.get(), rng.handle(), sig.s.data(), &slen)) {
+        sig.s.resize(0);
         return RNP_ERROR_GENERIC;
     }
+    sig.s.resize(slen);
     return RNP_SUCCESS;
 }
 
 rnp_result_t
 Key::decrypt_pkcs1(rnp::RNG &rng, rnp::secure_bytes &out, const Encrypted &in) const noexcept
 {
-    if (!q.bytes()) {
+    if (!q.size()) {
         RNP_LOG("private key not set");
         return RNP_ERROR_GENERIC;
     }
@@ -182,13 +186,13 @@ Key::decrypt_pkcs1(rnp::RNG &rng, rnp::secure_bytes &out, const Encrypted &in) c
     }
     /* Skip trailing zeroes if any as Botan3 doesn't like m.len > n.len */
     size_t skip = 0;
-    while ((in.m.len - skip > e.len) && !in.m.mpi[skip]) {
+    while ((in.m.size() - skip > e.size()) && !in.m[skip]) {
         skip++;
     }
-    out.resize(n.len);
+    out.resize(n.size());
     size_t out_len = out.size();
     if (botan_pk_op_decrypt(
-          decrypt_op.get(), out.data(), &out_len, in.m.mpi + skip, in.m.len - skip)) {
+          decrypt_op.get(), out.data(), &out_len, in.m.data() + skip, in.m.size() - skip)) {
         out.resize(0);
         return RNP_ERROR_GENERIC;
     }

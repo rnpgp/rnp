@@ -364,12 +364,14 @@ Key::encrypt_pkcs1(rnp::RNG &rng, Encrypted &out, const rnp::secure_bytes &in) c
     if (!setup_context(ctx)) {
         return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
-    out.m.len = PGP_MPINT_SIZE;
-    if (EVP_PKEY_encrypt(ctx.get(), out.m.mpi, &out.m.len, in.data(), in.size()) <= 0) {
+    out.m.resize(n.size());
+    size_t mlen = out.m.size();
+    if (EVP_PKEY_encrypt(ctx.get(), out.m.data(), &mlen, in.data(), in.size()) <= 0) {
         RNP_LOG("Encryption failed: %lu", ERR_peek_last_error());
-        out.m.len = 0;
+        out.m.resize(0);
         return RNP_ERROR_GENERIC;
     }
+    out.m.resize(mlen);
     return RNP_SUCCESS;
 }
 
@@ -404,13 +406,13 @@ Key::verify_pkcs1(const Signature &        sig,
         hsize = hash_enc.size();
     }
     int res = 0;
-    if (sig.s.len < n.len) {
+    if (sig.s.size() < n.size()) {
         /* OpenSSL doesn't like signatures smaller then N */
-        std::vector<uint8_t> sn(n.len - sig.s.len, 0);
-        sn.insert(sn.end(), sig.s.mpi, sig.s.mpi + sig.s.len);
+        std::vector<uint8_t> sn(n.size() - sig.s.size(), 0);
+        sn.insert(sn.end(), sig.s.data(), sig.s.data() + sig.s.size());
         res = EVP_PKEY_verify(ctx.get(), sn.data(), sn.size(), hptr, hsize);
     } else {
-        res = EVP_PKEY_verify(ctx.get(), sig.s.mpi, sig.s.len, hptr, hsize);
+        res = EVP_PKEY_verify(ctx.get(), sig.s.data(), sig.s.size(), hptr, hsize);
     }
     if (res <= 0) {
         RNP_LOG("RSA verification failure: %s", rnp::ossl::latest_err());
@@ -425,7 +427,7 @@ Key::sign_pkcs1(rnp::RNG &               rng,
                 pgp_hash_alg_t           hash_alg,
                 const rnp::secure_bytes &hash) const noexcept
 {
-    if (!q.bytes()) {
+    if (!q.size()) {
         /* LCOV_EXCL_START */
         RNP_LOG("private key not set");
         return RNP_ERROR_GENERIC;
@@ -455,11 +457,12 @@ Key::sign_pkcs1(rnp::RNG &               rng,
         hptr = hash_enc.data();
         hsize = hash_enc.size();
     }
-    sig.s.len = PGP_MPINT_SIZE;
-    if (EVP_PKEY_sign(ctx.get(), sig.s.mpi, &sig.s.len, hptr, hsize) <= 0) {
+    sig.s.resize(n.size());
+    size_t slen = sig.s.size();
+    if (EVP_PKEY_sign(ctx.get(), sig.s.data(), &slen, hptr, hsize) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Signing failed: %lu", ERR_peek_last_error());
-        sig.s.len = 0;
+        sig.s.resize(0);
         return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
@@ -469,7 +472,7 @@ Key::sign_pkcs1(rnp::RNG &               rng,
 rnp_result_t
 Key::decrypt_pkcs1(rnp::RNG &rng, rnp::secure_bytes &out, const Encrypted &in) const noexcept
 {
-    if (!q.bytes()) {
+    if (!q.size()) {
         /* LCOV_EXCL_START */
         RNP_LOG("private key not set");
         return RNP_ERROR_GENERIC;
@@ -488,9 +491,9 @@ Key::decrypt_pkcs1(rnp::RNG &rng, rnp::secure_bytes &out, const Encrypted &in) c
     if (!setup_context(ctx)) {
         return RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
     }
-    out.resize(n.len);
+    out.resize(n.size());
     size_t out_len = out.size();
-    if (EVP_PKEY_decrypt(ctx.get(), out.data(), &out_len, in.m.mpi, in.m.len) <= 0) {
+    if (EVP_PKEY_decrypt(ctx.get(), out.data(), &out_len, in.m.data(), in.m.size()) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Encryption failed: %lu", ERR_peek_last_error());
         out.resize(0);
