@@ -593,12 +593,12 @@ pgp_packet_body_t::get(pgp::mpi &val) noexcept
         RNP_LOG("0 mpi");
         return false;
     }
-    if (!get(val.mpi, len)) {
+    val.resize(len);
+    if (!get(val.data(), len)) {
         RNP_LOG("failed to read mpi body");
         return false;
     }
     /* check the mpi bit count */
-    val.len = len;
     size_t mbits = val.bits();
     if (mbits != bits) {
         RNP_LOG(
@@ -746,17 +746,17 @@ pgp_packet_body_t::add(const pgp::KeyID &val)
 void
 pgp_packet_body_t::add(const pgp::mpi &val)
 {
-    if (!val.len) {
+    if (!val.size()) {
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
-    unsigned idx = 0;
-    while ((idx < val.len - 1) && (!val.mpi[idx])) {
+    size_t idx = 0;
+    while ((idx < val.size() - 1) && (!val[idx])) {
         idx++;
     }
 
-    unsigned bits = (val.len - idx - 1) << 3;
-    unsigned hibyte = val.mpi[idx];
+    size_t  bits = (val.size() - idx - 1) << 3;
+    uint8_t hibyte = val[idx];
     while (hibyte) {
         bits++;
         hibyte = hibyte >> 1;
@@ -764,7 +764,7 @@ pgp_packet_body_t::add(const pgp::mpi &val)
 
     uint8_t hdr[2] = {(uint8_t)(bits >> 8), (uint8_t)(bits & 0xff)};
     add(hdr, 2);
-    add(val.mpi + idx, val.len - idx);
+    add(val.data() + idx, val.size() - idx);
 }
 
 void

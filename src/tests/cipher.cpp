@@ -128,7 +128,7 @@ TEST_F(rnp_tests, pkcs1_rsa_test_success)
     pgp::EGEncMaterial  enc2;
     assert_rnp_failure(seckey.material->encrypt(global_ctx, enc2, ptext));
     assert_rnp_success(seckey.material->encrypt(global_ctx, enc, ptext));
-    assert_int_equal(enc.enc.m.len, 1024 / 8);
+    assert_int_equal(enc.enc.m.size(), 1024 / 8);
 
     assert_rnp_failure(seckey.material->decrypt(global_ctx, dec, enc2));
     assert_true(dec.empty());
@@ -154,7 +154,7 @@ TEST_F(rnp_tests, pkcs1_rsa_test_success)
     assert_rnp_failure(seckey.material->verify(global_ctx, sig, hash_cut));
 
     // modify sig
-    sig.sig.s.mpi[0] ^= 0xff;
+    sig.sig.s[0] ^= 0xff;
     assert_rnp_failure(seckey.material->verify(global_ctx, sig, hash));
 }
 
@@ -219,10 +219,10 @@ TEST_F(rnp_tests, rnp_test_x25519)
 
     /* check for length and correctly tweaked bits */
     auto &ec = dynamic_cast<pgp::ECKeyMaterial &>(*seckey.material);
-    assert_int_equal(ec.x().len, 32);
-    assert_int_equal(ec.x().mpi[31] & 7, 0);
-    assert_int_equal(ec.x().mpi[0] & 128, 0);
-    assert_int_equal(ec.x().mpi[0] & 64, 64);
+    assert_int_equal(ec.x().size(), 32);
+    assert_int_equal(ec.x()[31] & 7, 0);
+    assert_int_equal(ec.x()[0] & 128, 0);
+    assert_int_equal(ec.x()[0] & 64, 64);
     /* encrypt */
     pgp::Fingerprint     fp(seckey);
     rnp::secure_bytes    in({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
@@ -232,8 +232,8 @@ TEST_F(rnp_tests, rnp_test_x25519)
     assert_rnp_failure(seckey.material->encrypt(global_ctx, enc2, in));
     assert_rnp_success(seckey.material->encrypt(global_ctx, enc, in));
     assert_true(enc.enc.m.size() > 16);
-    assert_int_equal(enc.enc.p.mpi[0], 0x40);
-    assert_int_equal(enc.enc.p.len, 33);
+    assert_int_equal(enc.enc.p[0], 0x40);
+    assert_int_equal(enc.enc.p.size(), 33);
     /* decrypt */
     rnp::secure_bytes out;
     assert_rnp_failure(seckey.material->decrypt(global_ctx, out, enc2));
@@ -242,14 +242,14 @@ TEST_F(rnp_tests, rnp_test_x25519)
     assert_int_equal(out.size(), 16);
     assert_int_equal(memcmp(in.data(), out.data(), 16), 0);
     /* negative cases */
-    enc.enc.p.mpi[16] ^= 0xff;
+    enc.enc.p[16] ^= 0xff;
     assert_rnp_failure(seckey.material->decrypt(global_ctx, out, enc));
 
-    enc.enc.p.mpi[16] ^= 0xff;
-    enc.enc.p.mpi[0] = 0x04;
+    enc.enc.p[16] ^= 0xff;
+    enc.enc.p[0] = 0x04;
     assert_rnp_failure(seckey.material->decrypt(global_ctx, out, enc));
 
-    enc.enc.p.mpi[0] = 0x40;
+    enc.enc.p[0] = 0x40;
     uint8_t back = enc.enc.m.back();
     enc.enc.m.pop_back();
     assert_rnp_failure(seckey.material->decrypt(global_ctx, out, enc));
@@ -269,7 +269,7 @@ static void
 elgamal_roundtrip(const pgp::eg::Key &key, rnp::RNG &rng)
 {
     rnp::secure_bytes  in_b({0x01, 0x02, 0x03, 0x04, 0x17});
-    pgp::eg::Encrypted enc = {{{0}}};
+    pgp::eg::Encrypted enc = {{}};
     rnp::secure_bytes  res;
 
     assert_rnp_success(key.encrypt_pkcs1(rng, enc, in_b));
@@ -884,11 +884,11 @@ TEST_F(rnp_tests, test_validate_key_material)
     key.material->validate(global_ctx);
     assert_true(key.material->valid());
     pgp::RSATestKeyMaterial rkey(dynamic_cast<pgp::RSAKeyMaterial &>(*key.material));
-    rkey.rsa().n.mpi[rkey.rsa().n.len - 1] &= ~1;
+    rkey.rsa().n[rkey.rsa().n.size() - 1] &= ~1;
     rkey.validate(global_ctx);
     assert_false(rkey.valid());
-    rkey.rsa().n.mpi[rkey.rsa().n.len - 1] |= 1;
-    rkey.rsa().e.mpi[rkey.rsa().e.len - 1] &= ~1;
+    rkey.rsa().n[rkey.rsa().n.size() - 1] |= 1;
+    rkey.rsa().e[rkey.rsa().e.size() - 1] &= ~1;
     rkey.validate(global_ctx);
     assert_false(rkey.valid());
     key = pgp_key_pkt_t();
@@ -897,11 +897,11 @@ TEST_F(rnp_tests, test_validate_key_material)
     key.material->validate(global_ctx);
     assert_true(key.material->valid());
     rkey = pgp::RSATestKeyMaterial(dynamic_cast<pgp::RSAKeyMaterial &>(*key.material));
-    rkey.rsa().n.mpi[rkey.rsa().n.len - 1] &= ~1;
+    rkey.rsa().n[rkey.rsa().n.size() - 1] &= ~1;
     rkey.validate(global_ctx);
     assert_false(rkey.valid());
-    rkey.rsa().n.mpi[rkey.rsa().n.len - 1] |= 1;
-    rkey.rsa().e.mpi[rkey.rsa().e.len - 1] &= ~1;
+    rkey.rsa().n[rkey.rsa().n.size() - 1] |= 1;
+    rkey.rsa().e[rkey.rsa().e.size() - 1] &= ~1;
     rkey.validate(global_ctx);
     assert_false(rkey.valid());
     key = pgp_key_pkt_t();
@@ -919,18 +919,18 @@ TEST_F(rnp_tests, test_validate_key_material)
     key.material->validate(global_ctx);
     assert_true(key.material->valid());
     rkey = pgp::RSATestKeyMaterial(dynamic_cast<pgp::RSAKeyMaterial &>(*key.material));
-    rkey.rsa().e.mpi[rkey.rsa().e.len - 1] += 1;
+    rkey.rsa().e[rkey.rsa().e.size() - 1] += 1;
     rkey.validate(global_ctx);
     assert_false(rkey.valid());
-    rkey.rsa().e.mpi[rkey.rsa().e.len - 1] -= 1;
-    rkey.rsa().p.mpi[rkey.rsa().p.len - 1] += 2;
+    rkey.rsa().e[rkey.rsa().e.size() - 1] -= 1;
+    rkey.rsa().p[rkey.rsa().p.size() - 1] += 2;
     rkey.validate(global_ctx);
     assert_false(rkey.valid());
-    rkey.rsa().p.mpi[rkey.rsa().p.len - 1] -= 2;
-    rkey.rsa().q.mpi[rkey.rsa().q.len - 1] += 2;
+    rkey.rsa().p[rkey.rsa().p.size() - 1] -= 2;
+    rkey.rsa().q[rkey.rsa().q.size() - 1] += 2;
     rkey.validate(global_ctx);
     assert_false(rkey.valid());
-    rkey.rsa().q.mpi[rkey.rsa().q.len - 1] -= 2;
+    rkey.rsa().q[rkey.rsa().q.size() - 1] -= 2;
     rkey.validate(global_ctx);
     assert_true(rkey.valid());
     key = pgp_key_pkt_t();
@@ -941,18 +941,18 @@ TEST_F(rnp_tests, test_validate_key_material)
     key.material->validate(global_ctx);
     assert_true(key.material->valid());
     rkey = pgp::RSATestKeyMaterial(dynamic_cast<pgp::RSAKeyMaterial &>(*key.material));
-    rkey.rsa().e.mpi[rkey.rsa().e.len - 1] += 1;
+    rkey.rsa().e[rkey.rsa().e.size() - 1] += 1;
     rkey.validate(global_ctx);
     assert_false(rkey.valid());
-    rkey.rsa().e.mpi[rkey.rsa().e.len - 1] -= 1;
-    rkey.rsa().p.mpi[rkey.rsa().p.len - 1] += 2;
+    rkey.rsa().e[rkey.rsa().e.size() - 1] -= 1;
+    rkey.rsa().p[rkey.rsa().p.size() - 1] += 2;
     rkey.validate(global_ctx);
     assert_false(rkey.valid());
-    rkey.rsa().p.mpi[rkey.rsa().p.len - 1] -= 2;
-    rkey.rsa().q.mpi[rkey.rsa().q.len - 1] += 2;
+    rkey.rsa().p[rkey.rsa().p.size() - 1] -= 2;
+    rkey.rsa().q[rkey.rsa().q.size() - 1] += 2;
     rkey.validate(global_ctx);
     assert_false(rkey.valid());
-    rkey.rsa().q.mpi[rkey.rsa().q.len - 1] -= 2;
+    rkey.rsa().q[rkey.rsa().q.size() - 1] -= 2;
     rkey.validate(global_ctx);
     assert_true(rkey.valid());
     key = pgp_key_pkt_t();
@@ -960,23 +960,23 @@ TEST_F(rnp_tests, test_validate_key_material)
     /* DSA-ElGamal key */
     assert_true(read_key_pkt(&key, KEYS "dsa-sec.pgp"));
     pgp::DSATestKeyMaterial dkey(dynamic_cast<pgp::DSAKeyMaterial &>(*key.material));
-    dkey.dsa().q.mpi[dkey.dsa().q.len - 1] += 2;
+    dkey.dsa().q[dkey.dsa().q.size() - 1] += 2;
     dkey.validate(global_ctx);
     assert_false(dkey.valid());
-    dkey.dsa().q.mpi[dkey.dsa().q.len - 1] -= 2;
+    dkey.dsa().q[dkey.dsa().q.size() - 1] -= 2;
     assert_rnp_success(decrypt_secret_key(&key, NULL));
     assert_true(key.material->secret());
     key.material->validate(global_ctx);
     assert_true(key.material->valid());
     dkey = pgp::DSATestKeyMaterial(dynamic_cast<pgp::DSAKeyMaterial &>(*key.material));
-    dkey.dsa().y.mpi[dkey.dsa().y.len - 1] += 2;
+    dkey.dsa().y[dkey.dsa().y.size() - 1] += 2;
     dkey.validate(global_ctx);
     assert_false(dkey.valid());
-    dkey.dsa().y.mpi[dkey.dsa().y.len - 1] -= 2;
-    dkey.dsa().p.mpi[dkey.dsa().p.len - 1] += 2;
+    dkey.dsa().y[dkey.dsa().y.size() - 1] -= 2;
+    dkey.dsa().p[dkey.dsa().p.size() - 1] += 2;
     dkey.validate(global_ctx);
     assert_false(dkey.valid());
-    dkey.dsa().p.mpi[dkey.dsa().p.len - 1] -= 2;
+    dkey.dsa().p[dkey.dsa().p.size() - 1] -= 2;
     /* since Botan calculates y from x on key load we do not check x vs y */
     dkey.dsa().x = dkey.dsa().q;
     dkey.validate(global_ctx);
@@ -985,19 +985,19 @@ TEST_F(rnp_tests, test_validate_key_material)
 
     assert_true(read_key_pkt(&key, KEYS "eg-sec.pgp"));
     pgp::EGTestKeyMaterial gkey(dynamic_cast<pgp::EGKeyMaterial &>(*key.material));
-    gkey.eg().p.mpi[gkey.eg().p.len - 1] += 2;
+    gkey.eg().p[gkey.eg().p.size() - 1] += 2;
     gkey.validate(global_ctx);
     assert_false(gkey.valid());
-    gkey.eg().p.mpi[gkey.eg().p.len - 1] -= 2;
+    gkey.eg().p[gkey.eg().p.size() - 1] -= 2;
     assert_rnp_success(decrypt_secret_key(&key, NULL));
     assert_true(key.material->secret());
     gkey = pgp::EGTestKeyMaterial(dynamic_cast<pgp::EGKeyMaterial &>(*key.material));
     gkey.validate(global_ctx);
     assert_true(gkey.valid());
-    gkey.eg().p.mpi[gkey.eg().p.len - 1] += 2;
+    gkey.eg().p[gkey.eg().p.size() - 1] += 2;
     gkey.validate(global_ctx);
     assert_false(gkey.valid());
-    gkey.eg().p.mpi[gkey.eg().p.len - 1] -= 2;
+    gkey.eg().p[gkey.eg().p.size() - 1] -= 2;
     /* since Botan calculates y from x on key load we do not check x vs y */
     gkey.eg().x = gkey.eg().p;
     gkey.validate(global_ctx);
@@ -1024,14 +1024,14 @@ TEST_F(rnp_tests, test_validate_key_material)
     pgp::ECDSATestKeyMaterial ekey(dynamic_cast<pgp::ECDSAKeyMaterial &>(*key.material));
     ekey.validate(global_ctx);
     assert_true(ekey.valid());
-    ekey.ec().p.mpi[0] += 2;
+    ekey.ec().p[0] += 2;
     ekey.validate(global_ctx);
     assert_false(ekey.valid());
-    ekey.ec().p.mpi[0] -= 2;
-    ekey.ec().p.mpi[10] += 2;
+    ekey.ec().p[0] -= 2;
+    ekey.ec().p[10] += 2;
     ekey.validate(global_ctx);
     assert_false(ekey.valid());
-    ekey.ec().p.mpi[10] -= 2;
+    ekey.ec().p[10] -= 2;
     assert_rnp_success(decrypt_secret_key(&key, NULL));
     assert_true(key.material->secret());
     key = pgp_key_pkt_t();
@@ -1041,14 +1041,14 @@ TEST_F(rnp_tests, test_validate_key_material)
     key.material->validate(global_ctx);
     assert_true(key.material->valid());
     pgp::ECDHTestKeyMaterial ehkey(dynamic_cast<pgp::ECDHKeyMaterial &>(*key.material));
-    ehkey.ec().p.mpi[0] += 2;
+    ehkey.ec().p[0] += 2;
     ehkey.validate(global_ctx);
     assert_false(ehkey.valid());
-    ehkey.ec().p.mpi[0] -= 2;
-    ehkey.ec().p.mpi[10] += 2;
+    ehkey.ec().p[0] -= 2;
+    ehkey.ec().p[10] += 2;
     ehkey.validate(global_ctx);
     assert_false(ehkey.valid());
-    ehkey.ec().p.mpi[10] -= 2;
+    ehkey.ec().p[10] -= 2;
     assert_rnp_success(decrypt_secret_key(&key, NULL));
     assert_true(key.material->secret());
     key = pgp_key_pkt_t();
@@ -1058,10 +1058,10 @@ TEST_F(rnp_tests, test_validate_key_material)
     key.material->validate(global_ctx);
     assert_true(key.material->valid());
     pgp::EDDSATestKeyMaterial edkey(dynamic_cast<pgp::EDDSAKeyMaterial &>(*key.material));
-    edkey.ec().p.mpi[0] += 2;
+    edkey.ec().p[0] += 2;
     edkey.validate(global_ctx);
     assert_false(edkey.valid());
-    edkey.ec().p.mpi[0] -= 2;
+    edkey.ec().p[0] -= 2;
     key = pgp_key_pkt_t();
 
     /* x25519 key, same as the previous - botan calculates pub key from the secret one */
@@ -1069,10 +1069,10 @@ TEST_F(rnp_tests, test_validate_key_material)
     key.material->validate(global_ctx);
     assert_true(key.material->valid());
     ehkey = pgp::ECDHTestKeyMaterial(dynamic_cast<pgp::ECDHKeyMaterial &>(*key.material));
-    ehkey.ec().p.mpi[0] += 2;
+    ehkey.ec().p[0] += 2;
     ehkey.validate(global_ctx);
     assert_false(ehkey.valid());
-    ehkey.ec().p.mpi[0] -= 2;
+    ehkey.ec().p[0] -= 2;
     key = pgp_key_pkt_t();
 }
 

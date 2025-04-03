@@ -41,14 +41,16 @@ load_public_key(rnp::botan::Pubkey &pubkey, const ec::Key &keydata)
         RNP_LOG("unknown curve");
         return false;
     }
-    if (!keydata.p.bytes() || (keydata.p.mpi[0] != 0x04)) {
-        RNP_LOG("Failed to load public key: %02x", keydata.p.mpi[0]);
+    if (!keydata.p.size() || (keydata.p[0] != 0x04)) {
+        RNP_LOG("Failed to load public key: %02x", keydata.p[0]);
         return false;
     }
-
     const size_t curve_order = curve->bytes();
-    rnp::bn      px(keydata.p.mpi + 1, curve_order);
-    rnp::bn      py(keydata.p.mpi + 1 + curve_order, curve_order);
+    if (keydata.p.size() != 2 * curve_order + 1) {
+        return false;
+    }
+    rnp::bn px(&keydata.p[1], curve_order);
+    rnp::bn py(&keydata.p[1] + curve_order, curve_order);
 
     if (!px || !py) {
         return false;
@@ -164,10 +166,8 @@ sign(rnp::RNG &               rng,
     }
 
     // Allocate memory and copy results
-    if (!sig.r.from_mem(out_buf.data(), curve_order) ||
-        !sig.s.from_mem(out_buf.data() + curve_order, curve_order)) {
-        return RNP_ERROR_GENERIC;
-    }
+    sig.r.assign(out_buf.data(), curve_order);
+    sig.s.assign(out_buf.data() + curve_order, curve_order);
     return RNP_SUCCESS;
 }
 
@@ -184,8 +184,8 @@ verify(const ec::Signature &    sig,
     }
 
     size_t curve_order = curve->bytes();
-    size_t r_blen = sig.r.bytes();
-    size_t s_blen = sig.s.bytes();
+    size_t r_blen = sig.r.size();
+    size_t s_blen = sig.s.size();
     if ((r_blen > curve_order) || (s_blen > curve_order) ||
         (curve_order > MAX_CURVE_BYTELEN)) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -205,8 +205,8 @@ verify(const ec::Signature &    sig,
 
     std::vector<uint8_t> sign_buf(2 * curve_order, 0);
     // Both can't fail
-    sig.r.to_mem(sign_buf.data() + curve_order - r_blen);
-    sig.s.to_mem(sign_buf.data() + 2 * curve_order - s_blen);
+    sig.r.copy(sign_buf.data() + curve_order - r_blen);
+    sig.s.copy(sign_buf.data() + 2 * curve_order - s_blen);
 
     if (botan_pk_op_verify_finish(verifier.get(), sign_buf.data(), sign_buf.size())) {
         return RNP_ERROR_SIGNATURE_INVALID;

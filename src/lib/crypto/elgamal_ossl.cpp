@@ -118,50 +118,50 @@ static bool
 pkcs1v15_pad(mpi &out, size_t psize, const rnp::secure_bytes &in)
 {
     assert(psize >= in.size() + 11);
-    out.mpi[0] = 0x00;
-    out.mpi[1] = 0x02;
+    out.resize(psize);
+    out[0] = 0x00;
+    out[1] = 0x02;
     size_t rnd = psize - in.size() - 3;
-    out.mpi[2 + rnd] = 0x00;
-    if (RAND_bytes(&out.mpi[2], rnd) != 1) {
+    out[2 + rnd] = 0x00;
+    if (RAND_bytes(&out[2], rnd) != 1) {
         return false;
     }
     for (size_t i = 2; i < 2 + rnd; i++) {
         /* we need non-zero bytes */
         size_t cntr = 16;
-        while (!out.mpi[i] && (cntr--) && (RAND_bytes(&out.mpi[i], 1) == 1)) {
+        while (!out[i] && (cntr--) && (RAND_bytes(&out[i], 1) == 1)) {
         }
-        if (!out.mpi[i]) {
+        if (!out[i]) {
             /* LCOV_EXCL_START */
             RNP_LOG("Something is wrong with RNG.");
             return false;
             /* LCOV_EXCL_END */
         }
     }
-    memcpy(out.mpi + rnd + 3, in.data(), in.size());
-    out.len = psize;
+    memcpy(out.data() + rnd + 3, in.data(), in.size());
     return true;
 }
 
 static bool
 pkcs1v15_unpad(const mpi &in, rnp::secure_bytes &out, bool skip0)
 {
-    if (in.len <= (size_t)(11 - skip0)) {
+    if (in.size() <= (size_t)(11 - skip0)) {
         return false;
     }
-    if (!skip0 && in.mpi[0]) {
+    if (!skip0 && in[0]) {
         return false;
     }
-    if (in.mpi[1 - skip0] != 0x02) {
+    if (in[1 - skip0] != 0x02) {
         return false;
     }
     size_t pad = 2 - skip0;
-    while ((pad < in.len) && in.mpi[pad]) {
+    while ((pad < in.size()) && in[pad]) {
         pad++;
     }
-    if (pad >= in.len) {
+    if (pad >= in.size()) {
         return false;
     }
-    out.assign(in.mpi + pad + 1, in.mpi + in.len);
+    out.assign(in.data() + pad + 1, in.data() + in.size());
     return true;
 }
 
@@ -169,7 +169,7 @@ rnp_result_t
 Key::encrypt_pkcs1(rnp::RNG &rng, Encrypted &out, const rnp::secure_bytes &in) const
 {
     mpi mm{};
-    if (!pkcs1v15_pad(mm, p.len, in)) {
+    if (!pkcs1v15_pad(mm, p.size(), in)) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to add PKCS1 v1.5 padding.");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -250,7 +250,7 @@ Key::encrypt_pkcs1(rnp::RNG &rng, Encrypted &out, const rnp::secure_bytes &in) c
 rnp_result_t
 Key::decrypt_pkcs1(rnp::RNG &rng, rnp::secure_bytes &out, const Encrypted &in) const
 {
-    if (!x.bytes()) {
+    if (!x.size()) {
         RNP_LOG("Secret key not set.");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -306,18 +306,18 @@ Key::decrypt_pkcs1(rnp::RNG &rng, rnp::secure_bytes &out, const Encrypted &in) c
         return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    mpi  mm = {};
+    mpi  mm;
     bool res = m.mpi(mm);
     assert(res);
     if (!res) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     /* unpad, handling skipped leftmost 0 case */
-    if (!pkcs1v15_unpad(mm, out, mm.len == p.len - 1)) {
+    if (!pkcs1v15_unpad(mm, out, mm.size() == p.size() - 1)) {
         RNP_LOG("Unpad failed.");
         return RNP_ERROR_GENERIC;
     }
-    secure_clear(mm.mpi, PGP_MPINT_SIZE);
+    mm.forget();
     return RNP_SUCCESS;
 }
 
