@@ -296,9 +296,11 @@ read_mpi(const sexp_list_t *list, const std::string &name, pgp::mpi &val) noexce
     /* strip leading zero */
     const auto &bytes = data->get_string();
     if ((bytes.size() > 1) && !bytes[0] && (bytes[1] & 0x80)) {
-        return val.from_mem(bytes.data() + 1, bytes.size() - 1);
+        val.assign(bytes.data() + 1, bytes.size() - 1);
+    } else {
+        val.assign(bytes.data(), bytes.size());
     }
-    return val.from_mem(bytes.data(), bytes.size());
+    return true;
 }
 
 static bool
@@ -329,18 +331,18 @@ gnupg_sexp_t::add_mpi(const std::string &name, const pgp::mpi &mpi)
     sub_s_exp->push_back(value_block);
 
     sexp_simple_string_t data;
-    size_t               len = mpi.bytes();
+    size_t               len = mpi.size();
     size_t               idx;
 
-    for (idx = 0; (idx < len) && !mpi.mpi[idx]; idx++)
+    for (idx = 0; (idx < len) && !mpi[idx]; idx++)
         ;
 
     if (idx < len) {
-        if (mpi.mpi[idx] & 0x80) {
+        if (mpi[idx] & 0x80) {
             data.append(0);
-            data.std::basic_string<uint8_t>::append(mpi.mpi + idx, len - idx);
+            data.std::basic_string<uint8_t>::append(mpi.data() + idx, len - idx);
         } else {
-            data.assign(mpi.mpi + idx, mpi.mpi + len);
+            data.assign(mpi.data() + idx, mpi.data() + len);
         }
         value_block->set_string(data);
     }

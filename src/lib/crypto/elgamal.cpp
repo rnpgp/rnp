@@ -46,7 +46,7 @@ static bool
 load_public_key(rnp::botan::Pubkey &pubkey, const Key &key)
 {
     // Check if provided public key byte size is not greater than ELGAMAL_MAX_P_BYTELEN.
-    if (key.p.bytes() > ELGAMAL_MAX_P_BYTELEN) {
+    if (key.p.size() > ELGAMAL_MAX_P_BYTELEN) {
         return false;
     }
 
@@ -64,7 +64,7 @@ static bool
 load_secret_key(rnp::botan::Privkey &privkey, const Key &key)
 {
     // Check if provided secret key byte size is not greater than ELGAMAL_MAX_P_BYTELEN.
-    if (key.p.bytes() > ELGAMAL_MAX_P_BYTELEN) {
+    if (key.p.size() > ELGAMAL_MAX_P_BYTELEN) {
         return false;
     }
 
@@ -82,15 +82,15 @@ bool
 Key::validate(bool secret) const noexcept
 {
     // Check if provided public key byte size is not greater than ELGAMAL_MAX_P_BYTELEN.
-    if (p.bytes() > ELGAMAL_MAX_P_BYTELEN) {
+    if (p.size() > ELGAMAL_MAX_P_BYTELEN) {
         return false;
     }
 
     /* Use custom validation since we added some custom validation, and Botan has slow test for
      * prime for p */
     try {
-        Botan::BigInt bp(p.mpi, p.len);
-        Botan::BigInt bg(g.mpi, g.len);
+        Botan::BigInt bp(p.data(), p.size());
+        Botan::BigInt bg(g.data(), g.size());
 
         /* 1 < g < p */
         if ((bg.cmp_word(1) != 1) || (bg.cmp(bp) != -1)) {
@@ -114,8 +114,8 @@ Key::validate(bool secret) const noexcept
             return true;
         }
         /* check that g ^ x = y (mod p) */
-        Botan::BigInt by(y.mpi, y.len);
-        Botan::BigInt bx(x.mpi, x.len);
+        Botan::BigInt by(y.data(), y.size());
+        Botan::BigInt bx(x.data(), x.size());
         return Botan::power_mod(bg, bx, bp) == by;
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
@@ -138,7 +138,7 @@ Key::encrypt_pkcs1(rnp::RNG &rng, Encrypted &out, const rnp::secure_bytes &in) c
      * Successful call to botan's ElGamal encryption will return output that's
      * always 2*pubkey size.
      */
-    size_t                  p_len = p.bytes() * 2;
+    size_t                  p_len = p.size() * 2;
     std::vector<uint8_t>    enc_buf(p_len, 0);
     rnp::botan::op::Encrypt op_ctx;
 
@@ -161,25 +161,23 @@ Key::encrypt_pkcs1(rnp::RNG &rng, Encrypted &out, const rnp::secure_bytes &in) c
      * memory corruption)
      */
     p_len /= 2;
-    if (!out.g.from_mem(enc_buf.data(), p_len) ||
-        !out.m.from_mem(enc_buf.data() + p_len, p_len)) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
+    out.g.assign(enc_buf.data(), p_len);
+    out.m.assign(enc_buf.data() + p_len, p_len);
     return RNP_SUCCESS;
 }
 
 rnp_result_t
 Key::decrypt_pkcs1(rnp::RNG &rng, rnp::secure_bytes &out, const Encrypted &in) const
 {
-    if (!x.bytes()) {
+    if (!x.size()) {
         RNP_LOG("empty secret key");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     // Check if provided public key byte size is not greater than ELGAMAL_MAX_P_BYTELEN.
-    size_t p_len = p.bytes();
-    size_t g_len = in.g.bytes();
-    size_t m_len = in.m.bytes();
+    size_t p_len = p.size();
+    size_t g_len = in.g.size();
+    size_t m_len = in.m.size();
 
     if ((p_len > ELGAMAL_MAX_P_BYTELEN) || (g_len > p_len) || (m_len > p_len)) {
         RNP_LOG("Unsupported/wrong public key or encrypted data");
@@ -196,8 +194,8 @@ Key::decrypt_pkcs1(rnp::RNG &rng, rnp::secure_bytes &out, const Encrypted &in) c
      * be equal to twice the byte size of public key, potentially prepended with zeros.
      */
     std::vector<uint8_t> enc_buf(2 * p_len, 0);
-    memcpy(&enc_buf[p_len - g_len], in.g.mpi, g_len);
-    memcpy(&enc_buf[2 * p_len - m_len], in.m.mpi, m_len);
+    in.g.copy(&enc_buf[p_len - g_len]);
+    in.m.copy(&enc_buf[2 * p_len - m_len]);
 
     out.resize(p_len);
     size_t                  out_len = out.size();

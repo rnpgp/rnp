@@ -69,20 +69,20 @@ Key::generate_x25519(rnp::RNG &rng)
     if (botan_privkey_x25519_get_privkey(pr_key.get(), keyle.data())) {
         return RNP_ERROR_KEY_GENERATION;
     }
+    x.resize(32);
     for (int i = 0; i < 32; i++) {
-        x.mpi[31 - i] = keyle[i];
+        x[31 - i] = keyle[i];
     }
-    x.len = 32;
     /* botan doesn't tweak secret key bits, so we should do that here */
     if (!x25519_tweak_bits(*this)) {
         return RNP_ERROR_KEY_GENERATION;
     }
 
-    if (botan_pubkey_x25519_get_pubkey(pu_key.get(), &p.mpi[1])) {
+    p.resize(33);
+    if (botan_pubkey_x25519_get_pubkey(pu_key.get(), &p[1])) {
         return RNP_ERROR_KEY_GENERATION;
     }
-    p.len = 33;
-    p.mpi[0] = 0x40;
+    p[0] = 0x40;
     return RNP_SUCCESS;
 }
 
@@ -148,11 +148,10 @@ Key::generate(rnp::RNG &rng, const pgp_pubkey_alg_t alg_id, const pgp_curve_t cu
      * Note: Generated pk/sk may not always have exact number of bytes
      *       which is important when converting to octet-string
      */
-    memset(p.mpi, 0, sizeof(p.mpi));
-    p.mpi[0] = 0x04;
-    px.bin(&p.mpi[1 + field_size - px.bytes()]);
-    py.bin(&p.mpi[1 + 2 * field_size - py.bytes()]);
-    p.len = 2 * field_size + 1;
+    p.resize(2 * field_size + 1);
+    p[0] = 0x04;
+    px.bin(&p[1 + field_size - px.bytes()]);
+    py.bin(&p[1 + 2 * field_size - py.bytes()]);
     /* secret key value */
     bx.mpi(x);
     return RNP_SUCCESS;
