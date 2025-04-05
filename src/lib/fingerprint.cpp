@@ -60,8 +60,9 @@ Fingerprint::Fingerprint(const pgp_key_pkt_t &key)
         hash->add(rsa.e());
         fp_ = hash->finish();
         /* keyid just low bytes of RSA n */
-        size_t n = rsa.n().bytes();
-        std::memcpy(keyid_.data(), rsa.n().mpi + n - keyid_.size(), keyid_.size());
+        size_t n = rsa.n().size();
+        size_t sz = std::min(rsa.n().size(), keyid_.size());
+        std::memcpy(keyid_.data(), rsa.n().data() + n - sz, sz);
         return;
     }
     case PGP_V4:

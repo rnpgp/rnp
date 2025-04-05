@@ -43,10 +43,10 @@ rnp_result_t
 validate_key(rnp::RNG &rng, const ec::Key &key, bool secret)
 {
     /* Not implemented in the OpenSSL, so just do basic size checks. */
-    if ((key.p.bytes() != 33) || (key.p.mpi[0] != 0x40)) {
+    if ((key.p.size() != 33) || (key.p[0] != 0x40)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (secret && key.x.bytes() > 32) {
+    if (secret && key.x.size() > 32) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     return RNP_SUCCESS;
@@ -65,11 +65,11 @@ generate(rnp::RNG &rng, ec::Key &key)
 rnp_result_t
 verify(const ec::Signature &sig, const rnp::secure_bytes &hash, const ec::Key &key)
 {
-    if ((sig.r.bytes() > 32) || (sig.s.bytes() > 32)) {
+    if ((sig.r.size() > 32) || (sig.s.size() > 32)) {
         RNP_LOG("Invalid EdDSA signature.");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if ((key.p.bytes() != 33) || (key.p.mpi[0] != 0x40)) {
+    if ((key.p.size() != 33) || (key.p[0] != 0x40)) {
         RNP_LOG("Invalid EdDSA public key.");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -92,11 +92,11 @@ verify(const ec::Signature &sig, const rnp::secure_bytes &hash, const ec::Key &k
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
         return RNP_ERROR_SIGNATURE_INVALID;
     }
-    uint8_t sigbuf[64] = {0};
-    sig.r.to_mem(&sigbuf[32 - sig.r.bytes()]);
-    sig.s.to_mem(&sigbuf[64 - sig.s.bytes()]);
+    std::array<uint8_t, 64> sigbuf{};
+    sig.r.copy(&sigbuf[32 - sig.r.size()]);
+    sig.s.copy(&sigbuf[64 - sig.s.size()]);
 
-    if (EVP_DigestVerify(md.get(), sigbuf, 64, hash.data(), hash.size()) < 1) {
+    if (EVP_DigestVerify(md.get(), sigbuf.data(), 64, hash.data(), hash.size()) < 1) {
         return RNP_ERROR_SIGNATURE_INVALID;
     }
     return RNP_SUCCESS;
@@ -105,7 +105,7 @@ verify(const ec::Signature &sig, const rnp::secure_bytes &hash, const ec::Key &k
 rnp_result_t
 sign(rnp::RNG &rng, ec::Signature &sig, const rnp::secure_bytes &hash, const ec::Key &key)
 {
-    if (!key.x.bytes()) {
+    if (!key.x.size()) {
         RNP_LOG("private key not set");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -127,18 +127,15 @@ sign(rnp::RNG &rng, ec::Signature &sig, const rnp::secure_bytes &hash, const ec:
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
     }
-    static_assert((sizeof(sig.r.mpi) == PGP_MPINT_SIZE) && (PGP_MPINT_SIZE >= 64),
-                  "invalid mpi type/size");
-    sig.r.len = PGP_MPINT_SIZE;
-    if (EVP_DigestSign(md.get(), sig.r.mpi, &sig.r.len, hash.data(), hash.size()) <= 0) {
+    std::array<uint8_t, 64> sigbuf{};
+    size_t                  siglen = sigbuf.size();
+    if (EVP_DigestSign(md.get(), sigbuf.data(), &siglen, hash.data(), hash.size()) <= 0) {
         RNP_LOG("Signing failed: %lu", ERR_peek_last_error());
-        sig.r.len = 0;
         return RNP_ERROR_GENERIC;
     }
-    assert(sig.r.len == 64);
-    sig.r.len = 32;
-    sig.s.len = 32;
-    memcpy(sig.s.mpi, &sig.r.mpi[32], 32);
+    assert(siglen == 64);
+    sig.r.assign(sigbuf.data(), 32);
+    sig.s.assign(sigbuf.data() + 32, 32);
     return RNP_SUCCESS;
 }
 } // namespace eddsa

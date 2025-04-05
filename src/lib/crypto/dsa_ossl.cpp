@@ -51,9 +51,7 @@ decode_sig(const uint8_t *data, size_t len, Signature &sig)
     }
     rnp::bn r, s;
     DSA_SIG_get0(dsig.get(), r.cptr(), s.cptr());
-    r.mpi(sig.r);
-    s.mpi(sig.s);
-    return true;
+    return r.mpi(sig.r) && s.mpi(sig.s);
 }
 
 static bool
@@ -186,7 +184,7 @@ Key::validate(rnp::RNG &rng, bool secret) const noexcept
 rnp_result_t
 Key::sign(rnp::RNG &rng, Signature &sig, const rnp::secure_bytes &hash) const
 {
-    if (!x.bytes()) {
+    if (!x.size()) {
         RNP_LOG("private key not set");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -210,13 +208,14 @@ Key::sign(rnp::RNG &rng, Signature &sig, const rnp::secure_bytes &hash) const
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
     }
-    sig.s.len = PGP_MPINT_SIZE;
-    if (EVP_PKEY_sign(ctx.get(), sig.s.mpi, &sig.s.len, hash.data(), hash.size()) <= 0) {
+    /* signature is two q-group numbers + DER encoding, 16 safe enough */
+    std::vector<uint8_t> dersig(2 * q.size() + 16, 0);
+    size_t               siglen = dersig.size();
+    if (EVP_PKEY_sign(ctx.get(), dersig.data(), &siglen, hash.data(), hash.size()) <= 0) {
         RNP_LOG("Signing failed: %lu", ERR_peek_last_error());
-        sig.s.len = 0;
         return RNP_ERROR_GENERIC;
     }
-    if (!decode_sig(&sig.s.mpi[0], sig.s.len, sig)) {
+    if (!decode_sig(dersig.data(), siglen, sig)) {
         RNP_LOG("Failed to parse DSA sig: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
     }
@@ -245,11 +244,13 @@ Key::verify(const Signature &sig, const rnp::secure_bytes &hash) const
         RNP_LOG("Failed to initialize verify: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
     }
-    mpi sigbuf;
-    if (!encode_sig(sigbuf.mpi, &sigbuf.len, sig)) {
+    /* signature is two q-group numbers + DER encoding, 16 safe enough */
+    std::vector<uint8_t> dersig(2 * q.size() + 16);
+    size_t               siglen = dersig.size();
+    if (!encode_sig(dersig.data(), &siglen, sig)) {
         return RNP_ERROR_GENERIC;
     }
-    if (EVP_PKEY_verify(ctx.get(), sigbuf.mpi, sigbuf.len, hash.data(), hash.size()) <= 0) {
+    if (EVP_PKEY_verify(ctx.get(), dersig.data(), siglen, hash.data(), hash.size()) <= 0) {
         return RNP_ERROR_SIGNATURE_INVALID;
     }
     return RNP_SUCCESS;

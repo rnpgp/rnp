@@ -335,7 +335,7 @@ dst_print_mpi(pgp_dest_t *dst, const char *name, const pgp::mpi &mpi, bool dumpb
         dst_printf(dst, "%s: %zu bits\n", name, mpi.bits());
     } else {
         char hex[5000];
-        vsnprinthex(hex, sizeof(hex), mpi.mpi, mpi.len);
+        vsnprinthex(hex, sizeof(hex), mpi.data(), mpi.size());
         dst_printf(dst, "%s: %zu bits, %s\n", name, mpi.bits(), hex);
     }
 }
@@ -1710,7 +1710,7 @@ obj_add_mpi_json(json_object *obj, const char *name, const pgp::mpi &mpi, bool c
         return true;
     }
     snprintf(strname, sizeof(strname), "%s.raw", name);
-    return json_add_hex(obj, strname, mpi.mpi, mpi.len);
+    return json_add_hex(obj, strname, mpi.data(), mpi.size());
 }
 
 static bool

@@ -28,7 +28,7 @@
 #define RNP_BOTAN_UTILS_HPP_
 
 #include <botan/ffi.h>
-#include "mpi.h"
+#include "mpi.hpp"
 #include "utils.h"
 
 /* Self-destructing wrappers around the Botan's FFI objects */
@@ -53,7 +53,7 @@ class bn {
         }
     }
 
-    bn(const pgp::mpi &val) : bn(val.mpi, val.len){};
+    bn(const pgp::mpi &val) : bn(val.data(), val.size()){};
 
     bn(const bn &) = delete;
 
@@ -76,13 +76,14 @@ class bn {
     bool
     mpi(pgp::mpi &val) const noexcept
     {
-        val.len = bytes();
-        if (val.len > PGP_MPINT_SIZE) {
+        auto len = bytes();
+        if (len > PGP_MPINT_SIZE) {
             RNP_LOG("Too large MPI.");
-            val.len = 0;
+            val.resize(0);
             return false;
         }
-        return !botan_mp_to_bin(bn_, val.mpi);
+        val.resize(len);
+        return !botan_mp_to_bin(bn_, val.data());
     }
 
     bool

@@ -44,13 +44,13 @@ load_public_key(rnp::botan::Pubkey &pubkey, const ec::Key &keydata)
     }
 
     const size_t sign_half_len = curve->bytes();
-    size_t       sz = keydata.p.bytes();
-    if (!sz || (sz != (2 * sign_half_len + 1)) || (keydata.p.mpi[0] != 0x04)) {
+    size_t       sz = keydata.p.size();
+    if (!sz || (sz != (2 * sign_half_len + 1)) || (keydata.p[0] != 0x04)) {
         return false;
     }
 
-    rnp::bn px(keydata.p.mpi + 1, sign_half_len);
-    rnp::bn py(keydata.p.mpi + 1 + sign_half_len, sign_half_len);
+    rnp::bn px(keydata.p.data() + 1, sign_half_len);
+    rnp::bn py(keydata.p.data() + 1 + sign_half_len, sign_half_len);
 
     if (!px || !py) {
         return false;
@@ -163,10 +163,8 @@ sign(rnp::RNG &               rng,
     }
 
     // Allocate memory and copy results
-    if (!sig.r.from_mem(out_buf.data(), sign_half_len) ||
-        !sig.s.from_mem(out_buf.data() + sign_half_len, sign_half_len)) {
-        return RNP_ERROR_SIGNING_FAILED;
-    }
+    sig.r.assign(out_buf.data(), sign_half_len);
+    sig.s.assign(out_buf.data() + sign_half_len, sign_half_len);
     // All good now
     return RNP_SUCCESS;
 }
@@ -191,8 +189,8 @@ verify(const ec::Signature &    sig,
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    size_t r_blen = sig.r.len;
-    size_t s_blen = sig.s.len;
+    size_t r_blen = sig.r.size();
+    size_t s_blen = sig.s.size();
     size_t sign_half_len = curve->bytes();
 
     assert(sign_half_len <= MAX_CURVE_BYTELEN);
@@ -213,8 +211,8 @@ verify(const ec::Signature &    sig,
     }
 
     std::vector<uint8_t> sign_buf(2 * sign_half_len, 0);
-    sig.r.to_mem(sign_buf.data() + sign_half_len - r_blen);
-    sig.s.to_mem(sign_buf.data() + 2 * sign_half_len - s_blen);
+    sig.r.copy(sign_buf.data() + sign_half_len - r_blen);
+    sig.s.copy(sign_buf.data() + 2 * sign_half_len - s_blen);
 
     if (botan_pk_op_verify_finish(verifier.get(), sign_buf.data(), sign_buf.size())) {
         return RNP_ERROR_SIGNATURE_INVALID;
@@ -241,11 +239,12 @@ encrypt(rnp::RNG &               rng,
     }
 
     /*
-     * Format of SM2 ciphertext is a point (2*point_len+1) plus
-     * the masked ciphertext (out_len) plus a hash.
+     * Format of SM2 ciphertext is DER-encoded sequence of point x, y plus
+     * the masked ciphertext (out_len) plus a hash and plus hash alg byte.
+     * 32 is safe estimation for the DER encoder (Botan uses 16)
      */
     size_t point_len = curve->bytes();
-    size_t ctext_len = (2 * point_len + 1) + in.size() + hash_alg_len;
+    size_t ctext_len = 2 * point_len + in.size() + hash_alg_len + 32;
     if (ctext_len > PGP_MPINT_SIZE) {
         RNP_LOG("too large output for SM2 encryption");
         return RNP_ERROR_GENERIC;
@@ -268,12 +267,15 @@ encrypt(rnp::RNG &               rng,
         return RNP_ERROR_GENERIC;
     }
 
-    out.m.len = sizeof(out.m.mpi);
+    out.m.resize(ctext_len + 1);
+    size_t mlen = out.m.size();
     if (botan_pk_op_encrypt(
-          enc_op.get(), rng.handle(), out.m.mpi, &out.m.len, in.data(), in.size())) {
+          enc_op.get(), rng.handle(), out.m.data(), &mlen, in.data(), in.size())) {
         return RNP_ERROR_GENERIC;
     }
-    out.m.mpi[out.m.len++] = hash_algo;
+    assert(mlen < out.m.size());
+    out.m[mlen++] = hash_algo;
+    out.m.resize(mlen);
     return RNP_SUCCESS;
 }
 
@@ -281,12 +283,12 @@ rnp_result_t
 decrypt(rnp::secure_bytes &out, const Encrypted &in, const ec::Key &key)
 {
     auto   curve = ec::Curve::get(key.curve);
-    size_t in_len = in.m.bytes();
+    size_t in_len = in.m.size();
     if (!curve || in_len < 64) {
         return RNP_ERROR_GENERIC;
     }
 
-    uint8_t hash_id = in.m.mpi[in_len - 1];
+    uint8_t hash_id = in.m[in_len - 1];
     auto    hash_name = rnp::Hash_Botan::name_backend((pgp_hash_alg_t) hash_id);
     if (!hash_name) {
         RNP_LOG("Unknown hash used in SM2 ciphertext");
@@ -300,10 +302,13 @@ decrypt(rnp::secure_bytes &out, const Encrypted &in, const ec::Key &key)
     }
 
     out.resize(in_len - 1);
-    size_t                  out_size = out.size();
+    size_t out_size = out.size();
+
     rnp::botan::op::Decrypt decrypt_op;
     if (botan_pk_op_decrypt_create(&decrypt_op.get(), b_key.get(), hash_name, 0) ||
-        botan_pk_op_decrypt(decrypt_op.get(), out.data(), &out_size, in.m.mpi, in_len - 1)) {
+        botan_pk_op_decrypt(
+          decrypt_op.get(), out.data(), &out_size, in.m.data(), in_len - 1)) {
+        out.resize(0);
         return RNP_ERROR_GENERIC;
     }
     out.resize(out_size);

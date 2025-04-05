@@ -117,9 +117,9 @@ Hash::add(uint32_t val)
 void
 Hash::add(const pgp::mpi &val)
 {
-    size_t len = val.bytes();
+    size_t len = val.size();
     size_t idx = 0;
-    while ((idx < len) && (!val.mpi[idx])) {
+    while ((idx < len) && (!val[idx])) {
         idx++;
     }
 
@@ -129,11 +129,11 @@ Hash::add(const pgp::mpi &val)
     }
 
     add(len - idx);
-    if (val.mpi[idx] & 0x80) {
+    if (val[idx] & 0x80) {
         uint8_t padbyte = 0;
         add(&padbyte, 1);
     }
-    add(val.mpi + idx, len - idx);
+    add(val.data() + idx, len - idx);
 }
 
 std::vector<uint8_t>

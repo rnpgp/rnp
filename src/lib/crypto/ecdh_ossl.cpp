@@ -327,7 +327,7 @@ encrypt_pkcs5(rnp::RNG &rng, Encrypted &out, const rnp::secure_bytes &in, const 
 rnp_result_t
 decrypt_pkcs5(rnp::secure_bytes &out, const Encrypted &in, const ec::Key &key)
 {
-    if (!key.x.bytes()) {
+    if (!key.x.size()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 

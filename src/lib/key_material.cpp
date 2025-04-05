@@ -35,14 +35,14 @@ namespace {
 void
 grip_hash_mpi(rnp::Hash &hash, const pgp::mpi &val, const char name, bool lzero = true)
 {
-    size_t len = val.bytes();
+    size_t len = val.size();
     size_t idx = 0;
-    for (idx = 0; (idx < len) && !val.mpi[idx]; idx++)
+    for (idx = 0; (idx < len) && !val[idx]; idx++)
         ;
 
     if (name) {
         size_t hlen = idx >= len ? 0 : len - idx;
-        if ((len > idx) && lzero && (val.mpi[idx] & 0x80)) {
+        if ((len > idx) && lzero && (val[idx] & 0x80)) {
             hlen++;
         }
 
@@ -53,11 +53,11 @@ grip_hash_mpi(rnp::Hash &hash, const pgp::mpi &val, const char name, bool lzero 
 
     if (idx < len) {
         /* gcrypt prepends mpis with zero if higher bit is set */
-        if (lzero && (val.mpi[idx] & 0x80)) {
+        if (lzero && (val[idx] & 0x80)) {
             uint8_t zero = 0;
             hash.add(&zero, 1);
         }
-        hash.add(val.mpi + idx, len - idx);
+        hash.add(val.data() + idx, len - idx);
     }
     if (name) {
         hash.add(")", 1);
@@ -67,12 +67,14 @@ grip_hash_mpi(rnp::Hash &hash, const pgp::mpi &val, const char name, bool lzero 
 void
 grip_hash_ecc_hex(rnp::Hash &hash, const char *hex, char name)
 {
-    pgp::mpi mpi = {};
-    mpi.len = rnp::hex_decode(hex, mpi.mpi, sizeof(mpi.mpi));
-    if (!mpi.len) {
+    auto bin = rnp::hex_to_bin(hex);
+    if (bin.empty()) {
         RNP_LOG("wrong hex mpi");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
+
+    pgp::mpi mpi;
+    mpi.assign(bin.data(), bin.size());
 
     /* libgcrypt doesn't add leading zero when hashes ecc mpis */
     return grip_hash_mpi(hash, mpi, name, false);
@@ -88,21 +90,15 @@ grip_hash_ec(rnp::Hash &hash, const pgp::ec::Key &key)
     }
 
     /* build uncompressed point from gx and gy */
-    pgp::mpi g = {};
-    g.mpi[0] = 0x04;
-    g.len = 1;
-    size_t len = rnp::hex_decode(desc->gx, g.mpi + g.len, sizeof(g.mpi) - g.len);
-    if (!len) {
-        RNP_LOG("wrong x mpi");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
-    g.len += len;
-    len = rnp::hex_decode(desc->gy, g.mpi + g.len, sizeof(g.mpi) - g.len);
-    if (!len) {
-        RNP_LOG("wrong y mpi");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
-    g.len += len;
+    auto gxbin = rnp::hex_to_bin(desc->gx);
+    auto gybin = rnp::hex_to_bin(desc->gy);
+    assert(!gxbin.empty());
+    assert(!gybin.empty());
+    pgp::mpi g;
+    g.resize(1 + gxbin.size() + gybin.size());
+    g[0] = 0x04;
+    memcpy(g.data() + 1, gxbin.data(), gxbin.size());
+    memcpy(g.data() + 1 + gxbin.size(), gybin.data(), gybin.size());
 
     /* p, a, b, g, n, q */
     grip_hash_ecc_hex(hash, desc->p, 'p');
@@ -112,12 +108,12 @@ grip_hash_ec(rnp::Hash &hash, const pgp::ec::Key &key)
     grip_hash_ecc_hex(hash, desc->n, 'n');
 
     if ((key.curve == PGP_CURVE_ED25519) || (key.curve == PGP_CURVE_25519)) {
-        if (g.len < 1) {
+        if (g.size() < 1) {
             RNP_LOG("wrong 25519 p");
             throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
         }
-        g.len = key.p.len - 1;
-        memcpy(g.mpi, key.p.mpi + 1, g.len);
+        g.resize(key.p.size() - 1);
+        memcpy(g.data(), key.p.data() + 1, g.size());
         grip_hash_mpi(hash, g, 'q', false);
     } else {
         grip_hash_mpi(hash, key.p, 'q', false);
@@ -610,7 +606,7 @@ RSAKeyMaterial::set_secret(const mpi &d, const mpi &p, const mpi &q, const mpi &
 size_t
 RSAKeyMaterial::bits() const noexcept
 {
-    return 8 * key_.n.bytes();
+    return 8 * key_.n.size();
 }
 
 const mpi &
@@ -765,13 +761,13 @@ DSAKeyMaterial::set_secret(const mpi &x)
 size_t
 DSAKeyMaterial::bits() const noexcept
 {
-    return 8 * key_.p.bytes();
+    return 8 * key_.p.size();
 }
 
 size_t
 DSAKeyMaterial::qbits() const noexcept
 {
-    return 8 * key_.q.bytes();
+    return 8 * key_.q.size();
 }
 
 const mpi &
@@ -921,7 +917,7 @@ EGKeyMaterial::set_secret(const mpi &x)
 size_t
 EGKeyMaterial::bits() const noexcept
 {
-    return 8 * key_.y.bytes();
+    return 8 * key_.y.size();
 }
 
 const mpi &
