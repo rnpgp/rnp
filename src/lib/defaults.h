@@ -59,7 +59,7 @@
 #define DEFAULT_PK_ALG PGP_PKA_RSA
 
 /* Default RSA key length */
-#define DEFAULT_RSA_NUMBITS 2048
+#define DEFAULT_RSA_NUMBITS 3072
 
 /* Default ElGamal key length */
 #define DEFAULT_ELGAMAL_NUMBITS 2048

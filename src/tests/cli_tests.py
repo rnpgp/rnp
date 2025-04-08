@@ -1049,7 +1049,7 @@ class Keystore(unittest.TestCase):
             params = ['--numbits', str(bits)]
         else:
             params = []
-            bits = 2048
+            bits = 3072
 
         userid = str(bits) + '@rnptest'
         # Open pipe for password
@@ -4302,6 +4302,12 @@ class Misc(unittest.TestCase):
         self.assertRegex(err, r'(?s)^.*wrong armor trailer.*')
         self.assertRegex(err, r'(?s)^.*dearmoring failed.*')
 
+    def test_default_rsa_keygen(self):
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR2, '--generate', '--password', PASSWORD])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*sec.*3072/RSA.*\[SC\].*ssb.*3072/RSA.*\[E\].*')
+        self.assertRegex(err, r'(?s)^.*Keyring directory.*is empty.*')
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
@@ -5188,7 +5194,7 @@ class SignDefault(unittest.TestCase):
         # Make sure we can add subkey
         ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR2, '--password', PASSWORD, '--edit-key', 'dsa4096', '--add-subkey'], 'y\n')
         self.assertEqual(ret, 0)
-        self.assertRegex(out, r'(?s)^.*ssb.*2048/RSA.*EXPIRES.*')
+        self.assertRegex(out, r'(?s)^.*ssb.*3072/RSA.*EXPIRES.*')
 
     def test_verify_enconly_key(self):
         ret, _, err = run_proc(RNP, ['--keyfile', data_path('test_messages/key-rsas-rsae.asc'), '--verify', data_path('test_messages/message-signed-rsae.txt.pgp')])
