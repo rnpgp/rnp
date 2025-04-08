@@ -651,6 +651,13 @@ is_base64_line(const char *line, size_t len)
 }
 
 static bool
+armor_header_known(const std::string &name)
+{
+    return (name == ST_HEADER_VERSION) || (name == ST_HEADER_COMMENT) ||
+           (name == ST_HEADER_CHARSET) || (name == ST_HEADER_HASH);
+}
+
+static bool
 armor_parse_headers(pgp_source_armored_param_t *param)
 {
     std::vector<char> header(ARMORED_PEEK_BUF_SIZE, '\0');
@@ -680,8 +687,8 @@ armor_parse_headers(pgp_source_armored_param_t *param)
         }
 
         std::string hdrst(header.begin(), header.begin() + hdrlen);
-        if (!hdrst.find(ST_HEADER_VERSION) || !hdrst.find(ST_HEADER_COMMENT) ||
-            !hdrst.find(ST_HEADER_CHARSET) || !hdrst.find(ST_HEADER_HASH)) {
+        size_t      pos = hdrst.find(": ");
+        if ((pos != std::string::npos) && armor_header_known(hdrst.substr(0, pos + 2))) {
             // do nothing at the moment, just check whether header is known
         } else {
             RNP_LOG("unknown header '%s'", hdrst.c_str());

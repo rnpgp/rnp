@@ -4335,6 +4335,17 @@ class Misc(unittest.TestCase):
         self.assertRegex(out, r'(?s)^.*This is test message to be signed.*')
         self.assertFalse(err)
 
+    def test_armor_headers(self):
+        ret, out, err = run_proc(RNP, ['--homedir', RNP, '--dearmor', data_path('test_messages/message.txt.armor-hdrs')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*This is test message to be signed.*')
+        self.assertFalse(err)
+        ret, out, err = run_proc(RNP, ['--homedir', RNP, '--dearmor', data_path('test_messages/message.txt.armor-wr-trail')])
+        self.assertNotEqual(ret, 0)
+        self.assertNotRegex(out, r'(?s)^.*This is test message to be signed.*')
+        self.assertRegex(err, r'(?s)^.*wrong armor trailer.*')
+        self.assertRegex(err, r'(?s)^.*dearmoring failed.*')
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
