@@ -618,7 +618,7 @@ armor_parse_header(pgp_source_armored_param_t *param)
         return false;
     }
 
-    param->armorhdr = hdr;
+    param->armorhdr = std::move(hdr);
     param->readsrc->skip(skip);
     param->readsrc->skip_chars("\t ");
     return true;
