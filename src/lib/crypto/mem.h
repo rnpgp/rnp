@@ -172,7 +172,7 @@ inline std::string
 bin_to_hex(const uint8_t *data, size_t len, HexFormat format = HexFormat::Uppercase)
 {
     std::string res(len * 2 + 1, '\0');
-    hex_encode(data, len, &res.front(), res.size(), format);
+    (void) hex_encode(data, len, &res.front(), res.size(), format);
     res.resize(len * 2);
     return res;
 }
