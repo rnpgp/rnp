@@ -2,7 +2,7 @@
 
 == Generating an RSA private key
 
-By default, `rnpkeys  --generate-key` generates a 2048-bit RSA key.
+By default, `rnpkeys  --generate-key` generates a 3072-bit RSA key.
 
 [source,console]
 ----

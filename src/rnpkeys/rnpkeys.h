@@ -10,7 +10,7 @@
 #include "../rnp/fficli.h"
 #include "logging.h"
 
-#define DEFAULT_RSA_NUMBITS 2048
+#define DEFAULT_RSA_NUMBITS 3072
 
 typedef enum {
     /* commands */

@@ -787,6 +787,16 @@ TEST_F(rnp_tests, test_ffi_key_generate_rsa)
     assert_int_equal(subkeys, 0);
     /* cleanup */
     assert_rnp_success(rnp_key_handle_destroy(key));
+    /* generate RSA keypair with default sizes */
+    assert_rnp_success(rnp_generate_key_ex(
+      ffi, RNP_ALGNAME_RSA, RNP_ALGNAME_RSA, 0, 0, NULL, NULL, "rsa_default", NULL, &key));
+    assert_rnp_success(rnp_key_get_bits(key, &bits));
+    assert_int_equal(bits, 3072);
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &subkey));
+    assert_rnp_success(rnp_key_get_bits(subkey, &bits));
+    assert_int_equal(bits, 3072);
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+    assert_rnp_success(rnp_key_handle_destroy(key));
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 
