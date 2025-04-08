@@ -111,7 +111,7 @@ Without additional options, an RSA primary key pair with an RSA sub-key pair wil
 Additional options:
 
 *--numbits*:::
-Overrides the default RSA key size of *2048* bits.
+Overrides the default key size. For RSA it is *3072* bits.
 
 *--expiration* _TIME_:::
 Set key and subkey expiration time, counting from the creation time. +
