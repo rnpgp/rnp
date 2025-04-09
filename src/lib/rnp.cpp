@@ -570,7 +570,7 @@ ret_keyid(const pgp::KeyID &keyid, char **res)
 }
 
 static rnp_result_t
-ret_grip(const pgp_key_grip_t &grip, char **res)
+ret_grip(const pgp::KeyGrip &grip, char **res)
 {
     return hex_encode_value(grip.data(), grip.size(), res);
 }
@@ -7346,7 +7346,7 @@ try {
 }
 FFI_GUARD
 
-static const pgp_key_grip_t *
+static const pgp::KeyGrip *
 rnp_get_grip_by_fp(rnp_ffi_t ffi, const pgp::Fingerprint &fp)
 {
     auto *key = ffi->pubring->get_key(fp);
@@ -7371,7 +7371,7 @@ try {
         *grip = NULL;
         return RNP_SUCCESS;
     }
-    const pgp_key_grip_t *pgrip = rnp_get_grip_by_fp(handle->ffi, key->primary_fp());
+    const pgp::KeyGrip *pgrip = rnp_get_grip_by_fp(handle->ffi, key->primary_fp());
     if (!pgrip) {
         *grip = NULL;
         return RNP_SUCCESS;
@@ -8517,7 +8517,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         for (auto &subfp : key->subkey_fps()) {
-            const pgp_key_grip_t *subgrip = rnp_get_grip_by_fp(handle->ffi, subfp);
+            const pgp::KeyGrip *subgrip = rnp_get_grip_by_fp(handle->ffi, subfp);
             if (!subgrip) {
                 continue;
             }

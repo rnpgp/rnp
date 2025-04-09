@@ -73,8 +73,6 @@ class id_str_pair {
                               int                         notfound = 0);
 };
 
-typedef std::array<uint8_t, PGP_KEY_GRIP_SIZE> pgp_key_grip_t;
-
 namespace pgp {
 using SigID = std::array<uint8_t, PGP_SHA1_HASH_SIZE>;
 using SigIDs = std::vector<SigID>;
@@ -148,7 +146,7 @@ typedef struct pgp_key_protection_t {
     uint8_t           iv[PGP_MAX_BLOCK_SIZE];
 } pgp_key_protection_t;
 
-typedef struct pgp_signature_t    pgp_signature_t;
+typedef struct pgp_signature_t pgp_signature_t;
 typedef enum {
     /* first octet */
     PGP_KEY_SERVER_NO_MODIFY = 0x80
