@@ -30,6 +30,9 @@
 #include "types.h"
 #include "librepgp/stream-common.h"
 
+typedef struct pgp_key_pkt_t    pgp_key_pkt_t;
+typedef struct pgp_userid_pkt_t pgp_userid_pkt_t;
+
 namespace rnp {
 class RawPacket {
     pgp_pkt_type_t       tag_;

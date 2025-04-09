@@ -148,11 +148,7 @@ typedef struct pgp_key_protection_t {
     uint8_t           iv[PGP_MAX_BLOCK_SIZE];
 } pgp_key_protection_t;
 
-typedef struct pgp_key_pkt_t      pgp_key_pkt_t;
-typedef struct pgp_userid_pkt_t   pgp_userid_pkt_t;
 typedef struct pgp_signature_t    pgp_signature_t;
-typedef struct pgp_one_pass_sig_t pgp_one_pass_sig_t;
-
 typedef enum {
     /* first octet */
     PGP_KEY_SERVER_NO_MODIFY = 0x80
@@ -196,10 +192,6 @@ typedef enum {
     PGP_LDT_LOCAL = 'l',
     PGP_LDT_LOCAL2 = '1'
 } pgp_litdata_enum;
-
-namespace rnp {
-class Signature;
-}
 
 typedef struct rnp_key_protection_params_t {
     pgp_symm_alg_t    symm_alg;
