@@ -60,7 +60,7 @@ class Key {
     uint8_t             flags_{};      /* key flags */
     uint32_t            expiration_{}; /* key expiration time, if available */
     pgp::Fingerprint    fingerprint_;
-    pgp_key_grip_t      grip_{};
+    pgp::KeyGrip        grip_{};
     pgp::Fingerprint    primary_fp_; /* fingerprint of the primary key (for subkeys) */
     bool                primary_fp_set_{};
     pgp::Fingerprints   subkey_fps_; /* array of subkey fingerprints (for primary keys) */
@@ -181,7 +181,7 @@ class Key {
     /** @brief Get key's fingerprint */
     const pgp::Fingerprint &fp() const noexcept;
     /** @brief Get key's grip */
-    const pgp_key_grip_t &grip() const noexcept;
+    const pgp::KeyGrip &grip() const noexcept;
     /** @brief Get primary key's fingerprint for the subkey, if it is available.
      *         Note: will throw if it is not available, use has_primary_fp() to check.
      */
