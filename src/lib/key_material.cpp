@@ -361,12 +361,12 @@ KeyMaterial::curve() const noexcept
     return PGP_CURVE_UNKNOWN;
 }
 
-pgp_key_grip_t
+KeyGrip
 KeyMaterial::grip() const
 {
     auto hash = rnp::Hash::create(PGP_HASH_SHA1);
     grip_update(*hash);
-    pgp_key_grip_t res{};
+    KeyGrip res{};
     hash->finish(res.data());
     return res;
 }

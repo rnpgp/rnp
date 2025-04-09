@@ -759,8 +759,8 @@ rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const std::string &grip)
     if (!keyring || grip.empty() || !rnp::is_hex(grip)) {
         return NULL;
     }
-    pgp_key_grip_t grip_bin = {};
-    size_t         binlen = rnp::hex_decode(grip.c_str(), grip_bin.data(), grip_bin.size());
+    pgp::KeyGrip grip_bin{};
+    size_t       binlen = rnp::hex_decode(grip.c_str(), grip_bin.data(), grip_bin.size());
     if (binlen > PGP_KEY_GRIP_SIZE) {
         return NULL;
     }
@@ -768,7 +768,7 @@ rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const std::string &grip)
 }
 
 rnp::Key *
-rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const pgp_key_grip_t &grip)
+rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const pgp::KeyGrip &grip)
 {
     if (!keyring) {
         return NULL;

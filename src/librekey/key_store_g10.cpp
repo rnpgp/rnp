@@ -944,8 +944,8 @@ KeyStore::load_g10(pgp_source_t &src, const KeyProvider *key_provider)
         /* copy public key fields if any */
         Key key;
         if (key_provider) {
-            pgp_key_grip_t grip = seckey.material->grip();
-            auto           pubkey =
+            pgp::KeyGrip grip = seckey.material->grip();
+            auto         pubkey =
               key_provider->request_key(*KeySearch::create(grip), PGP_OP_MERGE_INFO);
             if (!pubkey) {
                 return false;

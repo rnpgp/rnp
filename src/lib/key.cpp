@@ -1123,7 +1123,7 @@ Key::fp() const noexcept
     return fingerprint_;
 }
 
-const pgp_key_grip_t &
+const pgp::KeyGrip &
 Key::grip() const noexcept
 {
     return grip_;

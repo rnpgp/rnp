@@ -62,7 +62,7 @@ TEST_F(rnp_tests, test_key_store_search)
             assert_true(rnp::hex_decode(
               testdata[i].keyid, (uint8_t *) key.keyid().data(), key.keyid().size()));
             // keys should have different grips otherwise store->add_key will fail here
-            pgp_key_grip_t &grip = (pgp_key_grip_t &) key.grip();
+            pgp::KeyGrip &grip = (pgp::KeyGrip &) key.grip();
             assert_true(rnp::hex_decode(testdata[i].keyid, grip.data(), grip.size()));
             grip[0] = (uint8_t) n;
             // and fingerprint

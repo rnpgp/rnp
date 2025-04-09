@@ -31,6 +31,7 @@
 #include "defaults.h"
 #include "enc_material.hpp"
 #include "sig_material.hpp"
+#include "fingerprint.hpp"
 
 typedef struct pgp_packet_body_t pgp_packet_body_t;
 
@@ -224,7 +225,7 @@ class KeyMaterial {
     virtual bool           sig_hash_allowed(pgp_hash_alg_t hash) const;
     virtual size_t         bits() const noexcept = 0;
     virtual pgp_curve_t    curve() const noexcept;
-    pgp_key_grip_t         grip() const;
+    KeyGrip                grip() const;
 
     static std::unique_ptr<KeyMaterial> create(pgp_pubkey_alg_t alg);
     static std::unique_ptr<KeyMaterial> create(pgp_pubkey_alg_t alg, const rsa::Key &key);

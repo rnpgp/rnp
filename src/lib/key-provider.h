@@ -56,7 +56,7 @@ class KeySearch {
 
     static std::unique_ptr<KeySearch> create(const pgp::KeyID &keyid);
     static std::unique_ptr<KeySearch> create(const pgp::Fingerprint &fp);
-    static std::unique_ptr<KeySearch> create(const pgp_key_grip_t &grip);
+    static std::unique_ptr<KeySearch> create(const pgp::KeyGrip &grip);
     static std::unique_ptr<KeySearch> create(const std::string &uid);
     static std::unique_ptr<KeySearch> create(const std::string &name,
                                              const std::string &value);
@@ -90,14 +90,14 @@ class KeyFingerprintSearch : public KeySearch {
 };
 
 class KeyGripSearch : public KeySearch {
-    pgp_key_grip_t grip_;
+    pgp::KeyGrip grip_;
 
   public:
     bool              matches(const Key &key) const;
     const std::string name() const;
     std::string       value() const;
 
-    KeyGripSearch(const pgp_key_grip_t &grip);
+    KeyGripSearch(const pgp::KeyGrip &grip);
 };
 
 class KeyUIDSearch : public KeySearch {
