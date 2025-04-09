@@ -51,7 +51,7 @@
 void
 signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash, pgp_version_t pgpver)
 {
-    if (!key.hashed_data) {
+    if (key.pub_data.empty()) {
         /* call self recursively if hashed data is not filled, to overcome const restriction */
         pgp_key_pkt_t keycp(key, true);
         keycp.fill_hashed_data();
@@ -65,28 +65,28 @@ signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash, pgp_version_t pgpv
     case PGP_V3:
         FALLTHROUGH_STATEMENT;
     case PGP_V4: {
-        assert(key.hashed_len < ((size_t) 1 << 16));
+        assert(key.pub_data.size() < ((size_t) 1 << 16));
         uint8_t hdr[3] = {0x99, 0x00, 0x00};
-        write_uint16(hdr + 1, key.hashed_len);
+        write_uint16(hdr + 1, key.pub_data.size());
         hash.add(hdr, 3);
-        hash.add(key.hashed_data, key.hashed_len);
+        hash.add(key.pub_data);
         break;
     }
     case PGP_V5: {
-        assert(key.hashed_len < ((size_t) 1 << 32));
+        assert(key.pub_data.size() < ((size_t) 1 << 32));
         uint8_t hdr[5] = {0x9A, 0x00, 0x00, 0x00, 0x00};
-        write_uint32(hdr + 1, key.hashed_len);
+        write_uint32(hdr + 1, key.pub_data.size());
         hash.add(&hdr, 5);
-        hash.add(key.hashed_data, key.hashed_len);
+        hash.add(key.pub_data);
         break;
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_V6: {
-        assert(key.hashed_len < ((size_t) 1 << 32));
+        assert(key.pub_data.size() < ((size_t) 1 << 32));
         uint8_t hdr[5] = {0x9b, 0x00, 0x00, 0x00, 0x00};
-        write_uint32(hdr + 1, key.hashed_len);
+        write_uint32(hdr + 1, key.pub_data.size());
         hash.add(hdr, sizeof(hdr));
-        hash.add(key.hashed_data, key.hashed_len);
+        hash.add(key.pub_data);
         break;
     }
 #endif

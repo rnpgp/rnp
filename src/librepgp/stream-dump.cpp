@@ -1094,9 +1094,9 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
             dst_printf(dst, "v5 secret key data length: %" PRIu32 "\n", key.v5_sec_len);
         }
         if (!key.sec_protection.s2k.usage) {
-            dst_printf(dst, "cleartext secret key data: %d bytes\n", (int) key.sec_len);
+            dst_printf(dst, "cleartext secret key data: %zu bytes\n", key.sec_data.size());
         } else {
-            dst_printf(dst, "encrypted secret key data: %d bytes\n", (int) key.sec_len);
+            dst_printf(dst, "encrypted secret key data: %zu bytes\n", key.sec_data.size());
         }
         indent_dest_decrease(dst);
     }

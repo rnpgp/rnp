@@ -475,11 +475,11 @@ decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
 
     /* check whether data is not encrypted */
     if (!key->sec_protection.s2k.usage) {
-        return parse_secret_key_mpis(*key, key->sec_data, key->sec_len);
+        return parse_secret_key_mpis(*key, key->sec_data.data(), key->sec_data.size());
     }
 
     /* check whether secret key data present */
-    if (!key->sec_len) {
+    if (key->sec_data.empty()) {
         RNP_LOG("No secret key data");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -503,7 +503,7 @@ decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
     }
 
     try {
-        rnp::secure_bytes decdata(key->sec_len);
+        rnp::secure_bytes decdata(key->sec_data.size(), 0);
         pgp_crypt_t       crypt;
         if (!pgp_cipher_cfb_start(
               &crypt, key->sec_protection.symm_alg, keybuf.data(), key->sec_protection.iv)) {
@@ -519,7 +519,8 @@ decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
                 ret = RNP_ERROR_BAD_PARAMETERS;
                 break;
             }
-            ret = decrypt_secret_key_v3(&crypt, decdata.data(), key->sec_data, key->sec_len);
+            ret = decrypt_secret_key_v3(
+              &crypt, decdata.data(), key->sec_data.data(), key->sec_data.size());
             break;
 #if defined(ENABLE_CRYPTO_REFRESH)
         case PGP_V6:
@@ -527,7 +528,8 @@ decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
 #endif
         case PGP_V4:
         case PGP_V5:
-            pgp_cipher_cfb_decrypt(&crypt, decdata.data(), key->sec_data, key->sec_len);
+            pgp_cipher_cfb_decrypt(
+              &crypt, decdata.data(), key->sec_data.data(), key->sec_data.size());
             ret = RNP_SUCCESS;
             break;
         default:
@@ -539,7 +541,7 @@ decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
             return ret;
         }
 
-        return parse_secret_key_mpis(*key, decdata.data(), key->sec_len);
+        return parse_secret_key_mpis(*key, decdata.data(), decdata.size());
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         return RNP_ERROR_GENERIC;
@@ -595,15 +597,8 @@ encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rnp::RNG &rng)
 
         /* check whether data is not encrypted */
         if (key->sec_protection.s2k.usage == PGP_S2KU_NONE) {
-            secure_clear(key->sec_data, key->sec_len);
-            free(key->sec_data);
-            key->sec_data = (uint8_t *) malloc(body.size());
-            if (!key->sec_data) {
-                RNP_LOG("allocation failed");
-                return RNP_ERROR_OUT_OF_MEMORY;
-            }
-            memcpy(key->sec_data, body.data(), body.size());
-            key->sec_len = body.size();
+            secure_clear(key->sec_data.data(), key->sec_data.size());
+            key->sec_data.assign(body.data(), body.data() + body.size());
             return RNP_SUCCESS;
         }
         if (key->version < PGP_V4) {
@@ -638,15 +633,8 @@ encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rnp::RNG &rng)
         }
         pgp_cipher_cfb_encrypt(&crypt, body.data(), body.data(), body.size());
         pgp_cipher_cfb_finish(&crypt);
-        secure_clear(key->sec_data, key->sec_len);
-        free(key->sec_data);
-        key->sec_data = (uint8_t *) malloc(body.size());
-        if (!key->sec_data) {
-            RNP_LOG("allocation failed");
-            return RNP_ERROR_OUT_OF_MEMORY;
-        }
-        memcpy(key->sec_data, body.data(), body.size());
-        key->sec_len = body.size();
+        secure_clear(key->sec_data.data(), key->sec_data.size());
+        key->sec_data.assign(body.data(), body.data() + body.size());
         /* cleanup cleartext fields */
         key->material->clear_secret();
         return RNP_SUCCESS;
@@ -717,38 +705,19 @@ pgp_key_pkt_t::pgp_key_pkt_t(const pgp_key_pkt_t &src, bool pubonly)
     alg = src.alg;
     v3_days = src.v3_days;
     v5_pub_len = src.v5_pub_len;
-    hashed_len = src.hashed_len;
-    hashed_data = NULL;
-    if (src.hashed_data) {
-        hashed_data = (uint8_t *) malloc(hashed_len);
-        if (!hashed_data) {
-            throw std::bad_alloc();
-        }
-        memcpy(hashed_data, src.hashed_data, hashed_len);
-    }
+    pub_data = src.pub_data;
     material = src.material ? src.material->clone() : nullptr;
     if (pubonly) {
         if (material) {
             material->clear_secret();
         }
-        sec_len = 0;
+        sec_data.resize(0);
         v5_s2k_len = 0;
         v5_sec_len = 0;
-        sec_data = NULL;
         sec_protection = {};
         return;
     }
-    sec_len = src.sec_len;
-    sec_data = NULL;
-    if (src.sec_data) {
-        sec_data = (uint8_t *) malloc(sec_len);
-        if (!sec_data) {
-            free(hashed_data);
-            hashed_data = NULL;
-            throw std::bad_alloc();
-        }
-        memcpy(sec_data, src.sec_data, sec_len);
-    }
+    sec_data = src.sec_data;
     v5_s2k_len = src.v5_s2k_len;
     v5_sec_len = src.v5_sec_len;
     sec_protection = src.sec_protection;
@@ -761,16 +730,12 @@ pgp_key_pkt_t::pgp_key_pkt_t(pgp_key_pkt_t &&src)
     creation_time = src.creation_time;
     alg = src.alg;
     v3_days = src.v3_days;
-    hashed_len = src.hashed_len;
-    hashed_data = src.hashed_data;
-    src.hashed_data = NULL;
+    pub_data = std::move(src.pub_data);
     material = std::move(src.material);
-    sec_len = src.sec_len;
+    sec_data = std::move(src.sec_data);
     v5_s2k_len = src.v5_s2k_len;
     v5_sec_len = src.v5_sec_len;
     v5_pub_len = src.v5_pub_len;
-    sec_data = src.sec_data;
-    src.sec_data = NULL;
     sec_protection = src.sec_protection;
 }
 
@@ -785,17 +750,10 @@ pgp_key_pkt_t::operator=(pgp_key_pkt_t &&src)
     creation_time = src.creation_time;
     alg = src.alg;
     v3_days = src.v3_days;
-    hashed_len = src.hashed_len;
-    free(hashed_data);
-    hashed_data = src.hashed_data;
-    src.hashed_data = NULL;
+    pub_data = std::move(src.pub_data);
     material = std::move(src.material);
-    secure_clear(sec_data, sec_len);
-    free(sec_data);
-    sec_len = src.sec_len;
-    sec_data = src.sec_data;
-    src.sec_data = NULL;
-    src.sec_len = 0;
+    secure_clear(sec_data.data(), sec_data.size());
+    sec_data = std::move(src.sec_data);
     sec_protection = src.sec_protection;
     return *this;
 }
@@ -811,39 +769,17 @@ pgp_key_pkt_t::operator=(const pgp_key_pkt_t &src)
     creation_time = src.creation_time;
     alg = src.alg;
     v3_days = src.v3_days;
-    hashed_len = src.hashed_len;
-    free(hashed_data);
-    hashed_data = NULL;
-    if (src.hashed_data) {
-        hashed_data = (uint8_t *) malloc(hashed_len);
-        if (!hashed_data) {
-            throw std::bad_alloc();
-        }
-        memcpy(hashed_data, src.hashed_data, hashed_len);
-    }
+    pub_data = src.pub_data;
     material = src.material ? src.material->clone() : nullptr;
-    secure_clear(sec_data, sec_len);
-    free(sec_data);
-    sec_data = NULL;
-    sec_len = src.sec_len;
-    if (src.sec_data) {
-        sec_data = (uint8_t *) malloc(sec_len);
-        if (!sec_data) {
-            free(hashed_data);
-            hashed_data = NULL;
-            throw std::bad_alloc();
-        }
-        memcpy(sec_data, src.sec_data, sec_len);
-    }
+    secure_clear(sec_data.data(), sec_data.size());
+    sec_data = std::move(src.sec_data);
     sec_protection = src.sec_protection;
     return *this;
 }
 
 pgp_key_pkt_t::~pgp_key_pkt_t()
 {
-    free(hashed_data);
-    secure_clear(sec_data, sec_len);
-    free(sec_data);
+    secure_clear(sec_data.data(), sec_data.size());
 }
 
 #if defined(ENABLE_CRYPTO_REFRESH)
@@ -903,13 +839,13 @@ pgp_key_pkt_t::write(pgp_dest_t &dst)
         RNP_LOG("wrong key tag");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    if (!hashed_data) {
+    if (pub_data.empty()) {
         fill_hashed_data();
     }
 
     pgp_packet_body_t pktbody(tag);
     /* all public key data is written in hashed_data */
-    pktbody.add(hashed_data, hashed_len);
+    pktbody.add(pub_data);
     /* if we have public key then we do not need further processing */
     if (!is_secret_key_pkt(tag)) {
         pktbody.write(dst);
@@ -917,7 +853,7 @@ pgp_key_pkt_t::write(pgp_dest_t &dst)
     }
 
     /* secret key fields should be pre-populated in sec_data field */
-    if ((sec_protection.s2k.specifier != PGP_S2KS_EXPERIMENTAL) && (!sec_data || !sec_len)) {
+    if ((sec_protection.s2k.specifier != PGP_S2KS_EXPERIMENTAL) && sec_data.empty()) {
         RNP_LOG("secret key data is not populated");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
@@ -937,13 +873,11 @@ pgp_key_pkt_t::write(pgp_dest_t &dst)
     pktbody.add(s2k_params.data(), s2k_params.size());
 
     if (version == PGP_V5) {
-        pktbody.add_uint32(sec_len);
+        pktbody.add_uint32(sec_data.size());
     }
-    if (sec_len) {
-        /* if key is stored on card, or exported via gpg --export-secret-subkeys, then
-         * sec_data is empty */
-        pktbody.add(sec_data, sec_len);
-    }
+    /* if key is stored on card, or exported via gpg --export-secret-subkeys, then
+     * sec_data is empty */
+    pktbody.add(sec_data);
     pktbody.write(dst);
 }
 
@@ -1044,12 +978,7 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
     }
 
     /* fill hashed data used for signatures */
-    if (!(hashed_data = (uint8_t *) malloc(pkt.size() - pkt.left()))) {
-        RNP_LOG("allocation failed");
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    memcpy(hashed_data, pkt.data(), pkt.size() - pkt.left());
-    hashed_len = pkt.size() - pkt.left();
+    pub_data.assign(pkt.data(), pkt.data() + pkt.size() - pkt.left());
 
     /* secret key fields if any */
     if (is_secret_key_pkt(tag)) {
@@ -1144,22 +1073,15 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         }
 
         /* encrypted/cleartext secret MPIs are left */
-        size_t asec_len = pkt.left();
-        if (!asec_len) {
-            sec_data = NULL;
-        } else {
-            if (!(sec_data = (uint8_t *) calloc(1, asec_len))) {
-                return RNP_ERROR_OUT_OF_MEMORY;
-            }
-            if (!pkt.get(sec_data, asec_len)) {
-                return RNP_ERROR_BAD_STATE;
-            }
+        size_t sec_len = pkt.left();
+        sec_data.resize(sec_len);
+        if (sec_len && !pkt.get(sec_data.data(), sec_len)) {
+            return RNP_ERROR_BAD_STATE;
         }
-        sec_len = asec_len;
     }
 
     if (pkt.left()) {
-        RNP_LOG("extra %d bytes in key packet", (int) pkt.left());
+        RNP_LOG("extra %zu bytes in key packet", pkt.left());
         return RNP_ERROR_BAD_FORMAT;
     }
     return RNP_SUCCESS;
@@ -1195,14 +1117,7 @@ pgp_key_pkt_t::fill_hashed_data()
     }
 #endif
     hbody.add(alg_spec_fields.data(), alg_spec_fields.size());
-
-    hashed_data = (uint8_t *) malloc(hbody.size());
-    if (!hashed_data) {
-        RNP_LOG("allocation failed");
-        throw rnp::rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
-    }
-    memcpy(hashed_data, hbody.data(), hbody.size());
-    hashed_len = hbody.size();
+    pub_data.assign(hbody.data(), hbody.data() + hbody.size());
 }
 
 pgp_transferable_subkey_t::pgp_transferable_subkey_t(const pgp_transferable_subkey_t &src,
