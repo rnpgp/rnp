@@ -1114,7 +1114,7 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 
     if (ctx->dump_grips) {
         if (key.material) {
-            pgp_key_grip_t grip = key.material->grip();
+            pgp::KeyGrip grip = key.material->grip();
             dst_print_hex(dst, "grip", grip.data(), grip.size(), false);
         } else {
             dst_printf(dst, "grip: failed to calculate\n");
@@ -2321,7 +2321,7 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
 
     if (ctx->dump_grips) {
         if (key.material) {
-            pgp_key_grip_t grip = key.material->grip();
+            pgp::KeyGrip grip = key.material->grip();
             if (!json_add_hex(pkt, "grip", grip.data(), grip.size())) {
                 return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
             }
