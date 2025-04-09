@@ -912,7 +912,7 @@ Key::has_secret() const noexcept
     if (!is_secret()) {
         return false;
     }
-    if ((format == KeyFormat::GPG) && !pkt_.sec_len) {
+    if ((format == KeyFormat::GPG) && pkt_.sec_data.empty()) {
         return false;
     }
     if (pkt_.sec_protection.s2k.usage == PGP_S2KU_NONE) {

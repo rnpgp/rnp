@@ -510,7 +510,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_true(cmp_keyfp(keyfp, "6BC04A5A3DDB35766B9A40D82FB9179118898E8B"));
     assert_true(cmp_keyid(keyfp.keyid(), "2FB9179118898E8B"));
     assert_int_equal(key->subkeys.size(), 1);
-    assert_non_null(key->subkeys[0].subkey.hashed_data);
+    assert_false(key->subkeys[0].subkey.pub_data.empty());
     keysrc.close();
 
     /* rsa/rsa secret key */
@@ -522,7 +522,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_true(cmp_keyfp(keyfp, "6BC04A5A3DDB35766B9A40D82FB9179118898E8B"));
     assert_true(cmp_keyid(keyfp.keyid(), "2FB9179118898E8B"));
     assert_int_equal(key->subkeys.size(), 1);
-    assert_non_null(key->subkeys[0].subkey.hashed_data);
+    assert_false(key->subkeys[0].subkey.pub_data.empty());
     keysrc.close();
 
     /* dsa/el-gamal public key */
@@ -544,7 +544,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_int_equal(key->subkeys.size(), 1);
-    assert_non_null(key->subkeys[0].subkey.hashed_data);
+    assert_false(key->subkeys[0].subkey.pub_data.empty());
     keysrc.close();
 
     /* curve 25519 ecc public key */
@@ -583,7 +583,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_int_equal(key->subkeys.size(), 1);
-    assert_non_null(key->subkeys[0].subkey.hashed_data);
+    assert_false(key->subkeys[0].subkey.pub_data.empty());
     keysrc.close();
 
     /* p-256 ecc public key */
@@ -604,7 +604,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_int_equal(key->subkeys.size(), 1);
-    assert_non_null(key->subkeys[0].subkey.hashed_data);
+    assert_false(key->subkeys[0].subkey.pub_data.empty());
     keysrc.close();
 
     /* p-384 ecc public key */
@@ -625,7 +625,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_int_equal(key->subkeys.size(), 1);
-    assert_non_null(key->subkeys[0].subkey.hashed_data);
+    assert_false(key->subkeys[0].subkey.pub_data.empty());
     keysrc.close();
 
     /* p-521 ecc public key */
@@ -646,7 +646,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_int_equal(key->subkeys.size(), 1);
-    assert_non_null(key->subkeys[0].subkey.hashed_data);
+    assert_false(key->subkeys[0].subkey.pub_data.empty());
     keysrc.close();
 
     /* Brainpool P256 ecc public key */
@@ -667,7 +667,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_int_equal(key->subkeys.size(), 1);
-    assert_non_null(key->subkeys[0].subkey.hashed_data);
+    assert_false(key->subkeys[0].subkey.pub_data.empty());
     keysrc.close();
 
     /* Brainpool P384 ecc public key */
@@ -688,7 +688,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_int_equal(key->subkeys.size(), 1);
-    assert_non_null(key->subkeys[0].subkey.hashed_data);
+    assert_false(key->subkeys[0].subkey.pub_data.empty());
     keysrc.close();
 
     /* Brainpool P512 ecc public key */
@@ -709,7 +709,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_int_equal(key->subkeys.size(), 1);
-    assert_non_null(key->subkeys[0].subkey.hashed_data);
+    assert_false(key->subkeys[0].subkey.pub_data.empty());
     keysrc.close();
 
     /* secp256k1 ecc public key, not supported now */
@@ -730,7 +730,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_int_equal(key->subkeys.size(), 1);
-    assert_non_null(key->subkeys[0].subkey.hashed_data);
+    assert_false(key->subkeys[0].subkey.pub_data.empty());
     keysrc.close();
 }
 
