@@ -44,9 +44,9 @@
  * @return RNP_SUCCESS on success or some error otherwise
  */
 static rnp::secure_bytes
-signature_hash_finish(const pgp_signature_t &  sig,
-                      rnp::Hash &              hash,
-                      const pgp_literal_hdr_t *hdr)
+signature_hash_finish(const pgp::pkt::Signature &sig,
+                      rnp::Hash &                hash,
+                      const pgp_literal_hdr_t *  hdr)
 {
     hash.add(sig.hashed_data);
     switch (sig.version) {
@@ -91,7 +91,7 @@ signature_hash_finish(const pgp_signature_t &  sig,
 }
 
 std::unique_ptr<rnp::Hash>
-signature_init(const pgp_key_pkt_t &key, const pgp_signature_t &sig)
+signature_init(const pgp_key_pkt_t &key, const pgp::pkt::Signature &sig)
 {
     auto hash = rnp::Hash::create(sig.halg);
 
@@ -109,7 +109,7 @@ signature_init(const pgp_key_pkt_t &key, const pgp_signature_t &sig)
 }
 
 void
-signature_calculate(pgp_signature_t &        sig,
+signature_calculate(pgp::pkt::Signature &    sig,
                     pgp::KeyMaterial &       seckey,
                     rnp::Hash &              hash,
                     rnp::SecurityContext &   ctx,
@@ -149,7 +149,7 @@ signature_calculate(pgp_signature_t &        sig,
 }
 
 rnp::SigValidity
-signature_validate(const pgp_signature_t &     sig,
+signature_validate(const pgp::pkt::Signature & sig,
                    const pgp::KeyMaterial &    key,
                    rnp::Hash &                 hash,
                    const rnp::SecurityContext &ctx,

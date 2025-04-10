@@ -62,7 +62,7 @@ typedef std::unordered_map<pgp::Fingerprint, std::list<Key>::iterator> KeyFinger
 class KeyStore {
   private:
     Key *                   add_subkey(Key &srckey, Key *oldkey);
-    pgp_sig_import_status_t import_subkey_signature(Key &key, const pgp_signature_t &sig);
+    pgp_sig_import_status_t import_subkey_signature(Key &key, const pgp::pkt::Signature &sig);
     bool                    refresh_subkey_grips(Key &key);
 
   public:
@@ -166,7 +166,7 @@ class KeyStore {
      * @param prov key provider to request needed key.
      * @return pointer to the key or nullptr if signer's key was not found.
      */
-    Key *get_signer(const pgp_signature_t &sig, const KeyProvider *prov = nullptr);
+    Key *get_signer(const pgp::pkt::Signature &sig, const KeyProvider *prov = nullptr);
 
     /**
      * @brief Add key to the keystore, copying it.
@@ -187,10 +187,10 @@ class KeyStore {
      * @return pointer to the newly added signature or nullptr if error occurred (key not
      *         found, whatever else).
      */
-    Signature *add_key_sig(const pgp::Fingerprint &keyfp,
-                           const pgp_signature_t & sig,
-                           const pgp_userid_pkt_t *uid,
-                           bool                    front);
+    Signature *add_key_sig(const pgp::Fingerprint &   keyfp,
+                           const pgp::pkt::Signature &sig,
+                           const pgp_userid_pkt_t *   uid,
+                           bool                       front);
 
     /**
      * @brief Add transferable key to the keystore.
@@ -220,7 +220,7 @@ class KeyStore {
     /**
      * @brief Import signature for the specified key.
      */
-    pgp_sig_import_status_t import_signature(Key &key, const pgp_signature_t &sig);
+    pgp_sig_import_status_t import_signature(Key &key, const pgp::pkt::Signature &sig);
 
     /**
      * @brief Import revocation or direct-key signature to the keystore.
@@ -230,7 +230,7 @@ class KeyStore {
      * @return pointer to the key to which this signature belongs (or nullptr if key was not
      * found)
      */
-    Key *import_signature(const pgp_signature_t &sig, pgp_sig_import_status_t *status);
+    Key *import_signature(const pgp::pkt::Signature &sig, pgp_sig_import_status_t *status);
 
     /**
      * @brief Remove key from the keystore.

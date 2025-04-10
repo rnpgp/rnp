@@ -1841,7 +1841,7 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    pgp_signature_list_t sigs;
+    pgp::pkt::Signatures sigs;
     rnp_result_t         sigret = process_pgp_signatures(input->src, sigs);
     if (sigret) {
         FFI_LOG(ffi, "failed to parse signature(s)");
@@ -3722,7 +3722,7 @@ try {
 FFI_GUARD
 
 static rnp_key_handle_t
-get_signer_handle(rnp_ffi_t ffi, const pgp_signature_t &sig)
+get_signer_handle(rnp_ffi_t ffi, const pgp::pkt::Signature &sig)
 {
     // search the stores
     auto *pub = ffi->pubring->get_signer(sig);
@@ -4016,13 +4016,13 @@ fill_revocation_reason(rnp_ffi_t        ffi,
 }
 
 static rnp_result_t
-rnp_key_get_revocation(rnp_ffi_t        ffi,
-                       rnp::Key *       key,
-                       rnp::Key *       revoker,
-                       const char *     hash,
-                       const char *     code,
-                       const char *     reason,
-                       pgp_signature_t &sig)
+rnp_key_get_revocation(rnp_ffi_t            ffi,
+                       rnp::Key *           key,
+                       rnp::Key *           revoker,
+                       const char *         hash,
+                       const char *         code,
+                       const char *         reason,
+                       pgp::pkt::Signature &sig)
 {
     if (!hash) {
         hash = DEFAULT_HASH_ALG;
@@ -4077,8 +4077,8 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    pgp_signature_t sig;
-    rnp_result_t    ret =
+    pgp::pkt::Signature sig;
+    rnp_result_t        ret =
       rnp_key_get_revocation(key->ffi, exkey, revoker, hash, code, reason, sig);
     if (ret) {
         return ret;
@@ -4120,8 +4120,8 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    pgp_signature_t sig;
-    rnp_result_t    ret =
+    pgp::pkt::Signature sig;
+    rnp_result_t        ret =
       rnp_key_get_revocation(key->ffi, exkey, revoker, hash, code, reason, sig);
     if (ret) {
         return ret;
@@ -5949,7 +5949,7 @@ create_key_signature(rnp_ffi_t               ffi,
     default:
         return RNP_ERROR_NOT_IMPLEMENTED;
     }
-    pgp_signature_t sigpkt;
+    pgp::pkt::Signature sigpkt;
     sigkey.sign_init(
       ffi->rng(), sigpkt, DEFAULT_PGP_HASH_ALG, ffi->context.time(), sigkey.version());
     sigpkt.set_type(type);
@@ -8171,7 +8171,7 @@ add_json_mpis(json_object *jso, rnp::Key *key, bool secret = false)
 }
 
 static rnp_result_t
-add_json_sig_mpis(json_object *jso, const pgp_signature_t *sig)
+add_json_sig_mpis(json_object *jso, const pgp::pkt::Signature *sig)
 {
     auto material = sig->parse_material();
     if (!material) {
@@ -8311,7 +8311,7 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const rnp::Signat
             return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
-    const pgp_signature_t *sig = &subsig->sig;
+    const pgp::pkt::Signature *sig = &subsig->sig;
     // version
     if (!json_add(jso, "version", (int) sig->version)) {
         return RNP_ERROR_OUT_OF_MEMORY;

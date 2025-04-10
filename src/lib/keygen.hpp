@@ -140,7 +140,7 @@ class UserPrefs {
 #endif
 
     UserPrefs(){};
-    UserPrefs(const pgp_signature_t &sig);
+    UserPrefs(const pgp::pkt::Signature &sig);
 
     void add_symm_alg(pgp_symm_alg_t alg);
     void add_hash_alg(pgp_hash_alg_t alg);
@@ -166,8 +166,8 @@ class CertParams {
      * @brief Populate uid and sig packet with data stored in this struct.
      *        At some point we should get rid of it.
      */
-    void populate(pgp_userid_pkt_t &uid, pgp_signature_t &sig) const;
-    void populate(pgp_signature_t &sig) const;
+    void populate(pgp_userid_pkt_t &uid, pgp::pkt::Signature &sig) const;
+    void populate(pgp::pkt::Signature &sig) const;
     void populate(pgp_userid_pkt_t &uid) const;
 };
 
