@@ -55,8 +55,6 @@ class PqcKemCombiner {
                                         const std::vector<uint8_t> &ecc_key_share,
                                         const std::vector<uint8_t> &ecc_ciphertext,
                                         const std::vector<uint8_t> &ecc_pub_key,
-                                        const std::vector<uint8_t> &mlkem_ciphertext,
-                                        const std::vector<uint8_t> &mlkem_pub_key,
                                         const pgp_pubkey_alg_t      alg_id);
 };
 
