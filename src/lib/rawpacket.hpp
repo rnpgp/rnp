@@ -41,7 +41,7 @@ class RawPacket {
   public:
     RawPacket() : tag_(PGP_PKT_RESERVED){};
     RawPacket(const uint8_t *data, size_t len, pgp_pkt_type_t atag);
-    RawPacket(const pgp_signature_t &sig);
+    RawPacket(const pgp::pkt::Signature &sig);
     RawPacket(pgp_key_pkt_t &key);
     RawPacket(const pgp_userid_pkt_t &uid);
 
