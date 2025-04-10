@@ -339,8 +339,6 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(
                                    ecdh_keyshare,
                                    ecdh_encapsulated_keyshare,
                                    ecdh_kyber_pub_key.get_ecdh_encoded(),
-                                   kyber_encapsulated_keyshare,
-                                   ecdh_kyber_pub_key.get_kyber_encoded(),
                                    pk_alg());
     Botan::SymmetricKey kek(kek_vec);
 
@@ -478,8 +476,6 @@ pgp_kyber_ecdh_composite_public_key_t::encrypt(rnp::RNG *                  rng,
                                                                 ecdh_keyshare,
                                                                 ecdh_ciphertext,
                                                                 ecdh_key_.get_encoded(),
-                                                                kyber_encap.ciphertext,
-                                                                kyber_key_.get_encoded(),
                                                                 pk_alg());
     Botan::SymmetricKey  kek(kek_vec);
 
