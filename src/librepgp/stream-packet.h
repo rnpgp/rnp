@@ -150,7 +150,7 @@ typedef struct pgp_packet_body_t {
      * @param sig signature, containing subpackets
      * @param hashed whether write hashed or not hashed subpackets
      */
-    void add_subpackets(const pgp_signature_t &sig, bool hashed);
+    void add_subpackets(const pgp::pkt::Signature &sig, bool hashed);
     /** @brief add ec curve description to the packet body */
     void add(const pgp_curve_t curve);
     /** @brief add s2k description to the packet body */

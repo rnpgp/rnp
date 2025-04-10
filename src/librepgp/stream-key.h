@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2018-2025, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -82,13 +82,13 @@ typedef struct pgp_key_pkt_t {
 /* userid/userattr with all the corresponding signatures */
 typedef struct pgp_transferable_userid_t {
     pgp_userid_pkt_t     uid;
-    pgp_signature_list_t signatures;
+    pgp::pkt::Signatures signatures;
 } pgp_transferable_userid_t;
 
 /* subkey with all corresponding signatures */
 typedef struct pgp_transferable_subkey_t {
     pgp_key_pkt_t        subkey;
-    pgp_signature_list_t signatures;
+    pgp::pkt::Signatures signatures;
 
     pgp_transferable_subkey_t() = default;
     pgp_transferable_subkey_t(const pgp_transferable_subkey_t &src, bool pubonly = false);
@@ -100,7 +100,7 @@ typedef struct pgp_transferable_key_t {
     pgp_key_pkt_t                          key; /* main key packet */
     std::vector<pgp_transferable_userid_t> userids;
     std::vector<pgp_transferable_subkey_t> subkeys;
-    pgp_signature_list_t                   signatures;
+    pgp::pkt::Signatures                   signatures;
 
     pgp_transferable_key_t() = default;
     pgp_transferable_key_t(const pgp_transferable_key_t &src, bool pubonly = false);

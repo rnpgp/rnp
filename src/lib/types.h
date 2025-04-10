@@ -146,7 +146,12 @@ typedef struct pgp_key_protection_t {
     uint8_t           iv[PGP_MAX_BLOCK_SIZE];
 } pgp_key_protection_t;
 
-typedef struct pgp_signature_t pgp_signature_t;
+namespace pgp {
+namespace pkt {
+class Signature;
+}
+} // namespace pgp
+
 typedef enum {
     /* first octet */
     PGP_KEY_SERVER_NO_MODIFY = 0x80

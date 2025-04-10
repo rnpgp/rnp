@@ -110,23 +110,23 @@ class SigValidity {
 
 class SignatureInfo {
   public:
-    bool             signer_valid{};      /* assume that signing key is valid */
-    bool             ignore_expiry{};     /* ignore signer's key expiration time */
-    bool             ignore_sig_expiry{}; /* we ignore expiration for revocations */
-    pgp_signature_t *sig{};               /* signature, or NULL if there were parsing error */
-    SigValidity      validity;
+    bool                 signer_valid{};      /* assume that signing key is valid */
+    bool                 ignore_expiry{};     /* ignore signer's key expiration time */
+    bool                 ignore_sig_expiry{}; /* we ignore expiration for revocations */
+    pgp::pkt::Signature *sig{}; /* signature, or NULL if there were parsing error */
+    SigValidity          validity;
 };
 
 class Signature {
   public:
-    uint32_t        uid{};    /* index in userid array in key for certification sig */
-    pgp_signature_t sig{};    /* signature packet */
-    pgp::SigID      sigid{};  /* signature identifier */
-    RawPacket       raw;      /* signature's rawpacket */
-    SigValidity     validity; /* signature validity information */
+    uint32_t            uid{};    /* index in userid array in key for certification sig */
+    pgp::pkt::Signature sig{};    /* signature packet */
+    pgp::SigID          sigid{};  /* signature identifier */
+    RawPacket           raw;      /* signature's rawpacket */
+    SigValidity         validity; /* signature validity information */
 
     Signature() = delete;
-    Signature(const pgp_signature_t &sig);
+    Signature(const pgp::pkt::Signature &sig);
 
     /** @brief Returns true if signature is certification */
     bool is_cert() const;
