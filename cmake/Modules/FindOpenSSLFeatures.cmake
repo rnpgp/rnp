@@ -117,7 +117,7 @@ if (NOT ${result} EQUAL 0)
 endif()
 
 execute_process(
-  COMMAND "${CMAKE_COMMAND}" "--build" "build" --config "Release" -- VERBOSE=1
+  COMMAND "${CMAKE_COMMAND}" "--build" "build" --config "Release"
   WORKING_DIRECTORY "${_fossl_work_dir}"
   OUTPUT_VARIABLE output
   ERROR_VARIABLE error
