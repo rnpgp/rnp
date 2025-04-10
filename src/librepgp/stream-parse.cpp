@@ -151,7 +151,7 @@ typedef struct pgp_source_signed_param_t {
     bool              has_lhdr = false;
 
     std::vector<pgp_one_pass_sig_t> onepasses;  /* list of one-pass signatures */
-    std::list<pgp_signature_t>      sigs;       /* list of signatures */
+    std::list<pgp::pkt::Signature>  sigs;       /* list of signatures */
     std::vector<rnp::SignatureInfo> siginfos;   /* signature validation info */
     rnp::HashList                   hashes;     /* hash contexts */
     rnp::HashList                   txt_hashes; /* hash contexts for text-mode sigs */
@@ -1047,7 +1047,7 @@ signed_src_close(pgp_source_t *src)
 static rnp_result_t
 signed_read_single_signature(pgp_source_signed_param_t *param,
                              pgp_source_t *             readsrc,
-                             pgp_signature_t **         sig)
+                             pgp::pkt::Signature **     sig)
 {
     uint8_t ptag;
     if (!readsrc->peek_eq(&ptag, 1)) {
@@ -1069,7 +1069,7 @@ signed_read_single_signature(pgp_source_signed_param_t *param,
     try {
         param->siginfos.emplace_back();
         rnp::SignatureInfo &siginfo = param->siginfos.back();
-        pgp_signature_t     readsig;
+        pgp::pkt::Signature readsig;
         if (readsig.parse(*readsrc)) {
             RNP_LOG("failed to parse signature");
             siginfo.validity.add_error(RNP_ERROR_SIG_PARSE_ERROR);
@@ -1124,8 +1124,8 @@ signed_read_signatures(pgp_source_t *src)
 
     /* reading signatures */
     for (auto op = param->onepasses.rbegin(); op != param->onepasses.rend(); op++) {
-        pgp_signature_t *sig = NULL;
-        rnp_result_t     ret = signed_read_single_signature(param, src, &sig);
+        pgp::pkt::Signature *sig = NULL;
+        rnp_result_t         ret = signed_read_single_signature(param, src, &sig);
         /* we have more onepasses then signatures */
         if (ret == RNP_ERROR_READ) {
             RNP_LOG("Warning: premature end of signatures");
@@ -2426,7 +2426,7 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
     pgp_source_signed_param_t *param;
     uint8_t                    ptag;
     int                        ptype;
-    pgp_signature_t *          sig = NULL;
+    pgp::pkt::Signature *      sig = nullptr;
     bool                       cleartext;
     size_t                     sigerrors = 0;
 
