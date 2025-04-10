@@ -173,11 +173,11 @@ Key::write_sec_rawpkt(pgp_key_pkt_t &seckey, const std::string &password, Securi
 }
 
 static bool
-update_sig_expiration(pgp_signature_t *      dst,
-                      const pgp_signature_t *src,
-                      uint64_t               create,
-                      uint32_t               expiry,
-                      SecurityContext &      ctx)
+update_sig_expiration(pgp::pkt::Signature *      dst,
+                      const pgp::pkt::Signature *src,
+                      uint64_t                   create,
+                      uint32_t                   expiry,
+                      SecurityContext &          ctx)
 {
     try {
         *dst = *src;
@@ -251,8 +251,8 @@ pgp_key_set_expiration(Key *                          key,
             return false;
         }
 
-        pgp_signature_t newsig;
-        auto            oldsigid = sigid;
+        pgp::pkt::Signature newsig;
+        auto                oldsigid = sigid;
         if (!update_sig_expiration(&newsig, &sig.sig, ctx.time(), expiry, ctx)) {
             return false;
         }
@@ -328,8 +328,8 @@ pgp_subkey_set_expiration(Key *                          sub,
 
     try {
         /* update signature and re-sign */
-        pgp_signature_t newsig;
-        auto            oldsigid = subsig->sigid;
+        pgp::pkt::Signature newsig;
+        auto                oldsigid = subsig->sigid;
         if (!update_sig_expiration(&newsig, &subsig->sig, ctx.time(), expiry, ctx)) {
             return false;
         }
@@ -549,7 +549,7 @@ Key::get_sig(const pgp::SigID &id) const
 }
 
 Signature &
-Key::replace_sig(const pgp::SigID &id, const pgp_signature_t &newsig)
+Key::replace_sig(const pgp::SigID &id, const pgp::pkt::Signature &newsig)
 {
     /* save oldsig's uid */
     size_t uid = get_sig(id).uid;
@@ -576,7 +576,7 @@ Key::replace_sig(const pgp::SigID &id, const pgp_signature_t &newsig)
 }
 
 Signature &
-Key::add_sig(const pgp_signature_t &sig, size_t uid, bool begin)
+Key::add_sig(const pgp::pkt::Signature &sig, size_t uid, bool begin)
 {
     auto sigid = sig.get_id();
     sigs_map_.erase(sigid);
@@ -2088,11 +2088,11 @@ Key::mark_valid()
 }
 
 void
-Key::sign_init(RNG &            rng,
-               pgp_signature_t &sig,
-               pgp_hash_alg_t   hash,
-               uint64_t         creation,
-               pgp_version_t    version) const
+Key::sign_init(RNG &                rng,
+               pgp::pkt::Signature &sig,
+               pgp_hash_alg_t       hash,
+               uint64_t             creation,
+               pgp_version_t        version) const
 {
     sig.version = version;
     sig.halg = pkt_.material->adjust_hash(hash);
@@ -2114,7 +2114,7 @@ Key::sign_init(RNG &            rng,
 void
 Key::sign_cert(const pgp_key_pkt_t &   key,
                const pgp_userid_pkt_t &uid,
-               pgp_signature_t &       sig,
+               pgp::pkt::Signature &   sig,
                SecurityContext &       ctx)
 {
     sig.fill_hashed_data();
@@ -2123,7 +2123,7 @@ Key::sign_cert(const pgp_key_pkt_t &   key,
 }
 
 void
-Key::sign_direct(const pgp_key_pkt_t &key, pgp_signature_t &sig, SecurityContext &ctx)
+Key::sign_direct(const pgp_key_pkt_t &key, pgp::pkt::Signature &sig, SecurityContext &ctx)
 {
     sig.fill_hashed_data();
     auto hash = signature_hash_direct(sig, key);
@@ -2131,7 +2131,7 @@ Key::sign_direct(const pgp_key_pkt_t &key, pgp_signature_t &sig, SecurityContext
 }
 
 void
-Key::sign_binding(const pgp_key_pkt_t &key, pgp_signature_t &sig, SecurityContext &ctx)
+Key::sign_binding(const pgp_key_pkt_t &key, pgp::pkt::Signature &sig, SecurityContext &ctx)
 {
     sig.fill_hashed_data();
     auto hash = is_primary() ? signature_hash_binding(sig, pkt(), key) :
@@ -2143,7 +2143,7 @@ void
 Key::gen_revocation(const Revocation &   rev,
                     pgp_hash_alg_t       hash,
                     const pgp_key_pkt_t &key,
-                    pgp_signature_t &    sig,
+                    pgp::pkt::Signature &sig,
                     SecurityContext &    ctx)
 {
     sign_init(ctx.rng, sig, hash, ctx.time(), key.version);
@@ -2158,7 +2158,10 @@ Key::gen_revocation(const Revocation &   rev,
 }
 
 void
-Key::sign_subkey_binding(Key &sub, pgp_signature_t &sig, SecurityContext &ctx, bool subsign)
+Key::sign_subkey_binding(Key &                sub,
+                         pgp::pkt::Signature &sig,
+                         SecurityContext &    ctx,
+                         bool                 subsign)
 {
     if (!is_primary()) {
         throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -2166,7 +2169,7 @@ Key::sign_subkey_binding(Key &sub, pgp_signature_t &sig, SecurityContext &ctx, b
     sign_binding(sub.pkt(), sig, ctx);
     /* add primary key binding subpacket if requested */
     if (subsign) {
-        pgp_signature_t embsig;
+        pgp::pkt::Signature embsig;
         sub.sign_init(ctx.rng, embsig, sig.halg, ctx.time(), sub.version());
         embsig.set_type(PGP_SIG_PRIMARY);
         sub.sign_binding(pkt(), embsig, ctx);
@@ -2184,7 +2187,7 @@ Key::add_direct_sig(CertParams &cert, pgp_hash_alg_t hash, SecurityContext &ctx,
         throw rnp_exception(RNP_ERROR_BAD_STATE);
     }
 
-    pgp_signature_t sig;
+    pgp::pkt::Signature sig;
     sign_init(ctx.rng, sig, hash, ctx.time(), pkt().version);
     sig.set_type(PGP_SIG_DIRECT);
     cert.populate(sig);
@@ -2235,8 +2238,8 @@ Key::add_uid_cert(CertParams &cert, pgp_hash_alg_t hash, SecurityContext &ctx, K
     }
 
     /* Fill the transferable userid */
-    pgp_userid_pkt_t uid;
-    pgp_signature_t  sig;
+    pgp_userid_pkt_t    uid;
+    pgp::pkt::Signature sig;
     sign_init(ctx.rng, sig, hash, ctx.time(), pkt().version);
     cert.populate(uid, sig);
     try {
@@ -2270,7 +2273,7 @@ Key::add_sub_binding(Key &                subsec,
     }
 
     /* populate signature */
-    pgp_signature_t sig;
+    pgp::pkt::Signature sig;
     sign_init(ctx.rng, sig, hash, ctx.time(), version());
     sig.set_type(PGP_SIG_SUBKEY);
     if (binding.key_expiration) {

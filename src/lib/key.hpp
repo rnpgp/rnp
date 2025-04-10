@@ -94,35 +94,35 @@ class Key {
     Key &operator=(const Key &) = default;
     Key &operator=(Key &&) = default;
 
-    size_t                  sig_count() const;
-    Signature &             get_sig(size_t idx);
-    const Signature &       get_sig(size_t idx) const;
-    bool                    has_sig(const pgp::SigID &id) const;
-    Signature &             replace_sig(const pgp::SigID &id, const pgp_signature_t &newsig);
-    Signature &             get_sig(const pgp::SigID &id);
-    const Signature &       get_sig(const pgp::SigID &id) const;
-    Signature &             add_sig(const pgp_signature_t &sig,
-                                    size_t                 uid = UserID::None,
-                                    bool                   begin = false);
-    bool                    del_sig(const pgp::SigID &sigid);
-    size_t                  del_sigs(const pgp::SigIDs &sigs);
-    size_t                  keysig_count() const;
-    Signature &             get_keysig(size_t idx);
-    size_t                  uid_count() const;
-    UserID &                get_uid(size_t idx);
-    const UserID &          get_uid(size_t idx) const;
-    UserID &                add_uid(const pgp_transferable_userid_t &uid);
-    bool                    has_uid(const std::string &uid) const;
-    uint32_t                uid_idx(const pgp_userid_pkt_t &uid) const;
-    void                    del_uid(size_t idx);
-    bool                    has_primary_uid() const;
-    uint32_t                get_primary_uid() const;
-    bool                    revoked() const;
-    const Revocation &      revocation() const;
-    void                    clear_revokes();
-    void                    add_revoker(const pgp::Fingerprint &revoker);
-    bool                    has_revoker(const pgp::Fingerprint &revoker) const;
-    size_t                  revoker_count() const;
+    size_t            sig_count() const;
+    Signature &       get_sig(size_t idx);
+    const Signature & get_sig(size_t idx) const;
+    bool              has_sig(const pgp::SigID &id) const;
+    Signature &       replace_sig(const pgp::SigID &id, const pgp::pkt::Signature &newsig);
+    Signature &       get_sig(const pgp::SigID &id);
+    const Signature & get_sig(const pgp::SigID &id) const;
+    Signature &       add_sig(const pgp::pkt::Signature &sig,
+                              size_t                     uid = UserID::None,
+                              bool                       begin = false);
+    bool              del_sig(const pgp::SigID &sigid);
+    size_t            del_sigs(const pgp::SigIDs &sigs);
+    size_t            keysig_count() const;
+    Signature &       get_keysig(size_t idx);
+    size_t            uid_count() const;
+    UserID &          get_uid(size_t idx);
+    const UserID &    get_uid(size_t idx) const;
+    UserID &          add_uid(const pgp_transferable_userid_t &uid);
+    bool              has_uid(const std::string &uid) const;
+    uint32_t          uid_idx(const pgp_userid_pkt_t &uid) const;
+    void              del_uid(size_t idx);
+    bool              has_primary_uid() const;
+    uint32_t          get_primary_uid() const;
+    bool              revoked() const;
+    const Revocation &revocation() const;
+    void              clear_revokes();
+    void              add_revoker(const pgp::Fingerprint &revoker);
+    bool              has_revoker(const pgp::Fingerprint &revoker) const;
+    size_t            revoker_count() const;
     const pgp::Fingerprint &get_revoker(size_t idx) const;
 
     const pgp_key_pkt_t &   pkt() const noexcept;
@@ -406,11 +406,11 @@ class Key {
      * @param creation signature's creation time.
      * @param version signature version
      */
-    void sign_init(RNG &            rng,
-                   pgp_signature_t &sig,
-                   pgp_hash_alg_t   hash,
-                   uint64_t         creation,
-                   pgp_version_t    version) const;
+    void sign_init(RNG &                rng,
+                   pgp::pkt::Signature &sig,
+                   pgp_hash_alg_t       hash,
+                   uint64_t             creation,
+                   pgp_version_t        version) const;
 
     /**
      * @brief Calculate a certification and fill signature material.
@@ -424,7 +424,7 @@ class Key {
      */
     void sign_cert(const pgp_key_pkt_t &   key,
                    const pgp_userid_pkt_t &uid,
-                   pgp_signature_t &       sig,
+                   pgp::pkt::Signature &   sig,
                    SecurityContext &       ctx);
 
     /**
@@ -435,7 +435,7 @@ class Key {
      * @param sig signature, pre-populated with all of the required data, except the
      *            signature material.
      */
-    void sign_direct(const pgp_key_pkt_t &key, pgp_signature_t &sig, SecurityContext &ctx);
+    void sign_direct(const pgp_key_pkt_t &key, pgp::pkt::Signature &sig, SecurityContext &ctx);
 
     /**
      * @brief Calculate subkey or primary key binding.
@@ -446,7 +446,9 @@ class Key {
      * @param sig signature, pre-populated with all of the required data, except the
      *            signature material.
      */
-    void sign_binding(const pgp_key_pkt_t &key, pgp_signature_t &sig, SecurityContext &ctx);
+    void sign_binding(const pgp_key_pkt_t &key,
+                      pgp::pkt::Signature &sig,
+                      SecurityContext &    ctx);
 
     /**
      * @brief Calculate subkey binding.
@@ -459,10 +461,10 @@ class Key {
      * @param sig signature, pre-populated with all of the required data, except the
      *            signature material.
      */
-    void sign_subkey_binding(Key &            sub,
-                             pgp_signature_t &sig,
-                             SecurityContext &ctx,
-                             bool             subsign = false);
+    void sign_subkey_binding(Key &                sub,
+                             pgp::pkt::Signature &sig,
+                             SecurityContext &    ctx,
+                             bool                 subsign = false);
 
     /**
      * @brief Generate key or subkey revocation signature.
@@ -474,7 +476,7 @@ class Key {
     void gen_revocation(const Revocation &   rev,
                         pgp_hash_alg_t       hash,
                         const pgp_key_pkt_t &key,
-                        pgp_signature_t &    sig,
+                        pgp::pkt::Signature &sig,
                         SecurityContext &    ctx);
 
 #if defined(ENABLE_CRYPTO_REFRESH)

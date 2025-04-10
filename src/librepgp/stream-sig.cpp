@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2018-2025, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -122,9 +122,9 @@ signature_hash_userid(const pgp_userid_pkt_t &uid, rnp::Hash &hash, pgp_version_
 }
 
 std::unique_ptr<rnp::Hash>
-signature_hash_certification(const pgp_signature_t & sig,
-                             const pgp_key_pkt_t &   key,
-                             const pgp_userid_pkt_t &userid)
+signature_hash_certification(const pgp::pkt::Signature &sig,
+                             const pgp_key_pkt_t &      key,
+                             const pgp_userid_pkt_t &   userid)
 {
     auto hash = signature_init(key, sig);
     signature_hash_key(key, *hash, sig.version);
@@ -133,9 +133,9 @@ signature_hash_certification(const pgp_signature_t & sig,
 }
 
 std::unique_ptr<rnp::Hash>
-signature_hash_binding(const pgp_signature_t &sig,
-                       const pgp_key_pkt_t &  key,
-                       const pgp_key_pkt_t &  subkey)
+signature_hash_binding(const pgp::pkt::Signature &sig,
+                       const pgp_key_pkt_t &      key,
+                       const pgp_key_pkt_t &      subkey)
 {
     auto hash = signature_init(key, sig);
     signature_hash_key(key, *hash, sig.version);
@@ -144,7 +144,7 @@ signature_hash_binding(const pgp_signature_t &sig,
 }
 
 std::unique_ptr<rnp::Hash>
-signature_hash_direct(const pgp_signature_t &sig, const pgp_key_pkt_t &key)
+signature_hash_direct(const pgp::pkt::Signature &sig, const pgp_key_pkt_t &key)
 {
     auto hash = signature_init(key, sig);
     signature_hash_key(key, *hash, sig.version);
@@ -152,7 +152,7 @@ signature_hash_direct(const pgp_signature_t &sig, const pgp_key_pkt_t &key)
 }
 
 rnp_result_t
-process_pgp_signatures(pgp_source_t &src, pgp_signature_list_t &sigs)
+process_pgp_signatures(pgp_source_t &src, pgp::pkt::Signatures &sigs)
 {
     sigs.clear();
     /* Allow binary or armored input, including multiple armored messages */
@@ -187,8 +187,11 @@ process_pgp_signatures(pgp_source_t &src, pgp_signature_list_t &sigs)
     return RNP_SUCCESS;
 }
 
+namespace pgp {
+namespace pkt {
+
 bool
-pgp_signature_t::operator==(const pgp_signature_t &src) const
+Signature::operator==(const Signature &src) const
 {
     // TODO-V6: could also compare salt
     return (lbits == src.lbits) && (hashed_data == src.hashed_data) &&
@@ -196,68 +199,65 @@ pgp_signature_t::operator==(const pgp_signature_t &src) const
 }
 
 bool
-pgp_signature_t::operator!=(const pgp_signature_t &src) const
+Signature::operator!=(const Signature &src) const
 {
     return !(*this == src);
 }
 
-pgp::SigID
-pgp_signature_t::get_id() const
+SigID
+Signature::get_id() const
 {
     auto hash = rnp::Hash::create(PGP_HASH_SHA1);
     hash->add(hashed_data);
     hash->add(material_buf);
-    pgp::SigID res = {0};
+    SigID res = {0};
     static_assert(std::tuple_size<decltype(res)>::value == PGP_SHA1_HASH_SIZE,
-                  "pgp::SigID size mismatch");
+                  "SigID size mismatch");
     hash->finish(res.data());
     return res;
 }
 
-/* Todo: remove once pgp_signature_t is renamed to pgp::pkt::Signature */
-using namespace pgp::pkt;
-
 sigsub::Raw *
-pgp_signature_t::get_subpkt(uint8_t stype, bool hashed)
+Signature::get_subpkt(uint8_t stype, bool hashed)
 {
     size_t idx = find_subpkt(stype, hashed);
     return idx == SIZE_MAX ? nullptr : subpkts[idx].get();
 }
 
 const sigsub::Raw *
-pgp_signature_t::get_subpkt(uint8_t stype, bool hashed) const
+Signature::get_subpkt(uint8_t stype, bool hashed) const
 {
     size_t idx = find_subpkt(stype, hashed);
     return idx == SIZE_MAX ? nullptr : subpkts[idx].get();
 }
 
 sigsub::Raw *
-pgp_signature_t::get_subpkt(sigsub::Type type, bool hashed)
+Signature::get_subpkt(sigsub::Type type, bool hashed)
 {
     return get_subpkt(static_cast<uint8_t>(type), hashed);
 }
 
 const sigsub::Raw *
-pgp_signature_t::get_subpkt(sigsub::Type type, bool hashed) const
+Signature::get_subpkt(sigsub::Type type, bool hashed) const
 {
     return get_subpkt(static_cast<uint8_t>(type), hashed);
 }
 
 bool
-pgp_signature_t::has_subpkt(uint8_t stype, bool hashed) const
+Signature::has_subpkt(uint8_t stype, bool hashed) const
 {
     return find_subpkt(stype, hashed) != SIZE_MAX;
 }
 
 bool
-pgp_signature_t::has_keyid() const
+Signature::has_keyid() const
 {
     return (version < PGP_V4) || has_subpkt(PGP_SIG_SUBPKT_ISSUER_KEY_ID, false) ||
            has_keyfp();
 }
 
-pgp::KeyID
-pgp_signature_t::keyid() const noexcept
+KeyID
+Signature::keyid() const noexcept
 {
     /* version 3 uses signature field */
     if (version < PGP_V4) {
@@ -277,7 +277,7 @@ pgp_signature_t::keyid() const noexcept
 }
 
 void
-pgp_signature_t::set_keyid(const pgp::KeyID &id)
+Signature::set_keyid(const KeyID &id)
 {
     if (version < PGP_V4) {
         signer = id;
@@ -290,7 +290,7 @@ pgp_signature_t::set_keyid(const pgp::KeyID &id)
 }
 
 bool
-pgp_signature_t::has_keyfp() const
+Signature::has_keyfp() const
 {
     auto sub = dynamic_cast<const sigsub::IssuerFingerprint *>(
       get_subpkt(sigsub::Type::IssuerFingerprint));
@@ -310,16 +310,16 @@ pgp_signature_t::has_keyfp() const
     }
 }
 
-pgp::Fingerprint
-pgp_signature_t::keyfp() const noexcept
+Fingerprint
+Signature::keyfp() const noexcept
 {
     auto sub = dynamic_cast<const sigsub::IssuerFingerprint *>(
       get_subpkt(sigsub::Type::IssuerFingerprint));
-    return sub ? sub->fp() : pgp::Fingerprint{};
+    return sub ? sub->fp() : Fingerprint{};
 }
 
 void
-pgp_signature_t::set_keyfp(const pgp::Fingerprint &fp)
+Signature::set_keyfp(const Fingerprint &fp)
 {
     auto sub = std::unique_ptr<sigsub::IssuerFingerprint>(new sigsub::IssuerFingerprint());
 #if defined(ENABLE_CRYPTO_REFRESH)
@@ -332,7 +332,7 @@ pgp_signature_t::set_keyfp(const pgp::Fingerprint &fp)
 }
 
 uint32_t
-pgp_signature_t::creation() const
+Signature::creation() const
 {
     if (version < PGP_V4) {
         return creation_time;
@@ -343,7 +343,7 @@ pgp_signature_t::creation() const
 }
 
 void
-pgp_signature_t::set_creation(uint32_t ctime)
+Signature::set_creation(uint32_t ctime)
 {
     if (version < PGP_V4) {
         creation_time = ctime;
@@ -355,7 +355,7 @@ pgp_signature_t::set_creation(uint32_t ctime)
 }
 
 uint32_t
-pgp_signature_t::expiration() const
+Signature::expiration() const
 {
     auto sub =
       dynamic_cast<const sigsub::ExpirationTime *>(get_subpkt(sigsub::Type::ExpirationTime));
@@ -363,7 +363,7 @@ pgp_signature_t::expiration() const
 }
 
 void
-pgp_signature_t::set_expiration(uint32_t etime)
+Signature::set_expiration(uint32_t etime)
 {
     auto sub = std::unique_ptr<sigsub::ExpirationTime>(new sigsub::ExpirationTime());
     sub->set_time(etime);
@@ -371,7 +371,7 @@ pgp_signature_t::set_expiration(uint32_t etime)
 }
 
 uint32_t
-pgp_signature_t::key_expiration() const
+Signature::key_expiration() const
 {
     auto sub = dynamic_cast<const sigsub::KeyExpirationTime *>(
       get_subpkt(sigsub::Type::KeyExpirationTime));
@@ -379,7 +379,7 @@ pgp_signature_t::key_expiration() const
 }
 
 void
-pgp_signature_t::set_key_expiration(uint32_t etime)
+Signature::set_key_expiration(uint32_t etime)
 {
     auto sub = std::unique_ptr<sigsub::KeyExpirationTime>(new sigsub::KeyExpirationTime());
     sub->set_time(etime);
@@ -387,14 +387,14 @@ pgp_signature_t::set_key_expiration(uint32_t etime)
 }
 
 uint8_t
-pgp_signature_t::key_flags() const
+Signature::key_flags() const
 {
     auto sub = dynamic_cast<const sigsub::KeyFlags *>(get_subpkt(sigsub::Type::KeyFlags));
     return sub ? sub->flags() : 0;
 }
 
 void
-pgp_signature_t::set_key_flags(uint8_t flags)
+Signature::set_key_flags(uint8_t flags)
 {
     auto sub = std::unique_ptr<sigsub::KeyFlags>(new sigsub::KeyFlags());
     sub->set_flags(flags);
@@ -402,7 +402,7 @@ pgp_signature_t::set_key_flags(uint8_t flags)
 }
 
 bool
-pgp_signature_t::primary_uid() const
+Signature::primary_uid() const
 {
     auto sub =
       dynamic_cast<const sigsub::PrimaryUserID *>(get_subpkt(sigsub::Type::PrimaryUserID));
@@ -410,7 +410,7 @@ pgp_signature_t::primary_uid() const
 }
 
 void
-pgp_signature_t::set_primary_uid(bool primary)
+Signature::set_primary_uid(bool primary)
 {
     auto sub = std::unique_ptr<sigsub::PrimaryUserID>(new sigsub::PrimaryUserID());
     sub->set_primary(primary);
@@ -418,14 +418,14 @@ pgp_signature_t::set_primary_uid(bool primary)
 }
 
 std::vector<uint8_t>
-pgp_signature_t::preferred(sigsub::Type type) const
+Signature::preferred(sigsub::Type type) const
 {
     auto sub = dynamic_cast<const sigsub::Preferred *>(get_subpkt(type));
     return sub ? sub->algs() : std::vector<uint8_t>();
 }
 
 void
-pgp_signature_t::set_preferred(const std::vector<uint8_t> &data, sigsub::Type type)
+Signature::set_preferred(const std::vector<uint8_t> &data, sigsub::Type type)
 {
     if (data.empty()) {
         /* Here we assume that there could be only one subpacket of the corresponding type */
@@ -444,57 +444,57 @@ pgp_signature_t::set_preferred(const std::vector<uint8_t> &data, sigsub::Type ty
 }
 
 std::vector<uint8_t>
-pgp_signature_t::preferred_symm_algs() const
+Signature::preferred_symm_algs() const
 {
     return preferred(sigsub::Type::PreferredSymmetric);
 }
 
 void
-pgp_signature_t::set_preferred_symm_algs(const std::vector<uint8_t> &algs)
+Signature::set_preferred_symm_algs(const std::vector<uint8_t> &algs)
 {
     set_preferred(algs, sigsub::Type::PreferredSymmetric);
 }
 
 std::vector<uint8_t>
-pgp_signature_t::preferred_hash_algs() const
+Signature::preferred_hash_algs() const
 {
     return preferred(sigsub::Type::PreferredHash);
 }
 
 void
-pgp_signature_t::set_preferred_hash_algs(const std::vector<uint8_t> &algs)
+Signature::set_preferred_hash_algs(const std::vector<uint8_t> &algs)
 {
     set_preferred(algs, sigsub::Type::PreferredHash);
 }
 
 std::vector<uint8_t>
-pgp_signature_t::preferred_z_algs() const
+Signature::preferred_z_algs() const
 {
     return preferred(sigsub::Type::PreferredCompress);
 }
 
 void
-pgp_signature_t::set_preferred_z_algs(const std::vector<uint8_t> &algs)
+Signature::set_preferred_z_algs(const std::vector<uint8_t> &algs)
 {
     set_preferred(algs, sigsub::Type::PreferredCompress);
 }
 
 #if defined(ENABLE_CRYPTO_REFRESH)
 void
-pgp_signature_t::set_preferred_aead_algs(const std::vector<uint8_t> &algs)
+Signature::set_preferred_aead_algs(const std::vector<uint8_t> &algs)
 {
     set_preferred(algs, sigsub::Type::PreferredAEADv6);
 }
 
 std::vector<uint8_t>
-pgp_signature_t::preferred_aead_algs() const
+Signature::preferred_aead_algs() const
 {
     return preferred(sigsub::Type::PreferredAEADv6);
 }
 #endif
 
 uint8_t
-pgp_signature_t::key_server_prefs() const
+Signature::key_server_prefs() const
 {
     auto sub =
       dynamic_cast<const sigsub::KeyserverPrefs *>(get_subpkt(sigsub::Type::KeyserverPrefs));
@@ -502,7 +502,7 @@ pgp_signature_t::key_server_prefs() const
 }
 
 void
-pgp_signature_t::set_key_server_prefs(uint8_t prefs)
+Signature::set_key_server_prefs(uint8_t prefs)
 {
     auto sub = std::unique_ptr<sigsub::KeyserverPrefs>(new sigsub::KeyserverPrefs());
     sub->set_raw(prefs);
@@ -510,7 +510,7 @@ pgp_signature_t::set_key_server_prefs(uint8_t prefs)
 }
 
 std::string
-pgp_signature_t::key_server() const
+Signature::key_server() const
 {
     auto sub = dynamic_cast<const sigsub::PreferredKeyserver *>(
       get_subpkt(sigsub::Type::PreferredKeyserver));
@@ -518,7 +518,7 @@ pgp_signature_t::key_server() const
 }
 
 void
-pgp_signature_t::set_key_server(const std::string &uri)
+Signature::set_key_server(const std::string &uri)
 {
     if (uri.empty()) {
         remove_subpkt(find_subpkt(sigsub::Type::PreferredKeyserver));
@@ -532,21 +532,21 @@ pgp_signature_t::set_key_server(const std::string &uri)
 }
 
 uint8_t
-pgp_signature_t::trust_level() const
+Signature::trust_level() const
 {
     auto sub = dynamic_cast<const sigsub::Trust *>(get_subpkt(sigsub::Type::Trust));
     return sub ? sub->level() : 0;
 }
 
 uint8_t
-pgp_signature_t::trust_amount() const
+Signature::trust_amount() const
 {
     auto sub = dynamic_cast<const sigsub::Trust *>(get_subpkt(sigsub::Type::Trust));
     return sub ? sub->amount() : 0;
 }
 
 void
-pgp_signature_t::set_trust(uint8_t level, uint8_t amount)
+Signature::set_trust(uint8_t level, uint8_t amount)
 {
     auto sub = std::unique_ptr<sigsub::Trust>(new sigsub::Trust());
     sub->set_level(level);
@@ -555,14 +555,14 @@ pgp_signature_t::set_trust(uint8_t level, uint8_t amount)
 }
 
 bool
-pgp_signature_t::revocable() const
+Signature::revocable() const
 {
     auto sub = dynamic_cast<const sigsub::Revocable *>(get_subpkt(sigsub::Type::Revocable));
     return sub ? sub->revocable() : true;
 }
 
 void
-pgp_signature_t::set_revocable(bool status)
+Signature::set_revocable(bool status)
 {
     auto sub = std::unique_ptr<sigsub::Revocable>(new sigsub::Revocable());
     sub->set_revocable(status);
@@ -570,7 +570,7 @@ pgp_signature_t::set_revocable(bool status)
 }
 
 std::string
-pgp_signature_t::revocation_reason() const
+Signature::revocation_reason() const
 {
     auto sub = dynamic_cast<const sigsub::RevocationReason *>(
       get_subpkt(sigsub::Type::RevocationReason));
@@ -578,7 +578,7 @@ pgp_signature_t::revocation_reason() const
 }
 
 pgp_revocation_type_t
-pgp_signature_t::revocation_code() const
+Signature::revocation_code() const
 {
     auto sub = dynamic_cast<const sigsub::RevocationReason *>(
       get_subpkt(sigsub::Type::RevocationReason));
@@ -586,13 +586,13 @@ pgp_signature_t::revocation_code() const
 }
 
 bool
-pgp_signature_t::has_revocation_reason() const
+Signature::has_revocation_reason() const
 {
     return get_subpkt(sigsub::Type::RevocationReason);
 }
 
 void
-pgp_signature_t::set_revocation_reason(pgp_revocation_type_t code, const std::string &reason)
+Signature::set_revocation_reason(pgp_revocation_type_t code, const std::string &reason)
 {
     auto sub = std::unique_ptr<sigsub::RevocationReason>(new sigsub::RevocationReason());
     sub->set_code(code);
@@ -601,21 +601,21 @@ pgp_signature_t::set_revocation_reason(pgp_revocation_type_t code, const std::st
 }
 
 uint32_t
-pgp_signature_t::key_get_features() const
+Signature::key_get_features() const
 {
     auto sub = dynamic_cast<const sigsub::Features *>(get_subpkt(sigsub::Type::Features));
     return sub ? sub->features() : 0;
 }
 
 bool
-pgp_signature_t::key_has_features(uint32_t flags) const
+Signature::key_has_features(uint32_t flags) const
 {
     auto sub = dynamic_cast<const sigsub::Features *>(get_subpkt(sigsub::Type::Features));
     return sub ? sub->features() & flags : false;
 }
 
 void
-pgp_signature_t::set_key_features(uint32_t flags)
+Signature::set_key_features(uint32_t flags)
 {
     auto sub = std::unique_ptr<sigsub::Features>(new sigsub::Features());
     sub->set_features(flags & 0xff);
@@ -623,7 +623,7 @@ pgp_signature_t::set_key_features(uint32_t flags)
 }
 
 std::string
-pgp_signature_t::signer_uid() const
+Signature::signer_uid() const
 {
     auto sub =
       dynamic_cast<const sigsub::SignersUserID *>(get_subpkt(sigsub::Type::SignersUserID));
@@ -631,7 +631,7 @@ pgp_signature_t::signer_uid() const
 }
 
 void
-pgp_signature_t::set_signer_uid(const std::string &uid)
+Signature::set_signer_uid(const std::string &uid)
 {
     auto sub = std::unique_ptr<sigsub::SignersUserID>(new sigsub::SignersUserID());
     sub->set_signer(uid);
@@ -639,10 +639,10 @@ pgp_signature_t::set_signer_uid(const std::string &uid)
 }
 
 void
-pgp_signature_t::add_notation(const std::string &         name,
-                              const std::vector<uint8_t> &value,
-                              bool                        human,
-                              bool                        critical)
+Signature::add_notation(const std::string &         name,
+                        const std::vector<uint8_t> &value,
+                        bool                        human,
+                        bool                        critical)
 {
     if ((name.size() > 0xffff) || (value.size() > 0xffff)) {
         RNP_LOG("wrong length");
@@ -657,13 +657,13 @@ pgp_signature_t::add_notation(const std::string &         name,
 }
 
 void
-pgp_signature_t::add_notation(const std::string &name, const std::string &value, bool critical)
+Signature::add_notation(const std::string &name, const std::string &value, bool critical)
 {
     add_notation(name, std::vector<uint8_t>(value.begin(), value.end()), true, critical);
 }
 
 void
-pgp_signature_t::set_embedded_sig(const pgp_signature_t &esig)
+Signature::set_embedded_sig(const Signature &esig)
 {
     auto sub =
       std::unique_ptr<sigsub::EmbeddedSignature>(new sigsub::EmbeddedSignature(false));
@@ -672,27 +672,27 @@ pgp_signature_t::set_embedded_sig(const pgp_signature_t &esig)
 }
 
 const sigsub::RevocationKey *
-pgp_signature_t::revoker_subpkt() const noexcept
+Signature::revoker_subpkt() const noexcept
 {
     return dynamic_cast<const sigsub::RevocationKey *>(
       get_subpkt(sigsub::Type::RevocationKey));
 }
 
 bool
-pgp_signature_t::has_revoker() const noexcept
+Signature::has_revoker() const noexcept
 {
     return revoker_subpkt();
 }
 
-pgp::Fingerprint
-pgp_signature_t::revoker() const noexcept
+Fingerprint
+Signature::revoker() const noexcept
 {
     auto sub = revoker_subpkt();
-    return sub ? sub->fp() : pgp::Fingerprint();
+    return sub ? sub->fp() : Fingerprint();
 }
 
 void
-pgp_signature_t::set_revoker(const rnp::Key &revoker, bool sensitive)
+Signature::set_revoker(const rnp::Key &revoker, bool sensitive)
 {
     auto sub = std::unique_ptr<sigsub::RevocationKey>(new sigsub::RevocationKey());
     sub->set_rev_class(sensitive ? 0xC0 : 0x80);
@@ -702,7 +702,7 @@ pgp_signature_t::set_revoker(const rnp::Key &revoker, bool sensitive)
 }
 
 void
-pgp_signature_t::add_subpkt(std::unique_ptr<pgp::pkt::sigsub::Raw> &&sub, bool replace)
+Signature::add_subpkt(std::unique_ptr<sigsub::Raw> &&sub, bool replace)
 {
     if (version < PGP_V4) {
         RNP_LOG("wrong signature version");
@@ -721,7 +721,7 @@ pgp_signature_t::add_subpkt(std::unique_ptr<pgp::pkt::sigsub::Raw> &&sub, bool r
 }
 
 void
-pgp_signature_t::remove_subpkt(size_t idx)
+Signature::remove_subpkt(size_t idx)
 {
     if (idx < subpkts.size()) {
         subpkts.items.erase(subpkts.begin() + idx);
@@ -729,7 +729,7 @@ pgp_signature_t::remove_subpkt(size_t idx)
 }
 
 bool
-pgp_signature_t::matches_onepass(const pgp_one_pass_sig_t &onepass) const
+Signature::matches_onepass(const pgp_one_pass_sig_t &onepass) const
 {
     if (!has_keyid()) {
         return false;
@@ -739,7 +739,7 @@ pgp_signature_t::matches_onepass(const pgp_one_pass_sig_t &onepass) const
 }
 
 bool
-pgp_signature_t::version_supported(pgp_version_t version)
+Signature::version_supported(pgp_version_t version)
 {
     if ((version >= PGP_V2) && (version <= PGP_V5)) {
         return true;
@@ -752,7 +752,7 @@ pgp_signature_t::version_supported(pgp_version_t version)
 }
 
 rnp_result_t
-pgp_signature_t::parse_v2v3(pgp_packet_body_t &pkt)
+Signature::parse_v2v3(pgp_packet_body_t &pkt)
 {
     /* parse v2/v3-specific fields, not the whole signature */
     uint8_t buf[16] = {};
@@ -785,7 +785,7 @@ pgp_signature_t::parse_v2v3(pgp_packet_body_t &pkt)
 #define MAX_SUBPACKETS 64
 
 bool
-pgp_signature_t::parse_subpackets(uint8_t *buf, size_t len, bool hashed)
+Signature::parse_subpackets(uint8_t *buf, size_t len, bool hashed)
 {
     bool res = true;
 
@@ -839,7 +839,7 @@ pgp_signature_t::parse_subpackets(uint8_t *buf, size_t len, bool hashed)
 }
 
 bool
-pgp_signature_t::get_subpkt_len(pgp_packet_body_t &pkt, size_t &splen)
+Signature::get_subpkt_len(pgp_packet_body_t &pkt, size_t &splen)
 {
     switch (version) {
     case PGP_V4:
@@ -868,7 +868,7 @@ pgp_signature_t::get_subpkt_len(pgp_packet_body_t &pkt, size_t &splen)
 }
 
 size_t
-pgp_signature_t::find_subpkt(uint8_t stype, bool hashed, size_t skip) const
+Signature::find_subpkt(uint8_t stype, bool hashed, size_t skip) const
 {
     if (version < PGP_V4) {
         return SIZE_MAX;
@@ -886,13 +886,13 @@ pgp_signature_t::find_subpkt(uint8_t stype, bool hashed, size_t skip) const
 }
 
 size_t
-pgp_signature_t::find_subpkt(sigsub::Type type, bool hashed, size_t skip) const
+Signature::find_subpkt(sigsub::Type type, bool hashed, size_t skip) const
 {
     return find_subpkt(static_cast<uint8_t>(type), hashed, skip);
 }
 
 rnp_result_t
-pgp_signature_t::parse_v4up(pgp_packet_body_t &pkt)
+Signature::parse_v4up(pgp_packet_body_t &pkt)
 {
     /* parse v4 (and up) specific fields, not the whole signature */
     uint8_t buf[3];
@@ -956,7 +956,7 @@ pgp_signature_t::parse_v4up(pgp_packet_body_t &pkt)
 }
 
 rnp_result_t
-pgp_signature_t::parse(pgp_packet_body_t &pkt)
+Signature::parse(pgp_packet_body_t &pkt)
 {
     uint8_t ver = 0;
     if (!pkt.get(ver)) {
@@ -1025,7 +1025,7 @@ pgp_signature_t::parse(pgp_packet_body_t &pkt)
 }
 
 rnp_result_t
-pgp_signature_t::parse(pgp_source_t &src)
+Signature::parse(pgp_source_t &src)
 {
     pgp_packet_body_t pkt(PGP_PKT_SIGNATURE);
     rnp_result_t      res = pkt.read(src);
@@ -1035,10 +1035,10 @@ pgp_signature_t::parse(pgp_source_t &src)
     return parse(pkt);
 }
 
-std::unique_ptr<pgp::SigMaterial>
-pgp_signature_t::parse_material() const
+std::unique_ptr<SigMaterial>
+Signature::parse_material() const
 {
-    auto sig = pgp::SigMaterial::create(palg, halg);
+    auto sig = SigMaterial::create(palg, halg);
     if (!sig) {
         return nullptr;
     }
@@ -1054,9 +1054,9 @@ pgp_signature_t::parse_material() const
 }
 
 void
-pgp_signature_t::write(pgp_dest_t &dst, bool hdr) const
+Signature::write(pgp_dest_t &dst, bool hdr) const
 {
-    if (!pgp_signature_t::version_supported(version)) {
+    if (!Signature::version_supported(version)) {
         RNP_LOG("don't know version %d", (int) version);
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
@@ -1089,7 +1089,7 @@ pgp_signature_t::write(pgp_dest_t &dst, bool hdr) const
 }
 
 std::vector<uint8_t>
-pgp_signature_t::write(bool hdr) const
+Signature::write(bool hdr) const
 {
     rnp::MemoryDest dst;
     write(dst.dst(), hdr);
@@ -1097,7 +1097,7 @@ pgp_signature_t::write(bool hdr) const
 }
 
 void
-pgp_signature_t::write_material(const pgp::SigMaterial &material)
+Signature::write_material(const SigMaterial &material)
 {
     pgp_packet_body_t pktbody(PGP_PKT_SIGNATURE);
     material.write(pktbody);
@@ -1105,10 +1105,10 @@ pgp_signature_t::write_material(const pgp::SigMaterial &material)
 }
 
 void
-pgp_signature_t::fill_hashed_data()
+Signature::fill_hashed_data()
 {
     /* we don't have a need to write v2-v3 signatures */
-    if (!pgp_signature_t::version_supported(version)) {
+    if (!Signature::version_supported(version)) {
         RNP_LOG("don't know version %d", (int) version);
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
@@ -1125,3 +1125,6 @@ pgp_signature_t::fill_hashed_data()
     }
     hashed_data.assign(hbody.data(), hbody.data() + hbody.size());
 }
+
+} // namespace pkt
+} // namespace pgp

@@ -640,7 +640,7 @@ Features::clone() const
 /* Embedded signature signature subpacket */
 EmbeddedSignature::EmbeddedSignature(const EmbeddedSignature &src) : Raw(src)
 {
-    signature_ = std::unique_ptr<pgp_signature_t>(new pgp_signature_t(*src.signature_));
+    signature_ = std::unique_ptr<Signature>(new Signature(*src.signature_));
 }
 
 EmbeddedSignature::EmbeddedSignature(bool hashed, bool critical)
@@ -671,30 +671,30 @@ bool
 EmbeddedSignature::parse_data(const uint8_t *data, size_t size)
 {
     pgp_packet_body_t pkt(data, size);
-    pgp_signature_t   sig;
+    Signature         sig;
     if (sig.parse(pkt)) {
         return false;
     }
-    signature_ = std::unique_ptr<pgp_signature_t>(new pgp_signature_t(std::move(sig)));
+    signature_ = std::unique_ptr<Signature>(new Signature(std::move(sig)));
     return true;
 }
 
-const pgp_signature_t *
+const Signature *
 EmbeddedSignature::signature() const noexcept
 {
     return signature_.get();
 }
 
-pgp_signature_t *
+Signature *
 EmbeddedSignature::signature() noexcept
 {
     return signature_.get();
 }
 
 void
-EmbeddedSignature::set_signature(const pgp_signature_t &sig)
+EmbeddedSignature::set_signature(const Signature &sig)
 {
-    signature_ = std::unique_ptr<pgp_signature_t>(new pgp_signature_t(sig));
+    signature_ = std::unique_ptr<Signature>(new Signature(sig));
     data_.clear();
 }
 
