@@ -35,8 +35,6 @@ PqcKemCombiner::compute(const std::vector<uint8_t> &mlkem_key_share,
                         const std::vector<uint8_t> &ecc_key_share,
                         const std::vector<uint8_t> &ecc_ciphertext,
                         const std::vector<uint8_t> &ecc_pub_key,
-                        const std::vector<uint8_t> &mlkem_ciphertext,
-                        const std::vector<uint8_t> &mlkem_pub_key,
                         const pgp_pubkey_alg_t      alg_id)
 {
     std::vector<uint8_t> out;
@@ -46,8 +44,6 @@ PqcKemCombiner::compute(const std::vector<uint8_t> &mlkem_key_share,
     RNP_LOG_U8VEC(" - eccKeyShare: %s", ecc_key_share);
     RNP_LOG_U8VEC(" - eccCipherText: %s", ecc_ciphertext);
     RNP_LOG_U8VEC(" - eccPublicKey: %s", ecc_pub_key);
-    RNP_LOG_U8VEC(" - mlkemCipherText: %s", mlkem_ciphertext);
-    RNP_LOG_U8VEC(" - mlkemPublicKey: %s", mlkem_pub_key);
     RNP_LOG_NO_POS_INFO(" - algID: %d", (uint8_t) alg_id);
     RNP_LOG_NO_POS_INFO("Key Combiner Constants: ");
     RNP_LOG_U8VEC(" - DomSep %s", domSeparation());
@@ -59,8 +55,6 @@ PqcKemCombiner::compute(const std::vector<uint8_t> &mlkem_key_share,
     hash->add(ecc_key_share);
     hash->add(ecc_ciphertext);
     hash->add(ecc_pub_key);
-    hash->add(mlkem_ciphertext);
-    hash->add(mlkem_pub_key);
     hash->add(&alg_id, 1);
     hash->add(domSeparation());
 
