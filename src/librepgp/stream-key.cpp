@@ -78,14 +78,14 @@ skip_pgp_packets(pgp_source_t &src, const std::set<pgp_pkt_type_t> &pkts)
 }
 
 static rnp_result_t
-process_pgp_key_signatures(pgp_source_t &src, pgp_signature_list_t &sigs, bool skiperrors)
+process_pgp_key_signatures(pgp_source_t &src, pgp::pkt::Signatures &sigs, bool skiperrors)
 {
     int ptag;
     while ((ptag = stream_pkt_type(src)) == PGP_PKT_SIGNATURE) {
         uint64_t sigpos = src.readb;
         try {
-            pgp_signature_t sig;
-            rnp_result_t    ret = sig.parse(src);
+            pgp::pkt::Signature sig;
+            rnp_result_t        ret = sig.parse(src);
             if (ret) {
                 RNP_LOG("failed to parse signature at %" PRIu64, sigpos);
                 if (!skiperrors) {

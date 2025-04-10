@@ -334,9 +334,9 @@ TEST_F(rnp_tests, test_stream_file)
 
 TEST_F(rnp_tests, test_stream_signatures)
 {
-    pgp_signature_t sig;
-    pgp_source_t    sigsrc;
-    rnp::Key *      key = nullptr;
+    pgp::pkt::Signature sig;
+    pgp_source_t        sigsrc;
+    rnp::Key *          key = nullptr;
 
     /* load keys */
     auto pubring = new rnp::KeyStore("data/test_stream_signatures/pub.asc", global_ctx);
@@ -416,8 +416,8 @@ TEST_F(rnp_tests, test_stream_signatures)
 
 TEST_F(rnp_tests, test_stream_signatures_revoked_key)
 {
-    pgp_signature_t sig = {};
-    pgp_source_t    sigsrc = {0};
+    pgp::pkt::Signature sig = {};
+    pgp_source_t        sigsrc = {0};
 
     /* load signature */
     assert_rnp_success(
