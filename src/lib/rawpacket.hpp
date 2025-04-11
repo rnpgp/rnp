@@ -30,6 +30,9 @@
 #include "types.h"
 #include "librepgp/stream-common.h"
 
+typedef struct pgp_key_pkt_t    pgp_key_pkt_t;
+typedef struct pgp_userid_pkt_t pgp_userid_pkt_t;
+
 namespace rnp {
 class RawPacket {
     pgp_pkt_type_t       tag_;
@@ -38,7 +41,7 @@ class RawPacket {
   public:
     RawPacket() : tag_(PGP_PKT_RESERVED){};
     RawPacket(const uint8_t *data, size_t len, pgp_pkt_type_t atag);
-    RawPacket(const pgp_signature_t &sig);
+    RawPacket(const pgp::pkt::Signature &sig);
     RawPacket(pgp_key_pkt_t &key);
     RawPacket(const pgp_userid_pkt_t &uid);
 

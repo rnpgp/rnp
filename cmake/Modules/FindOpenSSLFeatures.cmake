@@ -76,14 +76,14 @@ project(findopensslfeatures LANGUAGES C)\n\
 set(CMAKE_C_STANDARD 99)\n\
 find_package(OpenSSL REQUIRED)\n\
 add_executable(findopensslfeatures findopensslfeatures.c)\n\
-target_include_directories(findopensslfeatures PRIVATE ${OPENSSL_INCLUDE_DIR})\n\
+target_include_directories(findopensslfeatures BEFORE PRIVATE ${OPENSSL_INCLUDE_DIR})\n\
 target_link_libraries(findopensslfeatures PRIVATE OpenSSL::Crypto)\n\
 if (OpenSSL::applink)\n\
   target_link_libraries(findopensslfeatures PRIVATE OpenSSL::applink)\n\
 endif(OpenSSL::applink)\n"
 )
 
-set(MKF ${MKF} "-DCMAKE_BUILD_TYPE=Release" "-DOPENSSL_ROOT_DIR=${OPENSSL_INCLUDE_DIR}/..")
+set(MKF ${MKF} "-DCMAKE_BUILD_TYPE=Release" "-DCMAKE_VERBOSE_MAKEFILE=ON" "-DCMAKE_CXX_FLAGS=-v" "-DCMAKE_C_FLAGS=-v" "-DOPENSSL_ROOT_DIR=${OPENSSL_INCLUDE_DIR}/..")
 
 if(CMAKE_PREFIX_PATH)
   set(MKF ${MKF} "-DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}")

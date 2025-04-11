@@ -64,7 +64,7 @@ KeySearch::create(const pgp::Fingerprint &fp)
 }
 
 std::unique_ptr<KeySearch>
-KeySearch::create(const pgp_key_grip_t &grip)
+KeySearch::create(const pgp::KeyGrip &grip)
 {
     return std::unique_ptr<KeySearch>(new KeyGripSearch(grip));
 }
@@ -111,7 +111,7 @@ KeySearch::create(const std::string &name, const std::string &value)
             RNP_LOG("Invalid grip: %s", value.c_str());
             return nullptr;
         }
-        pgp_key_grip_t grip{};
+        pgp::KeyGrip grip{};
         memcpy(grip.data(), binval.data(), grip.size());
         return create(grip);
     }
@@ -198,7 +198,7 @@ KeyGripSearch::value() const
     return bin_to_hex(grip_.data(), grip_.size());
 }
 
-KeyGripSearch::KeyGripSearch(const pgp_key_grip_t &grip)
+KeyGripSearch::KeyGripSearch(const pgp::KeyGrip &grip)
 {
     type_ = Type::Grip;
     grip_ = grip;

@@ -28,7 +28,7 @@
 
 namespace rnp {
 
-Signature::Signature(const pgp_signature_t &sigpkt)
+Signature::Signature(const pgp::pkt::Signature &sigpkt)
     : sig(sigpkt), sigid(sig.get_id()), raw(sigpkt)
 {
 }

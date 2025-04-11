@@ -55,7 +55,8 @@ static_assert(PGP_FINGERPRINT_V5_SIZE == PGP_FINGERPRINT_V6_SIZE, "FP size misma
 
 namespace pgp {
 
-typedef std::array<uint8_t, PGP_KEY_ID_SIZE> KeyID;
+using KeyID = std::array<uint8_t, PGP_KEY_ID_SIZE>;
+using KeyGrip = std::array<uint8_t, PGP_KEY_GRIP_SIZE>;
 
 class Fingerprint {
     std::vector<uint8_t> fp_;

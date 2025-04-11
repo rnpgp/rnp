@@ -768,7 +768,7 @@ pgp_packet_body_t::add(const pgp::mpi &val)
 }
 
 void
-pgp_packet_body_t::add_subpackets(const pgp_signature_t &sig, bool hashed)
+pgp_packet_body_t::add_subpackets(const pgp::pkt::Signature &sig, bool hashed)
 {
     pgp_packet_body_t spbody(PGP_PKT_RESERVED);
 

@@ -603,7 +603,7 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
     assert_true(key->valid());
     assert_false(key->expired());
     /* create direct-key signature */
-    pgp_signature_t sig;
+    pgp::pkt::Signature sig;
 
     sig.version = PGP_V4;
     sig.halg = PGP_HASH_SHA256;

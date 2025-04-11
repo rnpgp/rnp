@@ -363,7 +363,7 @@ KeygenParams::generate(BindingParams &                binding,
            subkey_sec.refresh_data(&primary_sec, ctx());
 }
 
-UserPrefs::UserPrefs(const pgp_signature_t &sig)
+UserPrefs::UserPrefs(const pgp::pkt::Signature &sig)
 {
     symm_algs = sig.preferred_symm_algs();
     hash_algs = sig.preferred_hash_algs();
@@ -472,7 +472,7 @@ CertParams::populate(pgp_userid_pkt_t &uid) const
 }
 
 void
-CertParams::populate(pgp_signature_t &sig) const
+CertParams::populate(pgp::pkt::Signature &sig) const
 {
     if (key_expiration) {
         sig.set_key_expiration(key_expiration);
@@ -520,7 +520,7 @@ CertParams::populate(pgp_signature_t &sig) const
 }
 
 void
-CertParams::populate(pgp_userid_pkt_t &uid, pgp_signature_t &sig) const
+CertParams::populate(pgp_userid_pkt_t &uid, pgp::pkt::Signature &sig) const
 {
     sig.set_type(PGP_CERT_POSITIVE);
     populate(sig);
