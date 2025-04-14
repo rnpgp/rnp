@@ -76,7 +76,8 @@ project(findopensslfeatures LANGUAGES C)\n\
 set(CMAKE_C_STANDARD 99)\n\
 find_package(OpenSSL REQUIRED)\n\
 add_executable(findopensslfeatures findopensslfeatures.c)\n\
-target_include_directories(findopensslfeatures BEFORE PRIVATE ${OPENSSL_INCLUDE_DIR})\n\
+target_compile_options(findopensslfeatures BEFORE PRIVATE -I${OPENSSL_INCLUDE_DIR})\n\
+#target_include_directories(findopensslfeatures BEFORE PRIVATE ${OPENSSL_INCLUDE_DIR})\n\
 target_link_libraries(findopensslfeatures PRIVATE OpenSSL::Crypto)\n\
 if (OpenSSL::applink)\n\
   target_link_libraries(findopensslfeatures PRIVATE OpenSSL::applink)\n\
@@ -100,6 +101,8 @@ endif(CMAKE_GENERATOR_PLATFORM)
 if(CMAKE_GENERATOR_TOOLSET)
   set(MKF ${MKF} "-T" "${CMAKE_GENERATOR_TOOLSET}")
 endif(CMAKE_GENERATOR_TOOLSET)
+
+message(WARNING "Running: ${CMAKE_COMMAND} -Bbuild" ${MKF}")
 
 execute_process(
   COMMAND "${CMAKE_COMMAND}" "-Bbuild" ${MKF} "."
