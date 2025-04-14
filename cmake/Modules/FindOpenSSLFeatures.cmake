@@ -101,7 +101,7 @@ if(CMAKE_GENERATOR_TOOLSET)
   set(MKF ${MKF} "-T" "${CMAKE_GENERATOR_TOOLSET}")
 endif(CMAKE_GENERATOR_TOOLSET)
 
-message(WARNING "Running: ${CMAKE_COMMAND} -Bbuild" ${MKF}")
+message(WARNING "Running: ${CMAKE_COMMAND} -Bbuild ${MKF}")
 
 execute_process(
   COMMAND "${CMAKE_COMMAND}" "-Bbuild" ${MKF} "."
