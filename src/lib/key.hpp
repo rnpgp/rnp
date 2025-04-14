@@ -142,7 +142,8 @@ class Key {
     bool             can_encrypt() const noexcept;
     bool             has_secret() const noexcept;
 #if defined(ENABLE_PQC)
-    bool is_pqc_alg() const;
+    bool             is_pqc() const noexcept;
+    static bool      is_pqc_alg(pgp_pubkey_alg_t alg);
 #endif
     /**
      * @brief Check whether key is usable for the specified operation.

@@ -404,11 +404,11 @@ find_suitable_key(
         if (pref_pqc_sub && op == PGP_OP_ENCRYPT) {
             /* prefer PQC encryption over non-PQC encryption. Assume non-PQC key is only there
              * for backwards compatibility. */
-            if (subkey && subkey->is_pqc_alg() && !cur->is_pqc_alg()) {
+            if (subkey && subkey->is_pqc() && !cur->is_pqc()) {
                 /* do not override already found PQC key with non-PQC key */
                 continue;
             }
-            if (subkey && cur->is_pqc_alg() && !subkey->is_pqc_alg()) {
+            if (subkey && cur->is_pqc() && !subkey->is_pqc()) {
                 /* override non-PQC key with PQC key */
                 subkey = cur;
                 continue;
@@ -939,10 +939,12 @@ Key::has_secret() const noexcept
 
 #if defined(ENABLE_PQC)
 bool
-Key::is_pqc_alg() const
+Key::is_pqc_alg(pgp_pubkey_alg_t alg)
 {
-    switch (alg()) {
+    switch (alg) {
     case PGP_PKA_KYBER768_X25519:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
@@ -953,6 +955,8 @@ Key::is_pqc_alg() const
     case PGP_PKA_KYBER1024_BP384:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_ED25519:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_ED448:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
         FALLTHROUGH_STATEMENT;
@@ -971,6 +975,12 @@ Key::is_pqc_alg() const
     default:
         return false;
     }
+}
+
+bool
+Key::is_pqc() const noexcept
+{
+    return Key::is_pqc_alg(alg());
 }
 #endif
 

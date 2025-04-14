@@ -3268,9 +3268,14 @@ TEST_F(rnp_tests, test_ffi_pqc_certs)
       {"data/draft-ietf-openpgp-pqc/v6-mldsa-65-sample-pk.asc",
        "data/draft-ietf-openpgp-pqc/v6-mldsa-65-sample-sk.asc"},
       {"data/draft-ietf-openpgp-pqc/v6-mldsa-87-sample-pk.asc",
-       "data/draft-ietf-openpgp-pqc/v6-mldsa-87-sample-sk.asc"}};
+       "data/draft-ietf-openpgp-pqc/v6-mldsa-87-sample-sk.asc"},
+      {"data/draft-ietf-openpgp-pqc/v6-slhdsa-128s-sample-pk.asc",
+       "data/draft-ietf-openpgp-pqc/v6-slhdsa-128s-sample-sk.asc"},
+    };
 
     for (auto pub_sec_key : pub_sec_keys) {
+        // eddsa keys have one additional key
+        int expected_keys = (pub_sec_key.first.find("eddsa") != std::string::npos) ? 3 : 2;
         /* Public */
         rnp_ffi_t   ffi = NULL;
         rnp_input_t input = NULL;
@@ -3284,7 +3289,7 @@ TEST_F(rnp_tests, test_ffi_pqc_certs)
                                            NULL));
         rnp_input_destroy(input);
         assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
-        assert_int_equal(keycount, 2);
+        assert_int_equal(keycount, expected_keys);
         assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
         assert_int_equal(keycount, 0);
         rnp_ffi_destroy(ffi);
@@ -3299,7 +3304,7 @@ TEST_F(rnp_tests, test_ffi_pqc_certs)
                                            NULL));
         rnp_input_destroy(input);
         assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
-        assert_int_equal(keycount, 2);
+        assert_int_equal(keycount, expected_keys);
         rnp_ffi_destroy(ffi);
     }
 }
