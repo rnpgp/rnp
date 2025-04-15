@@ -80,8 +80,9 @@ find_package(OpenSSL REQUIRED)\n\
 add_executable(findopensslfeatures findopensslfeatures.c)\n\
 get_target_property(FOSSL_INCLUDES findopensslfeatures INCLUDE_DIRECTORIES)\n\
 message(STATUS \"\${FOSSL_INCLUDES}\")\n\
-target_include_directories(findopensslfeatures BEFORE PRIVATE ${OPENSSL_INCLUDE_DIR})\n\
-message(STATUS \"\${FOSSL_INCLUDES}\")\n\
+target_include_directories(findopensslfeatures BEFORE PRIVATE \"\${OPENSSL_INCLUDE_DIR}\")\n\
+get_target_property(FOSSL_INCLUDES findopensslfeatures INCLUDE_DIRECTORIES)\n\
+message(STATUS \"\\${OPENSSL_INCLUDE_DIR} -- ${FOSSL_INCLUDES}\")\n\
 target_link_libraries(findopensslfeatures PRIVATE OpenSSL::Crypto)\n\
 if (OpenSSL::applink)\n\
   target_link_libraries(findopensslfeatures PRIVATE OpenSSL::applink)\n\
