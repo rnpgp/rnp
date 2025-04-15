@@ -68,24 +68,27 @@ file(COPY "${CMAKE_CURRENT_LIST_DIR}/findopensslfeatures.c"
 # This does not look as a good solution, however it is the only one that
 # works with all Windows configuration options
 
-message(STATUS "Using OpenSSL root directory at ${OPENSSL_INCLUDE_DIR}/..")
+cmake_path(SET _fossl_root_dir NORMALIZE "${OPENSSL_INCLUDE_DIR}/..")
+message(STATUS "Using OpenSSL root directory at ${_fossl_root_dir}")
 
 file(WRITE "${_fossl_work_dir}/CMakeLists.txt"
 "cmake_minimum_required(VERSION 3.18)\n\
 project(findopensslfeatures LANGUAGES C)\n\
 set(CMAKE_C_STANDARD 99)\n\
-set(OPENSSL_ROOT_DIR \"${OPENSSL_ROOT_DIR}\")\n\
-set(OPENSSL_INCLUDE_DIR \"${OPENSSL_INCLUDE_DIR}\")\n\
+set(OPENSSL_ROOT_DIR \"${_fossl_root_dir}\")\n\
 find_package(OpenSSL REQUIRED)\n\
 add_executable(findopensslfeatures findopensslfeatures.c)\n\
+get_target_property(FOSSL_INCLUDES findopensslfeatures INCLUDE_DIRECTORIES)\n\
+message(STATUS \"\${FOSSL_INCLUDES}\")\n\
 target_include_directories(findopensslfeatures BEFORE PRIVATE ${OPENSSL_INCLUDE_DIR})\n\
+message(STATUS \"\${FOSSL_INCLUDES}\")\n\
 target_link_libraries(findopensslfeatures PRIVATE OpenSSL::Crypto)\n\
 if (OpenSSL::applink)\n\
   target_link_libraries(findopensslfeatures PRIVATE OpenSSL::applink)\n\
 endif(OpenSSL::applink)\n"
 )
 
-set(MKF ${MKF} "-DCMAKE_BUILD_TYPE=Release" "-DCMAKE_VERBOSE_MAKEFILE=ON" "-DOPENSSL_ROOT_DIR=${OPENSSL_ROOT_DIR}" "-DOPENSSL_INCLUDE_DIR=${OPENSSL_INCLUDE_DIR}")
+set(MKF ${MKF} "-DCMAKE_BUILD_TYPE=Release" "-DCMAKE_VERBOSE_MAKEFILE=ON" "-DOPENSSL_ROOT_DIR=${_fossl_root_dir}")
 
 if(CMAKE_PREFIX_PATH)
   set(MKF ${MKF} "-DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}")
@@ -106,7 +109,7 @@ endif(CMAKE_GENERATOR_TOOLSET)
 message(WARNING "Running: ${CMAKE_COMMAND} -Bbuild ${MKF}")
 
 execute_process(
-  COMMAND "cat ${MKF} && ${CMAKE_COMMAND}" "-Bbuild" ${MKF} "."
+  COMMAND "${CMAKE_COMMAND}" "-Bbuild" ${MKF} "."
   WORKING_DIRECTORY "${_fossl_work_dir}"
   OUTPUT_VARIABLE output
   ERROR_VARIABLE error
