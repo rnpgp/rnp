@@ -75,8 +75,8 @@ file(WRITE "${_fossl_work_dir}/CMakeLists.txt"
 "cmake_minimum_required(VERSION 3.18)\n\
 project(findopensslfeatures LANGUAGES C)\n\
 set(CMAKE_C_STANDARD 99)\n\
-set(OPENSSL_ROOT_DIR \"${_fossl_root_dir}\")\n\
 find_package(OpenSSL REQUIRED)\n\
+message(STATUS \"OpenSSL include directory \${OPENSSL_INCLUDE_DIR}\")\n\
 add_executable(findopensslfeatures findopensslfeatures.c)\n\
 target_include_directories(findopensslfeatures PUBLIC \"\${OPENSSL_INCLUDE_DIR}\")\n\
 target_link_libraries(findopensslfeatures PRIVATE OpenSSL::Crypto)\n\
