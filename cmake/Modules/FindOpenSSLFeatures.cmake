@@ -77,8 +77,8 @@ project(findopensslfeatures LANGUAGES C)\n\
 set(CMAKE_C_STANDARD 99)\n\
 find_package(OpenSSL REQUIRED)\n\
 message(STATUS \"OpenSSL include directory \${OPENSSL_INCLUDE_DIR}\")\n\
+include_directories(BEFORE \"\${OPENSSL_INCLUDE_DIR}\")\n\
 add_executable(findopensslfeatures findopensslfeatures.c)\n\
-target_include_directories(findopensslfeatures PUBLIC \"\${OPENSSL_INCLUDE_DIR}\")\n\
 target_link_libraries(findopensslfeatures PRIVATE OpenSSL::Crypto)\n\
 if (OpenSSL::applink)\n\
   target_link_libraries(findopensslfeatures PRIVATE OpenSSL::applink)\n\
