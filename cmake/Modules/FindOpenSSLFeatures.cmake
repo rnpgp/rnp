@@ -78,11 +78,7 @@ set(CMAKE_C_STANDARD 99)\n\
 set(OPENSSL_ROOT_DIR \"${_fossl_root_dir}\")\n\
 find_package(OpenSSL REQUIRED)\n\
 add_executable(findopensslfeatures findopensslfeatures.c)\n\
-get_target_property(FOSSL_INCLUDES findopensslfeatures INCLUDE_DIRECTORIES)\n\
-message(STATUS \"\${FOSSL_INCLUDES}\")\n\
-target_include_directories(findopensslfeatures BEFORE PRIVATE \"\${OPENSSL_INCLUDE_DIR}\")\n\
-get_target_property(FOSSL_INCLUDES findopensslfeatures INCLUDE_DIRECTORIES)\n\
-message(STATUS \"\${OPENSSL_INCLUDE_DIR} -- ${FOSSL_INCLUDES}\")\n\
+target_include_directories(findopensslfeatures PUBLIC \"\${OPENSSL_INCLUDE_DIR}\")\n\
 target_link_libraries(findopensslfeatures PRIVATE OpenSSL::Crypto)\n\
 if (OpenSSL::applink)\n\
   target_link_libraries(findopensslfeatures PRIVATE OpenSSL::applink)\n\
