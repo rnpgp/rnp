@@ -98,6 +98,9 @@ jobs:
           # Workaround against CLang adding /usr/local/include path, where OpenSSL 3.0 headers are
           echo "CC=/usr/local/bin/gcc-14" >> $GITHUB_ENV
           echo "CXX=/usr/local/bin/g++-14" >> $GITHUB_ENV
+          SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
+          echo "CFLAGS=\"-isysroot $SDKROOT\"" >> $GITHUB_ENV
+          echo "CXXFLAGS=\"-isysroot $SDKROOT\"" >> $GITHUB_ENV
 
       - name: Configure openssl 3 backend
         if: matrix.backend == 'openssl@3'
