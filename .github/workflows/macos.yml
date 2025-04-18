@@ -99,7 +99,7 @@ jobs:
           echo "CC=/usr/local/bin/gcc-14" >> $GITHUB_ENV
           echo "CXX=/usr/local/bin/g++-14" >> $GITHUB_ENV
           SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
-          echo "CFLAGS=\"-isysroot $SDKROOT\"" >> $GITHUB_ENV
+          echo "CFLAGS=\"-isysroot $SDKROOT\" -isystem \"$SDKROOT/usr/include\"" >> $GITHUB_ENV
           echo "CXXFLAGS=\"-isysroot $SDKROOT\"" >> $GITHUB_ENV
           echo "LDFLAGS=\"-L$SDKROOT/usr/lib\"" >> $GITHUB_ENV
 
