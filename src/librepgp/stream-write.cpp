@@ -1242,7 +1242,7 @@ cleartext_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 
 static void
 signed_fill_signature(pgp_dest_signed_param_t &param,
-                      pgp_signature_t &        sig,
+                      pgp::pkt::Signature &    sig,
                       pgp_dest_signer_info_t & signer)
 {
     /* fill signature fields, assuming sign_init was called on it */
@@ -1279,7 +1279,7 @@ signed_write_signature(pgp_dest_signed_param_t *param,
                        pgp_dest_t *             writedst)
 {
     try {
-        pgp_signature_t sig;
+        pgp::pkt::Signature sig;
         if (signer->onepass.version) {
             signer->key->sign_init(param->ctx->sec_ctx.rng,
                                    sig,

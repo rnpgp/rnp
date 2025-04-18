@@ -92,8 +92,17 @@ jobs:
         if: matrix.backend == 'openssl@1.1'
         run: |
           echo "brew \"openssl@1.1\"" >> Brewfile
+          #echo "brew \"gcc@14\"" >> Brewfile
           echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@1.1)" >> $GITHUB_ENV
           echo "CRYPTO_BACKEND=openssl" >> $GITHUB_ENV
+          # Workaround against CLang adding /usr/local/include path, where OpenSSL 3.0 headers are
+          rm -r /usr/local/include/openssl
+          #echo "CC=/usr/local/bin/gcc-14" >> $GITHUB_ENV
+          #echo "CXX=/usr/local/bin/g++-14" >> $GITHUB_ENV
+          #SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
+          #echo "CFLAGS=\"-isysroot $SDKROOT\" -isystem \"$SDKROOT/usr/include\"" >> $GITHUB_ENV
+          #echo "CXXFLAGS=\"-isysroot $SDKROOT\"" >> $GITHUB_ENV
+          #echo "LDFLAGS=\"-L$SDKROOT/usr/lib\"" >> $GITHUB_ENV
 
       - name: Configure openssl 3 backend
         if: matrix.backend == 'openssl@3'

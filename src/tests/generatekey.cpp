@@ -1022,12 +1022,12 @@ TEST_F(rnp_tests, test_generated_key_sigs)
 
     // primary
     {
-        rnp::Key           pub;
-        rnp::Key           sec;
-        pgp_signature_t *  psig = NULL;
-        pgp_signature_t *  ssig = NULL;
-        rnp::SignatureInfo psiginfo;
-        rnp::SignatureInfo ssiginfo;
+        rnp::Key             pub;
+        rnp::Key             sec;
+        pgp::pkt::Signature *psig = nullptr;
+        pgp::pkt::Signature *ssig = nullptr;
+        rnp::SignatureInfo   psiginfo;
+        rnp::SignatureInfo   ssiginfo;
 
         rnp::KeygenParams keygen(PGP_PKA_RSA, global_ctx);
         auto &            rsa = dynamic_cast<pgp::RSAKeyParams &>(keygen.key_params());
@@ -1156,12 +1156,12 @@ TEST_F(rnp_tests, test_generated_key_sigs)
 
     // sub
     {
-        rnp::Key           pub;
-        rnp::Key           sec;
-        pgp_signature_t *  psig = NULL;
-        pgp_signature_t *  ssig = NULL;
-        rnp::SignatureInfo psiginfo;
-        rnp::SignatureInfo ssiginfo;
+        rnp::Key             pub;
+        rnp::Key             sec;
+        pgp::pkt::Signature *psig = nullptr;
+        pgp::pkt::Signature *ssig = nullptr;
+        rnp::SignatureInfo   psiginfo;
+        rnp::SignatureInfo   ssiginfo;
 
         rnp::KeygenParams keygen(PGP_PKA_RSA, global_ctx);
         auto &            rsa = dynamic_cast<pgp::RSAKeyParams &>(keygen.key_params());

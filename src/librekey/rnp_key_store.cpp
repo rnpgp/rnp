@@ -389,10 +389,10 @@ KeyStore::add_key(Key &srckey)
 }
 
 Signature *
-KeyStore::add_key_sig(const pgp::Fingerprint &keyfp,
-                      const pgp_signature_t & sig,
-                      const pgp_userid_pkt_t *uid,
-                      bool                    front)
+KeyStore::add_key_sig(const pgp::Fingerprint &   keyfp,
+                      const pgp::pkt::Signature &sig,
+                      const pgp_userid_pkt_t *   uid,
+                      bool                       front)
 {
     auto *key = get_key(keyfp);
     if (!key) {
@@ -468,7 +468,7 @@ KeyStore::import_key(Key &srckey, bool pubkey, pgp_key_import_status_t *status)
 }
 
 pgp_sig_import_status_t
-KeyStore::import_subkey_signature(Key &key, const pgp_signature_t &sig)
+KeyStore::import_subkey_signature(Key &key, const pgp::pkt::Signature &sig)
 {
     if ((sig.type() != PGP_SIG_SUBKEY) && (sig.type() != PGP_SIG_REV_SUBKEY)) {
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
@@ -508,7 +508,7 @@ KeyStore::import_subkey_signature(Key &key, const pgp_signature_t &sig)
 }
 
 pgp_sig_import_status_t
-KeyStore::import_signature(Key &key, const pgp_signature_t &sig)
+KeyStore::import_signature(Key &key, const pgp::pkt::Signature &sig)
 {
     if (key.is_subkey()) {
         return import_subkey_signature(key, sig);
@@ -543,7 +543,7 @@ KeyStore::import_signature(Key &key, const pgp_signature_t &sig)
 }
 
 Key *
-KeyStore::import_signature(const pgp_signature_t &sig, pgp_sig_import_status_t *status)
+KeyStore::import_signature(const pgp::pkt::Signature &sig, pgp_sig_import_status_t *status)
 {
     pgp_sig_import_status_t tmp_status = PGP_SIG_IMPORT_STATUS_UNKNOWN;
     if (!status) {
@@ -688,7 +688,7 @@ KeyStore::search(const KeySearch &search, Key *after)
 }
 
 Key *
-KeyStore::get_signer(const pgp_signature_t &sig, const KeyProvider *prov)
+KeyStore::get_signer(const pgp::pkt::Signature &sig, const KeyProvider *prov)
 {
     /* if we have fingerprint let's check it */
     std::unique_ptr<KeySearch> ks;

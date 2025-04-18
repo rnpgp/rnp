@@ -37,7 +37,7 @@ RawPacket::RawPacket(const uint8_t *data, size_t len, pgp_pkt_type_t atag) : tag
     }
 }
 
-RawPacket::RawPacket(const pgp_signature_t &sig)
+RawPacket::RawPacket(const pgp::pkt::Signature &sig)
 {
     data_ = sig.write();
     tag_ = PGP_PKT_SIGNATURE;

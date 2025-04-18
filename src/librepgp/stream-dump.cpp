@@ -573,9 +573,9 @@ dst_hexdump(pgp_dest_t *dst, const std::vector<uint8_t> &data)
 static rnp_result_t stream_dump_packets_raw(rnp_dump_ctx_t *ctx,
                                             pgp_source_t *  src,
                                             pgp_dest_t *    dst);
-static void         stream_dump_signature_pkt(rnp_dump_ctx_t *       ctx,
-                                              const pgp_signature_t &sig,
-                                              pgp_dest_t *           dst);
+static void         stream_dump_signature_pkt(rnp_dump_ctx_t *           ctx,
+                                              const pgp::pkt::Signature &sig,
+                                              pgp_dest_t *               dst);
 
 /* Todo: move dumper to pgp::pkt or pgp namespace */
 using namespace pgp;
@@ -734,7 +734,7 @@ signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, const pkt::sigsub
     case pkt::sigsub::Type::EmbeddedSignature: {
         auto &sub = dynamic_cast<const pkt::sigsub::EmbeddedSignature &>(subpkt);
         dst_printf(dst, "%s:\n", sname);
-        pgp_signature_t sig(*sub.signature());
+        pgp::pkt::Signature sig(*sub.signature());
         stream_dump_signature_pkt(ctx, sig, dst);
         break;
     }
@@ -758,10 +758,10 @@ signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, const pkt::sigsub
 }
 
 static void
-signature_dump_subpackets(rnp_dump_ctx_t *       ctx,
-                          pgp_dest_t *           dst,
-                          const pgp_signature_t &sig,
-                          bool                   hashed)
+signature_dump_subpackets(rnp_dump_ctx_t *           ctx,
+                          pgp_dest_t *               dst,
+                          const pgp::pkt::Signature &sig,
+                          bool                       hashed)
 {
     bool empty = true;
 
@@ -788,7 +788,7 @@ signature_dump_subpackets(rnp_dump_ctx_t *       ctx,
 }
 
 static void
-stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, const pgp_signature_t &sig, pgp_dest_t *dst)
+stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, const pgp::pkt::Signature &sig, pgp_dest_t *dst)
 {
     indent_dest_increase(dst);
 
@@ -899,8 +899,8 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, const pgp_signature_t &sig, pgp_d
 static rnp_result_t
 stream_dump_signature(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
-    pgp_signature_t sig;
-    rnp_result_t    ret;
+    pgp::pkt::Signature sig;
+    rnp_result_t        ret;
 
     dst_printf(dst, "Signature packet\n");
     try {
@@ -1094,9 +1094,9 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
             dst_printf(dst, "v5 secret key data length: %" PRIu32 "\n", key.v5_sec_len);
         }
         if (!key.sec_protection.s2k.usage) {
-            dst_printf(dst, "cleartext secret key data: %d bytes\n", (int) key.sec_len);
+            dst_printf(dst, "cleartext secret key data: %zu bytes\n", key.sec_data.size());
         } else {
-            dst_printf(dst, "encrypted secret key data: %d bytes\n", (int) key.sec_len);
+            dst_printf(dst, "encrypted secret key data: %zu bytes\n", key.sec_data.size());
         }
         indent_dest_decrease(dst);
     }
@@ -1114,7 +1114,7 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 
     if (ctx->dump_grips) {
         if (key.material) {
-            pgp_key_grip_t grip = key.material->grip();
+            pgp::KeyGrip grip = key.material->grip();
             dst_print_hex(dst, "grip", grip.data(), grip.size(), false);
         } else {
             dst_printf(dst, "grip: failed to calculate\n");
@@ -1788,9 +1788,9 @@ obj_add_s2k_json(json_object *obj, pgp_s2k_t *s2k)
     return true;
 }
 
-static rnp_result_t stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
-                                                   const pgp_signature_t &sig,
-                                                   json_object *          pkt);
+static rnp_result_t stream_dump_signature_pkt_json(rnp_dump_ctx_t *           ctx,
+                                                   const pgp::pkt::Signature &sig,
+                                                   json_object *              pkt);
 
 static bool
 signature_dump_subpacket_json(rnp_dump_ctx_t *        ctx,
@@ -1952,7 +1952,7 @@ signature_dump_subpacket_json(rnp_dump_ctx_t *        ctx,
 }
 
 static json_object *
-signature_dump_subpackets_json(rnp_dump_ctx_t *ctx, const pgp_signature_t &sig)
+signature_dump_subpackets_json(rnp_dump_ctx_t *ctx, const pgp::pkt::Signature &sig)
 {
     json_object *res = json_object_new_array();
     if (!res) {
@@ -1993,9 +1993,9 @@ signature_dump_subpackets_json(rnp_dump_ctx_t *ctx, const pgp_signature_t &sig)
 }
 
 static rnp_result_t
-stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
-                               const pgp_signature_t &sig,
-                               json_object *          pkt)
+stream_dump_signature_pkt_json(rnp_dump_ctx_t *           ctx,
+                               const pgp::pkt::Signature &sig,
+                               json_object *              pkt)
 {
     json_object *material = NULL;
 
@@ -2115,8 +2115,8 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
 static rnp_result_t
 stream_dump_signature_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
 {
-    pgp_signature_t sig;
-    rnp_result_t    ret;
+    pgp::pkt::Signature sig;
+    rnp_result_t        ret;
     try {
         ret = sig.parse(*src);
     } catch (const std::exception &e) {
@@ -2321,7 +2321,7 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
 
     if (ctx->dump_grips) {
         if (key.material) {
-            pgp_key_grip_t grip = key.material->grip();
+            pgp::KeyGrip grip = key.material->grip();
             if (!json_add_hex(pkt, "grip", grip.data(), grip.size())) {
                 return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
             }

@@ -835,7 +835,7 @@ class Features : public Flags {
 /* Embedded signature signature subpacket */
 class EmbeddedSignature : public Raw {
   private:
-    std::unique_ptr<pgp_signature_t> signature_;
+    std::unique_ptr<Signature> signature_;
 
   protected:
     void write_data() override;
@@ -846,11 +846,11 @@ class EmbeddedSignature : public Raw {
     EmbeddedSignature(const EmbeddedSignature &src);
     EmbeddedSignature(bool hashed = true, bool critical = false);
 
-    const pgp_signature_t *signature() const noexcept;
+    const Signature *signature() const noexcept;
 
-    pgp_signature_t *signature() noexcept;
+    Signature *signature() noexcept;
 
-    void set_signature(const pgp_signature_t &sig);
+    void set_signature(const Signature &sig);
 
     RawPtr clone() const override;
 };
