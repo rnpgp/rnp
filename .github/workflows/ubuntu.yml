@@ -74,8 +74,8 @@ jobs:
           - { CC: gcc,    CXX: g++     }
           - { CC: clang,  CXX: clang++ }
         include:
-        # This implies openssl 1.1.1 as opposed to ubuntu-latest which is openssl 3
-          - os: ubuntu-20.04
+        # Since ubuntu-20.04 runner is deprecated we do not test OpenSSL 1.1.1 here.
+          - os: ubuntu-22.04
             shared_libs: 'on'
             backend: { name: 'openssl',  package: 'libssl-dev' }
             env: { CC: gcc, CXX: g++ }
