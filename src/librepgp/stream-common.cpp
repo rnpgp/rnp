@@ -678,7 +678,7 @@ dst_write(pgp_dest_t &dst, const std::vector<uint8_t> &buf)
 }
 
 void
-dst_printf(pgp_dest_t *dst, const char *format, ...)
+dst_printf(pgp_dest_t &dst, const char *format, ...)
 {
     char    buf[2048];
     size_t  len;
@@ -692,7 +692,7 @@ dst_printf(pgp_dest_t *dst, const char *format, ...)
         RNP_LOG("too long dst_printf");
         len = sizeof(buf) - 1;
     }
-    dst_write(dst, buf, len);
+    dst_write(&dst, buf, len);
 }
 
 void

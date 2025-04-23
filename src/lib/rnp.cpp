@@ -88,7 +88,7 @@ static bool rnp_password_cb_bounce(const pgp_password_ctx_t *ctx,
                                    size_t                    password_size,
                                    void *                    userdata_void);
 
-static rnp_result_t rnp_dump_src_to_json(pgp_source_t *src, uint32_t flags, char **result);
+static rnp_result_t rnp_dump_src_to_json(pgp_source_t &src, uint32_t flags, char **result);
 
 static bool
 call_key_callback(rnp_ffi_t ffi, const rnp::KeySearch &search, bool secret)
@@ -6974,7 +6974,7 @@ try {
     sig->sig->sig.write(memdst.dst());
     auto              vec = memdst.to_vector();
     rnp::MemorySource memsrc(vec);
-    return rnp_dump_src_to_json(&memsrc.src(), flags, json);
+    return rnp_dump_src_to_json(memsrc.src(), flags, json);
 }
 FFI_GUARD
 
@@ -8641,19 +8641,19 @@ try {
 FFI_GUARD
 
 static rnp_result_t
-rnp_dump_src_to_json(pgp_source_t *src, uint32_t flags, char **result)
+rnp_dump_src_to_json(pgp_source_t &src, uint32_t flags, char **result)
 {
-    rnp_dump_ctx_t dumpctx = {};
+    json_object *        jso = NULL;
+    rnp::DumpContextJson dumpctx(src, &jso);
 
-    dumpctx.dump_mpi = extract_flag(flags, RNP_JSON_DUMP_MPI);
-    dumpctx.dump_packets = extract_flag(flags, RNP_JSON_DUMP_RAW);
-    dumpctx.dump_grips = extract_flag(flags, RNP_JSON_DUMP_GRIP);
+    dumpctx.set_dump_mpi(extract_flag(flags, RNP_JSON_DUMP_MPI));
+    dumpctx.set_dump_packets(extract_flag(flags, RNP_JSON_DUMP_RAW));
+    dumpctx.set_dump_grips(extract_flag(flags, RNP_JSON_DUMP_GRIP));
     if (flags) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    json_object *jso = NULL;
-    rnp_result_t ret = stream_dump_packets_json(&dumpctx, src, &jso);
+    rnp_result_t ret = dumpctx.dump();
     if (ret) {
         json_object_put(jso);
         return ret;
@@ -8677,7 +8677,7 @@ try {
 
     auto              vec = key->write_vec();
     rnp::MemorySource mem(vec);
-    return rnp_dump_src_to_json(&mem.src(), flags, result);
+    return rnp_dump_src_to_json(mem.src(), flags, result);
 }
 FFI_GUARD
 
@@ -8687,7 +8687,7 @@ try {
     if (!input || !result) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_dump_src_to_json(&input->src, flags, result);
+    return rnp_dump_src_to_json(input->src, flags, result);
 }
 FFI_GUARD
 
@@ -8698,15 +8698,15 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    rnp_dump_ctx_t dumpctx = {};
-    dumpctx.dump_mpi = extract_flag(flags, RNP_DUMP_MPI);
-    dumpctx.dump_packets = extract_flag(flags, RNP_DUMP_RAW);
-    dumpctx.dump_grips = extract_flag(flags, RNP_DUMP_GRIP);
+    rnp::DumpContextDst dumpctx(input->src, output->dst);
+    dumpctx.set_dump_mpi(extract_flag(flags, RNP_JSON_DUMP_MPI));
+    dumpctx.set_dump_packets(extract_flag(flags, RNP_JSON_DUMP_RAW));
+    dumpctx.set_dump_grips(extract_flag(flags, RNP_JSON_DUMP_GRIP));
     if (flags) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp_result_t ret = stream_dump_packets(&dumpctx, &input->src, &output->dst);
+    rnp_result_t ret = dumpctx.dump();
     output->keep = true;
     return ret;
 }

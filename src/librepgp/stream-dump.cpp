@@ -263,55 +263,43 @@ indent_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 static void
 indent_dst_close(pgp_dest_t *dst, bool discard)
 {
-    pgp_dest_indent_param_t *param = (pgp_dest_indent_param_t *) dst->param;
-    if (!param) {
-        return;
-    }
-
-    free(param);
+    free(dst->param);
 }
 
 static rnp_result_t
-init_indent_dest(pgp_dest_t *dst, pgp_dest_t *origdst)
+init_indent_dest(pgp_dest_t &dst, pgp_dest_t *origdst)
 {
     pgp_dest_indent_param_t *param;
 
-    if (!init_dst_common(dst, sizeof(*param))) {
+    if (!init_dst_common(&dst, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
-    dst->write = indent_dst_write;
-    dst->close = indent_dst_close;
-    dst->finish = NULL;
-    dst->no_cache = true;
-    param = (pgp_dest_indent_param_t *) dst->param;
+    dst.write = indent_dst_write;
+    dst.close = indent_dst_close;
+    dst.finish = NULL;
+    dst.no_cache = true;
+    param = (pgp_dest_indent_param_t *) dst.param;
     param->writedst = origdst;
     param->lstart = true;
+    param->level = 0;
 
     return RNP_SUCCESS;
 }
 
 static void
-indent_dest_increase(pgp_dest_t *dst)
+indent_dest_increase(pgp_dest_t &dst)
 {
-    pgp_dest_indent_param_t *param = (pgp_dest_indent_param_t *) dst->param;
-    param->level++;
+    ((pgp_dest_indent_param_t *) dst.param)->level++;
 }
 
 static void
-indent_dest_decrease(pgp_dest_t *dst)
+indent_dest_decrease(pgp_dest_t &dst)
 {
-    pgp_dest_indent_param_t *param = (pgp_dest_indent_param_t *) dst->param;
+    pgp_dest_indent_param_t *param = (pgp_dest_indent_param_t *) dst.param;
     if (param->level > 0) {
         param->level--;
     }
-}
-
-static void
-indent_dest_set(pgp_dest_t *dst, int level)
-{
-    pgp_dest_indent_param_t *param = (pgp_dest_indent_param_t *) dst->param;
-    param->level = level;
 }
 
 static size_t
@@ -329,7 +317,7 @@ vsnprinthex(char *str, size_t slen, const uint8_t *buf, size_t buflen)
 }
 
 static void
-dst_print_mpi(pgp_dest_t *dst, const char *name, const pgp::mpi &mpi, bool dumpbin)
+dst_print_mpi(pgp_dest_t &dst, const char *name, const pgp::mpi &mpi, bool dumpbin)
 {
     if (!dumpbin) {
         dst_printf(dst, "%s: %zu bits\n", name, mpi.bits());
@@ -342,15 +330,15 @@ dst_print_mpi(pgp_dest_t *dst, const char *name, const pgp::mpi &mpi, bool dumpb
 
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 static void
-dst_print_vec(pgp_dest_t *                dst,
+dst_print_vec(pgp_dest_t &                dst,
               const char *                name,
               std::vector<uint8_t> const &data,
               bool                        dumpbin)
 {
-    std::vector<char> hex(2 * data.size());
     if (!dumpbin) {
         dst_printf(dst, "%s\n", name);
     } else {
+        std::vector<char> hex(2 * data.size());
         vsnprinthex(hex.data(), hex.size(), data.data(), data.size());
         dst_printf(dst, "%s, %s\n", name, hex.data());
     }
@@ -358,7 +346,7 @@ dst_print_vec(pgp_dest_t *                dst,
 #endif
 
 static void
-dst_print_palg(pgp_dest_t *dst, const char *name, pgp_pubkey_alg_t palg)
+dst_print_palg(pgp_dest_t &dst, const char *name, pgp_pubkey_alg_t palg)
 {
     const char *palg_name = id_str_pair::lookup(pubkey_alg_map, palg, "Unknown");
     if (!name) {
@@ -369,7 +357,7 @@ dst_print_palg(pgp_dest_t *dst, const char *name, pgp_pubkey_alg_t palg)
 }
 
 static void
-dst_print_halg(pgp_dest_t *dst, const char *name, pgp_hash_alg_t halg)
+dst_print_halg(pgp_dest_t &dst, const char *name, pgp_hash_alg_t halg)
 {
     const char *halg_name = id_str_pair::lookup(hash_alg_map, halg, "Unknown");
     if (!name) {
@@ -380,7 +368,7 @@ dst_print_halg(pgp_dest_t *dst, const char *name, pgp_hash_alg_t halg)
 }
 
 static void
-dst_print_salg(pgp_dest_t *dst, const char *name, pgp_symm_alg_t salg)
+dst_print_salg(pgp_dest_t &dst, const char *name, pgp_symm_alg_t salg)
 {
     const char *salg_name = id_str_pair::lookup(symm_alg_map, salg, "Unknown");
     if (!name) {
@@ -391,7 +379,7 @@ dst_print_salg(pgp_dest_t *dst, const char *name, pgp_symm_alg_t salg)
 }
 
 static void
-dst_print_aalg(pgp_dest_t *dst, const char *name, pgp_aead_alg_t aalg)
+dst_print_aalg(pgp_dest_t &dst, const char *name, pgp_aead_alg_t aalg)
 {
     const char *aalg_name = id_str_pair::lookup(aead_alg_map, aalg, "Unknown");
     if (!name) {
@@ -402,7 +390,7 @@ dst_print_aalg(pgp_dest_t *dst, const char *name, pgp_aead_alg_t aalg)
 }
 
 static void
-dst_print_zalg(pgp_dest_t *dst, const char *name, pgp_compression_type_t zalg)
+dst_print_zalg(pgp_dest_t &dst, const char *name, pgp_compression_type_t zalg)
 {
     const char *zalg_name = id_str_pair::lookup(z_alg_map, zalg, "Unknown");
     if (!name) {
@@ -413,15 +401,15 @@ dst_print_zalg(pgp_dest_t *dst, const char *name, pgp_compression_type_t zalg)
 }
 
 static void
-dst_print_str(pgp_dest_t *dst, const char *name, const std::string &str)
+dst_print_str(pgp_dest_t &dst, const char *name, const std::string &str)
 {
     dst_printf(dst, "%s: ", name);
-    dst_write(dst, str.data(), str.size());
+    dst_write(&dst, str.data(), str.size());
     dst_printf(dst, "\n");
 }
 
 static void
-dst_print_algs(pgp_dest_t *                dst,
+dst_print_algs(pgp_dest_t &                dst,
                const std::string &         name,
                const std::vector<uint8_t> &algs,
                const id_str_pair           map[])
@@ -440,7 +428,7 @@ dst_print_algs(pgp_dest_t *                dst,
 }
 
 static void
-dst_print_sig_type(pgp_dest_t *dst, const char *name, pgp_sig_type_t sigtype)
+dst_print_sig_type(pgp_dest_t &dst, const char *name, pgp_sig_type_t sigtype)
 {
     const char *sig_name = id_str_pair::lookup(sig_type_map, sigtype, "Unknown");
     if (!name) {
@@ -451,7 +439,7 @@ dst_print_sig_type(pgp_dest_t *dst, const char *name, pgp_sig_type_t sigtype)
 
 static void
 dst_print_hex(
-  pgp_dest_t *dst, const std::string &name, const uint8_t *data, size_t len, bool bytes)
+  pgp_dest_t &dst, const std::string &name, const uint8_t *data, size_t len, bool bytes)
 {
     char hex[512];
     vsnprinthex(hex, sizeof(hex), data, len);
@@ -463,55 +451,55 @@ dst_print_hex(
 }
 
 static void
-dst_print_keyid(pgp_dest_t *dst, const std::string &name, const pgp::KeyID &keyid)
+dst_print_keyid(pgp_dest_t &dst, const std::string &name, const pgp::KeyID &keyid)
 {
     dst_print_hex(dst, name, keyid.data(), keyid.size(), false);
 }
 
 static void
-dst_print_fp(pgp_dest_t *dst, const std::string &name, const pgp::Fingerprint &fp)
+dst_print_fp(pgp_dest_t &            dst,
+             const std::string &     name,
+             const pgp::Fingerprint &fp,
+             bool                    size = true)
 {
-    dst_print_hex(dst, name, fp.data(), fp.size(), true);
+    dst_print_hex(dst, name, fp.data(), fp.size(), size);
 }
 
 static void
-dst_print_s2k(pgp_dest_t *dst, pgp_s2k_t *s2k)
+dst_print_s2k(pgp_dest_t &dst, pgp_s2k_t &s2k)
 {
-    dst_printf(dst, "s2k specifier: %d\n", (int) s2k->specifier);
-    if ((s2k->specifier == PGP_S2KS_EXPERIMENTAL) && s2k->gpg_ext_num) {
-        dst_printf(dst, "GPG extension num: %d\n", (int) s2k->gpg_ext_num);
-        if (s2k->gpg_ext_num == PGP_S2K_GPG_SMARTCARD) {
-            static_assert(sizeof(s2k->gpg_serial) == 16, "invalid s2k->gpg_serial size");
-            size_t slen = s2k->gpg_serial_len > 16 ? 16 : s2k->gpg_serial_len;
-            dst_print_hex(dst, "card serial number", s2k->gpg_serial, slen, true);
+    dst_printf(dst, "s2k specifier: %d\n", (int) s2k.specifier);
+    if ((s2k.specifier == PGP_S2KS_EXPERIMENTAL) && s2k.gpg_ext_num) {
+        dst_printf(dst, "GPG extension num: %d\n", (int) s2k.gpg_ext_num);
+        if (s2k.gpg_ext_num == PGP_S2K_GPG_SMARTCARD) {
+            static_assert(sizeof(s2k.gpg_serial) == 16, "invalid s2k->gpg_serial size");
+            size_t slen = s2k.gpg_serial_len > 16 ? 16 : s2k.gpg_serial_len;
+            dst_print_hex(dst, "card serial number", s2k.gpg_serial, slen, true);
         }
         return;
     }
-    if (s2k->specifier == PGP_S2KS_EXPERIMENTAL) {
+    if (s2k.specifier == PGP_S2KS_EXPERIMENTAL) {
         dst_print_hex(dst,
                       "Unknown experimental s2k",
-                      s2k->experimental.data(),
-                      s2k->experimental.size(),
+                      s2k.experimental.data(),
+                      s2k.experimental.size(),
                       true);
         return;
     }
-    dst_print_halg(dst, "s2k hash algorithm", s2k->hash_alg);
-    if ((s2k->specifier == PGP_S2KS_SALTED) ||
-        (s2k->specifier == PGP_S2KS_ITERATED_AND_SALTED)) {
-        dst_print_hex(dst, "s2k salt", s2k->salt, PGP_SALT_SIZE, false);
+    dst_print_halg(dst, "s2k hash algorithm", s2k.hash_alg);
+    if ((s2k.specifier == PGP_S2KS_SALTED) ||
+        (s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED)) {
+        dst_print_hex(dst, "s2k salt", s2k.salt, PGP_SALT_SIZE, false);
     }
-    if (s2k->specifier == PGP_S2KS_ITERATED_AND_SALTED) {
-        size_t real_iter = pgp_s2k_decode_iterations(s2k->iterations);
-        dst_printf(dst, "s2k iterations: %zu (encoded as %u)\n", real_iter, s2k->iterations);
+    if (s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
+        size_t real_iter = pgp_s2k_decode_iterations(s2k.iterations);
+        dst_printf(dst, "s2k iterations: %zu (encoded as %u)\n", real_iter, s2k.iterations);
     }
 }
 
 static void
-dst_print_time(pgp_dest_t *dst, const char *name, uint32_t time)
+dst_print_time(pgp_dest_t &dst, const char *name, uint32_t time)
 {
-    if (!name) {
-        name = "time";
-    }
     auto str = rnp_ctime(time).substr(0, 24);
     dst_printf(dst,
                "%s: %zu (%s%s)\n",
@@ -522,14 +510,11 @@ dst_print_time(pgp_dest_t *dst, const char *name, uint32_t time)
 }
 
 static void
-dst_print_expiration(pgp_dest_t *dst, const char *name, uint32_t seconds)
+dst_print_expiration(pgp_dest_t &dst, const char *name, uint32_t seconds)
 {
-    if (!name) {
-        name = "expiration";
-    }
     if (seconds) {
         int days = seconds / (24 * 60 * 60);
-        dst_printf(dst, "%s: %zu seconds (%d days)\n", name, (size_t) seconds, days);
+        dst_printf(dst, "%s: %" PRIu32 " seconds (%d days)\n", name, seconds, days);
     } else {
         dst_printf(dst, "%s: 0 (never)\n", name);
     }
@@ -538,7 +523,7 @@ dst_print_expiration(pgp_dest_t *dst, const char *name, uint32_t seconds)
 #define LINELEN 16
 
 static void
-dst_hexdump(pgp_dest_t *dst, const uint8_t *src, size_t length)
+dst_hexdump(pgp_dest_t &dst, const uint8_t *src, size_t length)
 {
     size_t i;
     char   line[LINELEN + 1];
@@ -565,32 +550,87 @@ dst_hexdump(pgp_dest_t *dst, const uint8_t *src, size_t length)
 }
 
 static void
-dst_hexdump(pgp_dest_t *dst, const std::vector<uint8_t> &data)
+dst_hexdump(pgp_dest_t &dst, const std::vector<uint8_t> &data)
 {
     dst_hexdump(dst, data.data(), data.size());
 }
 
-static rnp_result_t stream_dump_packets_raw(rnp_dump_ctx_t *ctx,
-                                            pgp_source_t *  src,
-                                            pgp_dest_t *    dst);
-static void         stream_dump_signature_pkt(rnp_dump_ctx_t *           ctx,
-                                              const pgp::pkt::Signature &sig,
-                                              pgp_dest_t *               dst);
-
-/* Todo: move dumper to pgp::pkt or pgp namespace */
+namespace rnp {
 using namespace pgp;
 
-/**
- * @brief Dump signature subpacket to the dst.
- *
- * @param ctx dump context
- * @param dst dest
- * @param subpkt subpacket itself
- */
-static void
-signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, const pkt::sigsub::Raw &subpkt)
+void
+DumpContext::copy_params(const DumpContext &ctx)
 {
-    const char *sname = id_str_pair::lookup(sig_subpkt_type_map, subpkt.raw_type(), "Unknown");
+    dump_mpi = ctx.dump_mpi;
+    dump_packets = ctx.dump_packets;
+    dump_grips = ctx.dump_grips;
+    /* this could be called only from upper layer dumper */
+    layers = ctx.layers;
+    stream_pkts = ctx.stream_pkts;
+    failures = ctx.failures;
+}
+
+bool
+DumpContext::get_aead_hdr(pgp_aead_hdr_t &hdr)
+{
+    uint8_t    encpkt[64] = {0};
+    MemoryDest encdst(encpkt, sizeof(encpkt));
+
+    mem_dest_discard_overflow(&encdst.dst(), true);
+
+    if (stream_read_packet(&src, &encdst.dst())) {
+        return false;
+    }
+    size_t len = std::min(encdst.writeb(), sizeof(encpkt));
+
+    MemorySource memsrc(encpkt, len, false);
+    return get_aead_src_hdr(&memsrc.src(), &hdr);
+}
+
+bool
+DumpContext::skip_cleartext()
+{
+    char   buf[4096];
+    size_t read = 0;
+    size_t siglen = strlen(ST_SIG_BEGIN);
+    char * hdrpos;
+
+    while (!src.eof()) {
+        if (!src.peek(buf, sizeof(buf) - 1, &read) || (read <= siglen)) {
+            return false;
+        }
+        buf[read] = '\0';
+
+        if ((hdrpos = strstr(buf, ST_SIG_BEGIN))) {
+            /* +1 here is to skip \n on the beginning of ST_SIG_BEGIN */
+            src.skip(hdrpos - buf + 1);
+            return true;
+        }
+        src.skip(read - siglen + 1);
+    }
+    return false;
+}
+
+DumpContextDst::DumpContextDst(pgp_source_t &asrc, pgp_dest_t &adst) : DumpContext(asrc)
+{
+    auto ret = init_indent_dest(dst, &adst);
+    if (ret) {
+        RNP_LOG("failed to init indent dest");
+        throw rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
+    }
+}
+
+DumpContextDst::~DumpContextDst()
+{
+    if (dst.param) {
+        dst_close(&dst, false);
+    }
+}
+
+void
+DumpContextDst::dump_signature_subpacket(const pkt::sigsub::Raw &subpkt)
+{
+    auto sname = id_str_pair::lookup(sig_subpkt_type_map, subpkt.raw_type(), "Unknown");
 
     switch (subpkt.type()) {
     case pkt::sigsub::Type::CreationTime: {
@@ -734,8 +774,8 @@ signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, const pkt::sigsub
     case pkt::sigsub::Type::EmbeddedSignature: {
         auto &sub = dynamic_cast<const pkt::sigsub::EmbeddedSignature &>(subpkt);
         dst_printf(dst, "%s:\n", sname);
-        pgp::pkt::Signature sig(*sub.signature());
-        stream_dump_signature_pkt(ctx, sig, dst);
+        pkt::Signature sig(*sub.signature());
+        dump_signature_pkt(sig);
         break;
     }
     case pkt::sigsub::Type::IssuerFingerprint: {
@@ -749,7 +789,7 @@ signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, const pkt::sigsub
         break;
     }
     default:
-        if (!ctx->dump_packets) {
+        if (!dump_packets) {
             indent_dest_increase(dst);
             dst_hexdump(dst, subpkt.data());
             indent_dest_decrease(dst);
@@ -757,11 +797,8 @@ signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, const pkt::sigsub
     }
 }
 
-static void
-signature_dump_subpackets(rnp_dump_ctx_t *           ctx,
-                          pgp_dest_t *               dst,
-                          const pgp::pkt::Signature &sig,
-                          bool                       hashed)
+void
+DumpContextDst::dump_signature_subpackets(const pkt::Signature &sig, bool hashed)
 {
     bool empty = true;
 
@@ -773,13 +810,13 @@ signature_dump_subpackets(rnp_dump_ctx_t *           ctx,
         dst_printf(
           dst, ":type %" PRIu8 ", len %zu", subpkt->raw_type(), subpkt->data().size());
         dst_printf(dst, "%s\n", subpkt->critical() ? ", critical" : "");
-        if (ctx->dump_packets) {
+        if (dump_packets) {
             dst_printf(dst, ":subpacket contents:\n");
             indent_dest_increase(dst);
             dst_hexdump(dst, subpkt->data());
             indent_dest_decrease(dst);
         }
-        signature_dump_subpacket(ctx, dst, *subpkt);
+        dump_signature_subpacket(*subpkt);
     }
 
     if (empty) {
@@ -787,8 +824,8 @@ signature_dump_subpackets(rnp_dump_ctx_t *           ctx,
     }
 }
 
-static void
-stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, const pgp::pkt::Signature &sig, pgp_dest_t *dst)
+void
+DumpContextDst::dump_signature_pkt(const pkt::Signature &sig)
 {
     indent_dest_increase(dst);
 
@@ -804,12 +841,12 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, const pgp::pkt::Signature &sig, p
     if (sig.version >= PGP_V4) {
         dst_printf(dst, "hashed subpackets:\n");
         indent_dest_increase(dst);
-        signature_dump_subpackets(ctx, dst, sig, true);
+        dump_signature_subpackets(sig, true);
         indent_dest_decrease(dst);
 
         dst_printf(dst, "unhashed subpackets:\n");
         indent_dest_increase(dst);
-        signature_dump_subpackets(ctx, dst, sig, false);
+        dump_signature_subpackets(sig, false);
         indent_dest_decrease(dst);
     }
 
@@ -831,13 +868,13 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, const pgp::pkt::Signature &sig, p
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY: {
         auto &rsa = dynamic_cast<const RSASigMaterial &>(*material);
-        dst_print_mpi(dst, "rsa s", rsa.sig.s, ctx->dump_mpi);
+        dst_print_mpi(dst, "rsa s", rsa.sig.s, dump_mpi);
         break;
     }
     case PGP_PKA_DSA: {
         auto &dsa = dynamic_cast<const DSASigMaterial &>(*material);
-        dst_print_mpi(dst, "dsa r", dsa.sig.r, ctx->dump_mpi);
-        dst_print_mpi(dst, "dsa s", dsa.sig.s, ctx->dump_mpi);
+        dst_print_mpi(dst, "dsa r", dsa.sig.r, dump_mpi);
+        dst_print_mpi(dst, "dsa s", dsa.sig.s, dump_mpi);
         break;
     }
     case PGP_PKA_EDDSA:
@@ -845,8 +882,8 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, const pgp::pkt::Signature &sig, p
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH: {
         auto &ec = dynamic_cast<const ECSigMaterial &>(*material);
-        dst_print_mpi(dst, "ecc r", ec.sig.r, ctx->dump_mpi);
-        dst_print_mpi(dst, "ecc s", ec.sig.s, ctx->dump_mpi);
+        dst_print_mpi(dst, "ecc r", ec.sig.r, dump_mpi);
+        dst_print_mpi(dst, "ecc s", ec.sig.s, dump_mpi);
         break;
     }
     /* Wasn't able to find ElGamal sig artifacts so let's ignore this for coverage */
@@ -854,15 +891,15 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, const pgp::pkt::Signature &sig, p
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
         auto &eg = dynamic_cast<const EGSigMaterial &>(*material);
-        dst_print_mpi(dst, "eg r", eg.sig.r, ctx->dump_mpi);
-        dst_print_mpi(dst, "eg s", eg.sig.s, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg r", eg.sig.r, dump_mpi);
+        dst_print_mpi(dst, "eg s", eg.sig.s, dump_mpi);
         break;
     }
     /* LCOV_EXCL_END */
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519: {
         auto &ed = dynamic_cast<const Ed25519SigMaterial &>(*material);
-        dst_print_vec(dst, "ed25519 sig", ed.sig.sig, ctx->dump_mpi);
+        dst_print_vec(dst, "ed25519 sig", ed.sig.sig, dump_mpi);
         break;
     }
 #endif
@@ -878,14 +915,14 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, const pgp::pkt::Signature &sig, p
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384: {
         auto &dilithium = dynamic_cast<const DilithiumSigMaterial &>(*material);
-        dst_print_vec(dst, "mldsa-ecdsa/eddsa sig", dilithium.sig.sig, ctx->dump_mpi);
+        dst_print_vec(dst, "mldsa-ecdsa/eddsa sig", dilithium.sig.sig, dump_mpi);
         break;
     }
     case PGP_PKA_SPHINCSPLUS_SHA2:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE: {
         auto &slhdsa = dynamic_cast<const SlhdsaSigMaterial &>(*material);
-        dst_print_vec(dst, "slhdsa sig", slhdsa.sig.sig, ctx->dump_mpi);
+        dst_print_vec(dst, "slhdsa sig", slhdsa.sig.sig, dump_mpi);
         break;
     }
 #endif
@@ -896,35 +933,24 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, const pgp::pkt::Signature &sig, p
     indent_dest_decrease(dst);
 }
 
-static rnp_result_t
-stream_dump_signature(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
+rnp_result_t
+DumpContextDst::dump_signature()
 {
-    pgp::pkt::Signature sig;
-    rnp_result_t        ret;
-
     dst_printf(dst, "Signature packet\n");
-    try {
-        ret = sig.parse(*src);
-    } catch (const std::exception &e) {
-        /* LCOV_EXCL_START */
-        RNP_LOG("%s", e.what());
-        ret = RNP_ERROR_GENERIC;
-        /* LCOV_EXCL_END */
-    }
+    pkt::Signature sig;
+    auto           ret = sig.parse(src);
     if (ret) {
         indent_dest_increase(dst);
         dst_printf(dst, "failed to parse\n");
         indent_dest_decrease(dst);
         return ret;
     }
-    stream_dump_signature_pkt(ctx, sig, dst);
-    return ret;
+    dump_signature_pkt(sig);
+    return RNP_SUCCESS;
 }
 
-static void
-stream_dump_key_material(rnp_dump_ctx_t &        ctx,
-                         const pgp::KeyMaterial *material,
-                         pgp_dest_t *            dst)
+void
+DumpContextDst::dump_key_material(const KeyMaterial *material)
 {
     if (!material) {
         return;
@@ -933,41 +959,41 @@ stream_dump_key_material(rnp_dump_ctx_t &        ctx,
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY: {
-        auto &rsa = dynamic_cast<const pgp::RSAKeyMaterial &>(*material);
-        dst_print_mpi(dst, "rsa n", rsa.n(), ctx.dump_mpi);
-        dst_print_mpi(dst, "rsa e", rsa.e(), ctx.dump_mpi);
+        auto &rsa = dynamic_cast<const RSAKeyMaterial &>(*material);
+        dst_print_mpi(dst, "rsa n", rsa.n(), dump_mpi);
+        dst_print_mpi(dst, "rsa e", rsa.e(), dump_mpi);
         return;
     }
     case PGP_PKA_DSA: {
-        auto &dsa = dynamic_cast<const pgp::DSAKeyMaterial &>(*material);
-        dst_print_mpi(dst, "dsa p", dsa.p(), ctx.dump_mpi);
-        dst_print_mpi(dst, "dsa q", dsa.q(), ctx.dump_mpi);
-        dst_print_mpi(dst, "dsa g", dsa.g(), ctx.dump_mpi);
-        dst_print_mpi(dst, "dsa y", dsa.y(), ctx.dump_mpi);
+        auto &dsa = dynamic_cast<const DSAKeyMaterial &>(*material);
+        dst_print_mpi(dst, "dsa p", dsa.p(), dump_mpi);
+        dst_print_mpi(dst, "dsa q", dsa.q(), dump_mpi);
+        dst_print_mpi(dst, "dsa g", dsa.g(), dump_mpi);
+        dst_print_mpi(dst, "dsa y", dsa.y(), dump_mpi);
         return;
     }
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
-        auto &eg = dynamic_cast<const pgp::EGKeyMaterial &>(*material);
-        dst_print_mpi(dst, "eg p", eg.p(), ctx.dump_mpi);
-        dst_print_mpi(dst, "eg g", eg.g(), ctx.dump_mpi);
-        dst_print_mpi(dst, "eg y", eg.y(), ctx.dump_mpi);
+        auto &eg = dynamic_cast<const EGKeyMaterial &>(*material);
+        dst_print_mpi(dst, "eg p", eg.p(), dump_mpi);
+        dst_print_mpi(dst, "eg g", eg.g(), dump_mpi);
+        dst_print_mpi(dst, "eg y", eg.y(), dump_mpi);
         return;
     }
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2: {
-        auto &ec = dynamic_cast<const pgp::ECKeyMaterial &>(*material);
-        auto  cdesc = pgp::ec::Curve::get(ec.curve());
-        dst_print_mpi(dst, "ecc p", ec.p(), ctx.dump_mpi);
+        auto &ec = dynamic_cast<const ECKeyMaterial &>(*material);
+        auto  cdesc = ec::Curve::get(ec.curve());
+        dst_print_mpi(dst, "ecc p", ec.p(), dump_mpi);
         dst_printf(dst, "ecc curve: %s\n", cdesc ? cdesc->pgp_name : "unknown");
         return;
     }
     case PGP_PKA_ECDH: {
-        auto &ec = dynamic_cast<const pgp::ECDHKeyMaterial &>(*material);
-        auto  cdesc = pgp::ec::Curve::get(ec.curve());
+        auto &ec = dynamic_cast<const ECDHKeyMaterial &>(*material);
+        auto  cdesc = ec::Curve::get(ec.curve());
         /* Common EC fields */
-        dst_print_mpi(dst, "ecdh p", ec.p(), ctx.dump_mpi);
+        dst_print_mpi(dst, "ecdh p", ec.p(), dump_mpi);
         dst_printf(dst, "ecdh curve: %s\n", cdesc ? cdesc->pgp_name : "unknown");
         /* ECDH-only fields */
         dst_print_halg(dst, "ecdh hash algorithm", ec.kdf_hash_alg());
@@ -976,13 +1002,13 @@ stream_dump_key_material(rnp_dump_ctx_t &        ctx,
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519: {
-        auto &ed25519 = dynamic_cast<const pgp::Ed25519KeyMaterial &>(*material);
-        dst_print_vec(dst, "ed25519", ed25519.pub(), ctx.dump_mpi);
+        auto &ed25519 = dynamic_cast<const Ed25519KeyMaterial &>(*material);
+        dst_print_vec(dst, "ed25519", ed25519.pub(), dump_mpi);
         return;
     }
     case PGP_PKA_X25519: {
-        auto &x25519 = dynamic_cast<const pgp::X25519KeyMaterial &>(*material);
-        dst_print_vec(dst, "x25519", x25519.pub(), ctx.dump_mpi);
+        auto &x25519 = dynamic_cast<const X25519KeyMaterial &>(*material);
+        dst_print_vec(dst, "x25519", x25519.pub(), dump_mpi);
         return;
     }
 #endif
@@ -997,9 +1023,8 @@ stream_dump_key_material(rnp_dump_ctx_t &        ctx,
     case PGP_PKA_KYBER768_BP256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384: {
-        auto &kyber = dynamic_cast<const pgp::MlkemEcdhKeyMaterial &>(*material);
-        dst_print_vec(
-          dst, "mlkem-ecdh encoded pubkey", kyber.pub().get_encoded(), ctx.dump_mpi);
+        auto &kyber = dynamic_cast<const MlkemEcdhKeyMaterial &>(*material);
+        dst_print_vec(dst, "mlkem-ecdh encoded pubkey", kyber.pub().get_encoded(), dump_mpi);
         return;
     }
     case PGP_PKA_DILITHIUM3_ED25519:
@@ -1012,18 +1037,16 @@ stream_dump_key_material(rnp_dump_ctx_t &        ctx,
     case PGP_PKA_DILITHIUM3_BP256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384: {
-        auto &dilithium = dynamic_cast<const pgp::DilithiumEccKeyMaterial &>(*material);
-        dst_print_vec(dst,
-                      "mldsa-ecdsa/eddsa encodced pubkey",
-                      dilithium.pub().get_encoded(),
-                      ctx.dump_mpi);
+        auto &dilithium = dynamic_cast<const DilithiumEccKeyMaterial &>(*material);
+        dst_print_vec(
+          dst, "mldsa-ecdsa/eddsa encodced pubkey", dilithium.pub().get_encoded(), dump_mpi);
         return;
     }
     case PGP_PKA_SPHINCSPLUS_SHA2:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE: {
-        auto &sphincs = dynamic_cast<const pgp::SlhdsaKeyMaterial &>(*material);
-        dst_print_vec(dst, "slhdsa encoded pubkey", sphincs.pub().get_encoded(), ctx.dump_mpi);
+        auto &sphincs = dynamic_cast<const SlhdsaKeyMaterial &>(*material);
+        dst_print_vec(dst, "slhdsa encoded pubkey", sphincs.pub().get_encoded(), dump_mpi);
         return;
     }
 #endif
@@ -1032,21 +1055,11 @@ stream_dump_key_material(rnp_dump_ctx_t &        ctx,
     }
 }
 
-static rnp_result_t
-stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
+rnp_result_t
+DumpContextDst::dump_key()
 {
-    pgp_key_pkt_t    key;
-    rnp_result_t     ret;
-    pgp::Fingerprint keyfp;
-
-    try {
-        ret = key.parse(*src);
-    } catch (const std::exception &e) {
-        /* LCOV_EXCL_START */
-        RNP_LOG("%s", e.what());
-        ret = RNP_ERROR_GENERIC;
-        /* LCOV_EXCL_END */
-    }
+    pgp_key_pkt_t key;
+    auto          ret = key.parse(src);
     if (ret) {
         return ret;
     }
@@ -1065,7 +1078,7 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     }
     dst_printf(dst, "public key material:\n");
     indent_dest_increase(dst);
-    stream_dump_key_material(*ctx, key.material.get(), dst);
+    dump_key_material(key.material.get());
     indent_dest_decrease(dst);
 
     if (is_secret_key_pkt(key.tag)) {
@@ -1079,7 +1092,7 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         if ((key.sec_protection.s2k.usage == PGP_S2KU_ENCRYPTED) ||
             (key.sec_protection.s2k.usage == PGP_S2KU_ENCRYPTED_AND_HASHED)) {
             dst_print_salg(dst, NULL, key.sec_protection.symm_alg);
-            dst_print_s2k(dst, &key.sec_protection.s2k);
+            dst_print_s2k(dst, key.sec_protection.s2k);
             if (key.sec_protection.s2k.specifier != PGP_S2KS_EXPERIMENTAL) {
                 size_t bl_size = pgp_block_size(key.sec_protection.symm_alg);
                 if (bl_size) {
@@ -1102,19 +1115,19 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     }
 
     try {
-        pgp::Fingerprint fp(key);
-        dst_print_hex(dst, "keyid", fp.keyid().data(), fp.keyid().size(), false);
+        Fingerprint fp(key);
+        dst_print_keyid(dst, "keyid", fp.keyid());
 
-        if (ctx->dump_grips) {
-            dst_print_hex(dst, "fingerprint", fp.data(), fp.size(), false);
+        if (dump_grips) {
+            dst_print_fp(dst, "fingerprint", fp, false);
         }
     } catch (const std::exception &e) {
         dst_printf(dst, "failed to calculate fingerprint and/or keyid\n");
     }
 
-    if (ctx->dump_grips) {
+    if (dump_grips) {
         if (key.material) {
-            pgp::KeyGrip grip = key.material->grip();
+            KeyGrip grip = key.material->grip();
             dst_print_hex(dst, "grip", grip.data(), grip.size(), false);
         } else {
             dst_printf(dst, "grip: failed to calculate\n");
@@ -1125,22 +1138,16 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     return RNP_SUCCESS;
 }
 
-static rnp_result_t
-stream_dump_userid(pgp_source_t *src, pgp_dest_t *dst)
+rnp_result_t
+DumpContextDst::dump_userid()
 {
     pgp_userid_pkt_t uid;
-    rnp_result_t     ret;
-    const char *     utype;
-
-    try {
-        ret = uid.parse(*src);
-    } catch (const std::exception &e) {
-        ret = RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
-    }
+    auto             ret = uid.parse(src);
     if (ret) {
         return ret;
     }
 
+    const char *utype = NULL;
     switch (uid.tag) {
     case PGP_PKT_USER_ID:
         utype = "UserID";
@@ -1158,7 +1165,7 @@ stream_dump_userid(pgp_source_t *src, pgp_dest_t *dst)
     switch (uid.tag) {
     case PGP_PKT_USER_ID:
         dst_printf(dst, "id: ");
-        dst_write(dst, uid.uid.data(), uid.uid.size());
+        dst_write(dst, uid.uid);
         dst_printf(dst, "\n");
         break;
     case PGP_PKT_USER_ATTR:
@@ -1171,11 +1178,11 @@ stream_dump_userid(pgp_source_t *src, pgp_dest_t *dst)
     return RNP_SUCCESS;
 }
 
-static rnp_result_t
-stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
+rnp_result_t
+DumpContextDst::dump_pk_session_key()
 {
     pgp_pk_sesskey_t pkey;
-    auto             ret = pkey.parse(*src);
+    auto             ret = pkey.parse(src);
     if (ret) {
         return ret;
     }
@@ -1205,26 +1212,26 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY: {
-        auto &rsa = dynamic_cast<const pgp::RSAEncMaterial &>(*material).enc;
-        dst_print_mpi(dst, "rsa m", rsa.m, ctx->dump_mpi);
+        auto &rsa = dynamic_cast<const RSAEncMaterial &>(*material).enc;
+        dst_print_mpi(dst, "rsa m", rsa.m, dump_mpi);
         break;
     }
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
-        auto &eg = dynamic_cast<const pgp::EGEncMaterial &>(*material).enc;
-        dst_print_mpi(dst, "eg g", eg.g, ctx->dump_mpi);
-        dst_print_mpi(dst, "eg m", eg.m, ctx->dump_mpi);
+        auto &eg = dynamic_cast<const EGEncMaterial &>(*material).enc;
+        dst_print_mpi(dst, "eg g", eg.g, dump_mpi);
+        dst_print_mpi(dst, "eg m", eg.m, dump_mpi);
         break;
     }
     case PGP_PKA_SM2: {
-        auto &sm2 = dynamic_cast<const pgp::SM2EncMaterial &>(*material).enc;
-        dst_print_mpi(dst, "sm2 m", sm2.m, ctx->dump_mpi);
+        auto &sm2 = dynamic_cast<const SM2EncMaterial &>(*material).enc;
+        dst_print_mpi(dst, "sm2 m", sm2.m, dump_mpi);
         break;
     }
     case PGP_PKA_ECDH: {
-        auto &ecdh = dynamic_cast<const pgp::ECDHEncMaterial &>(*material).enc;
-        dst_print_mpi(dst, "ecdh p", ecdh.p, ctx->dump_mpi);
-        if (ctx->dump_mpi) {
+        auto &ecdh = dynamic_cast<const ECDHEncMaterial &>(*material).enc;
+        dst_print_mpi(dst, "ecdh p", ecdh.p, dump_mpi);
+        if (dump_mpi) {
             dst_print_hex(dst, "ecdh m", ecdh.m.data(), ecdh.m.size(), true);
         } else {
             dst_printf(dst, "ecdh m: %zu bytes\n", ecdh.m.size());
@@ -1233,9 +1240,9 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_X25519: {
-        auto &x25519 = dynamic_cast<const pgp::X25519EncMaterial &>(*material).enc;
-        dst_print_vec(dst, "x25519 ephemeral public key", x25519.eph_key, ctx->dump_mpi);
-        dst_print_vec(dst, "x25519 encrypted session key", x25519.enc_sess_key, ctx->dump_mpi);
+        auto &x25519 = dynamic_cast<const X25519EncMaterial &>(*material).enc;
+        dst_print_vec(dst, "x25519 ephemeral public key", x25519.eph_key, dump_mpi);
+        dst_print_vec(dst, "x25519 encrypted session key", x25519.enc_sess_key, dump_mpi);
         break;
     }
 #endif
@@ -1250,11 +1257,10 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
     case PGP_PKA_KYBER768_BP256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384: {
-        auto &mlkem = dynamic_cast<const pgp::MlkemEcdhEncMaterial &>(*material).enc;
+        auto &mlkem = dynamic_cast<const MlkemEcdhEncMaterial &>(*material).enc;
         dst_print_vec(
-          dst, "mlkem-ecdh composite ciphertext", mlkem.composite_ciphertext, ctx->dump_mpi);
-        dst_print_vec(
-          dst, "mlkem-ecdh wrapped session key", mlkem.wrapped_sesskey, ctx->dump_mpi);
+          dst, "mlkem-ecdh composite ciphertext", mlkem.composite_ciphertext, dump_mpi);
+        dst_print_vec(dst, "mlkem-ecdh wrapped session key", mlkem.wrapped_sesskey, dump_mpi);
         break;
     }
 #endif
@@ -1267,17 +1273,11 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
     return RNP_SUCCESS;
 }
 
-static rnp_result_t
-stream_dump_sk_session_key(pgp_source_t *src, pgp_dest_t *dst)
+rnp_result_t
+DumpContextDst::dump_sk_session_key()
 {
     pgp_sk_sesskey_t skey;
-    rnp_result_t     ret;
-
-    try {
-        ret = skey.parse(*src);
-    } catch (const std::exception &e) {
-        ret = RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
-    }
+    auto             ret = skey.parse(src);
     if (ret) {
         return ret;
     }
@@ -1289,7 +1289,7 @@ stream_dump_sk_session_key(pgp_source_t *src, pgp_dest_t *dst)
     if (skey.version == PGP_SKSK_V5) {
         dst_print_aalg(dst, NULL, skey.aalg);
     }
-    dst_print_s2k(dst, &skey.s2k);
+    dst_print_s2k(dst, skey.s2k);
     if (skey.version == PGP_SKSK_V5) {
         dst_print_hex(dst, "aead iv", skey.iv, skey.ivlen, true);
     }
@@ -1299,40 +1299,13 @@ stream_dump_sk_session_key(pgp_source_t *src, pgp_dest_t *dst)
     return RNP_SUCCESS;
 }
 
-static bool
-stream_dump_get_aead_hdr(pgp_source_t *src, pgp_aead_hdr_t *hdr)
-{
-    pgp_dest_t encdst = {};
-    uint8_t    encpkt[64] = {};
-
-    if (init_mem_dest(&encdst, &encpkt, sizeof(encpkt))) {
-        return false; // LCOV_EXCL_LINE
-    }
-    mem_dest_discard_overflow(&encdst, true);
-
-    if (stream_read_packet(src, &encdst)) {
-        dst_close(&encdst, false);
-        return false;
-    }
-    size_t len = std::min(encdst.writeb, sizeof(encpkt));
-    dst_close(&encdst, false);
-
-    pgp_source_t memsrc = {};
-    if (init_mem_src(&memsrc, encpkt, len, false)) {
-        return false; // LCOV_EXCL_LINE
-    }
-    bool res = get_aead_src_hdr(&memsrc, hdr);
-    memsrc.close();
-    return res;
-}
-
-static rnp_result_t
-stream_dump_aead_encrypted(pgp_source_t *src, pgp_dest_t *dst)
+rnp_result_t
+DumpContextDst::dump_aead_encrypted()
 {
     dst_printf(dst, "AEAD-encrypted data packet\n");
 
-    pgp_aead_hdr_t aead = {};
-    if (!stream_dump_get_aead_hdr(src, &aead)) {
+    pgp_aead_hdr_t aead{};
+    if (!get_aead_hdr(aead)) {
         dst_printf(dst, "ERROR: failed to read AEAD header\n");
         return RNP_ERROR_READ;
     }
@@ -1349,8 +1322,8 @@ stream_dump_aead_encrypted(pgp_source_t *src, pgp_dest_t *dst)
     return RNP_SUCCESS;
 }
 
-static rnp_result_t
-stream_dump_encrypted(pgp_source_t *src, pgp_dest_t *dst, int tag)
+rnp_result_t
+DumpContextDst::dump_encrypted(int tag)
 {
     switch (tag) {
     case PGP_PKT_SE_DATA:
@@ -1360,26 +1333,20 @@ stream_dump_encrypted(pgp_source_t *src, pgp_dest_t *dst, int tag)
         dst_printf(dst, "Symmetrically-encrypted integrity protected data packet\n\n");
         break;
     case PGP_PKT_AEAD_ENCRYPTED:
-        return stream_dump_aead_encrypted(src, dst);
+        return dump_aead_encrypted();
     default:
         dst_printf(dst, "Unknown encrypted data packet\n\n");
         break;
     }
 
-    return stream_skip_packet(src);
+    return stream_skip_packet(&src);
 }
 
-static rnp_result_t
-stream_dump_one_pass(pgp_source_t *src, pgp_dest_t *dst)
+rnp_result_t
+DumpContextDst::dump_one_pass()
 {
     pgp_one_pass_sig_t onepass;
-    rnp_result_t       ret;
-
-    try {
-        ret = onepass.parse(*src);
-    } catch (const std::exception &e) {
-        ret = RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
-    }
+    auto               ret = onepass.parse(src);
     if (ret) {
         return ret;
     }
@@ -1398,36 +1365,36 @@ stream_dump_one_pass(pgp_source_t *src, pgp_dest_t *dst)
     return RNP_SUCCESS;
 }
 
-static rnp_result_t
-stream_dump_compressed(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
+rnp_result_t
+DumpContextDst::dump_compressed()
 {
-    pgp_source_t zsrc = {0};
-    uint8_t      zalg;
-    rnp_result_t ret;
-
-    if ((ret = init_compressed_src(&zsrc, src))) {
+    std::unique_ptr<Source> zsrc(new Source());
+    auto                    ret = init_compressed_src(&zsrc->src(), &src);
+    if (ret) {
         return ret;
     }
 
     dst_printf(dst, "Compressed data packet\n");
     indent_dest_increase(dst);
 
-    get_compressed_src_alg(&zsrc, &zalg);
+    uint8_t zalg = 0;
+    get_compressed_src_alg(&zsrc->src(), &zalg);
     dst_print_zalg(dst, NULL, (pgp_compression_type_t) zalg);
     dst_printf(dst, "Decompressed contents:\n");
-    ret = stream_dump_packets_raw(ctx, &zsrc, dst);
 
-    zsrc.close();
+    std::unique_ptr<DumpContextDst> ctx(new DumpContextDst(zsrc->src(), dst));
+    ctx->copy_params(*this);
+    ret = ctx->dump(true);
+    copy_params(*ctx);
     indent_dest_decrease(dst);
     return ret;
 }
 
-static rnp_result_t
-stream_dump_literal(pgp_source_t *src, pgp_dest_t *dst)
+rnp_result_t
+DumpContextDst::dump_literal()
 {
-    pgp_source_t lsrc = {0};
-    rnp_result_t ret = init_literal_src(&lsrc, src);
-
+    Source lsrc;
+    auto   ret = init_literal_src(&lsrc.src(), &src);
     if (ret) {
         return ret;
     }
@@ -1435,7 +1402,7 @@ stream_dump_literal(pgp_source_t *src, pgp_dest_t *dst)
     dst_printf(dst, "Literal data packet\n");
     indent_dest_increase(dst);
 
-    auto lhdr = get_literal_src_hdr(lsrc);
+    auto &lhdr = get_literal_src_hdr(lsrc.src());
     dst_printf(dst, "data format: '%c'\n", lhdr.format);
     dst_printf(dst, "filename: %s (len %" PRIu8 ")\n", lhdr.fname, lhdr.fname_len);
     dst_print_time(dst, "timestamp", lhdr.timestamp);
@@ -1444,51 +1411,50 @@ stream_dump_literal(pgp_source_t *src, pgp_dest_t *dst)
     while (!lsrc.eof()) {
         uint8_t readbuf[16384];
         size_t  read = 0;
-        if (!lsrc.read(readbuf, sizeof(readbuf), &read)) {
+        if (!lsrc.src().read(readbuf, sizeof(readbuf), &read)) {
             ret = RNP_ERROR_READ;
             break;
         }
     }
 
-    dst_printf(dst, "data bytes: %lu\n", (unsigned long) lsrc.readb);
-    lsrc.close();
+    dst_printf(dst, "data bytes: %zu\n", lsrc.readb());
     indent_dest_decrease(dst);
     return ret;
 }
 
-static rnp_result_t
-stream_dump_marker(pgp_source_t &src, pgp_dest_t &dst)
+rnp_result_t
+DumpContextDst::dump_marker()
 {
-    dst_printf(&dst, "Marker packet\n");
-    indent_dest_increase(&dst);
-    rnp_result_t ret = stream_parse_marker(src);
-    dst_printf(&dst, "contents: %s\n", ret ? "invalid" : PGP_MARKER_CONTENTS);
-    indent_dest_decrease(&dst);
+    dst_printf(dst, "Marker packet\n");
+    indent_dest_increase(dst);
+    auto ret = stream_parse_marker(src);
+    dst_printf(dst, "contents: %s\n", ret ? "invalid" : PGP_MARKER_CONTENTS);
+    indent_dest_decrease(dst);
     return ret;
 }
 
-static rnp_result_t
-stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
+rnp_result_t
+DumpContextDst::dump_raw_packets()
 {
     char         msg[1024 + PGP_MAX_HEADER_SIZE] = {0};
     char         smsg[128] = {0};
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
-    if (src->eof()) {
+    if (src.eof()) {
         return RNP_SUCCESS;
     }
 
     /* do not allow endless recursion */
-    if (++ctx->layers > MAXIMUM_NESTING_LEVEL) {
+    if (++layers > MAXIMUM_NESTING_LEVEL) {
         RNP_LOG("Too many OpenPGP nested layers during the dump.");
         dst_printf(dst, ":too many OpenPGP packet layers, stopping.\n");
         return RNP_SUCCESS;
     }
 
-    while (!src->eof()) {
-        pgp_packet_hdr_t hdr = {};
-        size_t           off = src->readb;
-        rnp_result_t     hdrret = stream_peek_packet_hdr(src, &hdr);
+    while (!src.eof()) {
+        pgp_packet_hdr_t hdr{};
+        size_t           off = src.readb;
+        rnp_result_t     hdrret = stream_peek_packet_hdr(&src, &hdr);
         if (hdrret) {
             return hdrret;
         }
@@ -1504,7 +1470,7 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         dst_printf(
           dst, ":off %zu: packet header 0x%s (tag %d, %s)\n", off, smsg, hdr.tag, msg);
 
-        if (ctx->dump_packets) {
+        if (dump_packets) {
             size_t rlen = hdr.pkt_len + hdr.hdr_len;
             bool   part = false;
 
@@ -1514,14 +1480,14 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
             }
 
             dst_printf(dst, ":off %zu: packet contents ", off + hdr.hdr_len);
-            if (!src->peek(msg, rlen, &rlen)) {
+            if (!src.peek(msg, rlen, &rlen)) {
                 dst_printf(dst, "- failed to read\n");
             } else {
                 rlen -= hdr.hdr_len;
                 if (part || (rlen < hdr.pkt_len)) {
-                    dst_printf(dst, "(first %d bytes)\n", (int) rlen);
+                    dst_printf(dst, "(first %zu bytes)\n", rlen);
                 } else {
-                    dst_printf(dst, "(%d bytes)\n", (int) rlen);
+                    dst_printf(dst, "(%zu bytes)\n", rlen);
                 }
                 indent_dest_increase(dst);
                 dst_hexdump(dst, (uint8_t *) msg + hdr.hdr_len, rlen);
@@ -1532,56 +1498,56 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 
         switch (hdr.tag) {
         case PGP_PKT_SIGNATURE:
-            ret = stream_dump_signature(ctx, src, dst);
+            ret = dump_signature();
             break;
         case PGP_PKT_SECRET_KEY:
         case PGP_PKT_PUBLIC_KEY:
         case PGP_PKT_SECRET_SUBKEY:
         case PGP_PKT_PUBLIC_SUBKEY:
-            ret = stream_dump_key(ctx, src, dst);
+            ret = dump_key();
             break;
         case PGP_PKT_USER_ID:
         case PGP_PKT_USER_ATTR:
-            ret = stream_dump_userid(src, dst);
+            ret = dump_userid();
             break;
         case PGP_PKT_PK_SESSION_KEY:
-            ret = stream_dump_pk_session_key(ctx, src, dst);
+            ret = dump_pk_session_key();
             break;
         case PGP_PKT_SK_SESSION_KEY:
-            ret = stream_dump_sk_session_key(src, dst);
+            ret = dump_sk_session_key();
             break;
         case PGP_PKT_SE_DATA:
         case PGP_PKT_SE_IP_DATA:
         case PGP_PKT_AEAD_ENCRYPTED:
-            ctx->stream_pkts++;
-            ret = stream_dump_encrypted(src, dst, hdr.tag);
+            stream_pkts++;
+            ret = dump_encrypted(hdr.tag);
             break;
         case PGP_PKT_ONE_PASS_SIG:
-            ret = stream_dump_one_pass(src, dst);
+            ret = dump_one_pass();
             break;
         case PGP_PKT_COMPRESSED:
-            ctx->stream_pkts++;
-            ret = stream_dump_compressed(ctx, src, dst);
+            stream_pkts++;
+            ret = dump_compressed();
             break;
         case PGP_PKT_LITDATA:
-            ctx->stream_pkts++;
-            ret = stream_dump_literal(src, dst);
+            stream_pkts++;
+            ret = dump_literal();
             break;
         case PGP_PKT_MARKER:
-            ret = stream_dump_marker(*src, *dst);
+            ret = dump_marker();
             break;
         case PGP_PKT_TRUST:
         case PGP_PKT_MDC:
             dst_printf(dst, "Skipping unhandled pkt: %d\n\n", (int) hdr.tag);
-            ret = stream_skip_packet(src);
+            ret = stream_skip_packet(&src);
             break;
         default:
             dst_printf(dst, "Skipping Unknown pkt: %d\n\n", (int) hdr.tag);
-            ret = stream_skip_packet(src);
+            ret = stream_skip_packet(&src);
             if (ret) {
                 return ret;
             }
-            if (++ctx->failures > MAXIMUM_ERROR_PKTS) {
+            if (++failures > MAXIMUM_ERROR_PKTS) {
                 RNP_LOG("too many packet dump errors or unknown packets.");
                 return ret;
             }
@@ -1589,13 +1555,13 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 
         if (ret) {
             RNP_LOG("failed to process packet");
-            if (++ctx->failures > MAXIMUM_ERROR_PKTS) {
+            if (++failures > MAXIMUM_ERROR_PKTS) {
                 RNP_LOG("too many packet dump errors.");
                 return ret;
             }
         }
 
-        if (ctx->stream_pkts > MAXIMUM_STREAM_PKTS) {
+        if (stream_pkts > MAXIMUM_STREAM_PKTS) {
             RNP_LOG("Too many OpenPGP stream packets during the dump.");
             dst_printf(dst, ":too many OpenPGP stream packets, stopping.\n");
             return RNP_SUCCESS;
@@ -1604,83 +1570,39 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     return RNP_SUCCESS;
 }
 
-static bool
-stream_skip_cleartext(pgp_source_t *src)
-{
-    char   buf[4096];
-    size_t read = 0;
-    size_t siglen = strlen(ST_SIG_BEGIN);
-    char * hdrpos;
-
-    while (!src->eof()) {
-        if (!src->peek(buf, sizeof(buf) - 1, &read) || (read <= siglen)) {
-            return false;
-        }
-        buf[read] = '\0';
-
-        if ((hdrpos = strstr(buf, ST_SIG_BEGIN))) {
-            /* +1 here is to skip \n on the beginning of ST_SIG_BEGIN */
-            src->skip(hdrpos - buf + 1);
-            return true;
-        }
-        src->skip(read - siglen + 1);
-    }
-    return false;
-}
-
 rnp_result_t
-stream_dump_packets(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
+DumpContextDst::dump(bool raw_only)
 {
-    ctx->layers = 0;
-    ctx->stream_pkts = 0;
-    ctx->failures = 0;
     /* check whether source is cleartext - then skip till the signature */
-    if (src->is_cleartext()) {
+    if (!raw_only && src.is_cleartext()) {
         dst_printf(dst, ":cleartext signed data\n");
-        if (!stream_skip_cleartext(src)) {
+        if (!skip_cleartext()) {
             RNP_LOG("malformed cleartext signed data");
             return RNP_ERROR_BAD_FORMAT;
         }
     }
 
     /* check whether source is armored */
-    pgp_source_t armorsrc = {0};
-    pgp_dest_t   wrdst = {0};
-    bool         armored = false;
-    bool         indent = false;
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-    if (src->is_armored()) {
-        if ((ret = init_armored_src(&armorsrc, src))) {
+    if (!raw_only && src.is_armored()) {
+        std::unique_ptr<Source> armor(new Source());
+        auto                    ret = init_armored_src(&armor->src(), &src);
+        if (ret) {
             RNP_LOG("failed to parse armored data");
             return ret;
         }
-        armored = true;
-        src = &armorsrc;
         dst_printf(dst, ":armored input\n");
+
+        std::unique_ptr<DumpContextDst> ctx(new DumpContextDst(armor->src(), dst));
+        ctx->copy_params(*this);
+        return ctx->dump(true);
     }
 
-    if (src->eof()) {
+    if (src.eof()) {
         dst_printf(dst, ":empty input\n");
-        ret = RNP_SUCCESS;
-        goto finish;
+        return RNP_SUCCESS;
     }
 
-    if ((ret = init_indent_dest(&wrdst, dst))) {
-        RNP_LOG("failed to init indent dest");
-        goto finish;
-    }
-    indent = true;
-    indent_dest_set(&wrdst, 0);
-
-    ret = stream_dump_packets_raw(ctx, src, &wrdst);
-finish:
-    if (armored) {
-        armorsrc.close();
-    }
-    if (indent) {
-        dst_close(&wrdst, false);
-    }
-    return ret;
+    return dump_raw_packets();
 }
 
 static bool
@@ -1699,7 +1621,7 @@ obj_add_intstr_json(json_object *obj, const char *name, int val, const id_str_pa
 }
 
 static bool
-obj_add_mpi_json(json_object *obj, const char *name, const pgp::mpi &mpi, bool contents)
+obj_add_mpi_json(json_object *obj, const char *name, const mpi &mpi, bool contents)
 {
     char strname[64] = {0};
     snprintf(strname, sizeof(strname), "%s.bits", name);
@@ -1788,14 +1710,8 @@ obj_add_s2k_json(json_object *obj, pgp_s2k_t *s2k)
     return true;
 }
 
-static rnp_result_t stream_dump_signature_pkt_json(rnp_dump_ctx_t *           ctx,
-                                                   const pgp::pkt::Signature &sig,
-                                                   json_object *              pkt);
-
-static bool
-signature_dump_subpacket_json(rnp_dump_ctx_t *        ctx,
-                              const pkt::sigsub::Raw &subpkt,
-                              json_object *           obj)
+bool
+DumpContextJson::dump_signature_subpacket(const pkt::sigsub::Raw &subpkt, json_object *obj)
 {
     switch (subpkt.type()) {
     case pkt::sigsub::Type::CreationTime: {
@@ -1925,7 +1841,7 @@ signature_dump_subpacket_json(rnp_dump_ctx_t *        ctx,
         if (!sub.signature() || !sig || !json_add(obj, "signature", sig)) {
             return false; // LCOV_EXCL_LINE
         }
-        return !stream_dump_signature_pkt_json(ctx, *sub.signature(), sig);
+        return !dump_signature_pkt(*sub.signature(), sig);
     }
     case pkt::sigsub::Type::IssuerFingerprint: {
         auto &sub = dynamic_cast<const pkt::sigsub::IssuerFingerprint &>(subpkt);
@@ -1943,7 +1859,7 @@ signature_dump_subpacket_json(rnp_dump_ctx_t *        ctx,
         return json_add_hex(obj, "value", sub.value());
     }
     default:
-        if (!ctx->dump_packets) {
+        if (!dump_packets) {
             return json_add_hex(obj, "raw", subpkt.data());
         }
         return true;
@@ -1951,14 +1867,14 @@ signature_dump_subpacket_json(rnp_dump_ctx_t *        ctx,
     return true;
 }
 
-static json_object *
-signature_dump_subpackets_json(rnp_dump_ctx_t *ctx, const pgp::pkt::Signature &sig)
+json_object *
+DumpContextJson::dump_signature_subpackets(const pkt::Signature &sig)
 {
     json_object *res = json_object_new_array();
     if (!res) {
         return NULL; // LCOV_EXCL_LINE
     }
-    rnp::JSONObject reswrap(res);
+    JSONObject reswrap(res);
 
     for (auto &subpkt : sig.subpkts) {
         json_object *jso_subpkt = json_object_new_object();
@@ -1980,22 +1896,18 @@ signature_dump_subpackets_json(rnp_dump_ctx_t *ctx, const pgp::pkt::Signature &s
         if (!json_add(jso_subpkt, "critical", subpkt->critical())) {
             return NULL; // LCOV_EXCL_LINE
         }
-
-        if (ctx->dump_packets && !json_add_hex(jso_subpkt, "raw", subpkt->data())) {
+        if (dump_packets && !json_add_hex(jso_subpkt, "raw", subpkt->data())) {
             return NULL; // LCOV_EXCL_LINE
         }
-
-        if (!signature_dump_subpacket_json(ctx, *subpkt, jso_subpkt)) {
+        if (!dump_signature_subpacket(*subpkt, jso_subpkt)) {
             return NULL;
         }
     }
     return reswrap.release();
 }
 
-static rnp_result_t
-stream_dump_signature_pkt_json(rnp_dump_ctx_t *           ctx,
-                               const pgp::pkt::Signature &sig,
-                               json_object *              pkt)
+rnp_result_t
+DumpContextJson::dump_signature_pkt(const pkt::Signature &sig, json_object *pkt)
 {
     json_object *material = NULL;
 
@@ -2022,7 +1934,7 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *           ctx,
     }
 
     if (sig.version >= PGP_V4) {
-        json_object *subpkts = signature_dump_subpackets_json(ctx, sig);
+        json_object *subpkts = dump_signature_subpackets(sig);
         if (!subpkts || !json_add(pkt, "subpackets", subpkts)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
@@ -2046,15 +1958,15 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *           ctx,
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY: {
         auto &rsa = dynamic_cast<const RSASigMaterial &>(*sigmaterial);
-        if (!obj_add_mpi_json(material, "s", rsa.sig.s, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "s", rsa.sig.s, dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     }
     case PGP_PKA_DSA: {
         auto &dsa = dynamic_cast<const DSASigMaterial &>(*sigmaterial);
-        if (!obj_add_mpi_json(material, "r", dsa.sig.r, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "s", dsa.sig.s, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "r", dsa.sig.r, dump_mpi) ||
+            !obj_add_mpi_json(material, "s", dsa.sig.s, dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
@@ -2064,8 +1976,8 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *           ctx,
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH: {
         auto &ec = dynamic_cast<const ECSigMaterial &>(*sigmaterial);
-        if (!obj_add_mpi_json(material, "r", ec.sig.r, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "s", ec.sig.s, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "r", ec.sig.r, dump_mpi) ||
+            !obj_add_mpi_json(material, "s", ec.sig.s, dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
@@ -2075,8 +1987,8 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *           ctx,
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
         auto &eg = dynamic_cast<const EGSigMaterial &>(*sigmaterial);
-        if (!obj_add_mpi_json(material, "r", eg.sig.r, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "s", eg.sig.s, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "r", eg.sig.r, dump_mpi) ||
+            !obj_add_mpi_json(material, "s", eg.sig.s, dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
@@ -2112,29 +2024,19 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *           ctx,
     return RNP_SUCCESS;
 }
 
-static rnp_result_t
-stream_dump_signature_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
+rnp_result_t
+DumpContextJson::dump_signature(json_object *pkt)
 {
-    pgp::pkt::Signature sig;
-    rnp_result_t        ret;
-    try {
-        ret = sig.parse(*src);
-    } catch (const std::exception &e) {
-        /* LCOV_EXCL_START */
-        RNP_LOG("%s", e.what());
-        ret = RNP_ERROR_GENERIC;
-        /* LCOV_EXCL_END */
-    }
+    pkt::Signature sig;
+    auto           ret = sig.parse(src);
     if (ret) {
         return ret;
     }
-    return stream_dump_signature_pkt_json(ctx, sig, pkt);
+    return dump_signature_pkt(sig, pkt);
 }
 
-static bool
-stream_dump_key_material_json(rnp_dump_ctx_t &        ctx,
-                              const pgp::KeyMaterial *material,
-                              json_object *           jso)
+bool
+DumpContextJson::dump_key_material(const KeyMaterial *material, json_object *jso)
 {
     if (!material) {
         return false; // LCOV_EXCL_LINE
@@ -2143,29 +2045,29 @@ stream_dump_key_material_json(rnp_dump_ctx_t &        ctx,
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY: {
-        auto &rsa = dynamic_cast<const pgp::RSAKeyMaterial &>(*material);
-        if (!obj_add_mpi_json(jso, "n", rsa.n(), ctx.dump_mpi) ||
-            !obj_add_mpi_json(jso, "e", rsa.e(), ctx.dump_mpi)) {
+        auto &rsa = dynamic_cast<const RSAKeyMaterial &>(*material);
+        if (!obj_add_mpi_json(jso, "n", rsa.n(), dump_mpi) ||
+            !obj_add_mpi_json(jso, "e", rsa.e(), dump_mpi)) {
             return false; // LCOV_EXCL_LINE
         }
         return true;
     }
     case PGP_PKA_DSA: {
-        auto &dsa = dynamic_cast<const pgp::DSAKeyMaterial &>(*material);
-        if (!obj_add_mpi_json(jso, "p", dsa.p(), ctx.dump_mpi) ||
-            !obj_add_mpi_json(jso, "q", dsa.q(), ctx.dump_mpi) ||
-            !obj_add_mpi_json(jso, "g", dsa.g(), ctx.dump_mpi) ||
-            !obj_add_mpi_json(jso, "y", dsa.y(), ctx.dump_mpi)) {
+        auto &dsa = dynamic_cast<const DSAKeyMaterial &>(*material);
+        if (!obj_add_mpi_json(jso, "p", dsa.p(), dump_mpi) ||
+            !obj_add_mpi_json(jso, "q", dsa.q(), dump_mpi) ||
+            !obj_add_mpi_json(jso, "g", dsa.g(), dump_mpi) ||
+            !obj_add_mpi_json(jso, "y", dsa.y(), dump_mpi)) {
             return false; // LCOV_EXCL_LINE
         }
         return true;
     }
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
-        auto &eg = dynamic_cast<const pgp::EGKeyMaterial &>(*material);
-        if (!obj_add_mpi_json(jso, "p", eg.p(), ctx.dump_mpi) ||
-            !obj_add_mpi_json(jso, "g", eg.g(), ctx.dump_mpi) ||
-            !obj_add_mpi_json(jso, "y", eg.y(), ctx.dump_mpi)) {
+        auto &eg = dynamic_cast<const EGKeyMaterial &>(*material);
+        if (!obj_add_mpi_json(jso, "p", eg.p(), dump_mpi) ||
+            !obj_add_mpi_json(jso, "g", eg.g(), dump_mpi) ||
+            !obj_add_mpi_json(jso, "y", eg.y(), dump_mpi)) {
             return false; // LCOV_EXCL_LINE
         }
         return true;
@@ -2174,10 +2076,10 @@ stream_dump_key_material_json(rnp_dump_ctx_t &        ctx,
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH: {
-        auto &ec = dynamic_cast<const pgp::ECKeyMaterial &>(*material);
-        auto  cdesc = pgp::ec::Curve::get(ec.curve());
+        auto &ec = dynamic_cast<const ECKeyMaterial &>(*material);
+        auto  cdesc = ec::Curve::get(ec.curve());
         /* Common EC fields */
-        if (!obj_add_mpi_json(jso, "p", ec.p(), ctx.dump_mpi)) {
+        if (!obj_add_mpi_json(jso, "p", ec.p(), dump_mpi)) {
             return false; // LCOV_EXCL_LINE
         }
         if (!json_add(jso, "curve", cdesc ? cdesc->pgp_name : "unknown")) {
@@ -2187,7 +2089,7 @@ stream_dump_key_material_json(rnp_dump_ctx_t &        ctx,
             return true;
         }
         /* ECDH-only fields */
-        auto &ecdh = dynamic_cast<const pgp::ECDHKeyMaterial &>(*material);
+        auto &ecdh = dynamic_cast<const ECDHKeyMaterial &>(*material);
         if (!obj_add_intstr_json(jso, "hash algorithm", ecdh.kdf_hash_alg(), hash_alg_map)) {
             return false; // LCOV_EXCL_LINE
         }
@@ -2239,21 +2141,11 @@ stream_dump_key_material_json(rnp_dump_ctx_t &        ctx,
     }
 }
 
-static rnp_result_t
-stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
+rnp_result_t
+DumpContextJson::dump_key(json_object *pkt)
 {
     pgp_key_pkt_t key;
-    rnp_result_t  ret;
-    json_object * material = NULL;
-
-    try {
-        ret = key.parse(*src);
-    } catch (const std::exception &e) {
-        /* LCOV_EXCL_START */
-        RNP_LOG("%s", e.what());
-        ret = RNP_ERROR_GENERIC;
-        /* LCOV_EXCL_END */
-    }
+    auto          ret = key.parse(src);
     if (ret) {
         return ret;
     }
@@ -2275,11 +2167,11 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
-    material = json_object_new_object();
+    auto material = json_object_new_object();
     if (!material || !json_add(pkt, "material", material)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
-    if (!stream_dump_key_material_json(*ctx, key.material.get(), material)) {
+    if (!dump_key_material(key.material.get(), material)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -2305,23 +2197,18 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
         }
     }
 
-    try {
-        pgp::Fingerprint fp(key);
-        if (!json_add(pkt, "keyid", fp.keyid())) {
-            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-        }
-
-        if (ctx->dump_grips && !json_add(pkt, "fingerprint", fp)) {
-            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-        }
-    } catch (const std::exception &e) {
-        RNP_LOG("failed to calculate fingerprint and/or keyid: %s\n", e.what());
-        return RNP_ERROR_GENERIC;
+    Fingerprint fp(key);
+    if (!json_add(pkt, "keyid", fp.keyid())) {
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
-    if (ctx->dump_grips) {
+    if (dump_grips && !json_add(pkt, "fingerprint", fp)) {
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+    }
+
+    if (dump_grips) {
         if (key.material) {
-            pgp::KeyGrip grip = key.material->grip();
+            KeyGrip grip = key.material->grip();
             if (!json_add_hex(pkt, "grip", grip.data(), grip.size())) {
                 return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
             }
@@ -2332,17 +2219,11 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     return RNP_SUCCESS;
 }
 
-static rnp_result_t
-stream_dump_userid_json(pgp_source_t *src, json_object *pkt)
+rnp_result_t
+DumpContextJson::dump_user_id(json_object *pkt)
 {
     pgp_userid_pkt_t uid;
-    rnp_result_t     ret;
-
-    try {
-        ret = uid.parse(*src);
-    } catch (const std::exception &e) {
-        ret = RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
-    }
+    auto             ret = uid.parse(src);
     if (ret) {
         return ret;
     }
@@ -2363,11 +2244,11 @@ stream_dump_userid_json(pgp_source_t *src, json_object *pkt)
     return RNP_SUCCESS;
 }
 
-static rnp_result_t
-stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
+rnp_result_t
+DumpContextJson::dump_pk_session_key(json_object *pkt)
 {
     pgp_pk_sesskey_t pkey;
-    auto             ret = pkey.parse(*src);
+    auto             ret = pkey.parse(src);
     if (ret) {
         return ret;
     }
@@ -2391,35 +2272,35 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY: {
-        auto &rsa = dynamic_cast<const pgp::RSAEncMaterial &>(*pkmaterial).enc;
-        if (!obj_add_mpi_json(material, "m", rsa.m, ctx->dump_mpi)) {
+        auto &rsa = dynamic_cast<const RSAEncMaterial &>(*pkmaterial).enc;
+        if (!obj_add_mpi_json(material, "m", rsa.m, dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     }
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
-        auto &eg = dynamic_cast<const pgp::EGEncMaterial &>(*pkmaterial).enc;
-        if (!obj_add_mpi_json(material, "g", eg.g, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "m", eg.m, ctx->dump_mpi)) {
+        auto &eg = dynamic_cast<const EGEncMaterial &>(*pkmaterial).enc;
+        if (!obj_add_mpi_json(material, "g", eg.g, dump_mpi) ||
+            !obj_add_mpi_json(material, "m", eg.m, dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     }
     case PGP_PKA_SM2: {
-        auto &sm2 = dynamic_cast<const pgp::SM2EncMaterial &>(*pkmaterial).enc;
-        if (!obj_add_mpi_json(material, "m", sm2.m, ctx->dump_mpi)) {
+        auto &sm2 = dynamic_cast<const SM2EncMaterial &>(*pkmaterial).enc;
+        if (!obj_add_mpi_json(material, "m", sm2.m, dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     }
     case PGP_PKA_ECDH: {
-        auto &ecdh = dynamic_cast<const pgp::ECDHEncMaterial &>(*pkmaterial).enc;
-        if (!obj_add_mpi_json(material, "p", ecdh.p, ctx->dump_mpi) ||
+        auto &ecdh = dynamic_cast<const ECDHEncMaterial &>(*pkmaterial).enc;
+        if (!obj_add_mpi_json(material, "p", ecdh.p, dump_mpi) ||
             !json_add(material, "m.bytes", (int) ecdh.m.size())) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
-        if (ctx->dump_mpi && !json_add_hex(material, "m", ecdh.m.data(), ecdh.m.size())) {
+        if (dump_mpi && !json_add_hex(material, "m", ecdh.m.data(), ecdh.m.size())) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
@@ -2450,17 +2331,11 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
     return RNP_SUCCESS;
 }
 
-static rnp_result_t
-stream_dump_sk_session_key_json(pgp_source_t *src, json_object *pkt)
+rnp_result_t
+DumpContextJson::dump_sk_session_key(json_object *pkt)
 {
     pgp_sk_sesskey_t skey;
-    rnp_result_t     ret;
-
-    try {
-        ret = skey.parse(*src);
-    } catch (const std::exception &e) {
-        ret = RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
-    }
+    auto             ret = skey.parse(src);
     if (ret) {
         return ret;
     }
@@ -2485,17 +2360,17 @@ stream_dump_sk_session_key_json(pgp_source_t *src, json_object *pkt)
     return RNP_SUCCESS;
 }
 
-static rnp_result_t
-stream_dump_encrypted_json(pgp_source_t *src, json_object *pkt, pgp_pkt_type_t tag)
+rnp_result_t
+DumpContextJson::dump_encrypted(json_object *pkt, pgp_pkt_type_t tag)
 {
     if (tag != PGP_PKT_AEAD_ENCRYPTED) {
         /* packet header with tag is already in pkt */
-        return stream_skip_packet(src);
+        return stream_skip_packet(&src);
     }
 
     /* dumping AEAD data */
-    pgp_aead_hdr_t aead = {};
-    if (!stream_dump_get_aead_hdr(src, &aead)) {
+    pgp_aead_hdr_t aead{};
+    if (!get_aead_hdr(aead)) {
         return RNP_ERROR_READ;
     }
 
@@ -2506,21 +2381,14 @@ stream_dump_encrypted_json(pgp_source_t *src, json_object *pkt, pgp_pkt_type_t t
         !json_add_hex(pkt, "aead iv", aead.iv, aead.ivlen)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
-
     return RNP_SUCCESS;
 }
 
-static rnp_result_t
-stream_dump_one_pass_json(pgp_source_t *src, json_object *pkt)
+rnp_result_t
+DumpContextJson::dump_one_pass(json_object *pkt)
 {
     pgp_one_pass_sig_t onepass;
-    rnp_result_t       ret;
-
-    try {
-        ret = onepass.parse(*src);
-    } catch (const std::exception &e) {
-        ret = RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
-    }
+    auto               ret = onepass.parse(src);
     if (ret) {
         return ret;
     }
@@ -2546,90 +2414,78 @@ stream_dump_one_pass_json(pgp_source_t *src, json_object *pkt)
     return RNP_SUCCESS;
 }
 
-static rnp_result_t
-stream_dump_marker_json(pgp_source_t &src, json_object *pkt)
+rnp_result_t
+DumpContextJson::dump_marker(json_object *pkt)
 {
-    rnp_result_t ret = stream_parse_marker(src);
-
+    auto ret = stream_parse_marker(src);
     if (!json_add(pkt, "contents", ret ? "invalid" : PGP_MARKER_CONTENTS)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     return ret;
 }
 
-static rnp_result_t stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx,
-                                                 pgp_source_t *  src,
-                                                 json_object **  jso);
-
-static rnp_result_t
-stream_dump_compressed_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
+rnp_result_t
+DumpContextJson::dump_compressed(json_object *pkt)
 {
-    pgp_source_t zsrc = {0};
-    uint8_t      zalg;
-    rnp_result_t ret;
-    json_object *contents = NULL;
-
-    if ((ret = init_compressed_src(&zsrc, src))) {
-        return ret;
-    }
-
-    get_compressed_src_alg(&zsrc, &zalg);
-    if (!obj_add_intstr_json(pkt, "algorithm", zalg, z_alg_map)) {
-        /* LCOV_EXCL_START */
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
-        /* LCOV_EXCL_END */
-    }
-
-    ret = stream_dump_raw_packets_json(ctx, &zsrc, &contents);
-    if (!ret && !json_add(pkt, "contents", contents)) {
-        json_object_put(contents);
-        ret = RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
-done:
-    zsrc.close();
-    return ret;
-}
-
-static rnp_result_t
-stream_dump_literal_json(pgp_source_t *src, json_object *pkt)
-{
-    pgp_source_t lsrc = {0};
-    rnp_result_t ret = init_literal_src(&lsrc, src);
-
+    std::unique_ptr<Source> zsrc(new Source());
+    auto                    ret = init_compressed_src(&zsrc->src(), &src);
     if (ret) {
         return ret;
     }
+
+    uint8_t zalg;
+    get_compressed_src_alg(&zsrc->src(), &zalg);
+    if (!obj_add_intstr_json(pkt, "algorithm", zalg, z_alg_map)) {
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+    }
+
+    json_object *   contents = NULL;
+    DumpContextJson ctx(zsrc->src(), &contents);
+    ctx.copy_params(*this);
+    ret = ctx.dump(true);
+    copy_params(ctx);
+    if (!ret && !json_add(pkt, "contents", contents)) {
+        json_object_put(contents);
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+    }
+    return ret;
+}
+
+rnp_result_t
+DumpContextJson::dump_literal(json_object *pkt)
+{
+    Source lsrc;
+    auto   ret = init_literal_src(&lsrc.src(), &src);
+    if (ret) {
+        return ret;
+    }
+
     ret = RNP_ERROR_OUT_OF_MEMORY;
-    auto &lhdr = get_literal_src_hdr(lsrc);
+    auto &lhdr = get_literal_src_hdr(lsrc.src());
     if (!json_add(pkt, "format", (char *) &lhdr.format, 1) ||
         !json_add(pkt, "filename", (char *) lhdr.fname, lhdr.fname_len) ||
         !json_add(pkt, "timestamp", (uint64_t) lhdr.timestamp)) {
-        goto done; // LCOV_EXCL_LINE
+        return ret; // LCOV_EXCL_LINE
     }
 
     while (!lsrc.eof()) {
         uint8_t readbuf[16384];
         size_t  read = 0;
-        if (!lsrc.read(readbuf, sizeof(readbuf), &read)) {
-            ret = RNP_ERROR_READ;
-            goto done;
+        if (!lsrc.src().read(readbuf, sizeof(readbuf), &read)) {
+            return RNP_ERROR_READ;
         }
     }
 
-    if (!json_add(pkt, "datalen", (uint64_t) lsrc.readb)) {
-        goto done; // LCOV_EXCL_LINE
+    if (!json_add(pkt, "datalen", (uint64_t) lsrc.readb())) {
+        return ret; // LCOV_EXCL_LINE
     }
-    ret = RNP_SUCCESS;
-done:
-    lsrc.close();
-    return ret;
+    return RNP_SUCCESS;
 }
 
-static bool
-stream_dump_hdr_json(pgp_source_t *src, pgp_packet_hdr_t *hdr, json_object *pkt)
+bool
+DumpContextJson::dump_pkt_hdr(pgp_packet_hdr_t &hdr, json_object *pkt)
 {
-    rnp_result_t hdrret = stream_peek_packet_hdr(src, hdr);
+    auto hdrret = stream_peek_packet_hdr(&src, &hdr);
     if (hdrret) {
         return false;
     }
@@ -2640,17 +2496,17 @@ stream_dump_hdr_json(pgp_source_t *src, pgp_packet_hdr_t *hdr, json_object *pkt)
     }
     rnp::JSONObject jso_hdrwrap(jso_hdr);
 
-    if (!json_add(jso_hdr, "offset", (uint64_t) src->readb) ||
-        !obj_add_intstr_json(jso_hdr, "tag", hdr->tag, packet_tag_map) ||
-        !json_add_hex(jso_hdr, "raw", hdr->hdr, hdr->hdr_len)) {
+    if (!json_add(jso_hdr, "offset", (uint64_t) src.readb) ||
+        !obj_add_intstr_json(jso_hdr, "tag", hdr.tag, packet_tag_map) ||
+        !json_add_hex(jso_hdr, "raw", hdr.hdr, hdr.hdr_len)) {
         return false; // LCOV_EXCL_LINE
     }
-    if (!hdr->partial && !hdr->indeterminate &&
-        !json_add(jso_hdr, "length", (uint64_t) hdr->pkt_len)) {
+    if (!hdr.partial && !hdr.indeterminate &&
+        !json_add(jso_hdr, "length", (uint64_t) hdr.pkt_len)) {
         return false; // LCOV_EXCL_LINE
     }
-    if (!json_add(jso_hdr, "partial", hdr->partial) ||
-        !json_add(jso_hdr, "indeterminate", hdr->indeterminate) ||
+    if (!json_add(jso_hdr, "partial", hdr.partial) ||
+        !json_add(jso_hdr, "indeterminate", hdr.indeterminate) ||
         !json_add(pkt, "header", jso_hdr)) {
         return false; // LCOV_EXCL_LINE
     }
@@ -2658,8 +2514,8 @@ stream_dump_hdr_json(pgp_source_t *src, pgp_packet_hdr_t *hdr, json_object *pkt)
     return true;
 }
 
-static rnp_result_t
-stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object **jso)
+rnp_result_t
+DumpContextJson::dump_raw_packets()
 {
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
@@ -2667,39 +2523,39 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
     if (!pkts) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
-    rnp::JSONObject pktswrap(pkts);
+    JSONObject pktswrap(pkts);
 
-    if (src->eof()) {
-        *jso = pktswrap.release();
+    if (src.eof()) {
+        *json = pktswrap.release();
         return RNP_SUCCESS;
     }
 
     /* do not allow endless recursion */
-    if (++ctx->layers > MAXIMUM_NESTING_LEVEL) {
+    if (++layers > MAXIMUM_NESTING_LEVEL) {
         RNP_LOG("Too many OpenPGP nested layers during the dump.");
-        *jso = pktswrap.release();
+        *json = pktswrap.release();
         return RNP_SUCCESS;
     }
 
-    while (!src->eof()) {
+    while (!src.eof()) {
         json_object *pkt = json_object_new_object();
         if (!pkt) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
-        rnp::JSONObject  pktwrap(pkt);
-        pgp_packet_hdr_t hdr = {};
-        if (!stream_dump_hdr_json(src, &hdr, pkt)) {
+        JSONObject       pktwrap(pkt);
+        pgp_packet_hdr_t hdr{};
+        if (!dump_pkt_hdr(hdr, pkt)) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
 
-        if (ctx->dump_packets) {
+        if (dump_packets) {
             size_t  rlen = hdr.pkt_len + hdr.hdr_len;
             uint8_t buf[2048 + sizeof(hdr.hdr)] = {0};
 
             if (!hdr.pkt_len || (rlen > 2048 + hdr.hdr_len)) {
                 rlen = 2048 + hdr.hdr_len;
             }
-            if (!src->peek(buf, rlen, &rlen) || (rlen < hdr.hdr_len)) {
+            if (!src.peek(buf, rlen, &rlen) || (rlen < hdr.hdr_len)) {
                 return RNP_ERROR_READ;
             }
             if (!json_add_hex(pkt, "raw", buf + hdr.hdr_len, rlen - hdr.hdr_len)) {
@@ -2709,54 +2565,54 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
 
         switch (hdr.tag) {
         case PGP_PKT_SIGNATURE:
-            ret = stream_dump_signature_json(ctx, src, pkt);
+            ret = dump_signature(pkt);
             break;
         case PGP_PKT_SECRET_KEY:
         case PGP_PKT_PUBLIC_KEY:
         case PGP_PKT_SECRET_SUBKEY:
         case PGP_PKT_PUBLIC_SUBKEY:
-            ret = stream_dump_key_json(ctx, src, pkt);
+            ret = dump_key(pkt);
             break;
         case PGP_PKT_USER_ID:
         case PGP_PKT_USER_ATTR:
-            ret = stream_dump_userid_json(src, pkt);
+            ret = dump_user_id(pkt);
             break;
         case PGP_PKT_PK_SESSION_KEY:
-            ret = stream_dump_pk_session_key_json(ctx, src, pkt);
+            ret = dump_pk_session_key(pkt);
             break;
         case PGP_PKT_SK_SESSION_KEY:
-            ret = stream_dump_sk_session_key_json(src, pkt);
+            ret = dump_sk_session_key(pkt);
             break;
         case PGP_PKT_SE_DATA:
         case PGP_PKT_SE_IP_DATA:
         case PGP_PKT_AEAD_ENCRYPTED:
-            ctx->stream_pkts++;
-            ret = stream_dump_encrypted_json(src, pkt, hdr.tag);
+            stream_pkts++;
+            ret = dump_encrypted(pkt, hdr.tag);
             break;
         case PGP_PKT_ONE_PASS_SIG:
-            ret = stream_dump_one_pass_json(src, pkt);
+            ret = dump_one_pass(pkt);
             break;
         case PGP_PKT_COMPRESSED:
-            ctx->stream_pkts++;
-            ret = stream_dump_compressed_json(ctx, src, pkt);
+            stream_pkts++;
+            ret = dump_compressed(pkt);
             break;
         case PGP_PKT_LITDATA:
-            ctx->stream_pkts++;
-            ret = stream_dump_literal_json(src, pkt);
+            stream_pkts++;
+            ret = dump_literal(pkt);
             break;
         case PGP_PKT_MARKER:
-            ret = stream_dump_marker_json(*src, pkt);
+            ret = dump_marker(pkt);
             break;
         case PGP_PKT_TRUST:
         case PGP_PKT_MDC:
-            ret = stream_skip_packet(src);
+            ret = stream_skip_packet(&src);
             break;
         default:
-            ret = stream_skip_packet(src);
+            ret = stream_skip_packet(&src);
             if (ret) {
                 return ret;
             }
-            if (++ctx->failures > MAXIMUM_ERROR_PKTS) {
+            if (++failures > MAXIMUM_ERROR_PKTS) {
                 RNP_LOG("too many packet dump errors or unknown packets.");
                 return RNP_ERROR_BAD_FORMAT;
             }
@@ -2764,7 +2620,7 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
 
         if (ret) {
             RNP_LOG("failed to process packet");
-            if (++ctx->failures > MAXIMUM_ERROR_PKTS) {
+            if (++failures > MAXIMUM_ERROR_PKTS) {
                 RNP_LOG("too many packet dump errors.");
                 return ret;
             }
@@ -2774,50 +2630,42 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         pktwrap.release();
-        if (ctx->stream_pkts > MAXIMUM_STREAM_PKTS) {
+        if (stream_pkts > MAXIMUM_STREAM_PKTS) {
             RNP_LOG("Too many OpenPGP stream packets during the dump.");
             break;
         }
     }
 
-    *jso = pktswrap.release();
+    *json = pktswrap.release();
     return RNP_SUCCESS;
 }
 
 rnp_result_t
-stream_dump_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object **jso)
+DumpContextJson::dump(bool raw_only)
 {
-    pgp_source_t armorsrc = {0};
-    bool         armored = false;
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
-    ctx->layers = 0;
-    ctx->stream_pkts = 0;
-    ctx->failures = 0;
     /* check whether source is cleartext - then skip till the signature */
-    if (src->is_cleartext()) {
-        if (!stream_skip_cleartext(src)) {
+    if (!raw_only && src.is_cleartext()) {
+        if (!skip_cleartext()) {
             RNP_LOG("malformed cleartext signed data");
             return RNP_ERROR_BAD_FORMAT;
         }
     }
     /* check whether source is armored */
-    if (src->is_armored()) {
-        if ((ret = init_armored_src(&armorsrc, src))) {
+    if (!raw_only && src.is_armored()) {
+        std::unique_ptr<Source> armor(new Source());
+        rnp_result_t            ret = init_armored_src(&armor->src(), &src);
+        if (ret) {
             RNP_LOG("failed to parse armored data");
             return ret;
         }
-        armored = true;
-        src = &armorsrc;
+        DumpContextJson ctx(armor->src(), json);
+        ctx.copy_params(*this);
+        return ctx.dump(true);
     }
 
-    if (src->eof()) {
-        ret = RNP_ERROR_NOT_ENOUGH_DATA;
-    } else {
-        ret = stream_dump_raw_packets_json(ctx, src, jso);
+    if (src.eof()) {
+        return RNP_ERROR_NOT_ENOUGH_DATA;
     }
-    if (armored) {
-        armorsrc.close();
-    }
-    return ret;
+    return dump_raw_packets();
 }
+} // namespace rnp

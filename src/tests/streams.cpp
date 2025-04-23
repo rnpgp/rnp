@@ -1224,47 +1224,44 @@ TEST_F(rnp_tests, test_stream_verify_no_key)
 static bool
 check_dump_file_dst(const char *file, bool mpi, bool grip)
 {
-    pgp_source_t   src;
-    pgp_dest_t     dst;
-    rnp_dump_ctx_t ctx = {0};
+    rnp::Source src;
+    rnp::Dest   dst;
 
-    ctx.dump_mpi = mpi;
-    ctx.dump_grips = grip;
+    if (init_file_src(&src.src(), file)) {
+        return false;
+    }
+    if (init_mem_dest(&dst.dst(), NULL, 0)) {
+        return false;
+    }
+    rnp::DumpContextDst ctx(src.src(), dst.dst());
+    ctx.set_dump_mpi(mpi);
+    ctx.set_dump_grips(grip);
 
-    if (init_file_src(&src, file)) {
+    if (ctx.dump()) {
         return false;
     }
-    if (init_mem_dest(&dst, NULL, 0)) {
-        return false;
-    }
-    if (stream_dump_packets(&ctx, &src, &dst)) {
-        return false;
-    }
-    src.close();
-    dst_close(&dst, false);
     return true;
 }
 
 static bool
 check_dump_file_json(const char *file, bool mpi, bool grip)
 {
-    pgp_source_t   src;
-    rnp_dump_ctx_t ctx = {0};
-    json_object *  jso = NULL;
-
-    ctx.dump_mpi = mpi;
-    ctx.dump_grips = grip;
-
-    if (init_file_src(&src, file)) {
+    rnp::Source src;
+    if (init_file_src(&src.src(), file)) {
         return false;
     }
-    if (stream_dump_packets_json(&ctx, &src, &jso)) {
+
+    json_object *        jso = NULL;
+    rnp::DumpContextJson ctx(src.src(), &jso);
+    ctx.set_dump_mpi(mpi);
+    ctx.set_dump_grips(grip);
+
+    if (ctx.dump()) {
         return false;
     }
     if (!json_object_is_type(jso, json_type_array)) {
         return false;
     }
-    src.close();
     json_object_put(jso);
     return true;
 }
@@ -1322,16 +1319,14 @@ TEST_F(rnp_tests, test_y2k38)
 
 TEST_F(rnp_tests, test_stream_dumper_y2k38)
 {
-    pgp_source_t   src;
-    pgp_dest_t     dst;
-    rnp_dump_ctx_t ctx = {0};
-
-    assert_rnp_success(init_file_src(&src, "data/keyrings/6/pubring.gpg"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src.close();
-    auto   written = (const uint8_t *) mem_dest_get_memory(&dst);
-    auto   last = written + dst.writeb;
+    rnp::Source src;
+    rnp::Dest   dst;
+    assert_rnp_success(init_file_src(&src.src(), "data/keyrings/6/pubring.gpg"));
+    assert_rnp_success(init_mem_dest(&dst.dst(), NULL, 0));
+    rnp::DumpContextDst ctx(src.src(), dst.dst());
+    assert_rnp_success(ctx.dump());
+    auto   written = (const uint8_t *) mem_dest_get_memory(&dst.dst());
+    auto   last = written + dst.writeb();
     time_t timestamp = 2958774690;
     // regenerate time for the current timezone
     std::string correct = "creation time: 2958774690 (";
@@ -1341,15 +1336,10 @@ TEST_F(rnp_tests, test_stream_dumper_y2k38)
     correct += rnp_ctime(timestamp).substr(0, 24);
     correct += ')';
     assert_true(std::search(written, last, correct.begin(), correct.end()) != last);
-    dst_close(&dst, false);
 }
 
 TEST_F(rnp_tests, test_stream_dumper)
 {
-    pgp_source_t   src;
-    pgp_dest_t     dst;
-    rnp_dump_ctx_t ctx = {0};
-
     assert_true(check_dump_file("data/keyrings/1/pubring.gpg", false, false));
     assert_true(check_dump_file("data/keyrings/1/secring.gpg", false, false));
     assert_true(check_dump_file("data/keyrings/4/rsav3-p.asc", false, false));
@@ -1383,74 +1373,94 @@ TEST_F(rnp_tests, test_stream_dumper)
     assert_true(check_dump_file(
       "data/test_stream_verification/verify_encrypted_no_key.pgp", true, true));
 
+    pgp_source_t src;
+    pgp_dest_t   dst;
     assert_rnp_success(init_file_src(&src, "data/test_stream_signatures/source.txt"));
     assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_failure(stream_dump_packets(&ctx, &src, &dst));
+    rnp::DumpContextDst ctx(src, dst);
+    assert_rnp_failure(ctx.dump());
     src.close();
     dst_close(&dst, false);
 
     assert_rnp_success(init_file_src(&src, "data/test_messages/message.txt.enc-no-mdc"));
     assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    rnp::DumpContextDst ctx2(src, dst);
+    assert_rnp_success(ctx2.dump());
     src.close();
     dst_close(&dst, false);
 
     assert_rnp_success(init_file_src(&src, "data/test_messages/message.txt.enc-mdc"));
     assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    rnp::DumpContextDst ctx3(src, dst);
+    assert_rnp_success(ctx3.dump());
     src.close();
     dst_close(&dst, false);
 
     assert_rnp_success(init_file_src(&src, "data/test_messages/message-32k-crlf.txt.gpg"));
     assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    rnp::DumpContextDst ctx4(src, dst);
+    assert_rnp_success(ctx4.dump());
     src.close();
     dst_close(&dst, false);
 }
 
 TEST_F(rnp_tests, test_stream_z)
 {
-    pgp_source_t   src;
-    pgp_dest_t     dst;
-    rnp_dump_ctx_t ctx = {0};
+    pgp_source_t src;
+    pgp_dest_t   dst;
 
     /* packet dumper will decompress source stream, making less code lines here */
-    ctx.dump_mpi = true;
-    ctx.dump_packets = true;
-
     assert_rnp_success(init_file_src(&src, "data/test_stream_z/4gb.bzip2"));
     assert_rnp_success(init_null_dest(&dst));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    rnp::DumpContextDst ctx(src, dst);
+    ctx.set_dump_mpi(true);
+    ctx.set_dump_packets(true);
+    assert_rnp_success(ctx.dump());
     src.close();
     dst_close(&dst, true);
 
     assert_rnp_success(init_file_src(&src, "data/test_stream_z/4gb.bzip2.cut"));
     assert_rnp_success(init_null_dest(&dst));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    rnp::DumpContextDst ctx2(src, dst);
+    ctx2.set_dump_mpi(true);
+    ctx2.set_dump_packets(true);
+    assert_rnp_success(ctx2.dump());
     src.close();
     dst_close(&dst, true);
 
     assert_rnp_success(init_file_src(&src, "data/test_stream_z/128mb.zlib"));
     assert_rnp_success(init_null_dest(&dst));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    rnp::DumpContextDst ctx3(src, dst);
+    ctx3.set_dump_mpi(true);
+    ctx3.set_dump_packets(true);
+    assert_rnp_success(ctx3.dump());
     src.close();
     dst_close(&dst, true);
 
     assert_rnp_success(init_file_src(&src, "data/test_stream_z/128mb.zlib.cut"));
     assert_rnp_success(init_null_dest(&dst));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    rnp::DumpContextDst ctx4(src, dst);
+    ctx4.set_dump_mpi(true);
+    ctx4.set_dump_packets(true);
+    assert_rnp_success(ctx4.dump());
     src.close();
     dst_close(&dst, true);
 
     assert_rnp_success(init_file_src(&src, "data/test_stream_z/128mb.zip"));
     assert_rnp_success(init_null_dest(&dst));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    rnp::DumpContextDst ctx5(src, dst);
+    ctx5.set_dump_mpi(true);
+    ctx5.set_dump_packets(true);
+    assert_rnp_success(ctx5.dump());
     src.close();
     dst_close(&dst, true);
 
     assert_rnp_success(init_file_src(&src, "data/test_stream_z/128mb.zip.cut"));
     assert_rnp_success(init_null_dest(&dst));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    rnp::DumpContextDst ctx6(src, dst);
+    ctx6.set_dump_mpi(true);
+    ctx6.set_dump_packets(true);
+    assert_rnp_success(ctx6.dump());
     src.close();
     dst_close(&dst, true);
 }
