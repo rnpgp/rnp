@@ -282,7 +282,7 @@ void dst_write(pgp_dest_t &dst, const std::vector<uint8_t> &buf);
  *  @param format format string, which is the same as printf() uses
  *  @param ... additional arguments
  */
-void dst_printf(pgp_dest_t *dst, const char *format, ...);
+void dst_printf(pgp_dest_t &dst, const char *format, ...);
 
 /** @brief do all finalization tasks after all writing is done, i.e. calculate and write
  *  mdc, signatures and so on. Do not misuse with dst_close. If was not called then will be
