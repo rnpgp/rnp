@@ -4466,6 +4466,28 @@ class Encryption(unittest.TestCase):
                 continue
             rnp_sym_encryption_rnp_aead(size, cipher, z, [aead, bits], GPG_AEAD)
 
+    def test_sym_encryption_aead_def_mode(self):
+        if not RNP_AEAD:
+            self.skipTest('AEAD is not available for RNP - skipping.')
+
+        src, enc = reg_workfiles('cleartext', '.txt', '.enc')
+        random_text(src, 20000)
+        # Check whether by default OCB is selected
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '--output', enc, '--aead', '-z', '0', '-c', src])
+        self.assertEqual(ret, 0)
+        ret, out, _ = run_proc(RNP, ['--homedir', RNPDIR, '--list-packets', enc])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*AEAD\-encrypted data packet.*aead algorithm: 2 \(OCB\)')
+        # Try to use EAX and see whether there is a warning
+        remove_files(enc)
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '--output', enc, '--aead=eax', '-z', '0', '-c', src])
+        if RNP_AEAD_EAX:
+            self.assertEqual(ret, 0)
+            self.assertRegex(err, r'(?s)^.*rnp_op_encrypt_set_aead.*rnp.cpp.*Warning! EAX mode is deprecated and should not be used')
+        else:
+            self.assertEqual(ret, 1)
+            self.assertRegex(err, r'(?s)^.*Invalid AEAD algorithm: EAX')
+
     def test_sym_encrypted__rnp_aead_botan_crash(self):
         if RNP_BOTAN_OCB_AV:
             return
