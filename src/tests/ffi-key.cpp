@@ -3263,6 +3263,8 @@ TEST_F(rnp_tests, test_ffi_v6_cert_import)
 TEST_F(rnp_tests, test_ffi_pqc_certs)
 {
     std::vector<std::pair<std::string, std::string>> pub_sec_keys = {
+      {"data/draft-ietf-openpgp-pqc/v4-eddsa-sample-pk.asc",
+       "data/draft-ietf-openpgp-pqc/v4-eddsa-sample-sk.asc"},
       {"data/draft-ietf-openpgp-pqc/v6-eddsa-sample-pk.asc",
        "data/draft-ietf-openpgp-pqc/v6-eddsa-sample-sk.asc"},
       {"data/draft-ietf-openpgp-pqc/v6-mldsa-65-sample-pk.asc",
@@ -3274,8 +3276,8 @@ TEST_F(rnp_tests, test_ffi_pqc_certs)
     };
 
     for (auto pub_sec_key : pub_sec_keys) {
-        // eddsa keys have one additional key
-        int expected_keys = (pub_sec_key.first.find("eddsa") != std::string::npos) ? 3 : 2;
+        // int expected_keys = (pub_sec_key.first.find("eddsa") != std::string::npos) ? 3 : 2;
+        int expected_keys = 2;
         /* Public */
         rnp_ffi_t   ffi = NULL;
         rnp_input_t input = NULL;
