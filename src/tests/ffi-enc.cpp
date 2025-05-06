@@ -1156,10 +1156,16 @@ TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
     std::vector<std::pair<std::string, std::string>> key_msg_pairs = {
       {"data/draft-ietf-openpgp-pqc/v6-eddsa-sample-sk.asc",
        "data/draft-ietf-openpgp-pqc/v6-eddsa-sample-message.asc"},
+      {"data/draft-ietf-openpgp-pqc/v4-eddsa-sample-sk.asc",
+       "data/draft-ietf-openpgp-pqc/v4-eddsa-sample-message-v1.asc"},
+      {"data/draft-ietf-openpgp-pqc/v4-eddsa-sample-sk.asc",
+       "data/draft-ietf-openpgp-pqc/v4-eddsa-sample-message-v2.asc"},
       {"data/draft-ietf-openpgp-pqc/v6-mldsa-65-sample-sk.asc",
        "data/draft-ietf-openpgp-pqc/v6-mldsa-65-sample-message.asc"},
       {"data/draft-ietf-openpgp-pqc/v6-mldsa-87-sample-sk.asc",
-       "data/draft-ietf-openpgp-pqc/v6-mldsa-87-sample-message.asc"}};
+       "data/draft-ietf-openpgp-pqc/v6-mldsa-87-sample-message.asc"},
+      {"data/draft-ietf-openpgp-pqc/v6-slhdsa-128s-sample-sk.asc",
+       "data/draft-ietf-openpgp-pqc/v6-slhdsa-128s-sample-message.asc"}};
 
     for (auto key_msg_pair : key_msg_pairs) {
         rnp_ffi_t    ffi = NULL;
