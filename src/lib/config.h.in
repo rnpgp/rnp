@@ -49,6 +49,7 @@
 #cmakedefine HAVE_O_BINARY
 #cmakedefine HAVE__O_BINARY
 #cmakedefine HAVE__TEMPNAM
+#cmakedefine HAVE_WIN_STAT
 
 #cmakedefine CRYPTO_BACKEND_BOTAN
 #cmakedefine CRYPTO_BACKEND_BOTAN3
