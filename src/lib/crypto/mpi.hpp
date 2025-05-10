@@ -28,7 +28,6 @@
 #define RNP_MPI_HPP_
 
 #include <cstdint>
-#include <cstdbool>
 #include <cstddef>
 #include <vector>
 
