@@ -95,6 +95,15 @@ check_cxx_symbol_exists(_O_BINARY fcntl.h HAVE__O_BINARY)
 check_cxx_symbol_exists(_tempnam stdio.h HAVE__TEMPNAM)
 set(HAVE_ZLIB_H "${ZLIB_FOUND}")
 set(HAVE_BZLIB_H "${BZIP2_FOUND}")
+if (WIN32)
+  include(CheckCSourceCompiles)
+
+  check_c_source_compiles("
+    #include <sys/types.h>
+    #include <sys/stat.h>
+    #include <unistd.h>
+    int main() { struct stat s; return 0; }" HAVE_WIN_STAT)
+endif()
 
 # Checks feature in CRYPTO_BACKEND and puts the result into variable whose name is stored in RESULT_VARNAME variable.
 function(backend_has_feature FEATURE RESULT_VARNAME)
