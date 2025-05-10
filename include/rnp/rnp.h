@@ -3799,8 +3799,9 @@ RNP_API rnp_result_t rnp_op_encrypt_set_cipher(rnp_op_encrypt_t op, const char *
  * @brief set AEAD mode algorithm or disable AEAD usage. By default it is disabled.
  *
  * @param op opaque encrypting context. Must be allocated and initialized.
- * @param alg NULL-terminated AEAD algorithm name. Use "None" to disable AEAD, or "EAX", "OCB"
- *            to use the corresponding algorithm.
+ * @param alg NULL-terminated AEAD algorithm name. Use "None" to disable AEAD, or "OCB"
+ *            to use AEAD-OCB authenticated encryption.
+ *            Note: there is "EAX" mode which is deprecated and should not be used.
  * @return RNP_SUCCESS or error code if failed
  */
 RNP_API rnp_result_t rnp_op_encrypt_set_aead(rnp_op_encrypt_t op, const char *alg);

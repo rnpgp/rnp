@@ -2791,6 +2791,9 @@ try {
         FFI_LOG(op->ffi, "Invalid AEAD algorithm: %s", alg);
         return RNP_ERROR_BAD_PARAMETERS;
     }
+    if (op->rnpctx.aalg == PGP_AEAD_EAX) {
+        FFI_LOG(op->ffi, "Warning! EAX mode is deprecated and should not be used.");
+    }
 #ifdef ENABLE_CRYPTO_REFRESH
     if (op->rnpctx.aalg == PGP_AEAD_NONE && op->rnpctx.enable_pkesk_v6) {
         FFI_LOG(op->ffi,
