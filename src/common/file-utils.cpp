@@ -136,7 +136,7 @@ rnp_access(const char *path, int mode)
 int
 rnp_stat(const char *filename, struct stat *statbuf)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(HAVE_WIN_STAT)
     try {
         return _wstat64(wstr_from_utf8(filename).c_str(), statbuf);
     }
