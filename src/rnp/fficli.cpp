@@ -2022,8 +2022,7 @@ cli_rnp_t::keys_matching(std::vector<rnp_key_handle_t> & keys,
             ERR_MSG("No userid or default key for operation");
             return false;
         }
-        keys_matching(keys, defkey(), flags & ~CLI_SEARCH_DEFAULT);
-        if (keys.empty()) {
+        if (!keys_matching(keys, defkey(), flags & ~CLI_SEARCH_DEFAULT) || keys.empty()) {
             ERR_MSG("Default key not found");
         }
     }
