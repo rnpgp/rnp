@@ -2034,7 +2034,7 @@ cli_rnp_t::key_matching(const std::string &str, int flags, size_t *count)
 {
     std::vector<rnp_key_handle_t> keys;
 
-    keys_matching(keys, str, flags);
+    (void) keys_matching(keys, str, flags);
     if (count) {
         *count = keys.size();
     }
