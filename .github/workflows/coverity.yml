@@ -4,28 +4,34 @@ on:
   schedule:
     # every day at 9:00 UTC
     - cron: '0 9 * * *'
+  workflow_dispatch:
 
 jobs:
   scan:
     runs-on: ubuntu-latest
+    container:
+      image: ubuntu:25.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          apt-get -y update
+          apt-get -y install git bash build-essential autoconf automake clang cmake \
+                     zlib1g-dev libbz2-dev libjson-c-dev libbotan-3-dev asciidoctor curl
+
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           submodules: true
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get -y update
-          sudo apt-get -y install cmake libbz2-dev libjson-c-dev libbotan-2-dev asciidoctor
 
       - name: Configure
         run: |
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
           cmake -B build   -DBUILD_SHARED_LIBS=ON      \
                            -DCRYPTO_BACKEND=botan      \
-                           -DDOWNLOAD_GTEST=ON         \
+                           -DDOWNLOAD_GTEST=Off        \
+                           -DBUILD_TESTING=Off         \
                            -DCMAKE_BUILD_TYPE=Release  .
 
       - name: Coverity Scan

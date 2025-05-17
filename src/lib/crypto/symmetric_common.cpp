@@ -205,7 +205,7 @@ pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     return 0;
 }
 
-unsigned
+size_t
 pgp_block_size(pgp_symm_alg_t alg)
 {
     switch (alg) {
@@ -228,7 +228,7 @@ pgp_block_size(pgp_symm_alg_t alg)
     }
 }
 
-unsigned
+size_t
 pgp_key_size(pgp_symm_alg_t alg)
 {
     /* Update MAX_SYMM_KEY_SIZE after adding algorithm
