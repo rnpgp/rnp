@@ -824,9 +824,8 @@ gencek:
 static rnp_result_t
 encrypted_start_cfb(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
 {
-    uint8_t  mdcver = 1;
-    uint8_t  enchdr[PGP_MAX_BLOCK_SIZE + 2]; /* encrypted header */
-    unsigned blsize;
+    uint8_t mdcver = 1;
+    uint8_t enchdr[PGP_MAX_BLOCK_SIZE + 2]; /* encrypted header */
 
     if (param->auth_type == rnp::AuthType::MDC) {
         /* initializing the mdc */
@@ -843,12 +842,12 @@ encrypted_start_cfb(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
     }
 
     /* initializing the crypto */
-    if (!pgp_cipher_cfb_start(&param->encrypt, param->ctx.ealg, enckey, NULL)) {
+    size_t blsize = pgp_block_size(param->ctx.ealg);
+    if (!blsize || !pgp_cipher_cfb_start(&param->encrypt, param->ctx.ealg, enckey, NULL)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     /* generating and writing iv/password check bytes */
-    blsize = pgp_block_size(param->ctx.ealg);
     try {
         param->ctx.sec_ctx.rng.get(enchdr, blsize);
         enchdr[blsize] = enchdr[blsize - 2];
