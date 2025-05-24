@@ -1,31 +1,27 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2023 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
- * This code is originally derived from software contributed to
- * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
- * carried further by Ribose Inc (https://www.ribose.com).
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * 1.  Redistributions of source code must retain the above copyright notice,
+ *     this list of conditions and the following disclaimer.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * 2.  Redistributions in binary form must reproduce the above copyright notice,
+ *     this list of conditions and the following disclaimer in the documentation
+ *     and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef KEY_STORE_H_
@@ -35,7 +31,7 @@
 #include <stdbool.h>
 #include "rnp.h"
 #include "librepgp/stream-common.h"
-#include "pgp-key.h"
+#include "key.hpp"
 #include <string>
 #include <list>
 #include <map>
@@ -59,91 +55,199 @@ typedef enum pgp_sig_import_status_t {
     PGP_SIG_IMPORT_STATUS_NEW
 } pgp_sig_import_status_t;
 
-typedef std::unordered_map<pgp_fingerprint_t, std::list<pgp_key_t>::iterator> pgp_key_fp_map_t;
+namespace rnp {
 
-typedef struct rnp_key_store_t {
-    std::string            path;
-    pgp_key_store_format_t format;
-    rnp::SecurityContext & secctx;
-    bool                   disable_validation =
+typedef std::unordered_map<pgp::Fingerprint, std::list<Key>::iterator> KeyFingerprintMap;
+
+class KeyStore {
+  private:
+    Key *                   add_subkey(Key &srckey, Key *oldkey);
+    pgp_sig_import_status_t import_subkey_signature(Key &key, const pgp::pkt::Signature &sig);
+    bool                    refresh_subkey_grips(Key &key);
+
+  public:
+    std::string      path;
+    KeyFormat        format;
+    SecurityContext &secctx;
+    bool             disable_validation =
       false; /* do not automatically validate keys, added to this key store */
 
-    std::list<pgp_key_t>                     keys;
-    pgp_key_fp_map_t                         keybyfp;
+    std::list<Key>                           keys;
+    KeyFingerprintMap                        keybyfp;
     std::vector<std::unique_ptr<kbx_blob_t>> blobs;
 
-    ~rnp_key_store_t();
-    rnp_key_store_t(rnp::SecurityContext &ctx)
-        : path(""), format(PGP_KEY_STORE_UNKNOWN), secctx(ctx){};
-    rnp_key_store_t(pgp_key_store_format_t format,
-                    const std::string &    path,
-                    rnp::SecurityContext & ctx);
+    ~KeyStore();
+    KeyStore(SecurityContext &ctx) : path(""), format(KeyFormat::Unknown), secctx(ctx){};
+    KeyStore(const std::string &path, SecurityContext &ctx, KeyFormat format = KeyFormat::GPG);
     /* make sure we use only empty constructor */
-    rnp_key_store_t(rnp_key_store_t &&src) = delete;
-    rnp_key_store_t &operator=(rnp_key_store_t &&) = delete;
-    rnp_key_store_t(const rnp_key_store_t &src) = delete;
-    rnp_key_store_t &operator=(const rnp_key_store_t &) = delete;
-} rnp_key_store_t;
+    KeyStore(KeyStore &&src) = delete;
+    KeyStore &operator=(KeyStore &&) = delete;
+    KeyStore(const KeyStore &src) = delete;
+    KeyStore &operator=(const KeyStore &) = delete;
 
-bool rnp_key_store_load_from_path(rnp_key_store_t *, const pgp_key_provider_t *key_provider);
-bool rnp_key_store_load_from_src(rnp_key_store_t *,
-                                 pgp_source_t *,
-                                 const pgp_key_provider_t *key_provider);
+    /**
+     * @brief Try to load key store from path.
+     */
+    bool load(const KeyProvider *key_provider = nullptr);
 
-bool rnp_key_store_write_to_path(rnp_key_store_t *);
-bool rnp_key_store_write_to_dst(rnp_key_store_t *, pgp_dest_t *);
+    /**
+     * @brief Try to load key store from source.
+     */
+    bool load(pgp_source_t &src, const KeyProvider *key_provider = nullptr);
 
-void rnp_key_store_clear(rnp_key_store_t *);
+    /**
+     * @brief Load all keys from the source, assuming openpgp format.
+     *
+     * @param src source to load the keys from.
+     * @param skiperrors ignore key parsing errors, allowing to skip malformed/unsupported
+     *                   keys.
+     */
+    rnp_result_t load_pgp(pgp_source_t &src, bool skiperrors = false);
 
-size_t rnp_key_store_get_key_count(const rnp_key_store_t *);
+    /**
+     * @brief Load single key (including subkeys) from the source, assuming openpgp format.
+     *
+     * @param src source to load the key from.
+     * @param skiperrors ignore key parsing errors, allowing to skip malformed/unknown subkeys.
+     */
+    rnp_result_t load_pgp_key(pgp_source_t &src, bool skiperrors = false);
 
-/**
- * @brief Add key to the keystore, copying it.
- *
- * @param keyring allocated keyring, cannot be NULL.
- * @param key key to be added, cannot be NULL.
- * @return pointer to the added key or NULL if failed.
- */
-pgp_key_t *rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *key);
+    /**
+     * @brief Load keystore in kbx format.
+     */
+    bool load_kbx(pgp_source_t &src, const KeyProvider *key_provider = nullptr);
 
-pgp_key_t *rnp_key_store_import_key(rnp_key_store_t *,
-                                    pgp_key_t *,
-                                    bool,
-                                    pgp_key_import_status_t *);
+    /**
+     * @brief Load keystore in g10 format.
+     */
+    bool load_g10(pgp_source_t &src, const KeyProvider *key_provider = nullptr);
 
-/**
- * @brief Get signer's key from key store.
- *
- * @param store populated key store, cannot be NULL.
- * @param sig signature, cannot be NULL.
- * @return pointer to pgp_key_t structure if key was found or NULL otherwise.
- */
-pgp_key_t *rnp_key_store_get_signer_key(rnp_key_store_t *store, const pgp_signature_t *sig);
+    /**
+     * @brief Write keystore to the path.
+     */
+    bool write();
 
-pgp_sig_import_status_t rnp_key_store_import_key_signature(rnp_key_store_t *      keyring,
-                                                           pgp_key_t *            key,
-                                                           const pgp_signature_t *sig);
+    /**
+     * @brief Write keystore to the dest.
+     */
+    bool write(pgp_dest_t &dst);
 
-/**
- * @brief Import revocation or direct-key signature to the keyring.
- *
- * @param keyring populated keyring, cannot be NULL.
- * @param sig signature to import.
- * @param status signature import status will be put here, if not NULL.
- * @return pointer to the key to which this signature belongs (or NULL if key was not found)
- */
-pgp_key_t *rnp_key_store_import_signature(rnp_key_store_t *        keyring,
-                                          const pgp_signature_t *  sig,
-                                          pgp_sig_import_status_t *status);
+    /**
+     * @brief Write keystore to the dest in pgp format.
+     */
+    bool write_pgp(pgp_dest_t &dst);
 
-bool rnp_key_store_remove_key(rnp_key_store_t *, const pgp_key_t *, bool);
+    /**
+     * @brief Write keystore to the dest in kbx format.
+     *
+     */
+    bool write_kbx(pgp_dest_t &dst);
 
-bool rnp_key_store_get_key_grip(const pgp_key_material_t *, pgp_key_grip_t &grip);
+    void clear();
 
-const pgp_key_t *rnp_key_store_get_key_by_fpr(const rnp_key_store_t *,
-                                              const pgp_fingerprint_t &fpr);
-pgp_key_t *      rnp_key_store_get_key_by_fpr(rnp_key_store_t *, const pgp_fingerprint_t &fpr);
-pgp_key_t *      rnp_key_store_get_primary_key(rnp_key_store_t *, const pgp_key_t *);
-pgp_key_t *rnp_key_store_search(rnp_key_store_t *, const pgp_key_search_t *, pgp_key_t *);
+    size_t key_count() const;
+
+    Key *      get_key(const pgp::Fingerprint &fpr);
+    const Key *get_key(const pgp::Fingerprint &fpr) const;
+
+    /**
+     * @brief Get the key's subkey by its index
+     *
+     * @param key primary key
+     * @param idx index of the subkey
+     * @return pointer to the subkey or nullptr if subkey was found
+     */
+    Key *get_subkey(const Key &key, size_t idx);
+
+    /**
+     * @brief Get the signer's key for signature
+     *
+     * @param sig signature
+     * @param prov key provider to request needed key.
+     * @return pointer to the key or nullptr if signer's key was not found.
+     */
+    Key *get_signer(const pgp::pkt::Signature &sig, const KeyProvider *prov = nullptr);
+
+    /**
+     * @brief Add key to the keystore, copying it.
+     * @return pointer to the added key or nullptr if failed.
+     */
+    Key *add_key(Key &key);
+
+    /**
+     * @brief Add signature of the specific key to the keystore, revalidating and refreshing
+     *        key's data.
+     *
+     * @param keyfp key's fingerprint.
+     * @param sig signature packet.
+     * @param uid userid to which signature should be attached. If NULL then signature will be
+     *            attached directly to the key.
+     * @param front set to true if signature should be added to the beginning of the signature
+     *              list.
+     * @return pointer to the newly added signature or nullptr if error occurred (key not
+     *         found, whatever else).
+     */
+    Signature *add_key_sig(const pgp::Fingerprint &   keyfp,
+                           const pgp::pkt::Signature &sig,
+                           const pgp_userid_pkt_t *   uid,
+                           bool                       front);
+
+    /**
+     * @brief Add transferable key to the keystore.
+     *
+     * @param tkey parsed key.
+     */
+    bool add_ts_key(pgp_transferable_key_t &tkey);
+
+    /**
+     * @brief Add transferable subkey to the keystore.
+     *
+     * @param tskey parsed subkey.
+     * @param pkey primary key, may be nullptr.
+     */
+    bool add_ts_subkey(const pgp_transferable_subkey_t &tskey, Key *pkey = nullptr);
+
+    /**
+     * @brief Import key to the keystore.
+     *
+     * @param srckey source key.
+     * @param pubkey import just public key part.
+     * @param status if not nullptr then import status will be stored here.
+     * @return Key*
+     */
+    Key *import_key(Key &srckey, bool pubkey, pgp_key_import_status_t *status = nullptr);
+
+    /**
+     * @brief Import signature for the specified key.
+     */
+    pgp_sig_import_status_t import_signature(Key &key, const pgp::pkt::Signature &sig);
+
+    /**
+     * @brief Import revocation or direct-key signature to the keystore.
+     *
+     * @param sig signature to import.
+     * @param status signature import status will be put here, if not nullptr.
+     * @return pointer to the key to which this signature belongs (or nullptr if key was not
+     * found)
+     */
+    Key *import_signature(const pgp::pkt::Signature &sig, pgp_sig_import_status_t *status);
+
+    /**
+     * @brief Remove key from the keystore.
+     *
+     * @param key key to remove. Must be from this keystore.
+     * @param subkeys remove subkeys or not.
+     * @return true if key was successfully removed, or false if key was not found in keystore.
+     */
+    bool remove_key(const Key &key, bool subkeys = false);
+
+    /**
+     * @brief Get primary key for the subkey, if any.
+     */
+    Key *primary_key(const Key &subkey);
+
+    Key *search(const KeySearch &search, Key *after = nullptr);
+};
+} // namespace rnp
 
 #endif /* KEY_STORE_H_ */

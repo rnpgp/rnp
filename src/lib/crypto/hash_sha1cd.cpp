@@ -73,7 +73,7 @@ Hash_SHA1CD::add(const void *buf, size_t len)
 #if defined(__clang__)
 __attribute__((no_sanitize("undefined")))
 #endif
-size_t
+void
 Hash_SHA1CD::finish(uint8_t *digest)
 {
     unsigned char fixed_digest[20];
@@ -83,12 +83,11 @@ Hash_SHA1CD::finish(uint8_t *digest)
         RNP_LOG("Warning! SHA1 collision detected and mitigated.");
     }
     if (res) {
-        throw rnp_exception(RNP_ERROR_BAD_STATE);
+        return;
     }
     if (digest) {
         memcpy(digest, fixed_digest, 20);
     }
-    return 20;
 }
 
 } // namespace rnp

@@ -12,6 +12,7 @@ on:
       - '**.md'
       - '**.nix'
       - 'flake.lock'
+      - 'version.txt'
 
 concurrency:
   group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
@@ -34,7 +35,7 @@ jobs:
         fuzz-seconds: 300
         dry-run: false
     - name: Upload Crash
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       if: failure() && steps.build.outcome == 'success'
       with:
         name: artifacts

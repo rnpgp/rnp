@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2024, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,44 +25,46 @@
  */
 
 #include <string.h>
+#include <cassert>
 #include <botan/ffi.h>
 #include "eddsa.h"
 #include "utils.h"
+#include "botan_utils.hpp"
+
+namespace pgp {
+namespace eddsa {
 
 static bool
-eddsa_load_public_key(botan_pubkey_t *pubkey, const pgp_ec_key_t *keydata)
+load_public_key(rnp::botan::Pubkey &pubkey, const ec::Key &keydata)
 {
-    if (keydata->curve != PGP_CURVE_ED25519) {
+    if (keydata.curve != PGP_CURVE_ED25519) {
         return false;
     }
     /*
      * See draft-ietf-openpgp-rfc4880bis-01 section 13.3
      */
-    if ((mpi_bytes(&keydata->p) != 33) || (keydata->p.mpi[0] != 0x40)) {
+    if ((keydata.p.size() != 33) || (keydata.p[0] != 0x40)) {
         return false;
     }
-    if (botan_pubkey_load_ed25519(pubkey, keydata->p.mpi + 1)) {
+    if (botan_pubkey_load_ed25519(&pubkey.get(), &keydata.p[1])) {
         return false;
     }
-
     return true;
 }
 
 static bool
-eddsa_load_secret_key(botan_privkey_t *seckey, const pgp_ec_key_t *keydata)
+load_secret_key(rnp::botan::Privkey &seckey, const ec::Key &keydata)
 {
-    uint8_t keybuf[32] = {0};
-    size_t  sz;
-
-    if (keydata->curve != PGP_CURVE_ED25519) {
+    if (keydata.curve != PGP_CURVE_ED25519) {
         return false;
     }
-    sz = mpi_bytes(&keydata->x);
+    size_t sz = keydata.x.size();
     if (!sz || (sz > 32)) {
         return false;
     }
-    mpi2mem(&keydata->x, keybuf + 32 - sz);
-    if (botan_privkey_load_ed25519(seckey, keybuf)) {
+    uint8_t keybuf[32] = {0};
+    keydata.x.copy(keybuf + 32 - sz);
+    if (botan_privkey_load_ed25519(&seckey.get(), keybuf)) {
         return false;
     }
 
@@ -70,143 +72,101 @@ eddsa_load_secret_key(botan_privkey_t *seckey, const pgp_ec_key_t *keydata)
 }
 
 rnp_result_t
-eddsa_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret)
+validate_key(rnp::RNG &rng, const ec::Key &key, bool secret)
 {
-    botan_pubkey_t  bpkey = NULL;
-    botan_privkey_t bskey = NULL;
-    rnp_result_t    ret = RNP_ERROR_BAD_PARAMETERS;
-
-    if (!eddsa_load_public_key(&bpkey, key) ||
-        botan_pubkey_check_key(bpkey, rng->handle(), 0)) {
-        goto done;
+    rnp::botan::Pubkey bpkey;
+    if (!load_public_key(bpkey, key) || botan_pubkey_check_key(bpkey.get(), rng.handle(), 0)) {
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
     if (!secret) {
-        ret = RNP_SUCCESS;
-        goto done;
+        return RNP_SUCCESS;
     }
 
-    if (!eddsa_load_secret_key(&bskey, key) ||
-        botan_privkey_check_key(bskey, rng->handle(), 0)) {
-        goto done;
+    rnp::botan::Privkey bskey;
+    if (!load_secret_key(bskey, key) ||
+        botan_privkey_check_key(bskey.get(), rng.handle(), 0)) {
+        return RNP_ERROR_BAD_PARAMETERS;
     }
-    ret = RNP_SUCCESS;
-done:
-    botan_privkey_destroy(bskey);
-    botan_pubkey_destroy(bpkey);
-    return ret;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
-eddsa_generate(rnp::RNG *rng, pgp_ec_key_t *key)
+generate(rnp::RNG &rng, ec::Key &key)
 {
-    botan_privkey_t eddsa = NULL;
-    rnp_result_t    ret = RNP_ERROR_GENERIC;
-    uint8_t         key_bits[64];
-
-    if (botan_privkey_create(&eddsa, "Ed25519", NULL, rng->handle()) != 0) {
-        goto end;
+    rnp::botan::Privkey eddsa;
+    if (botan_privkey_create(&eddsa.get(), "Ed25519", NULL, rng.handle())) {
+        return RNP_ERROR_GENERIC;
     }
 
-    if (botan_privkey_ed25519_get_privkey(eddsa, key_bits)) {
-        goto end;
+    uint8_t key_bits[64];
+    if (botan_privkey_ed25519_get_privkey(eddsa.get(), key_bits)) {
+        return RNP_ERROR_GENERIC;
     }
 
     // First 32 bytes of key_bits are the EdDSA seed (private key)
     // Second 32 bytes are the EdDSA public key
-
-    mem2mpi(&key->x, key_bits, 32);
+    key.x.assign(key_bits, 32);
     // insert the required 0x40 prefix on the public key
     key_bits[31] = 0x40;
-    mem2mpi(&key->p, key_bits + 31, 33);
-    key->curve = PGP_CURVE_ED25519;
-
-    ret = RNP_SUCCESS;
-end:
-    botan_privkey_destroy(eddsa);
-    return ret;
+    key.p.assign(key_bits + 31, 33);
+    key.curve = PGP_CURVE_ED25519;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
-eddsa_verify(const pgp_ec_signature_t *sig,
-             const uint8_t *           hash,
-             size_t                    hash_len,
-             const pgp_ec_key_t *      key)
+verify(const ec::Signature &sig, const rnp::secure_bytes &hash, const ec::Key &key)
 {
-    botan_pubkey_t       eddsa = NULL;
-    botan_pk_op_verify_t verify_op = NULL;
-    rnp_result_t         ret = RNP_ERROR_SIGNATURE_INVALID;
-    uint8_t              bn_buf[64] = {0};
-
-    if (!eddsa_load_public_key(&eddsa, key)) {
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto done;
-    }
-
-    if (botan_pk_op_verify_create(&verify_op, eddsa, "Pure", 0) != 0) {
-        goto done;
-    }
-
-    if (botan_pk_op_verify_update(verify_op, hash, hash_len) != 0) {
-        goto done;
-    }
-
     // Unexpected size for Ed25519 signature
-    if ((mpi_bytes(&sig->r) > 32) || (mpi_bytes(&sig->s) > 32)) {
-        goto done;
+    if ((sig.r.size() > 32) || (sig.s.size() > 32)) {
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
-    mpi2mem(&sig->r, &bn_buf[32 - mpi_bytes(&sig->r)]);
-    mpi2mem(&sig->s, &bn_buf[64 - mpi_bytes(&sig->s)]);
 
-    if (botan_pk_op_verify_finish(verify_op, bn_buf, 64) == 0) {
-        ret = RNP_SUCCESS;
+    rnp::botan::Pubkey eddsa;
+    if (!load_public_key(eddsa, key)) {
+        return RNP_ERROR_BAD_PARAMETERS;
     }
-done:
-    botan_pk_op_verify_destroy(verify_op);
-    botan_pubkey_destroy(eddsa);
-    return ret;
+
+    rnp::botan::op::Verify verify_op;
+    if (botan_pk_op_verify_create(&verify_op.get(), eddsa.get(), "Pure", 0) ||
+        botan_pk_op_verify_update(verify_op.get(), hash.data(), hash.size())) {
+        return RNP_ERROR_SIGNATURE_INVALID;
+    }
+
+    uint8_t bn_buf[64] = {0};
+    sig.r.copy(bn_buf + 32 - sig.r.size());
+    sig.s.copy(bn_buf + 64 - sig.s.size());
+
+    if (botan_pk_op_verify_finish(verify_op.get(), bn_buf, 64)) {
+        return RNP_ERROR_SIGNATURE_INVALID;
+    }
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
-eddsa_sign(rnp::RNG *          rng,
-           pgp_ec_signature_t *sig,
-           const uint8_t *     hash,
-           size_t              hash_len,
-           const pgp_ec_key_t *key)
+sign(rnp::RNG &rng, ec::Signature &sig, const rnp::secure_bytes &hash, const ec::Key &key)
 {
-    botan_privkey_t    eddsa = NULL;
-    botan_pk_op_sign_t sign_op = NULL;
-    rnp_result_t       ret = RNP_ERROR_SIGNING_FAILED;
-    uint8_t            bn_buf[64] = {0};
-    size_t             sig_size = sizeof(bn_buf);
-
-    if (!eddsa_load_secret_key(&eddsa, key)) {
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto done;
+    rnp::botan::Privkey eddsa;
+    if (!load_secret_key(eddsa, key)) {
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (botan_pk_op_sign_create(&sign_op, eddsa, "Pure", 0) != 0) {
-        goto done;
+    rnp::botan::op::Sign sign_op;
+    if (botan_pk_op_sign_create(&sign_op.get(), eddsa.get(), "Pure", 0) ||
+        botan_pk_op_sign_update(sign_op.get(), hash.data(), hash.size())) {
+        return RNP_ERROR_SIGNING_FAILED;
     }
 
-    if (botan_pk_op_sign_update(sign_op, hash, hash_len) != 0) {
-        goto done;
+    uint8_t bn_buf[64] = {0};
+    size_t  sig_size = sizeof(bn_buf);
+    if (botan_pk_op_sign_finish(sign_op.get(), rng.handle(), bn_buf, &sig_size)) {
+        return RNP_ERROR_SIGNING_FAILED;
     }
-
-    if (botan_pk_op_sign_finish(sign_op, rng->handle(), bn_buf, &sig_size) != 0) {
-        goto done;
-    }
-
     // Unexpected size...
-    if (sig_size != 64) {
-        goto done;
-    }
-
-    mem2mpi(&sig->r, bn_buf, 32);
-    mem2mpi(&sig->s, bn_buf + 32, 32);
-    ret = RNP_SUCCESS;
-done:
-    botan_pk_op_sign_destroy(sign_op);
-    botan_privkey_destroy(eddsa);
-    return ret;
+    assert(sig_size == 64);
+    sig.r.assign(bn_buf, 32);
+    sig.s.assign(bn_buf + 32, 32);
+    return RNP_SUCCESS;
 }
+} // namespace eddsa
+} // namespace pgp

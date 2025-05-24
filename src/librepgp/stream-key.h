@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2018-2025, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -34,6 +34,7 @@
 #include "stream-common.h"
 #include "stream-sig.h"
 #include "stream-packet.h"
+#include "key_material.hpp"
 
 /** Struct to hold a key packet. May contain public or private key/subkey */
 typedef struct pgp_key_pkt_t {
@@ -41,22 +42,23 @@ typedef struct pgp_key_pkt_t {
     pgp_version_t    version;       /* Key packet version */
     uint32_t         creation_time; /* Key creation time */
     pgp_pubkey_alg_t alg;
-    uint16_t         v3_days; /* v2/v3 validity time */
+    uint16_t         v3_days;    /* v2/v3 validity time */
+    uint32_t         v5_pub_len; /* v5 public key material length */
 
-    uint8_t *hashed_data; /* key's hashed data used for signature calculation */
-    size_t   hashed_len;
+    std::vector<uint8_t> pub_data; /* key's hashed data used for signature calculation */
 
-    pgp_key_material_t material;
+    std::unique_ptr<pgp::KeyMaterial> material;
 
     /* secret key data, if available. sec_len == 0, sec_data == NULL for public key/subkey */
     pgp_key_protection_t sec_protection;
-    uint8_t *            sec_data;
-    size_t               sec_len;
+    std::vector<uint8_t> sec_data;
+    uint8_t              v5_s2k_len;
+    uint32_t             v5_sec_len;
 
     pgp_key_pkt_t()
         : tag(PGP_PKT_RESERVED), version(PGP_VUNKNOWN), creation_time(0), alg(PGP_PKA_NOTHING),
-          v3_days(0), hashed_data(NULL), hashed_len(0), material({}), sec_protection({}),
-          sec_data(NULL), sec_len(0){};
+          v3_days(0), v5_pub_len(0), material(nullptr), sec_protection({}), v5_s2k_len(0),
+          v5_sec_len(0){};
     pgp_key_pkt_t(const pgp_key_pkt_t &src, bool pubonly = false);
     pgp_key_pkt_t(pgp_key_pkt_t &&src);
     pgp_key_pkt_t &operator=(pgp_key_pkt_t &&src);
@@ -68,19 +70,25 @@ typedef struct pgp_key_pkt_t {
     /** @brief Fills the hashed (signed) data part of the key packet. Must be called before
      *         pgp_key_pkt_t::write() on the newly generated key */
     void fill_hashed_data();
-    bool equals(const pgp_key_pkt_t &key, bool pubonly = false) const noexcept;
+
+  private:
+    /* create the contents of the algorithm specific public key fields in a separate packet */
+    void make_s2k_params(pgp_packet_body_t &hbody);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    uint8_t s2k_specifier_len(pgp_s2k_specifier_t specifier);
+#endif
 } pgp_key_pkt_t;
 
 /* userid/userattr with all the corresponding signatures */
 typedef struct pgp_transferable_userid_t {
     pgp_userid_pkt_t     uid;
-    pgp_signature_list_t signatures;
+    pgp::pkt::Signatures signatures;
 } pgp_transferable_userid_t;
 
 /* subkey with all corresponding signatures */
 typedef struct pgp_transferable_subkey_t {
     pgp_key_pkt_t        subkey;
-    pgp_signature_list_t signatures;
+    pgp::pkt::Signatures signatures;
 
     pgp_transferable_subkey_t() = default;
     pgp_transferable_subkey_t(const pgp_transferable_subkey_t &src, bool pubonly = false);
@@ -92,7 +100,7 @@ typedef struct pgp_transferable_key_t {
     pgp_key_pkt_t                          key; /* main key packet */
     std::vector<pgp_transferable_userid_t> userids;
     std::vector<pgp_transferable_subkey_t> subkeys;
-    pgp_signature_list_t                   signatures;
+    pgp::pkt::Signatures                   signatures;
 
     pgp_transferable_key_t() = default;
     pgp_transferable_key_t(const pgp_transferable_key_t &src, bool pubonly = false);
@@ -103,17 +111,6 @@ typedef struct pgp_transferable_key_t {
 typedef struct pgp_key_sequence_t {
     std::vector<pgp_transferable_key_t> keys;
 } pgp_key_sequence_t;
-
-rnp_result_t transferable_key_from_key(pgp_transferable_key_t &dst, const pgp_key_t &key);
-
-rnp_result_t transferable_key_merge(pgp_transferable_key_t &      dst,
-                                    const pgp_transferable_key_t &src);
-
-rnp_result_t transferable_subkey_from_key(pgp_transferable_subkey_t &dst,
-                                          const pgp_key_t &          key);
-
-rnp_result_t transferable_subkey_merge(pgp_transferable_subkey_t &      dst,
-                                       const pgp_transferable_subkey_t &src);
 
 /* Process single primary key or subkey, skipping all key-related packets on error.
    If key.key.tag is zero, then (on success) result is subkey and it is stored in
@@ -137,7 +134,5 @@ rnp_result_t process_pgp_subkey(pgp_source_t &             src,
 rnp_result_t decrypt_secret_key(pgp_key_pkt_t *key, const char *password);
 
 rnp_result_t encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rnp::RNG &rng);
-
-void forget_secret_key_fields(pgp_key_material_t *key);
 
 #endif

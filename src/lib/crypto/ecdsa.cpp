@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2024, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,92 +28,82 @@
 #include "utils.h"
 #include <botan/ffi.h>
 #include <string.h>
-#include "bn.h"
+#include "botan_utils.hpp"
+
+namespace pgp {
+namespace ecdsa {
 
 static bool
-ecdsa_load_public_key(botan_pubkey_t *pubkey, const pgp_ec_key_t *keydata)
+load_public_key(rnp::botan::Pubkey &pubkey, const ec::Key &keydata)
 {
-    botan_mp_t px = NULL;
-    botan_mp_t py = NULL;
-    bool       res = false;
-
-    const ec_curve_desc_t *curve = get_curve_desc(keydata->curve);
+    auto curve = ec::Curve::get(keydata.curve);
     if (!curve) {
         RNP_LOG("unknown curve");
         return false;
     }
-    const size_t curve_order = BITS_TO_BYTES(curve->bitlen);
+    if (!keydata.p.size() || (keydata.p[0] != 0x04)) {
+        RNP_LOG("Failed to load public key: %02x", keydata.p[0]);
+        return false;
+    }
+    const size_t curve_order = curve->bytes();
+    if (keydata.p.size() != 2 * curve_order + 1) {
+        return false;
+    }
+    rnp::bn px(&keydata.p[1], curve_order);
+    rnp::bn py(&keydata.p[1] + curve_order, curve_order);
 
-    if (!mpi_bytes(&keydata->p) || (keydata->p.mpi[0] != 0x04)) {
-        RNP_LOG(
-          "Failed to load public key: %zu, %02x", mpi_bytes(&keydata->p), keydata->p.mpi[0]);
+    if (!px || !py) {
         return false;
     }
 
-    if (botan_mp_init(&px) || botan_mp_init(&py) ||
-        botan_mp_from_bin(px, &keydata->p.mpi[1], curve_order) ||
-        botan_mp_from_bin(py, &keydata->p.mpi[1 + curve_order], curve_order)) {
-        goto end;
+    bool res = !botan_pubkey_load_ecdsa(&pubkey.get(), px.get(), py.get(), curve->botan_name);
+    if (!res) {
+        RNP_LOG("failed to load ecdsa %s public key", curve->botan_name);
     }
-
-    if (!(res = !botan_pubkey_load_ecdsa(pubkey, px, py, curve->botan_name))) {
-        RNP_LOG("failed to load ecdsa public key");
-    }
-end:
-    botan_mp_destroy(px);
-    botan_mp_destroy(py);
     return res;
 }
 
 static bool
-ecdsa_load_secret_key(botan_privkey_t *seckey, const pgp_ec_key_t *keydata)
+load_secret_key(rnp::botan::Privkey &seckey, const ec::Key &keydata)
 {
-    const ec_curve_desc_t *curve;
-    bignum_t *             x = NULL;
-    bool                   res = false;
+    auto curve = ec::Curve::get(keydata.curve);
+    if (!curve) {
+        return false;
+    }
 
-    if (!(curve = get_curve_desc(keydata->curve))) {
+    rnp::bn x(keydata.x);
+    if (!x) {
         return false;
     }
-    if (!(x = mpi2bn(&keydata->x))) {
-        return false;
+
+    bool res = !botan_privkey_load_ecdsa(&seckey.get(), x.get(), curve->botan_name);
+    if (!res) {
+        RNP_LOG("Can't load private %s key", curve->botan_name);
     }
-    if (!(res = !botan_privkey_load_ecdsa(seckey, BN_HANDLE_PTR(x), curve->botan_name))) {
-        RNP_LOG("Can't load private key");
-    }
-    bn_free(x);
     return res;
 }
 
 rnp_result_t
-ecdsa_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret)
+validate_key(rnp::RNG &rng, const ec::Key &key, bool secret)
 {
-    botan_pubkey_t  bpkey = NULL;
-    botan_privkey_t bskey = NULL;
-    rnp_result_t    ret = RNP_ERROR_BAD_PARAMETERS;
-
-    if (!ecdsa_load_public_key(&bpkey, key) ||
-        botan_pubkey_check_key(bpkey, rng->handle(), 0)) {
-        goto done;
+    rnp::botan::Pubkey bpkey;
+    if (!load_public_key(bpkey, key) || botan_pubkey_check_key(bpkey.get(), rng.handle(), 0)) {
+        return RNP_ERROR_BAD_PARAMETERS;
     }
     if (!secret) {
-        ret = RNP_SUCCESS;
-        goto done;
+        return RNP_SUCCESS;
     }
 
-    if (!ecdsa_load_secret_key(&bskey, key) ||
-        botan_privkey_check_key(bskey, rng->handle(), 0)) {
-        goto done;
+    rnp::botan::Privkey bskey;
+    if (!load_secret_key(bskey, key) ||
+        botan_privkey_check_key(bskey.get(), rng.handle(), 0)) {
+        return RNP_ERROR_BAD_PARAMETERS;
     }
-    ret = RNP_SUCCESS;
-done:
-    botan_privkey_destroy(bskey);
-    botan_pubkey_destroy(bpkey);
-    return ret;
+    return RNP_SUCCESS;
 }
 
-static const char *
-ecdsa_padding_str_for(pgp_hash_alg_t hash_alg)
+const char *
+padding_str_for(pgp_hash_alg_t hash_alg)
 {
     switch (hash_alg) {
     case PGP_HASH_MD5:
@@ -122,7 +112,6 @@ ecdsa_padding_str_for(pgp_hash_alg_t hash_alg)
         return "Raw(SHA-1)";
     case PGP_HASH_RIPEMD:
         return "Raw(RIPEMD-160)";
-
     case PGP_HASH_SHA256:
         return "Raw(SHA-256)";
     case PGP_HASH_SHA384:
@@ -132,10 +121,9 @@ ecdsa_padding_str_for(pgp_hash_alg_t hash_alg)
     case PGP_HASH_SHA224:
         return "Raw(SHA-224)";
     case PGP_HASH_SHA3_256:
-        return "Raw(SHA3(256))";
+        return "Raw(SHA-3(256))";
     case PGP_HASH_SHA3_512:
-        return "Raw(SHA3(512))";
-
+        return "Raw(SHA-3(512))";
     case PGP_HASH_SM3:
         return "Raw(SM3)";
     default:
@@ -144,124 +132,86 @@ ecdsa_padding_str_for(pgp_hash_alg_t hash_alg)
 }
 
 rnp_result_t
-ecdsa_sign(rnp::RNG *          rng,
-           pgp_ec_signature_t *sig,
-           pgp_hash_alg_t      hash_alg,
-           const uint8_t *     hash,
-           size_t              hash_len,
-           const pgp_ec_key_t *key)
+sign(rnp::RNG &               rng,
+     ec::Signature &          sig,
+     pgp_hash_alg_t           hash_alg,
+     const rnp::secure_bytes &hash,
+     const ec::Key &          key)
 {
-    botan_pk_op_sign_t     signer = NULL;
-    botan_privkey_t        b_key = NULL;
-    rnp_result_t           ret = RNP_ERROR_GENERIC;
-    uint8_t                out_buf[2 * MAX_CURVE_BYTELEN] = {0};
-    const ec_curve_desc_t *curve = get_curve_desc(key->curve);
-    const char *           padding_str = ecdsa_padding_str_for(hash_alg);
-
+    auto curve = ec::Curve::get(key.curve);
     if (!curve) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    const size_t curve_order = BITS_TO_BYTES(curve->bitlen);
-    size_t       sig_len = 2 * curve_order;
 
-    if (!ecdsa_load_secret_key(&b_key, key)) {
+    rnp::botan::Privkey b_key;
+    if (!load_secret_key(b_key, key)) {
         RNP_LOG("Can't load private key");
-        goto end;
+        return RNP_ERROR_GENERIC;
     }
 
-    if (botan_pk_op_sign_create(&signer, b_key, padding_str, 0)) {
-        goto end;
+    rnp::botan::op::Sign signer;
+    auto                 pad = padding_str_for(hash_alg);
+    if (botan_pk_op_sign_create(&signer.get(), b_key.get(), pad, 0) ||
+        botan_pk_op_sign_update(signer.get(), hash.data(), hash.size())) {
+        return RNP_ERROR_GENERIC;
     }
 
-    if (botan_pk_op_sign_update(signer, hash, hash_len)) {
-        goto end;
-    }
+    const size_t         curve_order = curve->bytes();
+    size_t               sig_len = 2 * curve_order;
+    std::vector<uint8_t> out_buf(sig_len);
 
-    if (botan_pk_op_sign_finish(signer, rng->handle(), out_buf, &sig_len)) {
+    if (botan_pk_op_sign_finish(signer.get(), rng.handle(), out_buf.data(), &sig_len)) {
         RNP_LOG("Signing failed");
-        goto end;
+        return RNP_ERROR_GENERIC;
     }
 
     // Allocate memory and copy results
-    if (mem2mpi(&sig->r, out_buf, curve_order) &&
-        mem2mpi(&sig->s, out_buf + curve_order, curve_order)) {
-        ret = RNP_SUCCESS;
-    }
-end:
-    botan_privkey_destroy(b_key);
-    botan_pk_op_sign_destroy(signer);
-    return ret;
+    sig.r.assign(out_buf.data(), curve_order);
+    sig.s.assign(out_buf.data() + curve_order, curve_order);
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
-ecdsa_verify(const pgp_ec_signature_t *sig,
-             pgp_hash_alg_t            hash_alg,
-             const uint8_t *           hash,
-             size_t                    hash_len,
-             const pgp_ec_key_t *      key)
+verify(const ec::Signature &    sig,
+       pgp_hash_alg_t           hash_alg,
+       const rnp::secure_bytes &hash,
+       const ec::Key &          key)
 {
-    botan_pubkey_t       pub = NULL;
-    botan_pk_op_verify_t verifier = NULL;
-    rnp_result_t         ret = RNP_ERROR_SIGNATURE_INVALID;
-    uint8_t              sign_buf[2 * MAX_CURVE_BYTELEN] = {0};
-    size_t               r_blen, s_blen;
-    const char *         padding_str = ecdsa_padding_str_for(hash_alg);
-
-    const ec_curve_desc_t *curve = get_curve_desc(key->curve);
+    auto curve = ec::Curve::get(key.curve);
     if (!curve) {
         RNP_LOG("unknown curve");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    const size_t curve_order = BITS_TO_BYTES(curve->bitlen);
 
-    if (!ecdsa_load_public_key(&pub, key)) {
-        goto end;
-    }
-
-    if (botan_pk_op_verify_create(&verifier, pub, padding_str, 0)) {
-        goto end;
-    }
-
-    if (botan_pk_op_verify_update(verifier, hash, hash_len)) {
-        goto end;
-    }
-
-    r_blen = mpi_bytes(&sig->r);
-    s_blen = mpi_bytes(&sig->s);
+    size_t curve_order = curve->bytes();
+    size_t r_blen = sig.r.size();
+    size_t s_blen = sig.s.size();
     if ((r_blen > curve_order) || (s_blen > curve_order) ||
         (curve_order > MAX_CURVE_BYTELEN)) {
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto end;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
+    rnp::botan::Pubkey pub;
+    if (!load_public_key(pub, key)) {
+        return RNP_ERROR_SIGNATURE_INVALID;
+    }
+
+    rnp::botan::op::Verify verifier;
+    auto                   pad = padding_str_for(hash_alg);
+    if (botan_pk_op_verify_create(&verifier.get(), pub.get(), pad, 0) ||
+        botan_pk_op_verify_update(verifier.get(), hash.data(), hash.size())) {
+        return RNP_ERROR_SIGNATURE_INVALID;
+    }
+
+    std::vector<uint8_t> sign_buf(2 * curve_order, 0);
     // Both can't fail
-    mpi2mem(&sig->r, &sign_buf[curve_order - r_blen]);
-    mpi2mem(&sig->s, &sign_buf[curve_order + curve_order - s_blen]);
+    sig.r.copy(sign_buf.data() + curve_order - r_blen);
+    sig.s.copy(sign_buf.data() + 2 * curve_order - s_blen);
 
-    if (!botan_pk_op_verify_finish(verifier, sign_buf, curve_order * 2)) {
-        ret = RNP_SUCCESS;
+    if (botan_pk_op_verify_finish(verifier.get(), sign_buf.data(), sign_buf.size())) {
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
-end:
-    botan_pubkey_destroy(pub);
-    botan_pk_op_verify_destroy(verifier);
-    return ret;
+    return RNP_SUCCESS;
 }
-
-pgp_hash_alg_t
-ecdsa_get_min_hash(pgp_curve_t curve)
-{
-    switch (curve) {
-    case PGP_CURVE_NIST_P_256:
-    case PGP_CURVE_BP256:
-    case PGP_CURVE_P256K1:
-        return PGP_HASH_SHA256;
-    case PGP_CURVE_NIST_P_384:
-    case PGP_CURVE_BP384:
-        return PGP_HASH_SHA384;
-    case PGP_CURVE_NIST_P_521:
-    case PGP_CURVE_BP512:
-        return PGP_HASH_SHA512;
-    default:
-        return PGP_HASH_UNKNOWN;
-    }
-}
+} // namespace ecdsa
+} // namespace pgp

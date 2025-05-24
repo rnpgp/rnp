@@ -1,4 +1,4 @@
-# Copyright (c) 2018 Ribose Inc.
+# Copyright (c) 2018, 2024 Ribose Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,18 +58,23 @@ if (NOT PC_JSON-C_FOUND)
   pkg_check_modules(PC_JSON-C QUIET json-c12)
 endif()
 
+# ..or even json-c13, accompanied by non-develop json-c (RHEL 8 ubi)
+if (NOT PC_JSON-C_FOUND)
+  pkg_check_modules(PC_JSON-C QUIET json-c13)
+endif()
+
 # find the headers
 find_path(JSON-C_INCLUDE_DIR
   NAMES json_c_version.h
   HINTS
     ${PC_JSON-C_INCLUDEDIR}
     ${PC_JSON-C_INCLUDE_DIRS}
-  PATH_SUFFIXES json-c
+  PATH_SUFFIXES json-c json-c12 json-c13
 )
 
 # find the library
 find_library(JSON-C_LIBRARY
-  NAMES json-c libjson-c json-c12 libjson-c12
+  NAMES json-c libjson-c json-c12 libjson-c12 json-c13 libjson-c13
   HINTS
     ${PC_JSON-C_LIBDIR}
     ${PC_JSON-C_LIBRARY_DIRS}
@@ -120,4 +125,3 @@ if (JSON-C_FOUND AND NOT TARGET JSON-C::JSON-C)
 endif()
 
 mark_as_advanced(JSON-C_INCLUDE_DIR JSON-C_LIBRARY)
-

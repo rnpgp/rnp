@@ -25,7 +25,6 @@
  */
 
 #include <rnp/rnp.h>
-#include <librekey/key_store_kbx.h>
 #include <librekey/kbx_blob.hpp>
 #include "rnp_tests.h"
 

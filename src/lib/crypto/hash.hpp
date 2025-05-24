@@ -30,6 +30,7 @@
 #include <repgp/repgp_def.h>
 #include "types.h"
 #include "config.h"
+#include "mem.h"
 #include <memory>
 #include <vector>
 #include <array>
@@ -56,10 +57,14 @@ class Hash {
     static std::unique_ptr<Hash>  create(pgp_hash_alg_t alg);
     virtual std::unique_ptr<Hash> clone() const = 0;
 
-    virtual void   add(const void *buf, size_t len) = 0;
-    virtual void   add(uint32_t val);
-    virtual void   add(const pgp_mpi_t &mpi);
-    virtual size_t finish(uint8_t *digest = NULL) = 0;
+    virtual void add(const void *buf, size_t len) = 0;
+    virtual void add(const std::vector<uint8_t> &val);
+    virtual void add(uint32_t val);
+    virtual void add(const pgp::mpi &mpi);
+    virtual void finish(uint8_t *digest) = 0;
+
+    std::vector<uint8_t> finish();
+    rnp::secure_bytes    sec_finish();
 
     virtual ~Hash();
 

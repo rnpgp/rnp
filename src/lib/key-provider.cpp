@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2024 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -24,77 +24,249 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <assert.h>
-#include <string.h>
+#include <string>
+#include <map>
 #include "key-provider.h"
-#include "pgp-key.h"
-#include "fingerprint.h"
+#include "key.hpp"
+#include "fingerprint.hpp"
 #include "types.h"
 #include "utils.h"
+#include "str-utils.h"
+#include "crypto/mem.h"
 #include <rekey/rnp_key_store.h>
 
-bool
-rnp_key_matches_search(const pgp_key_t *key, const pgp_key_search_t *search)
+namespace rnp {
+
+KeySearch::Type
+KeySearch::find_type(const std::string &name)
 {
-    if (!key) {
-        return false;
+    static const std::map<const std::string, KeySearch::Type> types = {
+      {"keyid", Type::KeyID},
+      {"fingerprint", Type::Fingerprint},
+      {"grip", Type::Grip},
+      {"userid", Type::UserID}};
+    if (types.find(name) == types.end()) {
+        return Type::Unknown;
     }
-    switch (search->type) {
-    case PGP_KEY_SEARCH_KEYID:
-        return (key->keyid() == search->by.keyid) || (search->by.keyid == pgp_key_id_t({}));
-    case PGP_KEY_SEARCH_FINGERPRINT:
-        return key->fp() == search->by.fingerprint;
-    case PGP_KEY_SEARCH_GRIP:
-        return key->grip() == search->by.grip;
-    case PGP_KEY_SEARCH_USERID:
-        if (key->has_uid(search->by.userid)) {
-            return true;
-        }
-        break;
-    default:
-        assert(false);
-        break;
-    }
-    return false;
+    return types.at(name);
 }
 
-pgp_key_t *
-pgp_request_key(const pgp_key_provider_t *provider, const pgp_key_request_ctx_t *ctx)
+std::unique_ptr<KeySearch>
+KeySearch::create(const pgp::KeyID &keyid)
 {
-    pgp_key_t *key = NULL;
-    if (!provider || !provider->callback || !ctx) {
-        return NULL;
+    return std::unique_ptr<KeySearch>(new KeyIDSearch(keyid));
+}
+
+std::unique_ptr<KeySearch>
+KeySearch::create(const pgp::Fingerprint &fp)
+{
+    return std::unique_ptr<KeySearch>(new KeyFingerprintSearch(fp));
+}
+
+std::unique_ptr<KeySearch>
+KeySearch::create(const pgp::KeyGrip &grip)
+{
+    return std::unique_ptr<KeySearch>(new KeyGripSearch(grip));
+}
+
+std::unique_ptr<KeySearch>
+KeySearch::create(const std::string &uid)
+{
+    return std::unique_ptr<KeySearch>(new KeyUIDSearch(uid));
+}
+
+std::unique_ptr<KeySearch>
+KeySearch::create(const std::string &name, const std::string &value)
+{
+    auto type = find_type(name);
+    if (type == Type::Unknown) {
+        return nullptr;
     }
-    if (!(key = provider->callback(ctx, provider->userdata))) {
-        return NULL;
+    if (type == Type::UserID) {
+        return create(value);
+    }
+    /* All the rest values are hex-encoded */
+    auto binval = hex_to_bin(value);
+    if (binval.empty()) {
+        return nullptr;
+    }
+    switch (type) {
+    case Type::Fingerprint:
+        if (!pgp::Fingerprint::size_valid(binval.size())) {
+            RNP_LOG("Invalid fingerprint: %s", value.c_str());
+            return nullptr;
+        }
+        return create(pgp::Fingerprint(binval.data(), binval.size()));
+    case Type::KeyID: {
+        if (binval.size() != PGP_KEY_ID_SIZE) {
+            RNP_LOG("Invalid keyid: %s", value.c_str());
+            return nullptr;
+        }
+        pgp::KeyID keyid{};
+        memcpy(keyid.data(), binval.data(), keyid.size());
+        return create(keyid);
+    }
+    case Type::Grip: {
+        if (binval.size() != PGP_KEY_GRIP_SIZE) {
+            RNP_LOG("Invalid grip: %s", value.c_str());
+            return nullptr;
+        }
+        pgp::KeyGrip grip{};
+        memcpy(grip.data(), binval.data(), grip.size());
+        return create(grip);
+    }
+    default:
+        return nullptr;
+    }
+}
+
+bool
+KeyIDSearch::matches(const Key &key) const
+{
+    return (key.keyid() == keyid_) || (keyid_ == pgp::KeyID({}));
+}
+
+const std::string
+KeyIDSearch::name() const
+{
+    return "keyid";
+}
+
+std::string
+KeyIDSearch::value() const
+{
+    return bin_to_hex(keyid_.data(), keyid_.size());
+}
+
+bool
+KeyIDSearch::hidden() const
+{
+    return keyid_ == pgp::KeyID({});
+}
+
+KeyIDSearch::KeyIDSearch(const pgp::KeyID &keyid)
+{
+    type_ = Type::KeyID;
+    keyid_ = keyid;
+}
+
+bool
+KeyFingerprintSearch::matches(const Key &key) const
+{
+    return key.fp() == fp_;
+}
+
+const std::string
+KeyFingerprintSearch::name() const
+{
+    return "fingerprint";
+}
+
+std::string
+KeyFingerprintSearch::value() const
+{
+    return bin_to_hex(fp_.data(), fp_.size());
+}
+
+KeyFingerprintSearch::KeyFingerprintSearch(const pgp::Fingerprint &fp)
+{
+    type_ = Type::Fingerprint;
+    fp_ = fp;
+}
+
+const pgp::Fingerprint &
+KeyFingerprintSearch::get_fp() const
+{
+    return fp_;
+}
+
+bool
+KeyGripSearch::matches(const Key &key) const
+{
+    return key.grip() == grip_;
+}
+
+const std::string
+KeyGripSearch::name() const
+{
+    return "grip";
+}
+
+std::string
+KeyGripSearch::value() const
+{
+    return bin_to_hex(grip_.data(), grip_.size());
+}
+
+KeyGripSearch::KeyGripSearch(const pgp::KeyGrip &grip)
+{
+    type_ = Type::Grip;
+    grip_ = grip;
+}
+
+bool
+KeyUIDSearch::matches(const Key &key) const
+{
+    return key.has_uid(uid_);
+}
+
+const std::string
+KeyUIDSearch::name() const
+{
+    return "userid";
+}
+
+std::string
+KeyUIDSearch::value() const
+{
+    return uid_;
+}
+
+KeyUIDSearch::KeyUIDSearch(const std::string &uid)
+{
+    type_ = Type::UserID;
+    uid_ = uid;
+}
+
+Key *
+KeyProvider::request_key(const KeySearch &search, pgp_op_t op, bool secret) const
+{
+    Key *key = nullptr;
+    if (!callback) {
+        return key;
+    }
+    pgp_key_request_ctx_t ctx(op, secret, search);
+    if (!(key = callback(&ctx, userdata))) {
+        return nullptr;
     }
     // confirm that the key actually matches the search criteria
-    if (!rnp_key_matches_search(key, &ctx->search) && key->is_secret() == ctx->secret) {
-        return NULL;
+    if (!search.matches(*key) || (key->is_secret() != secret)) {
+        return nullptr;
     }
     return key;
 }
+} // namespace rnp
 
-pgp_key_t *
+rnp::Key *
 rnp_key_provider_key_ptr_list(const pgp_key_request_ctx_t *ctx, void *userdata)
 {
-    std::vector<pgp_key_t *> *key_list = (std::vector<pgp_key_t *> *) userdata;
+    std::vector<rnp::Key *> *key_list = (std::vector<rnp::Key *> *) userdata;
     for (auto key : *key_list) {
-        if (rnp_key_matches_search(key, &ctx->search) && (key->is_secret() == ctx->secret)) {
+        if (ctx->search.matches(*key) && (key->is_secret() == ctx->secret)) {
             return key;
         }
     }
     return NULL;
 }
 
-pgp_key_t *
+rnp::Key *
 rnp_key_provider_chained(const pgp_key_request_ctx_t *ctx, void *userdata)
 {
-    for (pgp_key_provider_t **pprovider = (pgp_key_provider_t **) userdata;
+    for (rnp::KeyProvider **pprovider = (rnp::KeyProvider **) userdata;
          pprovider && *pprovider;
          pprovider++) {
-        pgp_key_provider_t *provider = *pprovider;
-        pgp_key_t *         key = NULL;
+        auto      provider = *pprovider;
+        rnp::Key *key = nullptr;
         if ((key = provider->callback(ctx, provider->userdata))) {
             return key;
         }
@@ -102,13 +274,12 @@ rnp_key_provider_chained(const pgp_key_request_ctx_t *ctx, void *userdata)
     return NULL;
 }
 
-pgp_key_t *
+rnp::Key *
 rnp_key_provider_store(const pgp_key_request_ctx_t *ctx, void *userdata)
 {
-    rnp_key_store_t *ks = (rnp_key_store_t *) userdata;
+    auto ks = (rnp::KeyStore *) userdata;
 
-    for (pgp_key_t *key = rnp_key_store_search(ks, &ctx->search, NULL); key;
-         key = rnp_key_store_search(ks, &ctx->search, key)) {
+    for (rnp::Key *key = ks->search(ctx->search); key; key = ks->search(ctx->search, key)) {
         if (key->is_secret() == ctx->secret) {
             return key;
         }

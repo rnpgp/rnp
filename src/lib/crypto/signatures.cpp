@@ -25,9 +25,11 @@
  */
 
 #include <string.h>
+#include <cassert>
 #include "crypto/signatures.h"
 #include "librepgp/stream-packet.h"
 #include "librepgp/stream-sig.h"
+#include "librepgp/stream-key.h"
 #include "utils.h"
 #include "sec_profile.hpp"
 
@@ -38,63 +40,88 @@
  * @param sig populated or loaded signature
  * @param hbuf buffer to store the resulting hash. Must be large enough for hash output.
  * @param hlen on success will be filled with the hash size, otherwise zeroed
+ * @param hdr literal packet header for attached signatures or NULL otherwise.
  * @return RNP_SUCCESS on success or some error otherwise
  */
-static void
-signature_hash_finish(const pgp_signature_t &sig, rnp::Hash &hash, uint8_t *hbuf, size_t &hlen)
+static rnp::secure_bytes
+signature_hash_finish(const pgp::pkt::Signature &sig,
+                      rnp::Hash &                hash,
+                      const pgp_literal_hdr_t *  hdr)
 {
-    hash.add(sig.hashed_data, sig.hashed_len);
-    if (sig.version > PGP_V3) {
-        uint8_t trailer[6] = {0x04, 0xff, 0x00, 0x00, 0x00, 0x00};
-        STORE32BE(&trailer[2], sig.hashed_len);
+    hash.add(sig.hashed_data);
+    switch (sig.version) {
+    case PGP_V4:
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_V6:
+#endif
+    {
+        uint8_t trailer[6] = {0x00, 0xff, 0x00, 0x00, 0x00, 0x00};
+        trailer[0] = sig.version;
+        write_uint32(&trailer[2], sig.hashed_data.size());
         hash.add(trailer, 6);
+        break;
     }
-    hlen = hash.finish(hbuf);
+    case PGP_V5: {
+        uint64_t hash_len = sig.hashed_data.size();
+        if (sig.is_document()) {
+            uint8_t doc_trailer[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+            /* This data is not added to the hash_len as per spec */
+            if (hdr) {
+                doc_trailer[0] = hdr->format;
+                doc_trailer[1] = hdr->fname_len;
+                write_uint32(&doc_trailer[2], hdr->timestamp);
+                hash.add(doc_trailer, 2);
+                hash.add(hdr->fname, hdr->fname_len);
+                hash.add(&doc_trailer[2], 4);
+            } else {
+                hash.add(doc_trailer, 6);
+            }
+        }
+        uint8_t trailer[10] = {0x05, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+        write_uint64(&trailer[2], hash_len);
+        hash.add(trailer, 10);
+        break;
+    }
+    default:
+        break;
+    }
+    rnp::secure_bytes res(hash.size());
+    hash.finish(res.data());
+    return res;
 }
 
 std::unique_ptr<rnp::Hash>
-signature_init(const pgp_key_material_t &key, pgp_hash_alg_t hash_alg)
+signature_init(const pgp_key_pkt_t &key, const pgp::pkt::Signature &sig)
 {
-    auto hash = rnp::Hash::create(hash_alg);
-    if (key.alg == PGP_PKA_SM2) {
-#if defined(ENABLE_SM2)
-        rnp_result_t r = sm2_compute_za(key.ec, *hash);
-        if (r != RNP_SUCCESS) {
-            RNP_LOG("failed to compute SM2 ZA field");
-            throw rnp::rnp_exception(r);
-        }
-#else
-        RNP_LOG("SM2 ZA computation not available");
-        throw rnp::rnp_exception(RNP_ERROR_NOT_IMPLEMENTED);
+    auto hash = rnp::Hash::create(sig.halg);
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (key.version == PGP_V6) {
+        hash->add(sig.salt);
+    }
 #endif
+
+    if (key.material->alg() == PGP_PKA_SM2) {
+        auto &sm2 = dynamic_cast<pgp::SM2KeyMaterial &>(*key.material);
+        sm2.compute_za(*hash);
     }
     return hash;
 }
 
 void
-signature_calculate(pgp_signature_t &     sig,
-                    pgp_key_material_t &  seckey,
-                    rnp::Hash &           hash,
-                    rnp::SecurityContext &ctx)
+signature_calculate(pgp::pkt::Signature &    sig,
+                    pgp::KeyMaterial &       seckey,
+                    rnp::Hash &              hash,
+                    rnp::SecurityContext &   ctx,
+                    const pgp_literal_hdr_t *hdr)
 {
-    uint8_t              hval[PGP_MAX_HASH_SIZE];
-    size_t               hlen = 0;
-    rnp_result_t         ret = RNP_ERROR_GENERIC;
-    const pgp_hash_alg_t hash_alg = hash.alg();
-
     /* Finalize hash first, since function is required to do this */
-    try {
-        signature_hash_finish(sig, hash, hval, hlen);
-    } catch (const std::exception &e) {
-        RNP_LOG("Failed to finalize hash: %s", e.what());
-        throw;
-    }
-
-    if (!seckey.secret) {
+    auto hval = signature_hash_finish(sig, hash, hdr);
+    if (!seckey.secret()) {
         RNP_LOG("Secret key is required.");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    if (sig.palg != seckey.alg) {
+    if (sig.palg != seckey.alg()) {
         RNP_LOG("Signature and secret key do not agree on algorithm type.");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
@@ -105,102 +132,34 @@ signature_calculate(pgp_signature_t &     sig,
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
-    /* copy left 16 bits to signature */
-    memcpy(sig.lbits, hval, 2);
+    /* Copy left 16 bits to signature */
+    std::copy(hval.begin(), hval.begin() + 2, sig.lbits.begin());
 
-    /* sign */
-    pgp_signature_material_t material = {};
-    switch (sig.palg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        ret = rsa_sign_pkcs1(&ctx.rng, &material.rsa, sig.halg, hval, hlen, &seckey.rsa);
-        if (ret) {
-            RNP_LOG("rsa signing failed");
-        }
-        break;
-    case PGP_PKA_EDDSA:
-        ret = eddsa_sign(&ctx.rng, &material.ecc, hval, hlen, &seckey.ec);
-        if (ret) {
-            RNP_LOG("eddsa signing failed");
-        }
-        break;
-    case PGP_PKA_DSA:
-        ret = dsa_sign(&ctx.rng, &material.dsa, hval, hlen, &seckey.dsa);
-        if (ret != RNP_SUCCESS) {
-            RNP_LOG("DSA signing failed");
-        }
-        break;
-    /*
-     * ECDH is signed with ECDSA. This must be changed when ECDH will support
-     * X25519, but I need to check how it should be done exactly.
-     */
-    case PGP_PKA_ECDH:
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_SM2: {
-        const ec_curve_desc_t *curve = get_curve_desc(seckey.ec.curve);
-        if (!curve) {
-            RNP_LOG("Unknown curve");
-            ret = RNP_ERROR_BAD_PARAMETERS;
-            break;
-        }
-        if (!curve_supported(seckey.ec.curve)) {
-            RNP_LOG("EC sign: curve %s is not supported.", curve->pgp_name);
-            ret = RNP_ERROR_NOT_SUPPORTED;
-            break;
-        }
-        /* "-2" because ECDSA on P-521 must work with SHA-512 digest */
-        if (BITS_TO_BYTES(curve->bitlen) - 2 > hlen) {
-            RNP_LOG("Message hash too small");
-            ret = RNP_ERROR_BAD_PARAMETERS;
-            break;
-        }
-
-        if (sig.palg == PGP_PKA_SM2) {
-#if defined(ENABLE_SM2)
-            ret = sm2_sign(&ctx.rng, &material.ecc, hash_alg, hval, hlen, &seckey.ec);
-            if (ret) {
-                RNP_LOG("SM2 signing failed");
-            }
-#else
-            RNP_LOG("SM2 signing is not available.");
-            ret = RNP_ERROR_NOT_IMPLEMENTED;
-#endif
-            break;
-        }
-
-        ret = ecdsa_sign(&ctx.rng, &material.ecc, hash_alg, hval, hlen, &seckey.ec);
-        if (ret) {
-            RNP_LOG("ECDSA signing failed");
-        }
-        break;
+    /* Some algos require used hash algorithm for signing */
+    auto material = pgp::SigMaterial::create(sig.palg, sig.halg);
+    if (!material) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    default:
-        RNP_LOG("Unsupported algorithm %d", sig.palg);
-        break;
-    }
+    /* Sign */
+    auto ret = seckey.sign(ctx, *material, hval);
     if (ret) {
         throw rnp::rnp_exception(ret);
     }
-    try {
-        sig.write_material(material);
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        throw;
-    }
+    sig.write_material(*material);
 }
 
-rnp_result_t
-signature_validate(const pgp_signature_t &     sig,
-                   const pgp_key_material_t &  key,
+rnp::SigValidity
+signature_validate(const pgp::pkt::Signature & sig,
+                   const pgp::KeyMaterial &    key,
                    rnp::Hash &                 hash,
-                   const rnp::SecurityContext &ctx)
+                   const rnp::SecurityContext &ctx,
+                   const pgp_literal_hdr_t *   hdr)
 {
-    if (sig.palg != key.alg) {
-        RNP_LOG("Signature and key do not agree on algorithm type: %d vs %d",
-                (int) sig.palg,
-                (int) key.alg);
-        return RNP_ERROR_BAD_PARAMETERS;
+    rnp::SigValidity res;
+    if (sig.palg != key.alg()) {
+        RNP_LOG(
+          "Signature and key do not agree on algorithm type: %d vs %d", sig.palg, key.alg());
+        res.add_error(RNP_ERROR_SIG_PUB_ALG_MISMATCH);
     }
 
     /* Check signature security */
@@ -209,73 +168,34 @@ signature_validate(const pgp_signature_t &     sig,
     if (ctx.profile.hash_level(sig.halg, sig.creation(), action) <
         rnp::SecurityLevel::Default) {
         RNP_LOG("Insecure hash algorithm %d, marking signature as invalid.", sig.halg);
-        return RNP_ERROR_SIGNATURE_INVALID;
+        res.add_error(RNP_ERROR_SIG_WEAK_HASH);
     }
+
+#if defined(ENABLE_PQC)
+    /* check that hash matches key requirements */
+    if (!key.sig_hash_allowed(hash.alg())) {
+        RNP_LOG("Signature invalid since hash algorithm requirements are not met for the "
+                "given key.");
+        res.add_error(RNP_ERROR_SIG_HASH_ALG_MISMATCH);
+    }
+#endif
 
     /* Finalize hash */
-    uint8_t hval[PGP_MAX_HASH_SIZE];
-    size_t  hlen = 0;
-    try {
-        signature_hash_finish(sig, hash, hval, hlen);
-    } catch (const std::exception &e) {
-        RNP_LOG("Failed to finalize signature hash.");
-        return RNP_ERROR_GENERIC;
-    }
+    auto hval = signature_hash_finish(sig, hash, hdr);
 
     /* compare lbits */
-    if (memcmp(hval, sig.lbits, 2)) {
+    if (memcmp(hval.data(), sig.lbits.data(), 2)) {
         RNP_LOG("wrong lbits");
-        return RNP_ERROR_SIGNATURE_INVALID;
+        res.add_error(RNP_ERROR_SIG_LBITS_MISMATCH);
     }
 
     /* validate signature */
-    pgp_signature_material_t material = {};
-    try {
-        sig.parse_material(material);
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return RNP_ERROR_OUT_OF_MEMORY;
+    /* We check whether material could be parsed during the signature parsing */
+    auto material = sig.parse_material();
+    assert(material);
+    auto ret = key.verify(ctx, *material, hval);
+    if (ret) {
+        res.add_error(ret);
     }
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-    switch (sig.palg) {
-    case PGP_PKA_DSA:
-        ret = dsa_verify(&material.dsa, hval, hlen, &key.dsa);
-        break;
-    case PGP_PKA_EDDSA:
-        ret = eddsa_verify(&material.ecc, hval, hlen, &key.ec);
-        break;
-    case PGP_PKA_SM2:
-#if defined(ENABLE_SM2)
-        ret = sm2_verify(&material.ecc, hash.alg(), hval, hlen, &key.ec);
-#else
-        RNP_LOG("SM2 verification is not available.");
-        ret = RNP_ERROR_NOT_IMPLEMENTED;
-#endif
-        break;
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        ret = rsa_verify_pkcs1(&material.rsa, sig.halg, hval, hlen, &key.rsa);
-        break;
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-        RNP_LOG("RSA encrypt-only signature considered as invalid.");
-        ret = RNP_ERROR_SIGNATURE_INVALID;
-        break;
-    case PGP_PKA_ECDSA:
-        if (!curve_supported(key.ec.curve)) {
-            RNP_LOG("ECDSA verify: curve %d is not supported.", (int) key.ec.curve);
-            ret = RNP_ERROR_NOT_SUPPORTED;
-            break;
-        }
-        ret = ecdsa_verify(&material.ecc, hash.alg(), hval, hlen, &key.ec);
-        break;
-    case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        RNP_LOG("ElGamal are considered as invalid.");
-        ret = RNP_ERROR_SIGNATURE_INVALID;
-        break;
-    default:
-        RNP_LOG("Unknown algorithm");
-        ret = RNP_ERROR_BAD_PARAMETERS;
-    }
-    return ret;
+    return res;
 }

@@ -111,7 +111,7 @@ Without additional options, an RSA primary key pair with an RSA sub-key pair wil
 Additional options:
 
 *--numbits*:::
-Overrides the default RSA key size of *2048* bits.
+Overrides the default key size. For RSA it is *3072* bits.
 
 *--expiration* _TIME_:::
 Set key and subkey expiration time, counting from the creation time. +
@@ -149,6 +149,12 @@ would take _NUMBER_ of milliseconds on the current system. +
 +
 For example, setting it to _2000_ would mean that each secret key
 decryption operation would take around 2 seconds (on the current machine).
+
+*--allow-weak-hash*:::
+Allow usage of a weak hash algorithm.
+
+*--allow-sha1-key-sigs*:::
+Allow usage of a SHA-1 key signatures.
 
 
 === KEY/SIGNATURE IMPORT

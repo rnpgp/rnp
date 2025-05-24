@@ -55,37 +55,50 @@
 
 #define BITS_TO_BYTES(b) (((b) + (CHAR_BIT - 1)) / CHAR_BIT)
 
-/* Load little-endian 32-bit from y to x in portable fashion */
-
-inline void
-LOAD32LE(uint32_t &x, const uint8_t y[4])
+/* Read big-endian 16-bit value from buf */
+inline uint16_t
+read_uint16(const uint8_t *buf)
 {
-    x = (static_cast<uint32_t>(y[3]) << 24) | (static_cast<uint32_t>(y[2]) << 16) |
-        (static_cast<uint32_t>(y[1]) << 8) | (static_cast<uint32_t>(y[0]) << 0);
+    return ((uint16_t) buf[0] << 8) | buf[1];
 }
 
-/* Store big-endian 32-bit value x in y */
-inline void
-STORE32BE(uint8_t x[4], uint32_t y)
+/* Read big-endian 32-bit value from buf */
+inline uint32_t
+read_uint32(const uint8_t *buf)
 {
-    x[0] = (uint8_t)(y >> 24) & 0xff;
-    x[1] = (uint8_t)(y >> 16) & 0xff;
-    x[2] = (uint8_t)(y >> 8) & 0xff;
-    x[3] = (uint8_t)(y >> 0) & 0xff;
+    return ((uint32_t) buf[0] << 24) | ((uint32_t) buf[1] << 16) | ((uint32_t) buf[2] << 8) |
+           (uint32_t) buf[3];
 }
 
-/* Store big-endian 64-bit value x in y */
+/* Store big-endian 16-bit value val in buf */
 inline void
-STORE64BE(uint8_t x[8], uint64_t y)
+write_uint16(uint8_t *buf, uint16_t val)
 {
-    x[0] = (uint8_t)(y >> 56) & 0xff;
-    x[1] = (uint8_t)(y >> 48) & 0xff;
-    x[2] = (uint8_t)(y >> 40) & 0xff;
-    x[3] = (uint8_t)(y >> 32) & 0xff;
-    x[4] = (uint8_t)(y >> 24) & 0xff;
-    x[5] = (uint8_t)(y >> 16) & 0xff;
-    x[6] = (uint8_t)(y >> 8) & 0xff;
-    x[7] = (uint8_t)(y >> 0) & 0xff;
+    buf[0] = val >> 8;
+    buf[1] = val & 0xff;
+}
+
+/* Store big-endian 32-bit value val in buf */
+inline void
+write_uint32(uint8_t *buf, uint32_t val)
+{
+    buf[0] = (uint8_t)(val >> 24) & 0xff;
+    buf[1] = (uint8_t)(val >> 16) & 0xff;
+    buf[2] = (uint8_t)(val >> 8) & 0xff;
+    buf[3] = (uint8_t)(val >> 0) & 0xff;
+}
+
+inline void
+write_uint64(uint8_t *buf, uint64_t val)
+{
+    buf[0] = (uint8_t)(val >> 56) & 0xff;
+    buf[1] = (uint8_t)(val >> 48) & 0xff;
+    buf[2] = (uint8_t)(val >> 40) & 0xff;
+    buf[3] = (uint8_t)(val >> 32) & 0xff;
+    buf[4] = (uint8_t)(val >> 24) & 0xff;
+    buf[5] = (uint8_t)(val >> 16) & 0xff;
+    buf[6] = (uint8_t)(val >> 8) & 0xff;
+    buf[7] = (uint8_t)(val >> 0) & 0xff;
 }
 
 inline char *

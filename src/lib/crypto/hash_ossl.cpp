@@ -117,23 +117,21 @@ Hash_OpenSSL::add(const void *buf, size_t len)
     }
 }
 
-size_t
+void
 Hash_OpenSSL::finish(uint8_t *digest)
 {
+    assert(fn_);
     if (!fn_) {
-        return 0;
+        return;
     }
     int res = digest ? EVP_DigestFinal_ex(fn_, digest, NULL) : 1;
     EVP_MD_CTX_free(fn_);
     fn_ = NULL;
     if (res != 1) {
         RNP_LOG("Digest finalization error %d: %lu", res, ERR_peek_last_error());
-        return 0;
+        return;
     }
-
-    size_t outsz = size_;
     size_ = 0;
-    return outsz;
 }
 
 Hash_OpenSSL::~Hash_OpenSSL()

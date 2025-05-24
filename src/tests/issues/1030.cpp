@@ -47,12 +47,11 @@ test_issue_1030(const char *keystore)
     assert_int_equal(keycount, 2);
 
     std::vector<rnp_key_handle_t> keys;
-    assert_true(cli_rnp_keys_matching_string(&rnp, keys, userid, CLI_SEARCH_SUBKEYS_AFTER));
+    assert_true(rnp.keys_matching(keys, userid, CLI_SEARCH_SUBKEYS_AFTER));
     assert_int_equal(keys.size(), 2);
     clear_key_handles(keys);
 
-    assert_true(cli_rnp_keys_matching_string(
-      &rnp, keys, userid, CLI_SEARCH_SECRET | CLI_SEARCH_SUBKEYS_AFTER));
+    assert_true(rnp.keys_matching(keys, userid, CLI_SEARCH_SECRET | CLI_SEARCH_SUBKEYS_AFTER));
     assert_int_equal(keys.size(), 2);
     for (auto key : keys) {
         bool is_protected = false;

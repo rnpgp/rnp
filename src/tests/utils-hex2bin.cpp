@@ -79,6 +79,7 @@ TEST_F(rnp_tests, test_utils_hex2bin)
     {
         uint8_t buf[2] = {0xAB, 0xCD};
         char    hex[4];
-        assert_false(rnp::hex_encode(buf, sizeof(buf), hex, sizeof(hex), rnp::HEX_LOWERCASE));
+        assert_false(
+          rnp::hex_encode(buf, sizeof(buf), hex, sizeof(hex), rnp::HexFormat::Lowercase));
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2022, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2023, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -32,8 +32,9 @@
 #else
 #include "uniwin.h"
 #endif
-#include <string.h>
+#include <string>
 #include <algorithm>
+#include <cassert>
 #include "stream-def.h"
 #include "stream-armor.h"
 #include "stream-packet.h"
@@ -47,13 +48,9 @@
 #define ARMORED_MAX_LINE_LENGTH (76)
 
 typedef struct pgp_source_armored_param_t {
-    pgp_source_t *    readsrc;         /* source to read from */
-    pgp_armored_msg_t type;            /* type of the message */
-    char *            armorhdr;        /* armor header */
-    char *            version;         /* Version: header if any */
-    char *            comment;         /* Comment: header if any */
-    char *            hash;            /* Hash: header if any */
-    char *            charset;         /* Charset: header if any */
+    pgp_source_t *    readsrc;  /* source to read from */
+    pgp_armored_msg_t type;     /* type of the message */
+    std::string       armorhdr; /* minimized header, i.e. PUBLIC KEY FILE, MESSAGE, etc */
     uint8_t  rest[ARMORED_BLOCK_SIZE]; /* unread decoded bytes, makes implementation easier */
     unsigned restlen;                  /* number of bytes in rest */
     unsigned restpos;    /* index of first unread byte in rest, restpos <= restlen */
@@ -105,12 +102,12 @@ static const uint8_t B64DEC[256] = {
   0xff};
 
 static bool
-armor_read_padding(pgp_source_armored_param_t *param, size_t *read)
+armor_read_padding(pgp_source_t &src, size_t *read)
 {
     char   st[64];
     size_t stlen = 0;
 
-    if (!src_peek_line(param->readsrc, st, 64, &stlen)) {
+    if (!src.peek_line(st, 64, &stlen)) {
         return false;
     }
 
@@ -120,8 +117,8 @@ armor_read_padding(pgp_source_armored_param_t *param, size_t *read)
         }
 
         *read = stlen;
-        src_skip(param->readsrc, stlen);
-        return src_skip_eol(param->readsrc);
+        src.skip(stlen);
+        return src.skip_eol();
     } else if (stlen == 5) {
         *read = 0;
         return true;
@@ -134,13 +131,13 @@ armor_read_padding(pgp_source_armored_param_t *param, size_t *read)
 }
 
 static bool
-base64_read_padding(pgp_source_armored_param_t *param, size_t *read)
+base64_read_padding(pgp_source_t &src, size_t *read)
 {
     char   pad[16];
     size_t padlen = sizeof(pad);
 
     /* we would allow arbitrary number of whitespaces/eols after the padding */
-    if (!src_read(param->readsrc, pad, padlen, &padlen)) {
+    if (!src.read(pad, padlen, &padlen)) {
         return false;
     }
     /* strip trailing whitespaces */
@@ -158,7 +155,7 @@ base64_read_padding(pgp_source_armored_param_t *param, size_t *read)
         RNP_LOG("wrong base64 padding length %zu.", padlen);
         return false;
     }
-    if (!src_eof(param->readsrc)) {
+    if (!src.eof()) {
         RNP_LOG("warning: extra data after the base64 stream.");
     }
     *read = padlen;
@@ -166,14 +163,13 @@ base64_read_padding(pgp_source_armored_param_t *param, size_t *read)
 }
 
 static bool
-armor_read_crc(pgp_source_t *src)
+armor_read_crc(pgp_source_armored_param_t *param)
 {
-    uint8_t                     dec[4] = {0};
-    char                        crc[8] = {0};
-    size_t                      clen = 0;
-    pgp_source_armored_param_t *param = (pgp_source_armored_param_t *) src->param;
+    uint8_t dec[4] = {0};
+    char    crc[8] = {0};
+    size_t  clen = 0;
 
-    if (!src_peek_line(param->readsrc, crc, sizeof(crc), &clen)) {
+    if (!param->readsrc->peek_line(crc, sizeof(crc), &clen)) {
         return false;
     }
 
@@ -193,69 +189,26 @@ armor_read_crc(pgp_source_t *src)
 
     param->has_crc = true;
 
-    src_skip(param->readsrc, 5);
-    return src_skip_eol(param->readsrc);
+    param->readsrc->skip(5);
+    return param->readsrc->skip_eol();
 }
 
 static bool
-armor_skip_chars(pgp_source_t *src, const char *chars)
+armor_read_trailer(pgp_source_armored_param_t *param)
 {
-    uint8_t ch;
-    size_t  read;
-
-    do {
-        bool found = false;
-        if (!src_peek(src, &ch, 1, &read)) {
-            return false;
-        }
-        if (!read) {
-            /* return true only if there is no underlying read error */
-            return true;
-        }
-        for (const char *chptr = chars; *chptr; chptr++) {
-            if (ch == *chptr) {
-                src_skip(src, 1);
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            break;
-        }
-    } while (1);
-
-    return true;
-}
-
-static bool
-armor_read_trailer(pgp_source_t *src)
-{
-    char                        st[64];
-    char                        str[64];
-    size_t                      stlen;
-    pgp_source_armored_param_t *param = (pgp_source_armored_param_t *) src->param;
-
     /* Space or tab could get between armor and trailer, see issue #2199 */
-    if (!armor_skip_chars(param->readsrc, "\r\n \t")) {
+    if (!param->readsrc->skip_chars("\r\n \t")) {
         return false;
     }
 
-    stlen = strlen(param->armorhdr);
-    if ((stlen > 5) && (stlen + 8 + 1 <= sizeof(st))) {
-        memcpy(st, ST_ARMOR_END, 8); /* 8 here is mandatory */
-        memcpy(st + 8, param->armorhdr + 5, stlen - 5);
-        memcpy(st + stlen + 3, ST_DASHES, 5);
-        stlen += 8;
-    } else {
-        RNP_LOG("Internal error");
+    std::string st = ST_ARMOR_END + param->armorhdr + ST_DASHES;
+    std::string str(st.size(), 0);
+    if (!param->readsrc->peek_eq(&str.front(), str.size()) || (st != str)) {
         return false;
     }
-    if (!src_peek_eq(param->readsrc, str, stlen) || strncmp(str, st, stlen)) {
-        return false;
-    }
-    src_skip(param->readsrc, stlen);
-    (void) armor_skip_chars(param->readsrc, "\t ");
-    (void) src_skip_eol(param->readsrc);
+    param->readsrc->skip(st.size());
+    (void) param->readsrc->skip_chars("\t ");
+    (void) param->readsrc->skip_eol();
     return true;
 }
 
@@ -334,7 +287,7 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
     dend = decbuf + param->brestlen;
 
     do {
-        if (!src_peek(param->readsrc, b64buf, sizeof(b64buf), &read)) {
+        if (!param->readsrc->peek(b64buf, sizeof(b64buf), &read)) {
             return false;
         }
         if (!read) {
@@ -395,37 +348,37 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
         /* skip already processed data */
         if (!param->eofb64) {
             /* all input is base64 data or eol/spaces, so skipping it */
-            src_skip(param->readsrc, read);
+            param->readsrc->skip(read);
             /* check for eof for base64-encoded data without headers */
-            if (param->noheaders && src_eof(param->readsrc)) {
-                src_skip(param->readsrc, read);
+            if (param->noheaders && param->readsrc->eof()) {
+                param->readsrc->skip(read);
                 param->eofb64 = true;
             } else {
                 continue;
             }
         } else {
             /* '=' reached, bptr points on it */
-            src_skip(param->readsrc, bptr - b64buf - 1);
+            param->readsrc->skip(bptr - b64buf - 1);
         }
 
         /* end of base64 data */
         if (param->noheaders) {
-            if (!base64_read_padding(param, &eqcount)) {
+            if (!base64_read_padding(*param->readsrc, &eqcount)) {
                 return false;
             }
             break;
         }
         /* reading b64 padding if any */
-        if (!armor_read_padding(param, &eqcount)) {
+        if (!armor_read_padding(*param->readsrc, &eqcount)) {
             RNP_LOG("wrong padding");
             return false;
         }
         /* reading crc */
-        if (!armor_read_crc(src)) {
+        if (!armor_read_crc(param)) {
             RNP_LOG("Warning: missing or malformed CRC line");
         }
         /* reading armor trailing line */
-        if (!armor_read_trailer(src)) {
+        if (!armor_read_trailer(param)) {
             RNP_LOG("wrong armor trailer");
             return false;
         }
@@ -497,79 +450,47 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 static void
 armored_src_close(pgp_source_t *src)
 {
-    pgp_source_armored_param_t *param = (pgp_source_armored_param_t *) src->param;
-
-    if (param) {
-        free(param->armorhdr);
-        free(param->version);
-        free(param->comment);
-        free(param->hash);
-        free(param->charset);
-        delete param;
-        src->param = NULL;
-    }
+    auto param = (pgp_source_armored_param_t *) src->param;
+    delete param;
+    src->param = NULL;
 }
 
-/** @brief finds armor header position in the buffer, returning beginning of header or NULL.
- *  hdrlen will contain the length of the header
+/** @brief finds armor header position in the buffer, returning position of header or
+           *std::string::npos. hdrlen will contain the length of the header.
+           type will contain content type, i.e. MESSAGE, PUBLIC KEY, whatever.
  **/
-static const char *
-find_armor_header(const char *buf, size_t len, size_t *hdrlen)
+static size_t
+find_armor_header(const std::string &str, size_t &hdrlen, std::string &type)
 {
-    int st = -1;
-
-    for (unsigned i = 0; i < len - 10; i++) {
-        if ((buf[i] == CH_DASH) && !strncmp(&buf[i + 1], ST_DASHES, 4)) {
-            st = i;
-            break;
-        }
+    size_t bg_len = strlen(ST_ARMOR_BEGIN);
+    size_t pos = str.find(ST_ARMOR_BEGIN);
+    if (pos == std::string::npos) {
+        return pos;
     }
-
-    if (st < 0) {
-        return NULL;
+    size_t end = str.find(ST_DASHES, pos + bg_len);
+    if (end == std::string::npos) {
+        return end;
     }
-
-    for (unsigned i = st + 5; i <= len - 5; i++) {
-        if ((buf[i] == CH_DASH) && !strncmp(&buf[i + 1], ST_DASHES, 4)) {
-            *hdrlen = i + 5 - st;
-            return &buf[st];
-        }
-    }
-
-    return NULL;
-}
-
-static bool
-str_equals(const char *str, size_t len, const char *another)
-{
-    size_t alen = strlen(another);
-    return (len == alen) && !memcmp(str, another, alen);
+    hdrlen = end + 5;
+    type.assign(str.begin() + pos + bg_len, str.begin() + end);
+    return pos;
 }
 
 static pgp_armored_msg_t
-armor_str_to_data_type(const char *str, size_t len)
+armor_str_to_data_type(const std::string &str)
 {
-    if (!str) {
-        return PGP_ARMORED_UNKNOWN;
-    }
-    if (str_equals(str, len, "BEGIN PGP MESSAGE")) {
+    if ((str == "MESSAGE") || (str == "ARMORED FILE")) {
         return PGP_ARMORED_MESSAGE;
     }
-    if (str_equals(str, len, "BEGIN PGP PUBLIC KEY BLOCK") ||
-        str_equals(str, len, "BEGIN PGP PUBLIC KEY")) {
+    if ((str == "PUBLIC KEY BLOCK") || (str == "PUBLIC KEY")) {
         return PGP_ARMORED_PUBLIC_KEY;
     }
-    if (str_equals(str, len, "BEGIN PGP SECRET KEY BLOCK") ||
-        str_equals(str, len, "BEGIN PGP SECRET KEY") ||
-        str_equals(str, len, "BEGIN PGP PRIVATE KEY BLOCK") ||
-        str_equals(str, len, "BEGIN PGP PRIVATE KEY")) {
+    if ((str == "SECRET KEY BLOCK") || (str == "SECRET KEY") || (str == "PRIVATE KEY BLOCK") ||
+        (str == "PRIVATE KEY")) {
         return PGP_ARMORED_SECRET_KEY;
     }
-    if (str_equals(str, len, "BEGIN PGP SIGNATURE")) {
+    if (str == "SIGNATURE") {
         return PGP_ARMORED_SIGNATURE;
-    }
-    if (str_equals(str, len, "BEGIN PGP SIGNED MESSAGE")) {
-        return PGP_ARMORED_CLEARTEXT;
     }
     return PGP_ARMORED_UNKNOWN;
 }
@@ -579,7 +500,7 @@ rnp_armor_guess_type(pgp_source_t *src)
 {
     uint8_t ptag;
 
-    if (!src_peek_eq(src, &ptag, 1)) {
+    if (!src->peek_eq(&ptag, 1)) {
         return PGP_ARMORED_UNKNOWN;
     }
 
@@ -617,7 +538,7 @@ rnp_armored_guess_type_by_readahead(pgp_source_t *src)
     pgp_source_t memsrc = {0};
     size_t       read;
     // peek as much as the cache can take
-    bool cache_res = src_peek(src, NULL, sizeof(src->cache->buf), &read);
+    bool cache_res = src->peek(NULL, sizeof(src->cache->buf), &read);
     if (!cache_res || !read ||
         init_mem_src(&memsrc,
                      src->cache->buf + src->cache->pos,
@@ -627,92 +548,91 @@ rnp_armored_guess_type_by_readahead(pgp_source_t *src)
     }
     rnp_result_t res = init_armored_src(&armorsrc, &memsrc);
     if (res) {
-        src_close(&memsrc);
+        memsrc.close();
         RNP_LOG("failed to parse armored data");
         return PGP_ARMORED_UNKNOWN;
     }
     pgp_armored_msg_t guessed = rnp_armor_guess_type(&armorsrc);
-    src_close(&armorsrc);
-    src_close(&memsrc);
+    armorsrc.close();
+    memsrc.close();
     return guessed;
 }
 
-pgp_armored_msg_t
-rnp_armored_get_type(pgp_source_t *src)
+static std::string
+peek_armor_header(pgp_source_t &src, size_t *skip, bool check)
 {
-    pgp_armored_msg_t guessed = rnp_armored_guess_type_by_readahead(src);
-    if (guessed != PGP_ARMORED_UNKNOWN) {
-        return guessed;
+    std::string hdr(ARMORED_PEEK_BUF_SIZE, '\0');
+    size_t      read = 0;
+    if (skip) {
+        *skip = 0;
     }
-
-    char        hdr[ARMORED_PEEK_BUF_SIZE];
-    const char *armhdr;
-    size_t      armhdrlen;
-    size_t      read;
-
-    if (!src_peek(src, hdr, sizeof(hdr), &read) || (read < 20)) {
-        return PGP_ARMORED_UNKNOWN;
+    if (!src.peek(&hdr.front(), hdr.size(), &read) || (read < 20)) {
+        return "";
     }
-    if (!(armhdr = find_armor_header(hdr, read, &armhdrlen))) {
-        return PGP_ARMORED_UNKNOWN;
-    }
+    hdr.resize(read);
 
-    return armor_str_to_data_type(armhdr + 5, armhdrlen - 10);
-}
-
-static bool
-armor_parse_header(pgp_source_t *src)
-{
-    char                        hdr[ARMORED_PEEK_BUF_SIZE];
-    const char *                armhdr;
-    size_t                      armhdrlen;
-    size_t                      read;
-    pgp_source_armored_param_t *param = (pgp_source_armored_param_t *) src->param;
-
-    if (!src_peek(param->readsrc, hdr, sizeof(hdr), &read) || (read < 20)) {
-        return false;
-    }
-
-    if (!(armhdr = find_armor_header(hdr, read, &armhdrlen))) {
-        RNP_LOG("no armor header");
-        return false;
+    std::string type;
+    size_t      armhdrlen = 0;
+    size_t      pos = find_armor_header(hdr, armhdrlen, type);
+    if (pos == std::string::npos) {
+        return "";
     }
 
     /* if there are non-whitespaces before the armor header then issue warning */
-    for (char *ch = hdr; ch < armhdr; ch++) {
-        if (B64DEC[(uint8_t) *ch] != 0xfd) {
+    for (size_t idx = 0; check && (idx < pos); idx++) {
+        if (B64DEC[(uint8_t) hdr[idx]] != 0xfd) {
             RNP_LOG("extra data before the header line");
             break;
         }
     }
 
-    param->type = armor_str_to_data_type(armhdr + 5, armhdrlen - 10);
+    if (skip) {
+        *skip = armhdrlen;
+    }
+    return type;
+}
+
+pgp_armored_msg_t
+rnp_armored_get_type(pgp_source_t *src)
+{
+    auto guessed = rnp_armored_guess_type_by_readahead(src);
+    if (guessed != PGP_ARMORED_UNKNOWN) {
+        return guessed;
+    }
+    return armor_str_to_data_type(peek_armor_header(*src, nullptr, false));
+}
+
+static bool
+armor_parse_header(pgp_source_armored_param_t *param)
+{
+    size_t      skip = 0;
+    std::string hdr = peek_armor_header(*param->readsrc, &skip, true);
+    if (hdr.empty()) {
+        RNP_LOG("no armor header");
+        return false;
+    }
+
+    param->type = armor_str_to_data_type(hdr);
     if (param->type == PGP_ARMORED_UNKNOWN) {
         RNP_LOG("unknown armor header");
         return false;
     }
 
-    if ((param->armorhdr = (char *) malloc(armhdrlen - 9)) == NULL) {
-        RNP_LOG("allocation failed");
-        return false;
-    }
-
-    memcpy(param->armorhdr, armhdr + 5, armhdrlen - 10);
-    param->armorhdr[armhdrlen - 10] = '\0';
-    src_skip(param->readsrc, armhdr - hdr + armhdrlen);
-    armor_skip_chars(param->readsrc, "\t ");
+    param->armorhdr = std::move(hdr);
+    param->readsrc->skip(skip);
+    param->readsrc->skip_chars("\t ");
     return true;
 }
 
 static bool
-armor_skip_line(pgp_source_t *src)
+armor_skip_line(pgp_source_t &src)
 {
     char header[ARMORED_PEEK_BUF_SIZE] = {0};
     do {
         size_t hdrlen = 0;
-        bool   res = src_peek_line(src, header, sizeof(header), &hdrlen);
+        bool   res = src.peek_line(header, sizeof(header), &hdrlen);
         if (hdrlen) {
-            src_skip(src, hdrlen);
+            src.skip(hdrlen);
         }
         if (res || (hdrlen < sizeof(header) - 1)) {
             return res;
@@ -731,64 +651,50 @@ is_base64_line(const char *line, size_t len)
 }
 
 static bool
-armor_parse_headers(pgp_source_t *src)
+armor_header_known(const std::string &name)
 {
-    pgp_source_armored_param_t *param = (pgp_source_armored_param_t *) src->param;
-    char                        header[ARMORED_PEEK_BUF_SIZE] = {0};
+    return (name == ST_HEADER_VERSION) || (name == ST_HEADER_COMMENT) ||
+           (name == ST_HEADER_CHARSET) || (name == ST_HEADER_HASH);
+}
+
+static bool
+armor_parse_headers(pgp_source_armored_param_t *param)
+{
+    std::vector<char> header(ARMORED_PEEK_BUF_SIZE, '\0');
 
     do {
         size_t hdrlen = 0;
-        if (!src_peek_line(param->readsrc, header, sizeof(header), &hdrlen)) {
+        if (!param->readsrc->peek_line(header.data(), header.size(), &hdrlen)) {
             /* if line is too long let's cut it to the reasonable size */
-            src_skip(param->readsrc, hdrlen);
-            if ((hdrlen != sizeof(header) - 1) || !armor_skip_line(param->readsrc)) {
+            param->readsrc->skip(hdrlen);
+            if ((hdrlen != header.size() - 1) || !armor_skip_line(*param->readsrc)) {
                 RNP_LOG("failed to peek line: unexpected end of data");
                 return false;
             }
             RNP_LOG("Too long armor header - truncated.");
-            header[hdrlen] = '\0';
         } else if (hdrlen) {
-            if (is_base64_line(header, hdrlen)) {
+            if (is_base64_line(header.data(), hdrlen)) {
                 RNP_LOG("Warning: no empty line after the base64 headers");
                 return true;
             }
-            src_skip(param->readsrc, hdrlen);
-            if (rnp::is_blank_line(header, hdrlen)) {
-                return src_skip_eol(param->readsrc);
+            param->readsrc->skip(hdrlen);
+            if (rnp::is_blank_line(header.data(), hdrlen)) {
+                return param->readsrc->skip_eol();
             }
         } else {
             /* empty line - end of the headers */
-            return src_skip_eol(param->readsrc);
+            return param->readsrc->skip_eol();
         }
 
-        char *hdrval = (char *) malloc(hdrlen + 1);
-        if (!hdrval) {
-            RNP_LOG("malloc failed");
-            return false;
-        }
-
-        if ((hdrlen >= 9) && !strncmp(header, ST_HEADER_VERSION, 9)) {
-            memcpy(hdrval, header + 9, hdrlen - 8);
-            free(param->version);
-            param->version = hdrval;
-        } else if ((hdrlen >= 9) && !strncmp(header, ST_HEADER_COMMENT, 9)) {
-            memcpy(hdrval, header + 9, hdrlen - 8);
-            free(param->comment);
-            param->comment = hdrval;
-        } else if ((hdrlen >= 5) && !strncmp(header, ST_HEADER_HASH, 6)) {
-            memcpy(hdrval, header + 6, hdrlen - 5);
-            free(param->hash);
-            param->hash = hdrval;
-        } else if ((hdrlen >= 9) && !strncmp(header, ST_HEADER_CHARSET, 9)) {
-            memcpy(hdrval, header + 9, hdrlen - 8);
-            free(param->charset);
-            param->charset = hdrval;
+        std::string hdrst(header.begin(), header.begin() + hdrlen);
+        size_t      pos = hdrst.find(": ");
+        if ((pos != std::string::npos) && armor_header_known(hdrst.substr(0, pos + 2))) {
+            // do nothing at the moment, just check whether header is known
         } else {
-            RNP_LOG("unknown header '%s'", header);
-            free(hdrval);
+            RNP_LOG("unknown header '%s'", hdrst.c_str());
         }
 
-        if (!src_skip_eol(param->readsrc)) {
+        if (!param->readsrc->skip_eol()) {
             return false;
         }
     } while (1);
@@ -809,8 +715,8 @@ init_armored_src(pgp_source_t *src, pgp_source_t *readsrc, bool noheaders)
     param->readsrc = readsrc;
     param->noheaders = noheaders;
     src->param = param;
-    src->read = armored_src_read;
-    src->close = armored_src_close;
+    src->raw_read = armored_src_read;
+    src->raw_close = armored_src_close;
     src->type = PGP_STREAM_ARMORED;
 
     /* base64 data only */
@@ -822,18 +728,18 @@ init_armored_src(pgp_source_t *src, pgp_source_t *readsrc, bool noheaders)
     param->crc_ctx = rnp::CRC24::create();
     /* parsing armored header */
     rnp_result_t errcode = RNP_ERROR_GENERIC;
-    if (!armor_parse_header(src)) {
+    if (!armor_parse_header(param)) {
         errcode = RNP_ERROR_BAD_FORMAT;
         goto finish;
     }
     /* eol */
-    if (!src_skip_eol(param->readsrc)) {
+    if (!param->readsrc->skip_eol()) {
         RNP_LOG("no eol after the armor header");
         errcode = RNP_ERROR_BAD_FORMAT;
         goto finish;
     }
     /* parsing headers */
-    if (!armor_parse_headers(src)) {
+    if (!armor_parse_headers(param)) {
         RNP_LOG("failed to parse headers");
         errcode = RNP_ERROR_BAD_FORMAT;
         goto finish;
@@ -843,21 +749,18 @@ init_armored_src(pgp_source_t *src, pgp_source_t *readsrc, bool noheaders)
     errcode = RNP_SUCCESS;
 finish:
     if (errcode) {
-        src_close(src);
+        src->close();
     }
     return errcode;
 }
 
 /** @brief Write message header to the dst. */
-static bool
+static void
 armor_write_message_header(pgp_dest_armored_param_t *param, bool finish)
 {
     const char *str = finish ? ST_ARMOR_END : ST_ARMOR_BEGIN;
     dst_write(param->writedst, str, strlen(str));
     switch (param->type) {
-    case PGP_ARMORED_MESSAGE:
-        str = "MESSAGE";
-        break;
     case PGP_ARMORED_PUBLIC_KEY:
         str = "PUBLIC KEY BLOCK";
         break;
@@ -867,15 +770,13 @@ armor_write_message_header(pgp_dest_armored_param_t *param, bool finish)
     case PGP_ARMORED_SIGNATURE:
         str = "SIGNATURE";
         break;
-    case PGP_ARMORED_CLEARTEXT:
-        str = "SIGNED MESSAGE";
-        break;
+    case PGP_ARMORED_MESSAGE:
     default:
-        return false;
+        str = "MESSAGE";
+        break;
     }
     dst_write(param->writedst, str, strlen(str));
     dst_write(param->writedst, ST_DASHES, strlen(ST_DASHES));
-    return true;
 }
 
 static void
@@ -1065,9 +966,7 @@ armored_dst_finish(pgp_dest_t *dst)
     armor_write_eol(param);
 
     /* writing armor header */
-    if (!armor_write_message_header(param, true)) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
+    armor_write_message_header(param, true);
     armor_write_eol(param);
     return param->writedst->werr;
 }
@@ -1121,11 +1020,7 @@ init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtyp
     param->eol[1] = CH_LF;
     param->llen = 76; /* must be multiple of 4 */
     /* armor header */
-    if (!armor_write_message_header(param, false)) {
-        RNP_LOG("unknown data type");
-        armored_dst_close(dst, true);
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
+    armor_write_message_header(param, false);
     armor_write_eol(param);
     /* empty line */
     armor_write_eol(param);
@@ -1151,41 +1046,41 @@ armored_dst_set_line_length(pgp_dest_t *dst, size_t llen)
 }
 
 bool
-is_armored_source(pgp_source_t *src)
+pgp_source_t::is_armored()
 {
-    uint8_t buf[ARMORED_PEEK_BUF_SIZE];
-    size_t  read = 0;
-
-    if (!src_peek(src, buf, sizeof(buf), &read) || (read < strlen(ST_ARMOR_BEGIN) + 1)) {
-        return false;
-    }
-    buf[read - 1] = 0;
-    if (!!strstr((char *) buf, ST_CLEAR_BEGIN)) {
-        return false;
-    }
-    return !!strstr((char *) buf, ST_ARMOR_BEGIN);
-}
-
-bool
-is_cleartext_source(pgp_source_t *src)
-{
-    uint8_t buf[ARMORED_PEEK_BUF_SIZE];
-    size_t  read = 0;
-
-    if (!src_peek(src, buf, sizeof(buf), &read) || (read < strlen(ST_CLEAR_BEGIN))) {
-        return false;
-    }
-    buf[read - 1] = 0;
-    return !!strstr((char *) buf, ST_CLEAR_BEGIN);
-}
-
-bool
-is_base64_source(pgp_source_t &src)
-{
-    char   buf[128];
+    char   buf[ARMORED_PEEK_BUF_SIZE] = {0};
     size_t read = 0;
 
-    if (!src_peek(&src, buf, sizeof(buf), &read) || (read < 4)) {
+    if (!peek(buf, sizeof(buf) - 1, &read) || (read < strlen(ST_ARMOR_BEGIN) + 1)) {
+        return false;
+    }
+    buf[read] = 0;
+    if (!!strstr(buf, ST_CLEAR_BEGIN)) {
+        return false;
+    }
+    return !!strstr(buf, ST_ARMOR_BEGIN);
+}
+
+bool
+pgp_source_t::is_cleartext()
+{
+    char   buf[ARMORED_PEEK_BUF_SIZE] = {0};
+    size_t read = 0;
+
+    if (!peek(buf, sizeof(buf) - 1, &read) || (read < strlen(ST_CLEAR_BEGIN))) {
+        return false;
+    }
+    buf[read] = 0;
+    return !!strstr(buf, ST_CLEAR_BEGIN);
+}
+
+bool
+pgp_source_t::is_base64()
+{
+    char   buf[128] = {0};
+    size_t read = 0;
+
+    if (!peek(buf, sizeof(buf), &read) || (read < 4)) {
         return false;
     }
     return is_base64_line(buf, read);
@@ -1208,7 +1103,7 @@ rnp_dearmor_source(pgp_source_t *src, pgp_dest_t *dst)
         RNP_LOG("dearmoring failed");
     }
 
-    src_close(&armorsrc);
+    armorsrc.close();
     return res;
 }
 
@@ -1242,7 +1137,7 @@ ArmoredSource::ArmoredSource(pgp_source_t &readsrc, uint32_t flags)
     /* Do not dearmor already armored stream */
     bool already = readsrc_.type == PGP_STREAM_ARMORED;
     /* Check for base64 source: no multiple streams allowed */
-    if (!already && (flags & AllowBase64) && (is_base64_source(readsrc))) {
+    if (!already && (flags & AllowBase64) && (readsrc.is_base64())) {
         auto res = init_armored_src(&src_, &readsrc_, true);
         if (res) {
             RNP_LOG("Failed to parse base64 data.");
@@ -1252,7 +1147,7 @@ ArmoredSource::ArmoredSource(pgp_source_t &readsrc, uint32_t flags)
         return;
     }
     /* Check for armored source */
-    if (!already && is_armored_source(&readsrc)) {
+    if (!already && readsrc.is_armored()) {
         auto res = init_armored_src(&src_, &readsrc_);
         if (res) {
             RNP_LOG("Failed to parse armored data.");
@@ -1273,10 +1168,10 @@ ArmoredSource::ArmoredSource(pgp_source_t &readsrc, uint32_t flags)
 void
 ArmoredSource::restart()
 {
-    if (!armored_ || src_eof(&readsrc_) || src_error(&readsrc_)) {
+    if (!armored_ || readsrc_.eof() || readsrc_.error()) {
         return;
     }
-    src_close(&src_);
+    src_.close();
     auto res = init_armored_src(&src_, &readsrc_);
     if (res) {
         throw rnp::rnp_exception(res);

@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2020 Ribose Inc.
+# Copyright (c) 2018-2025 Ribose Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,10 +34,18 @@ find_package(JSON-C 0.11 REQUIRED)
 if (CRYPTO_BACKEND_BOTAN3)
   find_package(Botan 3.0.0 REQUIRED)
 elseif (CRYPTO_BACKEND_BOTAN)
+  # botan-config.cmake from Botan distribution doesn't support version 2.x, 
+  # so use -DCRYPTO_BACKEND=botan3 to configure
   find_package(Botan 2.14.0 REQUIRED)
-  if(BOTAN_VERSION VERSION_GREATER_EQUAL 3.0.0)
+  if(Botan_VERSION VERSION_GREATER_EQUAL 3.0.0)
     set(CRYPTO_BACKEND_BOTAN3 1)
   endif()
+endif()
+if (CRYPTO_BACKEND_BOTAN)
+  # botan-config.cmake from Botan distribution sets Botan_VERSION instead of BOTAN_VERSION
+  # like we did and doesn't set BOTAN_INCLUDE_DIRS like our built-in did.
+  get_target_property(BOTAN_INCLUDE_DIRS Botan::Botan INTERFACE_INCLUDE_DIRECTORIES)
+  set(CRYPTO_BACKEND_VERSION "${Botan_VERSION}")
 endif()
 if (CRYPTO_BACKEND_OPENSSL)
   find_package(OpenSSL 1.1.1 REQUIRED)
@@ -45,10 +53,22 @@ if (CRYPTO_BACKEND_OPENSSL)
   if("${OPENSSL_VERSION}" VERSION_GREATER_EQUAL "3.0.0")
     set(CRYPTO_BACKEND_OPENSSL3 1)
   endif()
+  set(CRYPTO_BACKEND_VERSION "${OPENSSL_VERSION}")
 endif()
 
 if(CRYPTO_BACKEND_BOTAN3)
   set(CMAKE_CXX_STANDARD 20)
+endif()
+
+if(ENABLE_PQC)
+  if (NOT CRYPTO_BACKEND_BOTAN3)
+    message(FATAL_ERROR "ENABLE_PQC requires Botan 3 as crypto backend")
+  endif()
+endif()
+
+# check that AEAD is enabled and not turned off for ENABLE_CRYPTO_REFRESH
+if(ENABLE_CRYPTO_REFRESH AND (NOT ENABLE_AEAD))
+  message(FATAL_ERROR "ENABLE_CRYPTO_REFRESH requires ENABLE_AEAD, but it's either Off or Auto and got turned off")
 endif()
 
 # generate a config.h
@@ -75,8 +95,15 @@ check_cxx_symbol_exists(_O_BINARY fcntl.h HAVE__O_BINARY)
 check_cxx_symbol_exists(_tempnam stdio.h HAVE__TEMPNAM)
 set(HAVE_ZLIB_H "${ZLIB_FOUND}")
 set(HAVE_BZLIB_H "${BZIP2_FOUND}")
-# generate a version.h
-configure_file(version.h.in version.h)
+if (WIN32)
+  include(CheckCSourceCompiles)
+
+  check_c_source_compiles("
+    #include <sys/types.h>
+    #include <sys/stat.h>
+    #include <unistd.h>
+    int main() { struct stat s; return 0; }" HAVE_WIN_STAT)
+endif()
 
 # Checks feature in CRYPTO_BACKEND and puts the result into variable whose name is stored in RESULT_VARNAME variable.
 function(backend_has_feature FEATURE RESULT_VARNAME)
@@ -156,13 +183,25 @@ if(CRYPTO_BACKEND_BOTAN)
       # public-key operations etc
       EME_PKCS1v15 EMSA_PKCS1 EMSA_RAW KDF_BASE RFC3394_KEYWRAP SP800_56A
   )
-  if(BOTAN_VERSION VERSION_LESS 3.0.0)
+  if(Botan_VERSION VERSION_LESS 3.0.0)
     set(_botan_required_features ${_botan_required_features} DL_PUBLIC_KEY_FAMILY)
   else()
     set(_botan_required_features ${_botan_required_features} DL_SCHEME RAW_HASH_FN)
   endif()
+  if(Botan_VERSION VERSION_GREATER_EQUAL 3.7.0)
+    set(_botan_required_features ${_botan_required_features}
+        # Basic curves, see below for Brainpool/SM2
+        PCURVES
+        PCURVES_IMPL
+        PCURVES_SECP192R1
+        PCURVES_SECP256K1
+        PCURVES_SECP256R1
+        PCURVES_SECP384R1
+        PCURVES_SECP521R1
+    )
+  endif()
   foreach(feature ${_botan_required_features})
-    check_cxx_symbol_exists("BOTAN_HAS_${feature}" botan/build.h _botan_has_${feature})
+    backend_has_feature("${feature}" _botan_has_${feature})
     if (NOT _botan_has_${feature})
       message(FATAL_ERROR "A required botan feature is missing: ${feature}")
     endif()
@@ -172,10 +211,21 @@ if(CRYPTO_BACKEND_BOTAN)
   resolve_feature_state(ENABLE_AEAD "AEAD_EAX;AEAD_OCB")
   resolve_feature_state(ENABLE_TWOFISH "TWOFISH")
   resolve_feature_state(ENABLE_IDEA "IDEA")
-  # Botan supports Brainpool curves together with SECP via the ECC_GROUP define
+  resolve_feature_state(ENABLE_CRYPTO_REFRESH "HKDF")
+  resolve_feature_state(ENABLE_PQC "KMAC;DILITHIUM;KYBER;SPHINCS_PLUS_WITH_SHA2;SPHINCS_PLUS_WITH_SHAKE")
   resolve_feature_state(ENABLE_BLOWFISH "BLOWFISH")
   resolve_feature_state(ENABLE_CAST5 "CAST_128")
   resolve_feature_state(ENABLE_RIPEMD160 "RIPEMD_160")
+  if(Botan_VERSION VERSION_GREATER_EQUAL 3.7.0)
+    # Separate SM2 curve since 3.7.0
+    resolve_feature_state(ENABLE_SM2 "PCURVES_SM2P256V1")
+    # Botan supports Brainpool curves together with SECP via the ECC_GROUP define before the 3.7.0
+    resolve_feature_state(ENABLE_BRAINPOOL "PCURVES_BRAINPOOL256R1;PCURVES_BRAINPOOL384R1;PCURVES_BRAINPOOL512R1")
+  endif()
+
+  set(ENABLE_AEAD_EAX "${ENABLE_AEAD}")
+  set(ENABLE_AEAD_OCB "${ENABLE_AEAD}")
+
   set(CMAKE_REQUIRED_INCLUDES)
 endif()
 if(CRYPTO_BACKEND_OPENSSL)
@@ -218,13 +268,32 @@ if(CRYPTO_BACKEND_OPENSSL)
   openssl_nope(ENABLE_SM2 "it's on our roadmap, see https://github.com/rnpgp/rnp/issues/1877")
   #resolve_feature_state(ENABLE_SM2 "SM2;SM3;SM4-ECB")
   openssl_nope(ENABLE_TWOFISH "Twofish isn't and won't be supported by OpenSSL, see https://github.com/openssl/openssl/issues/2046")
+  openssl_nope(ENABLE_CRYPTO_REFRESH, "not yet implemented")
+  openssl_nope(ENABLE_PQC, "not yet implemented")
+  set(ENABLE_AEAD_EAX "Off")
+  set(ENABLE_AEAD_OCB "${ENABLE_AEAD}")
 endif()
 
 configure_file(config.h.in config.h)
+# generate a version.h
+configure_file(version.h.in version.h)
+# append enabled features defines
+set(HAS_FEATURES BRAINPOOL IDEA BLOWFISH CAST5 RIPEMD160 AEAD AEAD_EAX AEAD_OCB SM2 TWOFISH)
+list(SORT HAS_FEATURES)
+set(HAS_FEATURES_MACROS "")
+foreach(FEATURE ${HAS_FEATURES})
+    if(ENABLE_${FEATURE})
+        set(VALUE 1)
+    else()
+        set(VALUE 0)
+    endif()
+    string(APPEND HAS_FEATURES_MACROS "#define RNP_HAS_${FEATURE} ${VALUE}\n")
+endforeach()
+file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/version.h "${HAS_FEATURES_MACROS}")
 
 if(CRYPTO_BACKEND_OPENSSL)
   set(CRYPTO_SOURCES
-    crypto/bn_ossl.cpp
+    crypto/dsa_common.cpp
     crypto/dsa_ossl.cpp
     crypto/ec_curves.cpp
     crypto/ec_ossl.cpp
@@ -242,6 +311,7 @@ if(CRYPTO_BACKEND_OPENSSL)
     crypto/rsa_ossl.cpp
     crypto/s2k.cpp
     crypto/s2k_ossl.cpp
+    crypto/symmetric_common.cpp
     crypto/symmetric_ossl.cpp
     crypto/signatures.cpp
     crypto/mem_ossl.cpp
@@ -253,7 +323,7 @@ if(CRYPTO_BACKEND_OPENSSL)
   endif()
 elseif(CRYPTO_BACKEND_BOTAN)
   set(CRYPTO_SOURCES
-    crypto/bn.cpp
+    crypto/dsa_common.cpp
     crypto/dsa.cpp
     crypto/ec_curves.cpp
     crypto/ec.cpp
@@ -268,6 +338,7 @@ elseif(CRYPTO_BACKEND_BOTAN)
     crypto/rng.cpp
     crypto/rsa.cpp
     crypto/s2k.cpp
+    crypto/symmetric_common.cpp
     crypto/symmetric.cpp
     crypto/signatures.cpp
     crypto/mem.cpp
@@ -277,6 +348,32 @@ elseif(CRYPTO_BACKEND_BOTAN)
   if(ENABLE_SM2)
     list(APPEND CRYPTO_SOURCES crypto/sm2.cpp)
   endif()
+  if(ENABLE_PQC OR ENABLE_CRYPTO_REFRESH)
+    list(APPEND CRYPTO_SOURCES
+        crypto/exdsa_ecdhkem.cpp
+        crypto/ed25519.cpp
+        crypto/x25519.cpp
+  )
+  if(ENABLE_CRYPTO_REFRESH)
+    list(APPEND CRYPTO_SOURCES
+        crypto/hkdf.cpp
+        crypto/hkdf_botan.cpp
+    )
+  endif()
+  if(ENABLE_PQC)
+    list(APPEND CRYPTO_SOURCES
+        crypto/dilithium.cpp
+        crypto/dilithium_common.cpp
+        crypto/sphincsplus.cpp
+        crypto/kyber_common.cpp
+        crypto/kyber.cpp
+        crypto/kyber_ecdh_composite.cpp
+        crypto/dilithium_exdsa_composite.cpp
+        crypto/kmac.cpp
+        crypto/kmac_botan.cpp
+    )
+    endif()
+  endif()
 else()
   message(FATAL_ERROR "Unknown crypto backend: ${CRYPTO_BACKEND}.")
 endif()
@@ -284,6 +381,14 @@ list(APPEND CRYPTO_SOURCES crypto/backend_version.cpp)
 
 # sha11collisiondetection sources
 list(APPEND CRYPTO_SOURCES crypto/hash_sha1cd.cpp crypto/sha1cd/sha1.c crypto/sha1cd/ubc_check.c)
+
+
+set(CRYPTO_REFRESH_SOURCES )
+if(ENABLE_CRYPTO_REFRESH)
+  list(APPEND CRYPTO_REFRESH_SOURCES
+    ../librepgp/v2_seipd.cpp
+    )
+endif()
 
 add_library(librnp-obj OBJECT
   # librepgp
@@ -296,6 +401,7 @@ add_library(librnp-obj OBJECT
   ../librepgp/stream-parse.cpp
   ../librepgp/stream-sig.cpp
   ../librepgp/stream-write.cpp
+  ${CRYPTO_REFRESH_SOURCES}
 
   # librekey
   ../librekey/key_store_g10.cpp
@@ -308,15 +414,21 @@ add_library(librnp-obj OBJECT
 
   # other sources
   sec_profile.cpp
-  crypto.cpp
   fingerprint.cpp
-  generate-key.cpp
   key-provider.cpp
   logging.cpp
   json-utils.cpp
   utils.cpp
   pass-provider.cpp
-  pgp-key.cpp
+  rawpacket.cpp
+  sig_subpacket.cpp
+  key_material.cpp
+  enc_material.cpp
+  sig_material.cpp
+  signature.cpp
+  userid.cpp
+  keygen.cpp
+  key.cpp
   rnp.cpp
 )
 
@@ -413,12 +525,24 @@ foreach (prop LINK_LIBRARIES INTERFACE_LINK_LIBRARIES INCLUDE_DIRECTORIES INTERF
 
 endforeach()
 
+set(EXPERIMENTAL_FEATURES "")
+if (ENABLE_CRYPTO_REFRESH)
+  set(EXPERIMENTAL_FEATURES "${EXPERIMENTAL_FEATURES}\n#define RNP_EXPERIMENTAL_CRYPTO_REFRESH\n")
+endif()
+if(ENABLE_PQC)
+  set(EXPERIMENTAL_FEATURES "${EXPERIMENTAL_FEATURES}\n#define RNP_EXPERIMENTAL_PQC\n")
+endif()
+if(NOT EXPERIMENTAL_FEATURES STREQUAL "")
+  message(WARNING "One or more experimental features are enabled. Use it on your own risk.")
+endif()
+
 generate_export_header(librnp
   BASE_NAME rnp
   EXPORT_MACRO_NAME RNP_API
   EXPORT_FILE_NAME rnp/rnp_export.h
   STATIC_DEFINE RNP_STATIC
   INCLUDE_GUARD_NAME RNP_EXPORT
+  CUSTOM_CONTENT_FROM_VARIABLE EXPERIMENTAL_FEATURES
 )
 
 # This has precedence and can cause some confusion when the binary
@@ -511,6 +635,16 @@ install(
     "${CMAKE_INSTALL_INCLUDEDIR}/rnp"
   RENAME
     rnp_export.h
+)
+install(
+  FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/version.h"
+  COMPONENT
+    development
+  DESTINATION
+    "${CMAKE_INSTALL_INCLUDEDIR}/rnp"
+  RENAME
+    rnp_ver.h
 )
 
 # .cmake installs

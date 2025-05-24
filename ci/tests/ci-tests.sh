@@ -41,7 +41,7 @@ SHUNIT_PARENT="$0"
 
 test_symbol_visibility() {
     case "$OSTYPE" in
-      msys)
+      msys|cygwin)
         mkdir tmp
         wget -O tmp/Dependencies_x64_Release.zip https://github.com/lucasg/Dependencies/releases/download/v1.10/Dependencies_x64_Release.zip
         7z x tmp/Dependencies_x64_Release.zip -otmp
@@ -117,9 +117,8 @@ test_supported_features() {
         library_path="${BOTAN_INSTALL}/$so_folder:${JSONC_INSTALL}/$so_folder:${RNP_INSTALL}/$so_folder"
     fi
 
-    if [[ "$OSTYPE" == darwin* ]]; then
-        export DYLD_LIBRARY_PATH="$library_path${DYLD_LIBRARY_PATH:+:${DYLD_LIBRARY_PATH}}"
-    else
+    # For darwin we assume that LC_RPATH is added with @executable_dir/../lib
+    if [[ ! "$OSTYPE" == darwin* ]]; then
         export LD_LIBRARY_PATH="$library_path${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
     fi
 

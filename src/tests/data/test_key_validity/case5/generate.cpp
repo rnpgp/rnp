@@ -29,7 +29,7 @@
 #include "librepgp/stream-key.h"
 #include "librepgp/stream-packet.h"
 #include "fingerprint.h"
-#include "pgp-key.h"
+#include "key.hpp"
 #include "crypto/signatures.h"
 
 static bool
@@ -37,14 +37,14 @@ load_transferable_key(pgp_transferable_key_t *key, const char *fname)
 {
     pgp_source_t src = {};
     bool         res = !init_file_src(&src, fname) && !process_pgp_key(src, key, false);
-    src_close(&src);
+    src.close();
     return res;
 }
 
 bool calculate_primary_binding(const pgp_key_pkt_t &key,
                                const pgp_key_pkt_t &subkey,
                                pgp_hash_alg_t       halg,
-                               pgp_signature_t &    sig,
+                               pgp::pkt::Signature &sig,
                                rnp::Hash &          hash,
                                rnp::RNG &           rng);
 
@@ -72,7 +72,7 @@ main(int argc, char **argv)
 
     pgp_transferable_subkey_t *subkey =
       (pgp_transferable_subkey_t *) list_front(tpkey.subkeys);
-    pgp_signature_t *binding = (pgp_signature_t *) list_front(subkey->signatures);
+    pgp::pkt::Signature *binding = (pgp::pkt::Signature *) list_front(subkey->signatures);
 
     if (decrypt_secret_key(&tskey.key, "password")) {
         RNP_LOG("Failed to decrypt secret key");
@@ -84,8 +84,8 @@ main(int argc, char **argv)
     }
 
     /* now let's rebuild binding using the other key */
-    uint8_t           keyid[PGP_KEY_ID_SIZE];
-    pgp_fingerprint_t keyfp;
+    uint8_t          keyid[PGP_KEY_ID_SIZE];
+    pgp::Fingerprint keyfp;
 
     free(binding->hashed_data);
     binding->hashed_data = NULL;
@@ -94,7 +94,7 @@ main(int argc, char **argv)
     pgp_keyid(keyid, sizeof(keyid), tskey.key);
     pgp_fingerprint(&keyfp, tskey.key);
 
-    binding->halg = pgp_hash_adjust_alg_to_key(binding->halg, &tskey.key);
+    binding->halg = tskey.key.material->adjust_hash(binding->halg);
     binding->palg = tskey.key.alg;
     binding->set_keyfp(keyfp);
 
@@ -120,8 +120,8 @@ main(int argc, char **argv)
         realkf = pgp_pk_alg_capabilities(subkey->subkey.alg);
     }
     if (realkf & PGP_KF_SIGN) {
-        pgp_signature_t embsig = {};
-        bool            embres;
+        pgp::pkt::Signature embsig;
+        bool                embres;
 
         if (!calculate_primary_binding(
               &tpkey.key, &subkey->subkey, binding->halg, &embsig, &hashcp, &rng)) {

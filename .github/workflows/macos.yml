@@ -39,6 +39,7 @@ on:
       - '**.md'
       - '**.nix'
       - 'flake.lock'
+      - 'version.txt'
       - '.github/workflows/*.yml'
       - '!.github/workflows/macos.yml'
   pull_request:
@@ -51,6 +52,7 @@ on:
       - '**.md'
       - '**.nix'
       - 'flake.lock'
+      - 'version.txt'
 
 concurrency:
   group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
@@ -68,11 +70,11 @@ jobs:
       fail-fast: false
       matrix:
 # On MacOS gcc is alias of clang these days
-        os: [ macos-12, macos-13, macos-14 ]
+        os: [ macos-13, macos-14 ]
         backend: [ 'botan' ]
         shared_libs: [ 'on' ]
         include:
-          - { os: 'macos-11', backend: 'openssl@1.1', shared_libs: 'on' }
+          - { os: 'macos-13', backend: 'openssl@1.1', shared_libs: 'on' }
           - { os: 'macos-14', backend: 'openssl@3', shared_libs: 'on' }
           - { os: 'macos-14', backend: 'botan', shared_libs: 'off' }
           - { os: 'macos-14', backend: 'botan3', shared_libs: 'on' }
@@ -81,7 +83,7 @@ jobs:
     timeout-minutes: 250
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 1
           submodules: true
@@ -92,6 +94,8 @@ jobs:
           echo "brew \"openssl@1.1\"" >> Brewfile
           echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@1.1)" >> $GITHUB_ENV
           echo "CRYPTO_BACKEND=openssl" >> $GITHUB_ENV
+          # Harsh workaround against CLang adding /usr/local/include path, where OpenSSL 3.0 headers are
+          rm -r /usr/local/include/openssl
 
       - name: Configure openssl 3 backend
         if: matrix.backend == 'openssl@3'
@@ -101,11 +105,12 @@ jobs:
           echo "CRYPTO_BACKEND=openssl" >> $GITHUB_ENV
 
       - name: Install dependencies
-        run: brew bundle
+        run: |
+          brew bundle -f
 
       - name: Botan2 cache
         id: cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         if: matrix.backend == 'botan'
         with:
           path: Botan-${{ env.BOTAN_VERSION }}
@@ -156,9 +161,31 @@ jobs:
           export PATH="$PWD/build/src/lib:$PATH"
           ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure
 
+      - name: Configure and build with botan-config.cmake
+        if:  matrix.backend == 'botan3'
+        run: |
+            rm -rf build
+            rm -rf ./cmake/Modules/FindBotan.cmake
+            shopt -s nullglob
+            files=(/opt/homebrew/lib/cmake/Botan-*/botan-config.cmake)
+            shopt -u nullglob
+
+            if [[ ${#files[@]} -eq 0 ]]; then
+              echo "Error: No botan-config.cmake found." >&2
+              exit 1
+            fi
+
+            brew install asciidoctor
+            cmake -B build -DBUILD_SHARED_LIBS=${{ matrix.shared_libs }}   \
+                           -DCMAKE_BUILD_TYPE=Release                      \
+                           -DDOWNLOAD_GTEST=OFF                            \
+                           -DCRYPTO_BACKEND=botan3 .  
+            cmake --build build --config Release --parallel ${{ env.CORES }}
+            sudo cmake --install build
+
       - name: Checkout shell test framework
         if: matrix.shared_libs == 'on'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: kward/shunit2
           path: ci/tests/shunit2

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2021 Ribose Inc.
+ * Copyright (c) 2021-2023 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,7 @@
 #elif defined(CRYPTO_BACKEND_OPENSSL)
 #include <openssl/crypto.h>
 #endif
+#include "str-utils.h"
 
 namespace rnp {
 
@@ -44,7 +45,10 @@ template <typename T> using secure_vector = Botan::secure_vector<T>;
 #elif defined(CRYPTO_BACKEND_OPENSSL)
 template <typename T> class ossl_allocator {
   public:
-    static_assert(std::is_integral<T>::value, "T must be integral type");
+#if !defined(_MSC_VER) || !defined(_DEBUG)
+    /* MSVC in debug mode uses non-integral proxy types in container types */
+    static_assert(std::is_integral<T>::value, "secure_vector can hold integral types only");
+#endif
 
     typedef T           value_type;
     typedef std::size_t size_type;
@@ -97,9 +101,15 @@ template <typename T> using secure_vector = std::vector<T, ossl_allocator<T> >;
 #error Unsupported backend.
 #endif
 
+using secure_bytes = secure_vector<uint8_t>;
+
 template <typename T, std::size_t N> struct secure_array {
   private:
-    static_assert(std::is_integral<T>::value, "T must be integer type");
+#if !defined(_MSC_VER) || !defined(_DEBUG)
+    /* MSVC in debug mode uses non-integral proxy types in container types */
+    static_assert(std::is_integral<T>::value, "secure_array can hold integral types only");
+#endif
+
     std::array<T, N> data_;
 
   public:
@@ -109,6 +119,12 @@ template <typename T, std::size_t N> struct secure_array {
 
     T *
     data()
+    {
+        return &data_[0];
+    }
+
+    const T *
+    data() const
     {
         return &data_[0];
     }
@@ -143,14 +159,43 @@ template <typename T, std::size_t N> struct secure_array {
     }
 };
 
-typedef enum { HEX_LOWERCASE, HEX_UPPERCASE } hex_format_t;
+enum class HexFormat { Lowercase, Uppercase };
 
 bool   hex_encode(const uint8_t *buf,
                   size_t         buf_len,
                   char *         hex,
                   size_t         hex_len,
-                  hex_format_t   format = HEX_UPPERCASE);
+                  HexFormat      format = HexFormat::Uppercase);
 size_t hex_decode(const char *hex, uint8_t *buf, size_t buf_len);
+
+inline std::string
+bin_to_hex(const uint8_t *data, size_t len, HexFormat format = HexFormat::Uppercase)
+{
+    std::string res(len * 2 + 1, '\0');
+    (void) hex_encode(data, len, &res.front(), res.size(), format);
+    res.resize(len * 2);
+    return res;
+}
+
+inline std::string
+bin_to_hex(const std::vector<uint8_t> &vec, HexFormat format = HexFormat::Uppercase)
+{
+    return bin_to_hex(vec.data(), vec.size(), format);
+}
+
+inline std::vector<uint8_t>
+hex_to_bin(const std::string &str)
+{
+    if (str.empty() || !is_hex(str)) {
+        return {};
+    }
+    /* 1 extra char for case of non-even input , 1 for terminating zero */
+    std::vector<uint8_t> res(str.size() / 2 + 2);
+    size_t               len = hex_decode(str.c_str(), res.data(), res.size());
+    res.resize(len);
+    return res;
+}
+
 } // namespace rnp
 
 void secure_clear(void *vp, size_t size);

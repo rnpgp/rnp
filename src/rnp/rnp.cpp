@@ -56,48 +56,53 @@ static const char *usage =
   "Sign, verify, encrypt, decrypt, inspect OpenPGP data.\n"
   "Usage: rnp --command [options] [files]\n"
   "Commands:\n"
-  "  -h, --help           This help message.\n"
-  "  -V, --version        Print RNP version information.\n"
-  "  -e, --encrypt        Encrypt data using the public key(s).\n"
-  "    -r, --recipient    Specify recipient's key via uid/keyid/fingerprint.\n"
-  "    --cipher name      Specify symmetric cipher, used for encryption.\n"
-  "    --aead[=EAX, OCB]  Use AEAD for encryption.\n"
-  "    -z 0..9            Set the compression level.\n"
-  "    --[zip,zlib,bzip]  Use the corresponding compression algorithm.\n"
-  "    --armor            Apply ASCII armor to the encryption/signing output.\n"
-  "    --no-wrap          Do not wrap the output in a literal data packet.\n"
-  "  -c, --symmetric      Encrypt data using the password(s).\n"
-  "    --passwords num    Encrypt to the specified number of passwords.\n"
-  "  -s, --sign           Sign data. May be combined with encryption.\n"
-  "    --detach           Produce detached signature.\n"
-  "    -u, --userid       Specify signing key(s) via uid/keyid/fingerprint.\n"
-  "    --hash             Specify hash algorithm, used during signing.\n"
-  "    --allow-weak-hash  Allow usage of a weak hash algorithm.\n"
-  "  --clearsign          Cleartext-sign data.\n"
-  "  -d, --decrypt        Decrypt and output data, verifying signatures.\n"
-  "  -v, --verify         Verify signatures, without outputting data.\n"
-  "    --source           Specify source for the detached signature.\n"
-  "  --dearmor            Strip ASCII armor from the data, outputting binary.\n"
-  "  --enarmor            Add ASCII armor to the data.\n"
-  "  --list-packets       List OpenPGP packets from the input.\n"
-  "    --json             Use JSON output instead of human-readable.\n"
-  "    --grips            Dump key fingerprints and grips.\n"
-  "    --mpi              Dump MPI values from packets.\n"
-  "    --raw              Dump raw packet contents as well.\n"
+  "  -h, --help              This help message.\n"
+  "  -V, --version           Print RNP version information.\n"
+  "  -e, --encrypt           Encrypt data using the public key(s).\n"
+  "    -r, --recipient       Specify recipient's key via uid/keyid/fingerprint.\n"
+#if defined(ENABLE_CRYPTO_REFRESH)
+  "    --v3-pkesk-only       Only create v3 PKESK (otherwise v6 will be created if "
+  "appropriate).\n"
+#endif
+  "    --cipher name         Specify symmetric cipher, used for encryption.\n"
+  "    --aead[=EAX, OCB]     Use AEAD for encryption.\n"
+  "    -z 0..9               Set the compression level.\n"
+  "    --[zip,zlib,bzip]     Use the corresponding compression algorithm.\n"
+  "    --armor               Apply ASCII armor to the encryption/signing output.\n"
+  "    --no-wrap             Do not wrap the output in a literal data packet.\n"
+  "  -c, --symmetric         Encrypt data using the password(s).\n"
+  "    --passwords num       Encrypt to the specified number of passwords.\n"
+  "  -s, --sign              Sign data. May be combined with encryption.\n"
+  "    --detach              Produce detached signature.\n"
+  "    -u, --userid          Specify signing key(s) via uid/keyid/fingerprint.\n"
+  "    --hash                Specify hash algorithm, used during signing.\n"
+  "    --allow-weak-hash     Allow usage of a weak hash algorithm.\n"
+  "    --allow-sha1-key-sigs Allow usage of a SHA-1 key signatures.\n"
+  "  --clearsign             Cleartext-sign data.\n"
+  "  -d, --decrypt           Decrypt and output data, verifying signatures.\n"
+  "  -v, --verify            Verify signatures, without outputting data.\n"
+  "    --source              Specify source for the detached signature.\n"
+  "  --dearmor               Strip ASCII armor from the data, outputting binary.\n"
+  "  --enarmor               Add ASCII armor to the data.\n"
+  "  --list-packets          List OpenPGP packets from the input.\n"
+  "    --json                Use JSON output instead of human-readable.\n"
+  "    --grips               Dump key fingerprints and grips.\n"
+  "    --mpi                 Dump MPI values from packets.\n"
+  "    --raw                 Dump raw packet contents as well.\n"
   "\n"
   "Other options:\n"
-  "  --homedir path       Override home directory (default is ~/.rnp/).\n"
-  "  -f, --keyfile        Load key(s) only from the file specified.\n"
-  "  --output [file, -]   Write data to the specified file or stdout.\n"
-  "  --overwrite          Overwrite output file without a prompt.\n"
-  "  --password           Password used during operation.\n"
-  "  --pass-fd num        Read password(s) from the file descriptor.\n"
-  "  --s2k-iterations     Set the number of iterations for the S2K process.\n"
-  "  --s2k-msec           Calculate S2K iterations value based on a provided time in "
+  "  --homedir path          Override home directory (default is ~/.rnp/).\n"
+  "  -f, --keyfile           Load key(s) only from the file specified.\n"
+  "  --output [file, -]      Write data to the specified file or stdout.\n"
+  "  --overwrite             Overwrite output file without a prompt.\n"
+  "  --password              Password used during operation.\n"
+  "  --pass-fd num           Read password(s) from the file descriptor.\n"
+  "  --s2k-iterations        Set the number of iterations for the S2K process.\n"
+  "  --s2k-msec              Calculate S2K iterations value based on a provided time in "
   "milliseconds.\n"
-  "  --notty              Do not output anything to the TTY.\n"
-  "  --current-time       Override system's time.\n"
-  "  --set-filename       Override file name, stored inside of OpenPGP message.\n"
+  "  --notty                 Do not output anything to the TTY.\n"
+  "  --current-time          Override system's time.\n"
+  "  --set-filename          Override file name, stored inside of OpenPGP message.\n"
   "\n"
   "See man page for a detailed listing and explanation.\n"
   "\n";
@@ -125,11 +130,15 @@ enum optdefs {
     OPT_KEY_STORE_FORMAT,
     OPT_USERID,
     OPT_RECIPIENT,
+#if defined(ENABLE_CRYPTO_REFRESH)
+    OPT_V3_PKESK_ONLY,
+#endif
     OPT_ARMOR,
     OPT_HOMEDIR,
     OPT_DETACHED,
     OPT_HASH_ALG,
     OPT_ALLOW_WEAK_HASH,
+    OPT_ALLOW_SHA1,
     OPT_OUTPUT,
     OPT_RESULTS,
     OPT_COREDUMPS,
@@ -156,6 +165,7 @@ enum optdefs {
     OPT_SOURCE,
     OPT_NOWRAP,
     OPT_CURTIME,
+    OPT_ALLOW_OLD_CIPHERS,
     OPT_SETFNAME,
     OPT_ALLOW_HIDDEN,
     OPT_S2K_ITER,
@@ -189,6 +199,9 @@ static struct option options[] = {
   {"keystore-format", required_argument, NULL, OPT_KEY_STORE_FORMAT},
   {"userid", required_argument, NULL, OPT_USERID},
   {"recipient", required_argument, NULL, OPT_RECIPIENT},
+#if defined(ENABLE_CRYPTO_REFRESH)
+  {"v3-pkesk-only", optional_argument, NULL, OPT_V3_PKESK_ONLY},
+#endif
   {"home", required_argument, NULL, OPT_HOMEDIR},
   {"homedir", required_argument, NULL, OPT_HOMEDIR},
   {"keyfile", required_argument, NULL, OPT_KEYFILE},
@@ -223,11 +236,13 @@ static struct option options[] = {
   {"source", required_argument, NULL, OPT_SOURCE},
   {"no-wrap", no_argument, NULL, OPT_NOWRAP},
   {"current-time", required_argument, NULL, OPT_CURTIME},
+  {"allow-old-ciphers", no_argument, NULL, OPT_ALLOW_OLD_CIPHERS},
   {"set-filename", required_argument, NULL, OPT_SETFNAME},
   {"allow-hidden", no_argument, NULL, OPT_ALLOW_HIDDEN},
   {"s2k-iterations", required_argument, NULL, OPT_S2K_ITER},
   {"s2k-msec", required_argument, NULL, OPT_S2K_MSEC},
   {"allow-weak-hash", no_argument, NULL, OPT_ALLOW_WEAK_HASH},
+  {"allow-sha1-key-sigs", no_argument, NULL, OPT_ALLOW_SHA1},
 
   {NULL, 0, NULL, 0},
 };
@@ -297,9 +312,7 @@ setcmd(rnp_cfg &cfg, int cmd, const char *arg)
         break;
     case CMD_CLEARSIGN:
         cfg.set_bool(CFG_CLEARTEXT, true);
-#if (!defined(_MSVC_LANG) || _MSVC_LANG >= 201703L)
-        [[fallthrough]];
-#endif
+        FALLTHROUGH_STATEMENT;
     case CMD_SIGN:
         cfg.set_bool(CFG_NEEDSSECKEY, true);
         cfg.set_bool(CFG_SIGN_NEEDED, true);
@@ -316,9 +329,7 @@ setcmd(rnp_cfg &cfg, int cmd, const char *arg)
     case CMD_VERIFY:
         /* single verify will discard output, decrypt will not */
         cfg.set_bool(CFG_NO_OUTPUT, true);
-#if (!defined(_MSVC_LANG) || _MSVC_LANG >= 201703L)
-        [[fallthrough]];
-#endif
+        FALLTHROUGH_STATEMENT;
     case CMD_VERIFY_CAT:
         newcmd = CMD_PROCESS;
         break;
@@ -401,6 +412,11 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
     case OPT_RECIPIENT:
         cfg.add_str(CFG_RECIPIENTS, arg);
         return true;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case OPT_V3_PKESK_ONLY:
+        cfg.set_bool(CFG_V3_PKESK_ONLY, true);
+        return true;
+#endif
     case OPT_ARMOR:
         cfg.set_bool(CFG_ARMOR, true);
         return true;
@@ -418,6 +434,9 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
         return cli_rnp_set_hash(cfg, arg);
     case OPT_ALLOW_WEAK_HASH:
         cfg.set_bool(CFG_WEAK_HASH, true);
+        return true;
+    case OPT_ALLOW_SHA1:
+        cfg.set_bool(CFG_ALLOW_SHA1, true);
         return true;
     case OPT_PASSWDFD:
         cfg.set_str(CFG_PASSFD, arg);
@@ -512,6 +531,9 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
     case OPT_CURTIME:
         cfg.set_str(CFG_CURTIME, arg);
         return true;
+    case OPT_ALLOW_OLD_CIPHERS:
+        cfg.set_bool(CFG_ALLOW_OLD_CIPHERS, true);
+        return true;
     case OPT_SETFNAME:
         cfg.set_str(CFG_SETFNAME, arg);
         return true;
@@ -592,9 +614,7 @@ set_short_option(rnp_cfg &cfg, int ch, const char *arg)
         cfg.set_bool(CFG_KEYSTORE_DISABLED, true);
         break;
     case 'h':
-#if (!defined(_MSVC_LANG) || _MSVC_LANG >= 201703L)
-        [[fallthrough]];
-#endif
+        FALLTHROUGH_STATEMENT;
     default:
         return setcmd(cfg, CMD_HELP, optarg);
     }
@@ -668,6 +688,12 @@ rnp_main(int argc, char **argv)
 
     if (!cli_rnp_check_weak_hash(&rnp)) {
         ERR_MSG("Weak hash algorithm detected. Pass --allow-weak-hash option if you really "
+                "want to use it.");
+        return EXIT_ERROR;
+    }
+
+    if (!cli_rnp_check_old_ciphers(&rnp)) {
+        ERR_MSG("Old cipher detected. Pass --allow-old-ciphers option if you really "
                 "want to use it.");
         return EXIT_ERROR;
     }

@@ -28,7 +28,7 @@
 #include "rnp_tests.h"
 #include "str-utils.h"
 #include <librepgp/stream-ctx.h>
-#include "pgp-key.h"
+#include "key.hpp"
 #include "librepgp/stream-armor.h"
 #include "ffi-priv-types.h"
 
@@ -44,8 +44,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#include <crypto.h>
-#include <pgp-key.h>
+#include <key.hpp>
 #include <fstream>
 #include <vector>
 #include <algorithm>
@@ -291,7 +290,7 @@ copy_recursively(const char *src, const char *dst)
     // TODO: maybe use fts or something less hacky
     char buf[2048];
 #ifndef _WIN32
-    snprintf(buf, sizeof(buf), "cp -a '%s' '%s'", src, dst);
+    snprintf(buf, sizeof(buf), "cp -pRP '%s' '%s'", src, dst);
 #else
     snprintf(buf, sizeof(buf), "xcopy \"%s\" \"%s\" /I /Q /E /Y", src, dst);
 #endif // _WIN32
@@ -312,14 +311,14 @@ make_temp_dir()
         return NULL;
     }
 
-    const char *tmplate = "/rnp-gtest-XXXXXX";
-    char *      buffer = (char *) calloc(1, strlen(rltmp) + strlen(tmplate) + 1);
-    if (buffer == NULL) {
+    auto  atemplate = "/rnp-gtest-XXXXXX";
+    char *buffer = (char *) calloc(1, strlen(rltmp) + strlen(atemplate) + 1);
+    if (!buffer) {
         return NULL;
     }
     memcpy(buffer, rltmp, strlen(rltmp));
-    memcpy(buffer + strlen(rltmp), tmplate, strlen(tmplate));
-    buffer[strlen(rltmp) + strlen(tmplate)] = '\0';
+    memcpy(buffer + strlen(rltmp), atemplate, strlen(atemplate));
+    buffer[strlen(rltmp) + strlen(atemplate)] = '\0';
     char *res = mkdtemp(buffer);
     if (!res) {
         free(buffer);
@@ -362,48 +361,28 @@ clean_temp_dir(const char *path)
 bool
 bin_eq_hex(const uint8_t *data, size_t len, const char *val)
 {
-    size_t stlen = strlen(val);
-    if (stlen != len * 2) {
-        return false;
-    }
-
-    std::vector<uint8_t> dec(len);
-    rnp::hex_decode(val, dec.data(), len);
-    return !memcmp(data, dec.data(), len);
+    auto valbin = rnp::hex_to_bin(val);
+    return (valbin.size() == len) && !memcmp(data, valbin.data(), len);
 }
 
 bool
-hex2mpi(pgp_mpi_t *val, const char *hex)
+hex2mpi(pgp::mpi *val, const char *hex)
 {
-    const size_t hex_len = strlen(hex);
-    size_t       buf_len = hex_len / 2;
-    bool         ok;
-
-    uint8_t *buf = NULL;
-
-    buf = (uint8_t *) malloc(buf_len);
-
-    if (buf == NULL) {
-        return false;
-    }
-
-    rnp::hex_decode(hex, buf, buf_len);
-
-    ok = mem2mpi(val, buf, buf_len);
-    free(buf);
-    return ok;
+    auto hexbin = rnp::hex_to_bin(hex);
+    val->assign(hexbin.data(), hexbin.size());
+    return true;
 }
 
 bool
-cmp_keyid(const pgp_key_id_t &id, const std::string &val)
+cmp_keyid(const pgp::KeyID &id, const std::string &val)
 {
     return bin_eq_hex(id.data(), id.size(), val.c_str());
 }
 
 bool
-cmp_keyfp(const pgp_fingerprint_t &fp, const std::string &val)
+cmp_keyfp(const pgp::Fingerprint &fp, const std::string &val)
 {
-    return bin_eq_hex(fp.fingerprint, fp.length, val.c_str());
+    return bin_eq_hex(fp.data(), fp.size(), val.c_str());
 }
 
 void
@@ -417,10 +396,9 @@ test_ffi_init(rnp_ffi_t *ffi)
 }
 
 bool
-mpi_empty(const pgp_mpi_t &val)
+mpi_empty(const pgp::mpi &val)
 {
-    pgp_mpi_t zero{};
-    return (val.len == 0) && !memcmp(val.mpi, zero.mpi, PGP_MPINT_SIZE);
+    return val.size() == 0;
 }
 
 bool
@@ -760,74 +738,66 @@ check_json_pkt_type(json_object *pkt, int tag)
     return check_json_field_int(hdr, "tag", tag);
 }
 
-pgp_key_t *
-rnp_tests_get_key_by_id(rnp_key_store_t *keyring, const std::string &keyid, pgp_key_t *after)
+rnp::Key *
+rnp_tests_get_key_by_id(rnp::KeyStore *keyring, const std::string &keyid, rnp::Key *after)
 {
     if (!keyring || keyid.empty() || !rnp::is_hex(keyid)) {
         return NULL;
     }
-    pgp_key_id_t keyid_bin = {};
-    size_t       binlen = rnp::hex_decode(keyid.c_str(), keyid_bin.data(), keyid_bin.size());
+    pgp::KeyID keyid_bin = {};
+    size_t     binlen = rnp::hex_decode(keyid.c_str(), keyid_bin.data(), keyid_bin.size());
     if (binlen > PGP_KEY_ID_SIZE) {
         return NULL;
     }
-    pgp_key_search_t search(PGP_KEY_SEARCH_KEYID);
-    search.by.keyid = keyid_bin;
-    return rnp_key_store_search(keyring, &search, after);
+    rnp::KeyIDSearch search(keyid_bin);
+    return keyring->search(search, after);
 }
 
-pgp_key_t *
-rnp_tests_get_key_by_grip(rnp_key_store_t *keyring, const std::string &grip)
+rnp::Key *
+rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const std::string &grip)
 {
     if (!keyring || grip.empty() || !rnp::is_hex(grip)) {
         return NULL;
     }
-    pgp_key_grip_t grip_bin = {};
-    size_t         binlen = rnp::hex_decode(grip.c_str(), grip_bin.data(), grip_bin.size());
+    pgp::KeyGrip grip_bin{};
+    size_t       binlen = rnp::hex_decode(grip.c_str(), grip_bin.data(), grip_bin.size());
     if (binlen > PGP_KEY_GRIP_SIZE) {
         return NULL;
     }
     return rnp_tests_get_key_by_grip(keyring, grip_bin);
 }
 
-pgp_key_t *
-rnp_tests_get_key_by_grip(rnp_key_store_t *keyring, const pgp_key_grip_t &grip)
+rnp::Key *
+rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const pgp::KeyGrip &grip)
 {
     if (!keyring) {
         return NULL;
     }
-    pgp_key_search_t search(PGP_KEY_SEARCH_GRIP);
-    search.by.grip = grip;
-    return rnp_key_store_search(keyring, &search, NULL);
+    return keyring->search(rnp::KeyGripSearch(grip));
 }
 
-pgp_key_t *
-rnp_tests_get_key_by_fpr(rnp_key_store_t *keyring, const std::string &keyid)
+rnp::Key *
+rnp_tests_get_key_by_fpr(rnp::KeyStore *keyring, const std::string &fpstr)
 {
-    if (!keyring || keyid.empty() || !rnp::is_hex(keyid)) {
+    if (!keyring || fpstr.empty() || !rnp::is_hex(fpstr)) {
         return NULL;
     }
-    std::vector<uint8_t> keyid_bin(PGP_FINGERPRINT_SIZE, 0);
-    size_t binlen = rnp::hex_decode(keyid.c_str(), keyid_bin.data(), keyid_bin.size());
-    if (binlen > PGP_FINGERPRINT_SIZE) {
+    std::vector<uint8_t> fp_bin(PGP_MAX_FINGERPRINT_SIZE, 0);
+    size_t               binlen = rnp::hex_decode(fpstr.c_str(), fp_bin.data(), fp_bin.size());
+    if (binlen > PGP_MAX_FINGERPRINT_SIZE) {
         return NULL;
     }
-    pgp_fingerprint_t fp = {{}, static_cast<unsigned>(binlen)};
-    memcpy(fp.fingerprint, keyid_bin.data(), binlen);
-    return rnp_key_store_get_key_by_fpr(keyring, fp);
+    pgp::Fingerprint fp(fp_bin.data(), binlen);
+    return keyring->get_key(fp);
 }
 
-pgp_key_t *
-rnp_tests_key_search(rnp_key_store_t *keyring, const std::string &uid)
+rnp::Key *
+rnp_tests_key_search(rnp::KeyStore *keyring, const std::string &uid)
 {
     if (!keyring || uid.empty()) {
         return NULL;
     }
-
-    pgp_key_search_t srch_userid(PGP_KEY_SEARCH_USERID);
-    strncpy(srch_userid.by.userid, uid.c_str(), sizeof(srch_userid.by.userid));
-    srch_userid.by.userid[sizeof(srch_userid.by.userid) - 1] = '\0';
-    return rnp_key_store_search(keyring, &srch_userid, NULL);
+    return keyring->search(rnp::KeyUIDSearch(uid));
 }
 
 void
@@ -1096,6 +1066,26 @@ check_key_valid(rnp_key_handle_t key, bool validity)
     return valid == validity;
 }
 
+bool
+check_key_revoked(rnp_key_handle_t key, bool revoked)
+{
+    bool rev = !revoked;
+    if (rnp_key_is_revoked(key, &rev)) {
+        return false;
+    }
+    return rev == revoked;
+}
+
+bool
+check_key_locked(rnp_key_handle_t key, bool locked)
+{
+    bool lock = !locked;
+    if (rnp_key_is_locked(key, &lock)) {
+        return false;
+    }
+    return lock == locked;
+}
+
 uint32_t
 get_key_expiry(rnp_key_handle_t key)
 {
@@ -1125,15 +1115,137 @@ check_sub_valid(rnp_key_handle_t key, size_t idx, bool validity)
     return valid == validity;
 }
 
+bool
+check_key_grip(rnp_key_handle_t key, const std::string &expected)
+{
+    char *grip = NULL;
+    if (rnp_key_get_grip(key, &grip)) {
+        return false;
+    }
+    bool res = !strcmp(grip, expected.c_str());
+    rnp_buffer_destroy(grip);
+    return res;
+}
+
+bool
+check_key_fp(rnp_key_handle_t key, const std::string &expected)
+{
+    char *fp = NULL;
+    if (rnp_key_get_fprint(key, &fp)) {
+        return false;
+    }
+    bool res = !strcmp(fp, expected.c_str());
+    rnp_buffer_destroy(fp);
+    return res;
+}
+
+bool
+check_key_revreason(rnp_key_handle_t key, const char *reason)
+{
+    char *rstr = NULL;
+    if (rnp_key_get_revocation_reason(key, &rstr)) {
+        return false;
+    }
+    bool res = !strcmp(rstr, reason);
+    rnp_buffer_destroy(rstr);
+    return res;
+}
+
+bool
+check_has_key(rnp_ffi_t ffi, const std::string &id, bool secret, bool valid)
+{
+    rnp_key_handle_t key = NULL;
+    switch (id.size()) {
+    /* keyid with or without 0x */
+    case 16:
+    case 18:
+        if (rnp_locate_key(ffi, "keyid", id.c_str(), &key) || !key) {
+            return false;
+        }
+        break;
+    /* v4 fingerprint with or without 0x */
+    case 40:
+    case 42:
+    /* v5 fingerprint with or without 0x */
+    case 64:
+    case 66:
+        if (rnp_locate_key(ffi, "fingerprint", id.c_str(), &key) || !key) {
+            return false;
+        }
+        break;
+    default:
+        if (rnp_locate_key(ffi, "userid", id.c_str(), &key) || !key) {
+            return false;
+        }
+        break;
+    }
+    bool res = true;
+    if (secret && rnp_key_have_secret(key, &res)) {
+        res = false;
+    }
+    res = res && check_key_valid(key, valid);
+    rnp_key_handle_destroy(key);
+    return res;
+}
+
+bool
+check_sig_hash(rnp_signature_handle_t sig, const char *hash)
+{
+    char *sighash = NULL;
+    if (rnp_signature_get_hash_alg(sig, &sighash)) {
+        return false;
+    }
+    bool res = !strcmp(sighash, hash);
+    rnp_buffer_destroy(sighash);
+    return res;
+}
+
+bool
+check_sig_type(rnp_signature_handle_t sig, const char *type)
+{
+    char *sigtype = NULL;
+    if (rnp_signature_get_type(sig, &sigtype)) {
+        return false;
+    }
+    bool res = !strcmp(sigtype, type);
+    rnp_buffer_destroy(sigtype);
+    return res;
+}
+
+bool
+check_sig_revreason(rnp_signature_handle_t sig, const char *revcode, const char *revreason)
+{
+    char *sigcode = NULL;
+    char *sigreason = NULL;
+    if (rnp_signature_get_revocation_reason(sig, &sigcode, &sigreason)) {
+        return false;
+    }
+    bool res = !strcmp(sigcode, revcode) && !strcmp(sigreason, revreason);
+    rnp_buffer_destroy(sigcode);
+    rnp_buffer_destroy(sigreason);
+    return res;
+}
+
+rnp_key_handle_t
+get_key_by_fp(rnp_ffi_t ffi, const char *fp)
+{
+    rnp_key_handle_t key = NULL;
+    rnp_locate_key(ffi, "fingerprint", fp, &key);
+    return key;
+}
+
+rnp_key_handle_t
+get_key_by_uid(rnp_ffi_t ffi, const char *uid)
+{
+    rnp_key_handle_t key = NULL;
+    rnp_locate_key(ffi, "userid", uid, &key);
+    return key;
+}
+
 rnp_key_handle_t
 bogus_key_handle(rnp_ffi_t ffi)
 {
-    rnp_key_handle_t handle = (rnp_key_handle_t) calloc(1, sizeof(*handle));
-    handle->ffi = ffi;
-    handle->pub = NULL;
-    handle->sec = NULL;
-    handle->locator.type = PGP_KEY_SEARCH_KEYID;
-    return handle;
+    return new rnp_key_handle_st(ffi);
 }
 
 bool
@@ -1206,9 +1318,9 @@ ripemd160_enabled()
 }
 
 bool
-test_load_gpg_check_key(rnp_key_store_t *pub, rnp_key_store_t *sec, const char *id)
+test_load_gpg_check_key(rnp::KeyStore *pub, rnp::KeyStore *sec, const char *id)
 {
-    pgp_key_t *key = rnp_tests_get_key_by_id(pub, id);
+    rnp::Key *key = rnp_tests_get_key_by_id(pub, id);
     if (!key) {
         return false;
     }

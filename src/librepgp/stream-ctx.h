@@ -33,13 +33,15 @@
 #include "types.h"
 #include <string>
 #include <list>
-#include "pgp-key.h"
+#include "key.hpp"
 #include "crypto/mem.h"
+#include "key-provider.h"
+#include "pass-provider.h"
 #include "sec_profile.hpp"
 
 /* signature info structure */
 typedef struct rnp_signer_info_t {
-    pgp_key_t *    key{};
+    rnp::Key *     key{};
     pgp_hash_alg_t halg{};
     int64_t        sigcreate{};
     uint64_t       sigexpire{};
@@ -70,8 +72,14 @@ typedef struct rnp_symmetric_pass_info_t {
  *  - halg : hash algorithm used during key derivation for password-based encryption
  *  - ealg, aalg, abits : symmetric encryption algorithm and AEAD parameters if used
  *  - recipients : list of key ids used to encrypt data to
+ *  - enable_pkesk_v6 (Only if defined: ENABLE_CRYPTO_REFRESH): if true and each recipient in
+ * the  list of recipients has the capability, allows PKESKv6/SEIPDv2
+ *  - pref_pqc_enc_subkey (Only if defined: ENABLE_PQC): if true, prefers PQC subkey over
+ * non-PQC subkey for encryption.
  *  - passwords : list of passwords used for password-based encryption
  *  - filename, filemtime, zalg, zlevel : see previous
+ *  - pkeskv6_capable() : returns true if all keys support PKESKv6+SEIPDv2, false otherwise
+ * (will use PKESKv3 + SEIPDv1)
  *
  *  For signing of any kind (attached, detached, cleartext):
  *  - clearsign, detached : controls kind of the signed data. Both are mutually-exclusive.
@@ -87,27 +95,41 @@ typedef struct rnp_symmetric_pass_info_t {
  */
 
 typedef struct rnp_ctx_t {
-    std::string    filename{};  /* name of the input file to store in literal data packet */
+    std::string    filename;    /* name of the input file to store in literal data packet */
     int64_t        filemtime{}; /* file modification time to store in literal data packet */
     int64_t        sigcreate{}; /* signature creation time */
     uint64_t       sigexpire{}; /* signature expiration time */
     bool           clearsign{}; /* cleartext signature */
     bool           detached{};  /* detached signature */
-    pgp_hash_alg_t halg{};      /* hash algorithm */
-    pgp_symm_alg_t ealg{};      /* encryption algorithm */
+    pgp_hash_alg_t halg;        /* hash algorithm */
+    pgp_symm_alg_t ealg;        /* encryption algorithm */
     int            zalg{};      /* compression algorithm used */
     int            zlevel{};    /* compression level */
-    pgp_aead_alg_t aalg{};      /* non-zero to use AEAD */
-    int            abits{};     /* AEAD chunk bits */
+    pgp_aead_alg_t aalg;        /* non-zero to use AEAD */
+    int            abits;       /* AEAD chunk bits */
     bool           overwrite{}; /* allow to overwrite output file if exists */
     bool           armor{};     /* whether to use ASCII armor on output */
     bool           no_wrap{};   /* do not wrap source in literal data packet */
-    std::list<pgp_key_t *> recipients{};              /* recipients of the encrypted message */
-    std::list<rnp_symmetric_pass_info_t> passwords{}; /* passwords to encrypt message */
-    std::list<rnp_signer_info_t>         signers{};   /* keys to which sign message */
-    rnp::SecurityContext *               ctx{};       /* pointer to rnp::RNG */
+#if defined(ENABLE_CRYPTO_REFRESH)
+    bool enable_pkesk_v6{}; /* allows pkesk v6 if list of recipients is suitable */
+#endif
+#if defined(ENABLE_PQC)
+    bool pref_pqc_enc_subkey{}; /* prefer to encrypt to PQC subkey */
+#endif
+    std::list<rnp::Key *>                recipients; /* recipients of the encrypted message */
+    std::list<rnp_symmetric_pass_info_t> passwords;  /* passwords to encrypt message */
+    std::list<rnp_signer_info_t>         signers;    /* keys to which sign message */
+    rnp::SecurityContext &               sec_ctx;    /* security context */
+    rnp::KeyProvider &                   key_provider;  /* Key provider */
+    pgp_password_provider_t &            pass_provider; /* Password provider */
 
-    rnp_ctx_t() = default;
+    rnp_ctx_t(rnp::SecurityContext &   sctx,
+              rnp::KeyProvider &       kprov,
+              pgp_password_provider_t &pprov)
+        : halg(DEFAULT_PGP_HASH_ALG), ealg(DEFAULT_PGP_SYMM_ALG), aalg(PGP_AEAD_NONE),
+          abits(DEFAULT_AEAD_CHUNK_BITS), sec_ctx(sctx), key_provider(kprov),
+          pass_provider(pprov){};
+
     rnp_ctx_t(const rnp_ctx_t &) = delete;
     rnp_ctx_t(rnp_ctx_t &&) = delete;
 
@@ -118,6 +140,10 @@ typedef struct rnp_ctx_t {
                                          pgp_hash_alg_t     halg,
                                          pgp_symm_alg_t     ealg,
                                          size_t             iterations = 0);
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+    bool pkeskv6_capable();
+#endif
 } rnp_ctx_t;
 
 #endif

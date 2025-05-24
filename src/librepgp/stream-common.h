@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020,2023 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -73,9 +73,10 @@ typedef struct pgp_source_cache_t {
 } pgp_source_cache_t;
 
 typedef struct pgp_source_t {
-    pgp_source_read_func_t *  read;
-    pgp_source_finish_func_t *finish;
-    pgp_source_close_func_t * close;
+    pgp_source_read_func_t *raw_read; /* Raw read/finish/close function. To be later refactored
+                                         to virtual rnp::Source::raw_read()/finish()/close() */
+    pgp_source_finish_func_t *raw_finish;
+    pgp_source_close_func_t * raw_close;
     pgp_stream_type_t         type;
 
     uint64_t size;  /* size of the data if available, see knownsize */
@@ -84,9 +85,111 @@ typedef struct pgp_source_t {
     pgp_source_cache_t *cache; /* cache if used */
     void *              param; /* source-specific additional data */
 
-    unsigned eof : 1;       /* end of data as reported by read and empty cache */
-    unsigned knownsize : 1; /* whether size of the data is known */
-    unsigned error : 1;     /* there were reading error */
+    bool eof_;      /* end of data as reported by read and empty cache */
+    bool knownsize; /* whether size of the data is known */
+    bool error_;    /* there were reading error */
+
+    /** @brief read up to len bytes from the source
+     *  While this function tries to read as much bytes as possible however it may return
+     *  less then len bytes. Then src->eof can be checked if it's end of data.
+     *
+     *  @param buf preallocated buffer which can store up to len bytes
+     *  @param len number of bytes to read
+     *  @param read number of read bytes will be stored here. Cannot be NULL.
+     *  @return true on success or false otherwise
+     */
+    bool read(void *buf, size_t len, size_t *read);
+
+    /** @brief shortcut to read exactly len bytes from source. See read() for parameters.
+     *  @return true if len bytes were read or false otherwise (i.e. less then len were read or
+     *          read error occurred)
+     */
+    bool read_eq(void *buf, size_t len);
+
+    /** @brief read up to len bytes and keep them in the cache/do not process
+     *         Works only for streams with cache
+     *  @param buf preallocated buffer which can store up to len bytes, or NULL if data should
+     *             be discarded, just making sure that needed input is available in source
+     *  @param len number of bytes to read. Must be less then PGP_INPUT_CACHE_SIZE.
+     *  @param read number of bytes read will be stored here. Cannot be NULL.
+     *  @return true on success or false otherwise
+     */
+    bool peek(void *buf, size_t len, size_t *read);
+
+    /** @brief shortcut to read exactly len bytes and keep them in the cache/do not process
+     *         Works only for streams with cache
+     *  @return true if len bytes were read or false otherwise (i.e. less then len were read or
+     *          read error occurred)
+     */
+    bool peek_eq(void *buf, size_t len);
+
+    /** @brief skip up to len bytes.
+     *         Note: use read() if you want to check error condition/get number of bytes
+     * skipped.
+     *  @param len number of bytes to skip
+     */
+    void skip(size_t len);
+
+    /** @brief notify source that all reading is done, so final data processing may be started,
+     *         i.e. signature reading and verification and so on. Do not misuse with close().
+     *  @return RNP_SUCCESS or error code. If source doesn't have finish handler then also
+     *          RNP_SUCCESS is returned
+     */
+    rnp_result_t finish();
+
+    /** @brief check whether there were reading error on source
+     *  @return true if there were reading error or false otherwise
+     */
+    bool error() const;
+
+    /** @brief check whether there is no more input on source
+     *  @return true if there is no more input or false otherwise.
+     *          On read error false will be returned.
+     */
+    bool eof();
+
+    /** @brief close the source and deallocate all internal resources if any
+     */
+    void close();
+
+    /** @brief skip end of line on the source (\r\n or \n, depending on input)
+     *  @return true if eol was found and skipped or false otherwise
+     */
+    bool skip_eol();
+
+    /**
+     * @brief skip specified chars starting from the current position in input
+     * @param chars null-terminated string with chars to skip
+     * @return true on success or false otherwise
+     */
+    bool skip_chars(const std::string &chars);
+
+    /** @brief peek the line on the source
+     *  @param buf preallocated buffer to store the result. Result include NULL character and
+     *             doesn't include the end of line sequence.
+     *  @param len maximum length of data to store in buf, including terminating NULL
+     *  @param read on success here will be stored number of bytes in the string, without the
+     *              NULL character.
+     *  @return true on success
+     *          false is returned if there were eof, read error or eol was not found within the
+     *          len. Supported eol sequences are \r\n and \n
+     */
+    bool peek_line(char *buf, size_t len, size_t *read);
+
+    /** @brief Check whether source could be an armored source
+     *  @return true if source could be an armored data or false otherwise
+     */
+    bool is_armored();
+
+    /** @brief Check whether source is cleartext signed
+     *  @return true if source could be a cleartext signed data or false otherwise
+     */
+    bool is_cleartext();
+
+    /** @brief Check whether source is base64-encoded
+     *  @return true if source could be a base64-encoded data or false otherwise
+     */
+    bool is_base64();
 } pgp_source_t;
 
 /** @brief helper function to allocate memory for source's cache and param
@@ -96,92 +199,6 @@ typedef struct pgp_source_t {
  *  @return true on success or false if memory allocation failed.
  **/
 bool init_src_common(pgp_source_t *src, size_t paramsize);
-
-/** @brief read up to len bytes from the source
- *  While this function tries to read as much bytes as possible however it may return
- *  less then len bytes. Then src->eof can be checked if it's end of data.
- *
- *  @param src source structure
- *  @param buf preallocated buffer which can store up to len bytes
- *  @param len number of bytes to read
- *  @param read number of read bytes will be stored here. Cannot be NULL.
- *  @return true on success or false otherwise
- **/
-bool src_read(pgp_source_t *src, void *buf, size_t len, size_t *read);
-
-/** @brief shortcut to read exactly len bytes from source. See src_read for parameters.
- *  @return true if len bytes were read or false otherwise (i.e. less then len were read or
- *          read error occurred) */
-bool src_read_eq(pgp_source_t *src, void *buf, size_t len);
-
-/** @brief read up to len bytes and keep them in the cache/do not process
- *  Works only for streams with cache
- *  @param src source structure
- *  @param buf preallocated buffer which can store up to len bytes, or NULL if data should be
- *             discarded, just making sure that needed input is available in source
- *  @param len number of bytes to read. Must be less then PGP_INPUT_CACHE_SIZE.
- *  @param read number of bytes read will be stored here. Cannot be NULL.
- *  @return true on success or false otherwise
- **/
-bool src_peek(pgp_source_t *src, void *buf, size_t len, size_t *read);
-
-/** @brief shortcut to read exactly len bytes and keep them in the cache/do not process
- *         Works only for streams with cache
- *  @return true if len bytes were read or false otherwise (i.e. less then len were read or
- *          read error occurred) */
-bool src_peek_eq(pgp_source_t *src, void *buf, size_t len);
-
-/** @brief skip up to len bytes.
- *         Note: use src_read() if you want to check error condition/get number of bytes
- *skipped.
- *  @param src source structure
- *  @param len number of bytes to skip
- **/
-void src_skip(pgp_source_t *src, size_t len);
-
-/** @brief notify source that all reading is done, so final data processing may be started,
- * i.e. signature reading and verification and so on. Do not misuse with src_close.
- *  @param src allocated and initialized source structure
- *  @return RNP_SUCCESS or error code. If source doesn't have finish handler then also
- * RNP_SUCCESS is returned
- */
-rnp_result_t src_finish(pgp_source_t *src);
-
-/** @brief check whether there were reading error on source
- *  @param allocated and initialized source structure
- *  @return true if there were reading error or false otherwise
- */
-bool src_error(const pgp_source_t *src);
-
-/** @brief check whether there is no more input on source
- *  @param src allocated and initialized source structure
- *  @return true if there is no more input or false otherwise.
- *          On read error false will be returned.
- */
-bool src_eof(pgp_source_t *src);
-
-/** @brief close the source and deallocate all internal resources if any
- */
-void src_close(pgp_source_t *src);
-
-/** @brief skip end of line on the source (\r\n or \n, depending on input)
- *  @param src allocated and initialized source
- *  @return true if eol was found and skipped or false otherwise
- */
-bool src_skip_eol(pgp_source_t *src);
-
-/** @brief peek the line on the source
- *  @param src allocated and initialized source with data
- *  @param buf preallocated buffer to store the result. Result include NULL character and
- *             doesn't include the end of line sequence.
- *  @param len maximum length of data to store in buf, including terminating NULL
- *  @param read on success here will be stored number of bytes in the string, without the NULL
- * character.
- *  @return true on success
- *          false is returned if there were eof, read error or eol was not found within the
- * len. Supported eol sequences are \r\n and \n
- */
-bool src_peek_line(pgp_source_t *src, char *buf, size_t len, size_t *read);
 
 /** @brief init file source
  *  @param src pre-allocated source structure
@@ -217,13 +234,6 @@ rnp_result_t init_null_src(pgp_source_t *src);
  *  @return RNP_SUCCESS or error code
  **/
 rnp_result_t read_mem_src(pgp_source_t *src, pgp_source_t *readsrc);
-
-/** @brief init memory source with contents of the specified file
- *  @param src pre-allocated source structure
- *  @param filename name of the file
- *  @return RNP_SUCCESS or error code
- **/
-rnp_result_t file_to_mem_src(pgp_source_t *src, const char *filename);
 
 /** @brief get memory from the memory source
  *  @param src initialized memory source
@@ -264,13 +274,15 @@ bool init_dst_common(pgp_dest_t *dst, size_t paramsize);
  **/
 void dst_write(pgp_dest_t *dst, const void *buf, size_t len);
 
+void dst_write(pgp_dest_t &dst, const std::vector<uint8_t> &buf);
+
 /** @brief printf formatted string to the destination
  *
  *  @param dst destination structure
  *  @param format format string, which is the same as printf() uses
  *  @param ... additional arguments
  */
-void dst_printf(pgp_dest_t *dst, const char *format, ...);
+void dst_printf(pgp_dest_t &dst, const char *format, ...);
 
 /** @brief do all finalization tasks after all writing is done, i.e. calculate and write
  *  mdc, signatures and so on. Do not misuse with dst_close. If was not called then will be
@@ -390,7 +402,7 @@ class Source {
 
     virtual ~Source()
     {
-        src_close(&src_);
+        src_.close();
     }
 
     virtual pgp_source_t &
@@ -414,13 +426,13 @@ class Source {
     bool
     eof()
     {
-        return src_eof(&src());
+        return src().eof();
     }
 
     bool
     error()
     {
-        return src_error(&src());
+        return src().error();
     }
 };
 
@@ -552,5 +564,17 @@ class MemoryDest : public Dest {
     }
 };
 } // namespace rnp
+
+bool have_pkesk_checksum(pgp_pubkey_alg_t alg);
+bool do_encrypt_pkesk_v3_alg_id(pgp_pubkey_alg_t alg);
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+bool check_enforce_aes_v3_pkesk(pgp_pubkey_alg_t    alg,
+                                pgp_symm_alg_t      salg,
+                                pgp_pkesk_version_t ver);
+#endif
+#if defined(ENABLE_AEAD)
+typedef struct pgp_sk_sesskey_t pgp_sk_sesskey_t;
+bool encrypted_sesk_set_ad(pgp_crypt_t &crypt, pgp_sk_sesskey_t &skey);
+#endif
 
 #endif

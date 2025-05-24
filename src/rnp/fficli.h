@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2019-2023, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -32,6 +32,7 @@
 #include <time.h>
 #include "rnp/rnp.h"
 #include "rnp/rnp_err.h"
+#include "rnp/rnpcpp.hpp"
 #include "config.h"
 #include "rnpcfg.h"
 #include "json.h"
@@ -46,12 +47,12 @@ class cli_rnp_t {
     char **subst_argv{};
 #endif
     bool load_keyring(bool secret);
-    bool is_cv25519_subkey(rnp_key_handle_t handle);
-    bool get_protection(rnp_key_handle_t handle,
-                        std::string &    hash,
-                        std::string &    cipher,
-                        size_t &         iterations);
-    bool check_cv25519_bits(rnp_key_handle_t key, char *prot_password, bool &tweaked);
+    bool is_cv25519_subkey(rnpffi::Key &key);
+    bool get_protection(rnpffi::Key &key,
+                        std::string &hash,
+                        std::string &cipher,
+                        size_t &     iterations);
+    bool check_cv25519_bits(rnpffi::Key &key, rnpffi::String &prot_password, bool &tweaked);
 
   public:
     rnp_ffi_t   ffi{};
@@ -60,7 +61,7 @@ class cli_rnp_t {
     FILE *      userio_in{};  /* file pointer for user's inputs */
     FILE *      userio_out{}; /* file pointer for user's outputs */
     int         pswdtries{};  /* number of password tries, -1 for unlimited */
-    bool        reuse_password_for_subkey{};
+    size_t      reuse_password_for_subkey{}; // count of subkeys
     std::string reuse_primary_fprint;
     char *      reused_password{};
     bool        hidden_msg{}; /* true if hidden recipient message was displayed */
@@ -123,6 +124,50 @@ class cli_rnp_t {
     bool set_key_expire(const std::string &key);
 
     bool edit_key(const std::string &key);
+
+    /**
+     * @brief Find key(s) matching set of flags and search string.
+     *
+     * @param keys search results will be added here, leaving already existing items.
+     * @param str search string: may be part of the userid, keyid, fingerprint or grip.
+     * @param flags combination of the following flags:
+     *              CLI_SEARCH_SECRET : require key to be secret,
+     *              CLI_SEARCH_SUBKEYS : include subkeys to the results (see
+     *                CLI_SEARCH_SUBKEYS_AFTER description).
+     *              CLI_SEARCH_FIRST_ONLY : include only first key found
+     *              CLI_SEARCH_SUBKEYS_AFTER : for each primary key add its subkeys after the
+     * main key. This changes behaviour of subkey search, since those will be added only if
+     * subkey is orphaned or primary key matches search.
+     * @return true if operation succeeds and at least one key is found, or false otherwise.
+     */
+
+    bool keys_matching(std::vector<rnp_key_handle_t> &keys, const std::string &str, int flags);
+    /**
+     * @brief Find key(s) matching set of flags and search string(s).
+     *
+     * @param keys search results will be put here, overwriting vector's contents.
+     * @param strs set of search strings, may be empty.
+     * @param flags the same flags as for keys_matching(), except additional one:
+     *              CLI_SEARCH_DEFAULT : if no key is found then default key from cli_rnp_t
+     * will be searched.
+     * @return true if operation succeeds and at least one key is found for each search string,
+     * or false otherwise.
+     */
+    bool keys_matching(std::vector<rnp_key_handle_t> & keys,
+                       const std::vector<std::string> &strs,
+                       int                             flags);
+
+    /**
+     * @brief Find exactly one key, matching set of flags and search string.
+     *
+     * @param str search string, see keys_matching() for the details.
+     * @param flags flags, see keys_matching() for the details.
+     * @param count if non-nullptr, number of found keys with be stored here.
+     * @return pointer to the key object if only single key was found, or nullptr otherwise.
+     */
+    std::unique_ptr<rnpffi::Key> key_matching(const std::string &str,
+                                              int                flags,
+                                              size_t *           count = nullptr);
 };
 
 typedef enum cli_search_flags_t {
@@ -177,44 +222,8 @@ rnp_output_t cli_rnp_output_to_specifier(cli_rnp_t &        rnp,
 bool cli_rnp_save_keyrings(cli_rnp_t *rnp);
 void cli_rnp_print_key_info(
   FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecret, bool psigs);
-bool cli_rnp_set_generate_params(rnp_cfg &cfg, bool subkey = false);
-bool cli_rnp_generate_key(cli_rnp_t *rnp, const char *username);
-/**
- * @brief Find key(s) matching set of flags and search string.
- *
- * @param rnp initialized cli_rnp_t object.
- * @param keys search results will be added here, leaving already existing items.
- * @param str search string: may be part of the userid, keyid, fingerprint or grip.
- * @param flags combination of the following flags:
- *              CLI_SEARCH_SECRET : require key to be secret,
- *              CLI_SEARCH_SUBKEYS : include subkeys to the results (see
- *                CLI_SEARCH_SUBKEYS_AFTER description).
- *              CLI_SEARCH_FIRST_ONLY : include only first key found
- *              CLI_SEARCH_SUBKEYS_AFTER : for each primary key add its subkeys after the main
- *                key. This changes behaviour of subkey search, since those will be added only
- *                if subkey is orphaned or primary key matches search.
- * @return true if operation succeeds and at least one key is found, or false otherwise.
- */
-bool cli_rnp_keys_matching_string(cli_rnp_t *                    rnp,
-                                  std::vector<rnp_key_handle_t> &keys,
-                                  const std::string &            str,
-                                  int                            flags);
-/**
- * @brief Find key(s) matching set of flags and search string(s).
- *
- * @param rnp initialized cli_rnp_t object.
- * @param keys search results will be put here, overwriting vector's contents.
- * @param strs set of search strings, may be empty.
- * @param flags the same flags as for cli_rnp_keys_matching_string(), except additional one:
- *              CLI_SEARCH_DEFAULT : if no key is found then default key from cli_rnp_t will be
- *                searched.
- * @return true if operation succeeds and at least one key is found for each search string, or
- *         false otherwise.
- */
-bool        cli_rnp_keys_matching_strings(cli_rnp_t *                     rnp,
-                                          std::vector<rnp_key_handle_t> & keys,
-                                          const std::vector<std::string> &strs,
-                                          int                             flags);
+bool        cli_rnp_set_generate_params(rnp_cfg &cfg, bool subkey = false);
+bool        cli_rnp_generate_key(cli_rnp_t *rnp, const char *username);
 bool        cli_rnp_export_keys(cli_rnp_t *rnp, const char *filter);
 bool        cli_rnp_export_revocation(cli_rnp_t *rnp, const char *key);
 bool        cli_rnp_revoke_key(cli_rnp_t *rnp, const char *key);
@@ -224,6 +233,7 @@ bool        cli_rnp_dump_file(cli_rnp_t *rnp);
 bool        cli_rnp_armor_file(cli_rnp_t *rnp);
 bool        cli_rnp_dearmor_file(cli_rnp_t *rnp);
 bool        cli_rnp_check_weak_hash(cli_rnp_t *rnp);
+bool        cli_rnp_check_old_ciphers(cli_rnp_t *rnp);
 bool        cli_rnp_setup(cli_rnp_t *rnp);
 bool        cli_rnp_protect_file(cli_rnp_t *rnp);
 bool        cli_rnp_process_file(cli_rnp_t *rnp);
@@ -238,7 +248,7 @@ void        cli_rnp_print_feature(FILE *fp, const char *type, const char *printe
  * @return string with FFI algorithm's name. In case alias is not found the source string will
  * be returned.
  */
-const std::string cli_rnp_alg_to_ffi(const std::string alg);
+const std::string cli_rnp_alg_to_ffi(const std::string &alg);
 
 /**
  * @brief Attempt to set hash algorithm using the value provided.
@@ -268,8 +278,12 @@ void rnp_win_clear_args(int argc, char **argv);
 #endif
 
 /* TODO: we should decide what to do with functions/constants/defines below */
+#define RNP_FP_V4_SIZE 20
+#if defined(ENABLE_CRYPTO_REFRESH)
+#define RNP_PGP_VER_6 6
+#define RNP_FP_V6_SIZE 32
+#endif
 #define RNP_KEYID_SIZE 8
-#define RNP_FP_SIZE 20
 #define RNP_GRIP_SIZE 20
 
 #define ERR_MSG(...)                           \

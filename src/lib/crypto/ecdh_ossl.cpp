@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2024, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -38,6 +38,9 @@
 #include <openssl/evp.h>
 #include <openssl/err.h>
 
+namespace pgp {
+namespace ecdh {
+
 static const struct ecdh_wrap_alg_map_t {
     pgp_symm_alg_t alg;
     const char *   name;
@@ -46,27 +49,24 @@ static const struct ecdh_wrap_alg_map_t {
                          {PGP_SA_AES_256, "aes256-wrap"}};
 
 rnp_result_t
-ecdh_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret)
+validate_key(rnp::RNG &rng, const ec::Key &key, bool secret)
 {
-    return ec_validate_key(*key, secret);
+    return ec::validate_key(key, secret);
 }
 
 static rnp_result_t
-ecdh_derive_kek(uint8_t *                x,
-                size_t                   xlen,
-                const pgp_ec_key_t &     key,
-                const pgp_fingerprint_t &fingerprint,
-                uint8_t *                kek,
-                const size_t             kek_len)
+derive_kek(rnp::secure_bytes &         x,
+           const ec::Key &             key,
+           const std::vector<uint8_t> &fp,
+           rnp::secure_bytes &         kek)
 {
-    const ec_curve_desc_t *curve_desc = get_curve_desc(key.curve);
+    auto curve_desc = ec::Curve::get(key.curve);
     if (!curve_desc) {
         RNP_LOG("unsupported curve");
         return RNP_ERROR_NOT_SUPPORTED;
     }
 
     // Serialize other info, see 13.5 of RFC 4880 bis
-    uint8_t      other_info[MAX_SP800_56A_OTHER_INFO];
     const size_t hash_len = rnp::Hash::size(key.kdf_hash_alg);
     if (!hash_len) {
         // must not assert here as kdf/hash algs are not checked during key parsing
@@ -75,14 +75,14 @@ ecdh_derive_kek(uint8_t *                x,
         return RNP_ERROR_NOT_SUPPORTED;
         /* LCOV_EXCL_END */
     }
-    size_t other_len = kdf_other_info_serialize(
-      other_info, curve_desc, fingerprint, key.kdf_hash_alg, key.key_wrap_alg);
+    auto other_info =
+      kdf_other_info_serialize(*curve_desc, fp, key.kdf_hash_alg, key.key_wrap_alg);
     // Self-check
-    assert(other_len == curve_desc->OIDhex_len + 46);
+    assert(other_info.size() == curve_desc->OID.size() + 46);
     // Derive KEK, using the KDF from SP800-56A
     rnp::secure_array<uint8_t, PGP_MAX_HASH_SIZE> dgst;
     assert(hash_len <= PGP_MAX_HASH_SIZE);
-    size_t reps = (kek_len + hash_len - 1) / hash_len;
+    size_t reps = (kek.size() + hash_len - 1) / hash_len;
     // As we use AES & SHA2 we should not get more then 2 iterations
     if (reps > 2) {
         /* LCOV_EXCL_START */
@@ -91,31 +91,24 @@ ecdh_derive_kek(uint8_t *                x,
         /* LCOV_EXCL_END */
     }
     size_t have = 0;
-    try {
-        for (size_t i = 1; i <= reps; i++) {
-            auto hash = rnp::Hash::create(key.kdf_hash_alg);
-            hash->add(i);
-            hash->add(x, xlen);
-            hash->add(other_info, other_len);
-            hash->finish(dgst.data());
-            size_t bytes = std::min(hash_len, kek_len - have);
-            memcpy(kek + have, dgst.data(), bytes);
-            have += bytes;
-        }
-        return RNP_SUCCESS;
-    } catch (const std::exception &e) {
-        /* LCOV_EXCL_START */
-        RNP_LOG("Failed to derive kek: %s", e.what());
-        return RNP_ERROR_GENERIC;
-        /* LCOV_EXCL_END */
+    for (size_t i = 1; i <= reps; i++) {
+        auto hash = rnp::Hash::create(key.kdf_hash_alg);
+        hash->add(i);
+        hash->add(x.data(), x.size());
+        hash->add(other_info);
+        hash->finish(dgst.data());
+        size_t bytes = std::min(hash_len, kek.size() - have);
+        memcpy(kek.data() + have, dgst.data(), bytes);
+        have += bytes;
     }
+    return RNP_SUCCESS;
 }
 
 static rnp_result_t
-ecdh_rfc3394_wrap_ctx(EVP_CIPHER_CTX **ctx,
-                      pgp_symm_alg_t   wrap_alg,
-                      const uint8_t *  key,
-                      bool             decrypt)
+rfc3394_wrap_ctx(rnp::ossl::evp::CipherCtx &ctx,
+                 pgp_symm_alg_t             wrap_alg,
+                 const rnp::secure_bytes &  key,
+                 bool                       decrypt)
 {
     /* get OpenSSL EVP cipher for key wrap */
     const char *cipher_name = NULL;
@@ -133,21 +126,20 @@ ecdh_rfc3394_wrap_ctx(EVP_CIPHER_CTX **ctx,
         return RNP_ERROR_NOT_SUPPORTED;
         /* LCOV_EXCL_END */
     }
-    *ctx = EVP_CIPHER_CTX_new();
+    ctx.reset(EVP_CIPHER_CTX_new());
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Context allocation failed : %lu", ERR_peek_last_error());
         return RNP_ERROR_OUT_OF_MEMORY;
         /* LCOV_EXCL_END */
     }
-    EVP_CIPHER_CTX_set_flags(*ctx, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
-    int res = decrypt ? EVP_DecryptInit_ex(*ctx, cipher, NULL, key, NULL) :
-                        EVP_EncryptInit_ex(*ctx, cipher, NULL, key, NULL);
+    EVP_CIPHER_CTX_set_flags(ctx.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+    int res = decrypt ? EVP_DecryptInit_ex(ctx.get(), cipher, NULL, key.data(), NULL) :
+                        EVP_EncryptInit_ex(ctx.get(), cipher, NULL, key.data(), NULL);
     if (res <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to initialize cipher : %lu", ERR_peek_last_error());
-        EVP_CIPHER_CTX_free(*ctx);
-        *ctx = NULL;
+        ctx.reset();
         return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
@@ -155,98 +147,91 @@ ecdh_rfc3394_wrap_ctx(EVP_CIPHER_CTX **ctx,
 }
 
 static rnp_result_t
-ecdh_rfc3394_wrap(uint8_t *            out,
-                  size_t *             out_len,
-                  const uint8_t *const in,
-                  size_t               in_len,
-                  const uint8_t *      key,
-                  pgp_symm_alg_t       wrap_alg)
+rfc3394_wrap(std::vector<uint8_t> &   out,
+             const rnp::secure_bytes &in,
+             const rnp::secure_bytes &key,
+             pgp_symm_alg_t           wrap_alg)
 {
-    EVP_CIPHER_CTX *ctx = NULL;
-    rnp_result_t    ret = ecdh_rfc3394_wrap_ctx(&ctx, wrap_alg, key, false);
+    rnp::ossl::evp::CipherCtx ctx;
+    rnp_result_t              ret = rfc3394_wrap_ctx(ctx, wrap_alg, key, false);
     if (ret) {
         /* LCOV_EXCL_START */
         RNP_LOG("Wrap context initialization failed.");
         return ret;
         /* LCOV_EXCL_END */
     }
-    int intlen = *out_len;
+    int intlen = out.size();
     /* encrypts in one pass, no final is needed */
-    int res = EVP_EncryptUpdate(ctx, out, &intlen, in, in_len);
+    int res = EVP_EncryptUpdate(ctx.get(), out.data(), &intlen, in.data(), in.size());
     if (res <= 0) {
         RNP_LOG("Failed to encrypt data : %lu", ERR_peek_last_error()); // LCOV_EXCL_LINE
-    } else {
-        *out_len = intlen;
+        return RNP_ERROR_GENERIC;
     }
-    EVP_CIPHER_CTX_free(ctx);
-    return res > 0 ? RNP_SUCCESS : RNP_ERROR_GENERIC;
+    out.resize(intlen);
+    return RNP_SUCCESS;
 }
 
 static rnp_result_t
-ecdh_rfc3394_unwrap(uint8_t *            out,
-                    size_t *             out_len,
-                    const uint8_t *const in,
-                    size_t               in_len,
-                    const uint8_t *      key,
-                    pgp_symm_alg_t       wrap_alg)
+rfc3394_unwrap(rnp::secure_bytes &         out,
+               const std::vector<uint8_t> &in,
+               const rnp::secure_bytes &   key,
+               pgp_symm_alg_t              wrap_alg)
 {
-    if ((in_len < 16) || (in_len % 8)) {
+    if ((in.size() < 16) || (in.size() % 8)) {
         RNP_LOG("Invalid wrapped key size.");
         return RNP_ERROR_GENERIC;
     }
-    EVP_CIPHER_CTX *ctx = NULL;
-    rnp_result_t    ret = ecdh_rfc3394_wrap_ctx(&ctx, wrap_alg, key, true);
+    rnp::ossl::evp::CipherCtx ctx;
+    rnp_result_t              ret = rfc3394_wrap_ctx(ctx, wrap_alg, key, true);
     if (ret) {
         /* LCOV_EXCL_START */
         RNP_LOG("Unwrap context initialization failed.");
         return ret;
         /* LCOV_EXCL_END */
     }
-    int intlen = *out_len;
+    int intlen = out.size();
     /* decrypts in one pass, no final is needed */
-    int res = EVP_DecryptUpdate(ctx, out, &intlen, in, in_len);
+    int res = EVP_DecryptUpdate(ctx.get(), out.data(), &intlen, in.data(), in.size());
     if (res <= 0) {
         RNP_LOG("Failed to decrypt data : %lu", ERR_peek_last_error());
-    } else {
-        *out_len = intlen;
+        return RNP_ERROR_GENERIC;
     }
-    EVP_CIPHER_CTX_free(ctx);
-    return res > 0 ? RNP_SUCCESS : RNP_ERROR_GENERIC;
+    out.resize(intlen);
+    return RNP_SUCCESS;
 }
 
 static bool
-ecdh_derive_secret(EVP_PKEY *sec, EVP_PKEY *peer, uint8_t *x, size_t *xlen)
+derive_secret(rnp::ossl::evp::PKey &sec, rnp::ossl::evp::PKey &peer, rnp::secure_bytes &x)
 {
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(sec, NULL);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new(sec.get(), NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
         return false;
         /* LCOV_EXCL_END */
     }
-    bool res = false;
-    if (EVP_PKEY_derive_init(ctx) <= 0) {
+    if (EVP_PKEY_derive_init(ctx.get()) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Key derivation init failed: %lu", ERR_peek_last_error());
-        goto done;
+        return false;
         /* LCOV_EXCL_END */
     }
-    if (EVP_PKEY_derive_set_peer(ctx, peer) <= 0) {
+    if (EVP_PKEY_derive_set_peer(ctx.get(), peer.get()) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Peer setting failed: %lu", ERR_peek_last_error());
-        goto done;
+        return false;
         /* LCOV_EXCL_END */
     }
-    if (EVP_PKEY_derive(ctx, x, xlen) <= 0) {
+    x.resize(MAX_CURVE_BYTELEN + 1);
+    size_t xlen = x.size();
+    if (EVP_PKEY_derive(ctx.get(), x.data(), &xlen) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to obtain shared secret size: %lu", ERR_peek_last_error());
-        goto done;
+        return false;
         /* LCOV_EXCL_END */
     }
-    res = true;
-done:
-    EVP_PKEY_CTX_free(ctx);
-    return res;
+    x.resize(xlen);
+    return true;
 }
 
 static size_t
@@ -263,179 +248,145 @@ ecdh_kek_len(pgp_symm_alg_t wrap_alg)
 }
 
 rnp_result_t
-ecdh_encrypt_pkcs5(rnp::RNG *               rng,
-                   pgp_ecdh_encrypted_t *   out,
-                   const uint8_t *const     in,
-                   size_t                   in_len,
-                   const pgp_ec_key_t *     key,
-                   const pgp_fingerprint_t &fingerprint)
+encrypt_pkcs5(rnp::RNG &rng, Encrypted &out, const rnp::secure_bytes &in, const ec::Key &key)
 {
-    if (!key || !out || !in || (in_len > MAX_SESSION_KEY_SIZE)) {
+    if (in.size() > MAX_SESSION_KEY_SIZE) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 #if !defined(ENABLE_SM2)
-    if (key->curve == PGP_CURVE_SM2_P_256) {
+    if (key.curve == PGP_CURVE_SM2_P_256) {
         RNP_LOG("SM2 curve support is disabled.");
         return RNP_ERROR_NOT_IMPLEMENTED;
     }
 #endif
     /* check whether we have valid wrap_alg before doing heavy operations */
-    size_t keklen = ecdh_kek_len(key->key_wrap_alg);
+    size_t keklen = ecdh_kek_len(key.key_wrap_alg);
     if (!keklen) {
         /* LCOV_EXCL_START */
-        RNP_LOG("Unsupported key wrap algorithm: %d", (int) key->key_wrap_alg);
+        RNP_LOG("Unsupported key wrap algorithm: %d", (int) key.key_wrap_alg);
         return RNP_ERROR_NOT_SUPPORTED;
         /* LCOV_EXCL_END */
     }
     /* load our public key */
-    EVP_PKEY *pkey = ec_load_key(key->p, NULL, key->curve);
+    auto pkey = ec::load_key(key.p, NULL, key.curve);
     if (!pkey) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to load public key.");
         return RNP_ERROR_BAD_PARAMETERS;
         /* LCOV_EXCL_END */
     }
-    rnp::secure_array<uint8_t, MAX_CURVE_BYTELEN + 1> sec;
-    rnp::secure_array<uint8_t, MAX_AES_KEY_SIZE>      kek;
-    rnp::secure_array<uint8_t, MAX_SESSION_KEY_SIZE>  mpad;
 
-    size_t       seclen = sec.size();
-    rnp_result_t ret = RNP_ERROR_GENERIC;
     /* generate ephemeral key */
-    EVP_PKEY *ephkey = ec_generate_pkey(PGP_PKA_ECDH, key->curve);
+    auto ephkey = ec::generate_pkey(PGP_PKA_ECDH, key.curve);
     if (!ephkey) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to generate ephemeral key.");
-        ret = RNP_ERROR_KEY_GENERATION;
-        goto done;
+        return RNP_ERROR_KEY_GENERATION;
         /* LCOV_EXCL_END */
     }
     /* do ECDH derivation */
-    if (!ecdh_derive_secret(ephkey, pkey, sec.data(), &seclen)) {
+    rnp::secure_bytes sec;
+    if (!derive_secret(ephkey, pkey, sec)) {
         /* LCOV_EXCL_START */
         RNP_LOG("ECDH derivation failed.");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
     /* here we got x value in sec, deriving kek */
-    ret = ecdh_derive_kek(sec.data(), seclen, *key, fingerprint, kek.data(), keklen);
+    rnp::secure_bytes kek(keklen, 0);
+    auto              ret = derive_kek(sec, key, out.fp, kek);
     if (ret) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to derive KEK.");
-        goto done;
+        return ret;
         /* LCOV_EXCL_END */
     }
     /* add PKCS#7 padding */
-    size_t m_padded_len;
-    m_padded_len = ((in_len / 8) + 1) * 8;
-    memcpy(mpad.data(), in, in_len);
-    if (!pad_pkcs7(mpad.data(), m_padded_len, in_len)) {
-        /* LCOV_EXCL_START */
-        RNP_LOG("Failed to add PKCS #7 padding.");
-        goto done;
-        /* LCOV_EXCL_END */
-    }
+    size_t            m_padded_len = ((in.size() / 8) + 1) * 8;
+    rnp::secure_bytes mpad(in.begin(), in.end());
+    pad_pkcs7(mpad, m_padded_len - in.size());
     /* do RFC 3394 AES key wrap */
-    static_assert(sizeof(out->m) == ECDH_WRAPPED_KEY_SIZE, "Wrong ECDH wrapped key size.");
-    out->mlen = ECDH_WRAPPED_KEY_SIZE;
-    ret = ecdh_rfc3394_wrap(
-      out->m, &out->mlen, mpad.data(), m_padded_len, kek.data(), key->key_wrap_alg);
+    out.m.resize(ECDH_WRAPPED_KEY_SIZE);
+    ret = rfc3394_wrap(out.m, mpad, kek, key.key_wrap_alg);
     if (ret) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to wrap key.");
-        goto done;
+        return ret;
         /* LCOV_EXCL_END */
     }
     /* write ephemeral public key */
-    if (!ec_write_pubkey(ephkey, out->p, key->curve)) {
+    if (!ec::write_pubkey(ephkey, out.p, key.curve)) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to write ec key.");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    ret = RNP_SUCCESS;
-done:
-    EVP_PKEY_free(ephkey);
-    EVP_PKEY_free(pkey);
-    return ret;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
-ecdh_decrypt_pkcs5(uint8_t *                   out,
-                   size_t *                    out_len,
-                   const pgp_ecdh_encrypted_t *in,
-                   const pgp_ec_key_t *        key,
-                   const pgp_fingerprint_t &   fingerprint)
+decrypt_pkcs5(rnp::secure_bytes &out, const Encrypted &in, const ec::Key &key)
 {
-    if (!out || !out_len || !in || !key || !mpi_bytes(&key->x)) {
+    if (!key.x.size()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     /* check whether we have valid wrap_alg before doing heavy operations */
-    size_t keklen = ecdh_kek_len(key->key_wrap_alg);
+    size_t keklen = ecdh_kek_len(key.key_wrap_alg);
     if (!keklen) {
-        RNP_LOG("Unsupported key wrap algorithm: %d", (int) key->key_wrap_alg);
+        RNP_LOG("Unsupported key wrap algorithm: %d", (int) key.key_wrap_alg);
         return RNP_ERROR_NOT_SUPPORTED;
     }
     /* load ephemeral public key */
-    EVP_PKEY *ephkey = ec_load_key(in->p, NULL, key->curve);
+    auto ephkey = ec::load_key(in.p, nullptr, key.curve);
     if (!ephkey) {
         RNP_LOG("Failed to load ephemeral public key.");
         return RNP_ERROR_BAD_PARAMETERS;
     }
     /* load our secret key */
-    rnp::secure_array<uint8_t, MAX_CURVE_BYTELEN + 1> sec;
-    rnp::secure_array<uint8_t, MAX_AES_KEY_SIZE>      kek;
-    rnp::secure_array<uint8_t, MAX_SESSION_KEY_SIZE>  mpad;
-
-    size_t       seclen = sec.size();
-    size_t       mpadlen = mpad.size();
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-    EVP_PKEY *   pkey = ec_load_key(key->p, &key->x, key->curve);
+    auto pkey = ec::load_key(key.p, &key.x, key.curve);
     if (!pkey) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to load secret key.");
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto done;
+        return RNP_ERROR_BAD_PARAMETERS;
         /* LCOV_EXCL_END */
     }
     /* do ECDH derivation */
-    if (!ecdh_derive_secret(pkey, ephkey, sec.data(), &seclen)) {
+    rnp::secure_bytes sec;
+    if (!derive_secret(pkey, ephkey, sec)) {
         /* LCOV_EXCL_START */
         RNP_LOG("ECDH derivation failed.");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
     /* here we got x value in sec, deriving kek */
-    ret = ecdh_derive_kek(sec.data(), seclen, *key, fingerprint, kek.data(), keklen);
+    rnp::secure_bytes kek(keklen, 0);
+    auto              ret = derive_kek(sec, key, in.fp, kek);
     if (ret) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to derive KEK.");
-        goto done;
+        return ret;
         /* LCOV_EXCL_END */
     }
     /* do RFC 3394 AES key unwrap */
-    ret = ecdh_rfc3394_unwrap(
-      mpad.data(), &mpadlen, in->m, in->mlen, kek.data(), key->key_wrap_alg);
+    rnp::secure_bytes mpad(MAX_SESSION_KEY_SIZE, 0);
+    ret = rfc3394_unwrap(mpad, in.m, kek, key.key_wrap_alg);
     if (ret) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to unwrap key.");
-        goto done;
+        return ret;
         /* LCOV_EXCL_END */
     }
     /* remove PKCS#7 padding */
-    if (!unpad_pkcs7(mpad.data(), mpadlen, &mpadlen)) {
+    if (!unpad_pkcs7(mpad)) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to unpad key.");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    assert(mpadlen <= *out_len);
-    *out_len = mpadlen;
-    memcpy(out, mpad.data(), mpadlen);
-    ret = RNP_SUCCESS;
-done:
-    EVP_PKEY_free(ephkey);
-    EVP_PKEY_free(pkey);
-    return ret;
+    out.assign(mpad.begin(), mpad.end());
+    return RNP_SUCCESS;
 }
+
+} // namespace ecdh
+} // namespace pgp

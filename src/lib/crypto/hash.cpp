@@ -95,19 +95,18 @@ Hash_Botan::add(const void *buf, size_t len)
     fn_->update(static_cast<const uint8_t *>(buf), len);
 }
 
-size_t
+void
 Hash_Botan::finish(uint8_t *digest)
 {
+    assert(fn_);
     if (!fn_) {
-        return 0;
+        return;
     }
-    size_t outlen = size_;
     if (digest) {
         fn_->final(digest);
     }
     fn_ = nullptr;
     size_ = 0;
-    return outlen;
 }
 
 const char *

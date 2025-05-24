@@ -208,6 +208,14 @@ process32(uint32_t crc, uint32_t word)
     return crc;
 }
 
+/* Load little-endian 32-bit from y to x in portable fashion */
+static inline void
+LOAD32LE(uint32_t &x, const uint8_t y[4])
+{
+    x = (static_cast<uint32_t>(y[3]) << 24) | (static_cast<uint32_t>(y[2]) << 16) |
+        (static_cast<uint32_t>(y[1]) << 8) | (static_cast<uint32_t>(y[0]) << 0);
+}
+
 static uint32_t
 crc24_update(uint32_t crc, const uint8_t *in, size_t length)
 {

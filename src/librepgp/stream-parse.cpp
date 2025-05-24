@@ -44,10 +44,13 @@
 #include "str-utils.h"
 #include "types.h"
 #include "crypto/s2k.h"
-#include "crypto.h"
 #include "crypto/signatures.h"
-#include "fingerprint.h"
-#include "pgp-key.h"
+#include "fingerprint.hpp"
+#include "key.hpp"
+#ifdef ENABLE_CRYPTO_REFRESH
+#include "crypto/hkdf.hpp"
+#include "v2_seipd.h"
+#endif
 
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
@@ -92,14 +95,18 @@ typedef struct pgp_source_encrypted_param_t {
     size_t                     chunklen{};   /* size of AEAD chunk in bytes */
     size_t                     chunkin{};    /* number of bytes read from the current chunk */
     size_t                     chunkidx{};   /* index of the current chunk */
-    uint8_t                    cache[PGP_AEAD_CACHE_LEN]; /* read cache */
-    size_t                     cachelen{};                /* number of bytes in the cache */
-    size_t                     cachepos{}; /* index of first unread byte in the cache */
-    pgp_aead_hdr_t             aead_hdr;   /* AEAD encryption parameters */
-    uint8_t                    aead_ad[PGP_AEAD_MAX_AD_LEN]; /* additional data */
-    size_t                     aead_adlen{}; /* length of the additional data */
-    pgp_symm_alg_t             salg;         /* data encryption algorithm */
-    pgp_parse_handler_t *      handler{};    /* parsing handler with callbacks */
+    size_t               rawbytes{}; /* number of bytes in cache read but not decrypted */
+    uint8_t              cache[PGP_AEAD_CACHE_LEN]; /* read cache */
+    size_t               cachelen{};                /* number of bytes in the cache */
+    size_t               cachepos{}; /* index of first unread byte in the cache */
+    pgp_aead_hdr_t       aead_hdr;   /* AEAD encryption parameters */
+    uint8_t              aead_ad[PGP_AEAD_MAX_AD_LEN]; /* additional data */
+    size_t               aead_adlen{};                 /* length of the additional data */
+    pgp_symm_alg_t       salg;                         /* data encryption algorithm */
+    pgp_parse_handler_t *handler{};                    /* parsing handler with callbacks */
+#ifdef ENABLE_CRYPTO_REFRESH
+    pgp_seipdv2_hdr_t seipdv2_hdr; /* SEIPDv2 encryption parameters */
+#endif
 
     pgp_source_encrypted_param_t() : auth_type(rnp::AuthType::None), salg(PGP_SA_UNKNOWN)
     {
@@ -108,8 +115,21 @@ typedef struct pgp_source_encrypted_param_t {
     bool
     use_cfb()
     {
-        return auth_type != rnp::AuthType::AEADv1;
+        return (auth_type != rnp::AuthType::AEADv1
+#ifdef ENABLE_CRYPTO_REFRESH
+                && auth_type != rnp::AuthType::AEADv2
+#endif
+        );
     }
+
+#ifdef ENABLE_CRYPTO_REFRESH
+    bool
+    is_v2_seipd() const
+    {
+        return auth_type == rnp::AuthType::AEADv2;
+    }
+#endif
+
 } pgp_source_encrypted_param_t;
 
 typedef struct pgp_source_signed_param_t {
@@ -127,12 +147,14 @@ typedef struct pgp_source_signed_param_t {
     size_t               text_line_len;   /* length of a current line in a text document */
     long stripped_crs; /* number of trailing CR characters stripped from the end of the last
                           processed chunk */
+    pgp_literal_hdr_t lhdr{};
+    bool              has_lhdr = false;
 
-    std::vector<pgp_one_pass_sig_t>   onepasses;  /* list of one-pass singatures */
-    std::list<pgp_signature_t>        sigs;       /* list of signatures */
-    std::vector<pgp_signature_info_t> siginfos;   /* signature validation info */
-    rnp::HashList                     hashes;     /* hash contexts */
-    rnp::HashList                     txt_hashes; /* hash contexts for text-mode sigs */
+    std::vector<pgp_one_pass_sig_t> onepasses;  /* list of one-pass signatures */
+    std::list<pgp::pkt::Signature>  sigs;       /* list of signatures */
+    std::vector<rnp::SignatureInfo> siginfos;   /* signature validation info */
+    rnp::HashList                   hashes;     /* hash contexts */
+    rnp::HashList                   txt_hashes; /* hash contexts for text-mode sigs */
 
     pgp_source_signed_param_t() = default;
     ~pgp_source_signed_param_t() = default;
@@ -164,11 +186,28 @@ typedef struct pgp_source_partial_param_t {
     bool          last;    /* current part is last */
 } pgp_source_partial_param_t;
 
+namespace {
+
+bool
+is_valid_seipd_version(uint8_t version)
+{
+    if (version == 1
+#ifdef ENABLE_CRYPTO_REFRESH
+        || version == 2
+#endif
+    ) {
+        return true;
+    }
+    return false;
+}
+
+} // namespace
+
 static bool
 is_pgp_source(pgp_source_t &src)
 {
     uint8_t buf;
-    if (!src_peek_eq(&src, &buf, 1)) {
+    if (!src.peek_eq(&buf, 1)) {
         return false;
     }
 
@@ -191,7 +230,7 @@ is_pgp_source(pgp_source_t &src)
 static bool
 partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 {
-    if (src->eof) {
+    if (src->eof_) {
         *readres = 0;
         return true;
     }
@@ -224,7 +263,7 @@ partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
         }
 
         read = param->pleft > len ? len : param->pleft;
-        if (!src_read(param->readsrc, buf, read, &read)) {
+        if (!param->readsrc->read(buf, read, &read)) {
             RNP_LOG("failed to read data chunk");
             return false;
         }
@@ -258,7 +297,7 @@ init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc, pgp_packet_hdr_t 
 {
     pgp_source_partial_param_t *param;
     if (!init_src_common(src, sizeof(*param))) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     assert(hdr.partial);
@@ -270,8 +309,8 @@ init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc, pgp_packet_hdr_t 
     param->last = false;
     param->readsrc = readsrc;
 
-    src->read = partial_pkt_src_read;
-    src->close = partial_pkt_src_close;
+    src->raw_read = partial_pkt_src_read;
+    src->raw_close = partial_pkt_src_close;
     src->type = PGP_STREAM_PARLEN_PACKET;
 
     if (param->psize < PGP_PARTIAL_PKT_FIRST_PART_MIN_SIZE) {
@@ -290,7 +329,7 @@ literal_src_read(pgp_source_t *src, void *buf, size_t len, size_t *read)
     if (!param) {
         return false;
     }
-    return src_read(param->pkt.readsrc, buf, len, read);
+    return param->pkt.readsrc->read(buf, len, read);
 }
 
 static void
@@ -299,7 +338,7 @@ literal_src_close(pgp_source_t *src)
     pgp_source_literal_param_t *param = (pgp_source_literal_param_t *) src->param;
     if (param) {
         if (param->pkt.hdr.partial) {
-            src_close(param->pkt.readsrc);
+            param->pkt.readsrc->close();
             free(param->pkt.readsrc);
             param->pkt.readsrc = NULL;
         }
@@ -314,16 +353,16 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 {
     pgp_source_compressed_param_t *param = (pgp_source_compressed_param_t *) src->param;
     if (!param) {
-        return false;
+        return false; // LCOV_EXCL_LINE
     }
 
-    if (src->eof || param->zend) {
+    if (src->eof_ || param->zend) {
         *readres = 0;
         return true;
     }
 
     if (param->alg == PGP_C_NONE) {
-        if (!src_read(param->pkt.readsrc, buf, len, readres)) {
+        if (!param->pkt.readsrc->read(buf, len, readres)) {
             RNP_LOG("failed to read uncompressed data");
             return false;
         }
@@ -338,7 +377,7 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
         while ((param->z.avail_out > 0) && (!param->zend)) {
             if (param->z.avail_in == 0) {
                 size_t read = 0;
-                if (!src_read(param->pkt.readsrc, param->in, sizeof(param->in), &read)) {
+                if (!param->pkt.readsrc->read(param->in, sizeof(param->in), &read)) {
                     RNP_LOG("failed to read data");
                     return false;
                 }
@@ -359,7 +398,7 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
                 RNP_LOG("inflate error %d", ret);
                 return false;
             }
-            if (!param->z.avail_in && src_eof(param->pkt.readsrc)) {
+            if (!param->z.avail_in && param->pkt.readsrc->eof()) {
                 RNP_LOG("unexpected end of zlib stream");
                 return false;
             }
@@ -378,7 +417,7 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
         while ((param->bz.avail_out > 0) && (!param->zend)) {
             if (param->bz.avail_in == 0) {
                 size_t read = 0;
-                if (!src_read(param->pkt.readsrc, param->in, sizeof(param->in), &read)) {
+                if (!param->pkt.readsrc->read(param->in, sizeof(param->in), &read)) {
                     RNP_LOG("failed to read data");
                     return false;
                 }
@@ -399,7 +438,7 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
                 RNP_LOG("bzdecompress error %d", ret);
                 return false;
             }
-            if (!param->bz.avail_in && src_eof(param->pkt.readsrc)) {
+            if (!param->bz.avail_in && param->pkt.readsrc->eof()) {
                 RNP_LOG("unexpected end of bzip stream");
                 return false;
             }
@@ -418,11 +457,11 @@ compressed_src_close(pgp_source_t *src)
 {
     pgp_source_compressed_param_t *param = (pgp_source_compressed_param_t *) src->param;
     if (!param) {
-        return;
+        return; // LCOV_EXCL_LINE
     }
 
     if (param->pkt.hdr.partial) {
-        src_close(param->pkt.readsrc);
+        param->pkt.readsrc->close();
         free(param->pkt.readsrc);
         param->pkt.readsrc = NULL;
     }
@@ -444,11 +483,7 @@ compressed_src_close(pgp_source_t *src)
 static bool
 encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool last)
 {
-    uint8_t nonce[PGP_AEAD_MAX_NONCE_LEN];
-    size_t  nlen;
-
-    /* set chunk index for additional data */
-    STORE64BE(param->aead_ad + param->aead_adlen - 8, idx);
+    size_t default_ad_len = param->aead_adlen;
 
     if (last) {
         uint64_t total = idx * param->chunklen;
@@ -460,13 +495,51 @@ encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool
             /* reset the crypto in case we had empty chunk before the last one */
             pgp_cipher_aead_reset(&param->decrypt);
         }
-        STORE64BE(param->aead_ad + param->aead_adlen, total);
+        write_uint64(param->aead_ad + param->aead_adlen, total);
         param->aead_adlen += 8;
     }
 
-    if (!pgp_cipher_aead_set_ad(&param->decrypt, param->aead_ad, param->aead_adlen)) {
-        RNP_LOG("failed to set ad");
-        return false;
+    switch (param->auth_type) {
+    case rnp::AuthType::MDC:
+        break; // cannot happen
+    case rnp::AuthType::None:
+        break; // cannot happen
+    case rnp::AuthType::AEADv1:
+        /* set chunk index for additional data */
+        write_uint64(param->aead_ad + default_ad_len - 8, idx);
+
+        if (!pgp_cipher_aead_set_ad(&param->decrypt, param->aead_ad, param->aead_adlen)) {
+            RNP_LOG("failed to set ad");
+            return false;
+        }
+        break;
+
+#ifdef ENABLE_CRYPTO_REFRESH
+    case rnp::AuthType::AEADv2:
+        /* set chunk index for additional data */
+        write_uint64(param->aead_ad + default_ad_len - 8, idx);
+        std::vector<uint8_t> add_data_seipd_v2 = {
+          static_cast<uint8_t>(PGP_PKT_SE_IP_DATA | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT),
+          static_cast<uint8_t>(param->seipdv2_hdr.version),
+          static_cast<uint8_t>(param->seipdv2_hdr.cipher_alg),
+          static_cast<uint8_t>(param->seipdv2_hdr.aead_alg),
+          param->seipdv2_hdr.chunk_size_octet};
+
+        if (param->is_v2_seipd()) {
+            if (last) {
+                std::copy(&param->aead_ad[5],
+                          &param->aead_ad[5 + 8],
+                          std::back_inserter(add_data_seipd_v2));
+            }
+            if (!pgp_cipher_aead_set_ad(
+                  &param->decrypt, add_data_seipd_v2.data(), add_data_seipd_v2.size())) {
+                RNP_LOG("failed to set ad");
+                return false;
+            }
+        }
+        break;
+
+#endif
     }
 
     /* setup chunk */
@@ -474,7 +547,8 @@ encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool
     param->chunkin = 0;
 
     /* set chunk index for nonce */
-    nlen = pgp_cipher_aead_nonce(param->aead_hdr.aalg, param->aead_hdr.iv, nonce, idx);
+    uint8_t nonce[PGP_AEAD_MAX_NONCE_LEN];
+    size_t  nlen = pgp_cipher_aead_nonce(param->aead_hdr.aalg, param->aead_hdr.iv, nonce, idx);
 
     /* start cipher */
     return pgp_cipher_aead_start(&param->decrypt, nonce, nlen);
@@ -484,13 +558,10 @@ encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool
 static bool
 encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
 {
-    bool   lastchunk = false;
-    bool   chunkend = false;
-    bool   res = false;
-    size_t read;
-    size_t tagread;
-    size_t taglen;
-
+    /* Check whether we have some bytes which were read but not decrypted */
+    if (param->rawbytes) {
+        memcpy(param->cache, param->cache + param->cachelen, param->rawbytes);
+    }
     param->cachepos = 0;
     param->cachelen = 0;
 
@@ -499,32 +570,39 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
     }
 
     /* it is always 16 for defined EAX and OCB, however this may change in future */
-    taglen = pgp_cipher_aead_tag_len(param->aead_hdr.aalg);
-    read = sizeof(param->cache) - 2 * PGP_AEAD_MAX_TAG_LEN;
+    size_t taglen = pgp_cipher_aead_tag_len(param->aead_hdr.aalg);
+    size_t read = sizeof(param->cache) - 2 * PGP_AEAD_MAX_TAG_LEN - param->rawbytes;
+    bool   chunkend = false;
 
     if (read >= param->chunklen - param->chunkin) {
-        read = param->chunklen - param->chunkin;
+        /* param->rawbytes is smaller then param->chunklen - param->chunkin due to the previous
+         * call */
+        read = param->chunklen - param->chunkin - param->rawbytes;
         chunkend = true;
     } else {
-        read = read - read % pgp_cipher_aead_granularity(&param->decrypt);
+        read = read - (read + param->rawbytes) % pgp_cipher_aead_granularity(&param->decrypt);
     }
 
-    if (!src_read(param->pkt.readsrc, param->cache, read, &read)) {
+    if (!param->pkt.readsrc->read(param->cache + param->rawbytes, read, &read)) {
         return false;
     }
 
     /* checking whether we have enough input for the final tags */
-    if (!src_peek(param->pkt.readsrc, param->cache + read, taglen * 2, &tagread)) {
+    size_t tagread = 0;
+    if (!param->pkt.readsrc->peek(
+          param->cache + param->rawbytes + read, taglen * 2, &tagread)) {
         return false;
     }
 
+    bool   lastchunk = false;
+    size_t avail = param->rawbytes + read + tagread;
     if (tagread < taglen * 2) {
         /* this would mean the end of the stream */
-        if ((param->chunkin == 0) && (read + tagread == taglen)) {
+        if ((param->chunkin == 0) && (avail == taglen)) {
             /* we have empty chunk and final tag */
             chunkend = false;
             lastchunk = true;
-        } else if (read + tagread >= 2 * taglen) {
+        } else if (avail >= 2 * taglen) {
             /* we have end of chunk and final tag */
             chunkend = true;
             lastchunk = true;
@@ -535,55 +613,68 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
     }
 
     if (!chunkend && !lastchunk) {
-        param->chunkin += read;
-        res = pgp_cipher_aead_update(&param->decrypt, param->cache, param->cache, read);
+        size_t used = 0;
+        bool   res = pgp_cipher_aead_update(
+          param->decrypt, param->cache, param->cache, param->rawbytes + read, used);
+
+        param->chunkin += used;
         if (res) {
-            param->cachelen = read;
+            param->cachelen = used;
+            param->rawbytes = param->rawbytes + read - used;
         }
         return res;
     }
 
+    /* Processing end of chunk */
     if (chunkend) {
         if (tagread > taglen) {
-            src_skip(param->pkt.readsrc, tagread - taglen);
+            param->pkt.readsrc->skip(tagread - taglen);
         }
 
-        res = pgp_cipher_aead_finish(
-          &param->decrypt, param->cache, param->cache, read + tagread - taglen);
-        if (!res) {
+        if (!pgp_cipher_aead_finish(&param->decrypt,
+                                    param->cache,
+                                    param->cache,
+                                    param->rawbytes + read + tagread - taglen)) {
             RNP_LOG("failed to finalize aead chunk");
-            return res;
+            return false;
         }
-        param->cachelen = read + tagread - 2 * taglen;
+        param->cachelen = param->rawbytes + read + tagread - 2 * taglen;
         param->chunkin += param->cachelen;
+        param->rawbytes = 0;
     }
 
+    /* Starting a new chunk */
     size_t chunkidx = param->chunkidx;
     if (chunkend && param->chunkin) {
         chunkidx++;
     }
 
-    if (!(res = encrypted_start_aead_chunk(param, chunkidx, lastchunk))) {
+    if (!encrypted_start_aead_chunk(param, chunkidx, lastchunk)) {
         RNP_LOG("failed to start aead chunk");
-        return res;
+        return false;
     }
 
-    if (lastchunk) {
-        if (tagread > 0) {
-            src_skip(param->pkt.readsrc, tagread);
-        }
-
-        size_t off = read + tagread - taglen;
-        res = pgp_cipher_aead_finish(
-          &param->decrypt, param->cache + off, param->cache + off, taglen);
-        if (!res) {
-            RNP_LOG("wrong last chunk");
-            return res;
-        }
-        param->auth_validated = true;
+    if (!lastchunk) {
+        return true;
     }
 
-    return res;
+    /* Processing last chunk */
+    if (tagread > 0) {
+        param->pkt.readsrc->skip(tagread);
+    }
+
+    /* Probably math below could be improved. The reason of this is that for chunkend we set
+     * rawbytes to 0 but it still be useful. */
+    size_t off =
+      chunkend ? param->cachelen + taglen : param->rawbytes + read + tagread - taglen;
+    if (!pgp_cipher_aead_finish(
+          &param->decrypt, param->cache + off, param->cache + off, taglen)) {
+        RNP_LOG("wrong last chunk");
+        return false;
+    }
+    param->rawbytes = 0;
+    param->auth_validated = true;
+    return true;
 }
 #endif
 
@@ -593,13 +684,12 @@ encrypted_src_read_aead(pgp_source_t *src, void *buf, size_t len, size_t *read)
 #if !defined(ENABLE_AEAD)
     return false;
 #else
-    pgp_source_encrypted_param_t *param = (pgp_source_encrypted_param_t *) src->param;
-    size_t                        cbytes;
-    size_t                        left = len;
+    auto   param = (pgp_source_encrypted_param_t *) src->param;
+    size_t left = len;
 
     do {
         /* check whether we have something in the cache */
-        cbytes = param->cachelen - param->cachepos;
+        size_t cbytes = param->cachelen - param->cachepos;
         if (cbytes > 0) {
             if (cbytes >= left) {
                 memcpy(buf, param->cache + param->cachepos, left);
@@ -613,7 +703,6 @@ encrypted_src_read_aead(pgp_source_t *src, void *buf, size_t len, size_t *read)
             memcpy(buf, param->cache + param->cachepos, cbytes);
             buf = (uint8_t *) buf + cbytes;
             left -= cbytes;
-            param->cachepos = param->cachelen = 0;
         }
 
         /* read something into cache */
@@ -631,17 +720,17 @@ static bool
 encrypted_src_read_cfb(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 {
     pgp_source_encrypted_param_t *param = (pgp_source_encrypted_param_t *) src->param;
-    if (param == NULL) {
-        return false;
+    if (!param) {
+        return false; // LCOV_EXCL_LINE
     }
 
-    if (src->eof) {
+    if (src->eof_) {
         *readres = 0;
         return true;
     }
 
     size_t read;
-    if (!src_read(param->pkt.readsrc, buf, len, &read)) {
+    if (!param->pkt.readsrc->read(buf, len, &read)) {
         return false;
     }
     if (!read) {
@@ -654,13 +743,13 @@ encrypted_src_read_cfb(pgp_source_t *src, void *buf, size_t len, size_t *readres
     if (param->auth_type == rnp::AuthType::MDC) {
         size_t mdcread = 0;
         /* make sure there are always 22 bytes left on input */
-        if (!src_peek(param->pkt.readsrc, mdcbuf, MDC_V1_SIZE, &mdcread) ||
+        if (!param->pkt.readsrc->peek(mdcbuf, MDC_V1_SIZE, &mdcread) ||
             (mdcread + read < MDC_V1_SIZE)) {
             RNP_LOG("wrong mdc read state");
             return false;
         }
         if (mdcread < MDC_V1_SIZE) {
-            src_skip(param->pkt.readsrc, mdcread);
+            param->pkt.readsrc->skip(mdcread);
             size_t mdcsub = MDC_V1_SIZE - mdcread;
             memmove(&mdcbuf[mdcsub], mdcbuf, mdcread);
             memcpy(mdcbuf, (uint8_t *) buf + read - mdcsub, mdcsub);
@@ -695,8 +784,10 @@ encrypted_src_read_cfb(pgp_source_t *src, void *buf, size_t len, size_t *readres
                 param->auth_validated = true;
             }
         } catch (const std::exception &e) {
+            /* LCOV_EXCL_START */
             RNP_LOG("mdc update failed: %s", e.what());
             return false;
+            /* LCOV_EXCL_END */
         }
     }
     *readres = read;
@@ -739,7 +830,7 @@ encrypted_src_close(pgp_source_t *src)
         return;
     }
     if (param->pkt.hdr.partial) {
-        src_close(param->pkt.readsrc);
+        param->pkt.readsrc->close();
         free(param->pkt.readsrc);
         param->pkt.readsrc = NULL;
     }
@@ -767,7 +858,7 @@ add_hash_for_sig(pgp_source_signed_param_t *param, pgp_sig_type_t stype, pgp_has
 }
 
 static const rnp::Hash *
-get_hash_for_sig(pgp_source_signed_param_t &param, pgp_signature_info_t &sinfo)
+get_hash_for_sig(pgp_source_signed_param_t &param, rnp::SignatureInfo &sinfo)
 {
     /* Cleartext always uses param->hashes instead of param->txt_hashes */
     if (!param.cleartext && (sinfo.sig->type() == PGP_SIG_TEXT)) {
@@ -777,52 +868,50 @@ get_hash_for_sig(pgp_source_signed_param_t &param, pgp_signature_info_t &sinfo)
 }
 
 static void
-signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t &sinfo)
+signed_validate_signature(pgp_source_signed_param_t &param, rnp::SignatureInfo &sinfo)
 {
     /* Check signature type */
     if (!sinfo.sig->is_document()) {
         RNP_LOG("Invalid document signature type: %d", (int) sinfo.sig->type());
-        sinfo.valid = false;
-        return;
+        sinfo.validity.add_error(RNP_ERROR_SIG_NOT_DOCUMENT);
     }
     /* Find signing key */
-    pgp_key_request_ctx_t keyctx(PGP_OP_VERIFY, false, PGP_KEY_SEARCH_FINGERPRINT);
-
+    std::unique_ptr<rnp::KeySearch> search;
     /* Get signer's fp or keyid */
     if (sinfo.sig->has_keyfp()) {
-        keyctx.search.by.fingerprint = sinfo.sig->keyfp();
+        search = rnp::KeySearch::create(sinfo.sig->keyfp());
     } else if (sinfo.sig->has_keyid()) {
-        keyctx.search.type = PGP_KEY_SEARCH_KEYID;
-        keyctx.search.by.keyid = sinfo.sig->keyid();
+        search = rnp::KeySearch::create(sinfo.sig->keyid());
     } else {
         RNP_LOG("cannot get signer's key fp or id from signature.");
-        sinfo.unknown = true;
+        sinfo.validity.mark_validated(RNP_ERROR_SIG_NO_SIGNER_ID);
         return;
     }
     /* Get the public key */
-    pgp_key_t *key = pgp_request_key(param.handler->key_provider, &keyctx);
+    auto key = param.handler->key_provider->request_key(*search, PGP_OP_VERIFY);
     if (!key) {
         /* fallback to secret key */
-        keyctx.secret = true;
-        if (!(key = pgp_request_key(param.handler->key_provider, &keyctx))) {
+        if (!(key = param.handler->key_provider->request_key(*search, PGP_OP_VERIFY, true))) {
             RNP_LOG("signer's key not found");
-            sinfo.no_signer = true;
+            sinfo.validity.mark_validated(RNP_ERROR_SIG_NO_SIGNER_KEY);
             return;
         }
     }
-    try {
-        /* Get the hash context and clone it. */
-        auto hash = get_hash_for_sig(param, sinfo);
-        if (!hash) {
-            RNP_LOG("failed to get hash context.");
-            return;
-        }
-        auto shash = hash->clone();
-        key->validate_sig(sinfo, *shash, *param.handler->ctx->ctx);
-    } catch (const std::exception &e) {
-        RNP_LOG("Signature validation failed: %s", e.what());
-        sinfo.valid = false;
+    if (!key->can_sign()) {
+        RNP_LOG("key is not usable for verification");
+        sinfo.validity.mark_validated(RNP_ERROR_SIG_UNUSABLE_KEY);
+        return;
     }
+    /* Get the hash context and clone it. */
+    auto hash = get_hash_for_sig(param, sinfo);
+    if (!hash) {
+        RNP_LOG("failed to get hash context.");
+        sinfo.validity.mark_validated(RNP_ERROR_SIG_NO_HASH_CTX);
+        return;
+    }
+    auto shash = hash->clone();
+    key->validate_sig(
+      sinfo, *shash, param.handler->ctx->sec_ctx, param.has_lhdr ? &param.lhdr : NULL);
 }
 
 static long
@@ -835,6 +924,14 @@ stripped_line_len(uint8_t *begin, uint8_t *end)
     }
 
     return stripped_end - begin + 1;
+}
+
+static void
+signed_src_set_literal_hdr(pgp_source_t &src, const pgp_literal_hdr_t &hdr)
+{
+    auto param = static_cast<pgp_source_signed_param_t *>(src.param);
+    param->lhdr = hdr;
+    param->has_lhdr = true;
 }
 
 static void
@@ -853,7 +950,7 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
     try {
         param->hashes.add(buf, len);
     } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
+        RNP_LOG("%s", e.what()); // LCOV_EXCL_LINE
     }
     /* update text-mode sig hashes */
     if (param->txt_hashes.hashes.empty()) {
@@ -872,7 +969,7 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
                     try {
                         param->txt_hashes.add(ST_CR, 1);
                     } catch (const std::exception &e) {
-                        RNP_LOG("%s", e.what());
+                        RNP_LOG("%s", e.what()); // LCOV_EXCL_LINE
                     }
                 }
                 param->stripped_crs = 0;
@@ -898,7 +995,7 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
                 try {
                     param->txt_hashes.add(linebeg, stripped_len);
                 } catch (const std::exception &e) {
-                    RNP_LOG("%s", e.what());
+                    RNP_LOG("%s", e.what()); // LCOV_EXCL_LINE
                 }
             }
         }
@@ -906,7 +1003,7 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
         try {
             param->txt_hashes.add(ST_CRLF, 2);
         } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
+            RNP_LOG("%s", e.what()); // LCOV_EXCL_LINE
         }
         ch++;
         linebeg = ch;
@@ -921,7 +1018,7 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
             try {
                 param->txt_hashes.add(linebeg, stripped_len);
             } catch (const std::exception &e) {
-                RNP_LOG("%s", e.what());
+                RNP_LOG("%s", e.what()); // LCOV_EXCL_LINE
             }
         }
     }
@@ -934,16 +1031,13 @@ signed_src_read(pgp_source_t *src, void *buf, size_t len, size_t *read)
     if (!param) {
         return false;
     }
-    return src_read(param->readsrc, buf, len, read);
+    return param->readsrc->read(buf, len, read);
 }
 
 static void
 signed_src_close(pgp_source_t *src)
 {
     pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
-    if (!param) {
-        return;
-    }
     delete param;
     src->param = NULL;
 }
@@ -953,10 +1047,10 @@ signed_src_close(pgp_source_t *src)
 static rnp_result_t
 signed_read_single_signature(pgp_source_signed_param_t *param,
                              pgp_source_t *             readsrc,
-                             pgp_signature_t **         sig)
+                             pgp::pkt::Signature **     sig)
 {
     uint8_t ptag;
-    if (!src_peek_eq(readsrc, &ptag, 1)) {
+    if (!readsrc->peek_eq(&ptag, 1)) {
         RNP_LOG("failed to read signature packet header");
         return RNP_ERROR_READ;
     }
@@ -974,11 +1068,11 @@ signed_read_single_signature(pgp_source_signed_param_t *param,
 
     try {
         param->siginfos.emplace_back();
-        pgp_signature_info_t &siginfo = param->siginfos.back();
-        pgp_signature_t       readsig;
+        rnp::SignatureInfo &siginfo = param->siginfos.back();
+        pgp::pkt::Signature readsig;
         if (readsig.parse(*readsrc)) {
             RNP_LOG("failed to parse signature");
-            siginfo.unknown = true;
+            siginfo.validity.add_error(RNP_ERROR_SIG_PARSE_ERROR);
             if (sig) {
                 *sig = NULL;
             }
@@ -991,8 +1085,10 @@ signed_read_single_signature(pgp_source_signed_param_t *param,
         }
         return RNP_SUCCESS;
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
 }
 
@@ -1009,11 +1105,15 @@ signed_read_cleartext_signatures(pgp_source_t &src, pgp_source_signed_param_t *p
         }
         return RNP_SUCCESS;
     } catch (const rnp::rnp_exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return e.code();
+        /* LCOV_EXCL_END */
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return RNP_ERROR_BAD_FORMAT;
+        /* LCOV_EXCL_END */
     }
 }
 
@@ -1024,12 +1124,14 @@ signed_read_signatures(pgp_source_t *src)
 
     /* reading signatures */
     for (auto op = param->onepasses.rbegin(); op != param->onepasses.rend(); op++) {
-        pgp_signature_t *sig = NULL;
-        rnp_result_t     ret = signed_read_single_signature(param, src, &sig);
+        pgp::pkt::Signature *sig = NULL;
+        rnp_result_t         ret = signed_read_single_signature(param, src, &sig);
         /* we have more onepasses then signatures */
         if (ret == RNP_ERROR_READ) {
             RNP_LOG("Warning: premature end of signatures");
-            return param->siginfos.size() ? RNP_SUCCESS : ret;
+            if (!param->siginfos.empty()) {
+                return RNP_SUCCESS;
+            }
         }
         if (ret) {
             return ret;
@@ -1057,25 +1159,35 @@ signed_src_finish(pgp_source_t *src)
         return ret;
     }
 
-    if (!src_eof(src)) {
+    /* See https://dev.gnupg.org/T6615 for the details */
+    if (param->cleartext) {
+        param->lhdr.format = 't';
+        param->lhdr.fname_len = 0;
+        param->lhdr.timestamp = 0;
+        param->has_lhdr = true;
+    }
+
+    if (!src->eof()) {
         RNP_LOG("warning: unexpected data on the stream end");
     }
 
     /* validating signatures */
+    ret = RNP_ERROR_SIGNATURE_INVALID;
     for (auto &sinfo : param->siginfos) {
         if (!sinfo.sig) {
             continue;
         }
-        signed_validate_signature(*param, sinfo);
-    }
-
-    /* checking the validation results */
-    ret = RNP_ERROR_SIGNATURE_INVALID;
-    for (auto &sinfo : param->siginfos) {
-        if (sinfo.valid) {
+        try {
+            signed_validate_signature(*param, sinfo);
+        } catch (const std::exception &e) {
+            /* LCOV_EXCL_START */
+            RNP_LOG("Signature validation failed: %s", e.what());
+            sinfo.validity.mark_validated(RNP_ERROR_SIG_ERROR);
+            /* LCOV_EXCL_END */
+        }
+        if (sinfo.validity.valid()) {
             /* If we have at least one valid signature then data is safe to process */
             ret = RNP_SUCCESS;
-            break;
         }
     }
 
@@ -1114,16 +1226,15 @@ tokenize(const typename T::value_type &str, const typename T::value_type &delims
 }
 
 static bool
-cleartext_parse_headers(pgp_source_t *src)
+cleartext_parse_headers(pgp_source_signed_param_t *param)
 {
-    pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
-    char                       hdr[1024] = {0};
-    char *                     hval;
-    pgp_hash_alg_t             halg;
-    size_t                     hdrlen;
+    char           hdr[1024] = {0};
+    char *         hval;
+    pgp_hash_alg_t halg;
+    size_t         hdrlen;
 
     do {
-        if (!src_peek_line(param->readsrc, hdr, sizeof(hdr), &hdrlen)) {
+        if (!param->readsrc->peek_line(hdr, sizeof(hdr), &hdrlen)) {
             RNP_LOG("failed to peek line");
             return false;
         }
@@ -1133,7 +1244,7 @@ cleartext_parse_headers(pgp_source_t *src)
         }
 
         if (rnp::is_blank_line(hdr, hdrlen)) {
-            src_skip(param->readsrc, hdrlen);
+            param->readsrc->skip(hdrlen);
             break;
         }
 
@@ -1159,19 +1270,21 @@ cleartext_parse_headers(pgp_source_t *src)
                 RNP_LOG("unknown header '%s'", hdr);
             }
         } catch (const std::exception &e) {
+            /* LCOV_EXCL_START */
             RNP_LOG("%s", e.what());
             return false;
+            /* LCOV_EXCL_END */
         }
 
-        src_skip(param->readsrc, hdrlen);
+        param->readsrc->skip(hdrlen);
 
-        if (!src_skip_eol(param->readsrc)) {
+        if (!param->readsrc->skip_eol()) {
             return false;
         }
     } while (1);
 
     /* we have exactly one empty line after the headers */
-    return src_skip_eol(param->readsrc);
+    return param->readsrc->skip_eol();
 }
 
 static void
@@ -1204,8 +1317,10 @@ cleartext_process_line(pgp_source_t *src, const uint8_t *buf, size_t len, bool e
     }
 
     if (len + param->outlen > sizeof(param->out)) {
+        /* LCOV_EXCL_START */
         RNP_LOG("wrong state");
         return;
+        /* LCOV_EXCL_END */
     }
 
     /* if we have eol after this line then strip trailing spaces and tabs */
@@ -1228,7 +1343,7 @@ cleartext_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 {
     pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
     if (!param) {
-        return false;
+        return false; // LCOV_EXCL_LINE
     }
 
     uint8_t  srcb[CT_BUF_LEN];
@@ -1258,7 +1373,7 @@ cleartext_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
     }
 
     do {
-        if (!src_peek(param->readsrc, srcb, sizeof(srcb), &read)) {
+        if (!param->readsrc->peek(srcb, sizeof(srcb), &read)) {
             return false;
         } else if (!read) {
             break;
@@ -1295,7 +1410,7 @@ cleartext_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
             param->clr_mline = true;
             bg = en;
         }
-        src_skip(param->readsrc, bg - srcb);
+        param->readsrc->skip(bg - srcb);
 
         /* put data from the param->out to buf */
         read = param->outlen > len ? len : param->outlen;
@@ -1334,7 +1449,7 @@ encrypted_decrypt_cfb_header(pgp_source_encrypted_param_t *param,
     }
 
     /* reading encrypted header to check the password validity */
-    if (!src_peek_eq(param->pkt.readsrc, enchdr, blsize + 2)) {
+    if (!param->pkt.readsrc->peek_eq(enchdr, blsize + 2)) {
         RNP_LOG("failed to read encrypted header");
         return false;
     }
@@ -1352,7 +1467,7 @@ encrypted_decrypt_cfb_header(pgp_source_encrypted_param_t *param,
         goto error;
     }
 
-    src_skip(param->pkt.readsrc, blsize + 2);
+    param->pkt.readsrc->skip(blsize + 2);
     param->decrypt = crypt;
 
     /* init mdc if it is here */
@@ -1367,8 +1482,10 @@ encrypted_decrypt_cfb_header(pgp_source_encrypted_param_t *param,
         param->mdc = rnp::Hash::create(PGP_HASH_SHA1);
         param->mdc->add(dechdr, blsize + 2);
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("cannot create sha1 hash: %s", e.what());
         goto error;
+        /* LCOV_EXCL_END */
     }
     return true;
 error:
@@ -1388,6 +1505,21 @@ encrypted_start_aead(pgp_source_encrypted_param_t *param, pgp_symm_alg_t alg, ui
     if (alg != param->aead_hdr.ealg) {
         return false;
     }
+#ifdef ENABLE_CRYPTO_REFRESH
+    std::vector<uint8_t> seipd_v2_key;
+    if (param->is_v2_seipd()) {
+        seipd_v2_aead_fields_t aead_fields =
+          seipd_v2_key_and_nonce_derivation(param->seipdv2_hdr, key);
+        seipd_v2_key = aead_fields.key;
+        key = std::move(seipd_v2_key.data());
+        // param->seipd_v2_nonce = std::move(aead_fields.nonce);
+        if (aead_fields.nonce.size() > sizeof(param->aead_hdr.iv)) {
+            // signalling error would be better here
+            aead_fields.nonce.resize(sizeof(param->aead_hdr.iv));
+        }
+        memcpy(param->aead_hdr.iv, aead_fields.nonce.data(), aead_fields.nonce.size());
+    }
+#endif
 
     /* initialize cipher with key */
     if (!pgp_cipher_aead_init(
@@ -1406,146 +1538,129 @@ encrypted_start_aead(pgp_source_encrypted_param_t *param, pgp_symm_alg_t alg, ui
 }
 
 static bool
-encrypted_try_key(pgp_source_encrypted_param_t *param,
-                  pgp_pk_sesskey_t *            sesskey,
-                  pgp_key_pkt_t *               seckey,
-                  rnp::SecurityContext &        ctx)
+check_decrypted_symkey(pgp_pubkey_alg_t alg, size_t keylen, rnp::secure_bytes &decbuf)
 {
-    pgp_encrypted_material_t encmaterial;
-    try {
-        if (!sesskey->parse_material(encmaterial)) {
-            return false;
-        }
-        seckey->material.validate(ctx, false);
-        if (!seckey->material.valid()) {
-            RNP_LOG("Attempt to decrypt using the key with invalid material.");
-            return false;
-        }
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-
-    rnp::secure_array<uint8_t, PGP_MPINT_SIZE> decbuf;
-    /* Decrypting session key value */
-    rnp_result_t        err;
-    bool                res = false;
-    pgp_key_material_t *keymaterial = &seckey->material;
-    size_t              declen = 0;
-    switch (sesskey->alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-        err = rsa_decrypt_pkcs1(
-          &ctx.rng, decbuf.data(), &declen, &encmaterial.rsa, &keymaterial->rsa);
-        if (err) {
-            RNP_LOG("RSA decryption failure");
-            return false;
-        }
-        break;
-    case PGP_PKA_SM2:
-#if defined(ENABLE_SM2)
-        declen = decbuf.size();
-        err = sm2_decrypt(decbuf.data(), &declen, &encmaterial.sm2, &keymaterial->ec);
-        if (err != RNP_SUCCESS) {
-            RNP_LOG("SM2 decryption failure, error %x", (int) err);
-            return false;
-        }
-        break;
-#else
-        RNP_LOG("SM2 decryption is not available.");
-        return false;
-#endif
-    case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
-        const rnp_result_t ret = elgamal_decrypt_pkcs1(
-          &ctx.rng, decbuf.data(), &declen, &encmaterial.eg, &keymaterial->eg);
-        if (ret) {
-            RNP_LOG("ElGamal decryption failure [%X]", ret);
-            return false;
-        }
-        break;
-    }
-    case PGP_PKA_ECDH: {
-        if (!curve_supported(keymaterial->ec.curve)) {
-            RNP_LOG("ECDH decrypt: curve %d is not supported.", (int) keymaterial->ec.curve);
-            return false;
-        }
-        pgp_fingerprint_t fingerprint;
-        if (pgp_fingerprint(fingerprint, *seckey)) {
-            RNP_LOG("ECDH fingerprint calculation failed");
-            return false;
-        }
-        if ((keymaterial->ec.curve == PGP_CURVE_25519) &&
-            !x25519_bits_tweaked(keymaterial->ec)) {
-            RNP_LOG("Warning: bits of 25519 secret key are not tweaked.");
-        }
-        declen = decbuf.size();
-        err = ecdh_decrypt_pkcs5(
-          decbuf.data(), &declen, &encmaterial.ecdh, &keymaterial->ec, fingerprint);
-        if (err != RNP_SUCCESS) {
-            RNP_LOG("ECDH decryption error %u", err);
-            return false;
-        }
-        break;
-    }
-    default:
-        RNP_LOG("unsupported public key algorithm %d\n", seckey->alg);
-        return false;
-    }
-
-    /* Check algorithm and key length */
-    if (!pgp_is_sa_supported(decbuf[0])) {
-        RNP_LOG("Unsupported symmetric algorithm %" PRIu8, decbuf[0]);
-        return false;
-    }
-
-    pgp_symm_alg_t salg = static_cast<pgp_symm_alg_t>(decbuf[0]);
-    size_t         keylen = pgp_key_size(salg);
-    if (declen != keylen + 3) {
+    /* Validate size */
+    size_t inc = have_pkesk_checksum(alg) ? 2 : 0;
+    if (decbuf.size() != keylen + inc) {
         RNP_LOG("invalid symmetric key length");
         return false;
     }
-
+    /* Will be always true for non-experimental pqc/crypto-refresh */
+    if (!inc) {
+        return true;
+    }
     /* Validate checksum */
-    rnp::secure_array<unsigned, 1> checksum;
-    for (unsigned i = 1; i <= keylen; i++) {
+    rnp::secure_array<uint16_t, 1> checksum;
+    for (size_t i = 0; i < decbuf.size() - 2; i++) {
         checksum[0] += decbuf[i];
     }
+    if (checksum[0] != (decbuf[keylen + 1] | ((uint16_t) decbuf[keylen] << 8))) {
+        RNP_LOG("wrong checksum");
+        return false;
+    }
+    decbuf.resize(keylen);
+    return true;
+}
 
-    if ((checksum[0] & 0xffff) !=
-        (decbuf[keylen + 2] | ((unsigned) decbuf[keylen + 1] << 8))) {
-        RNP_LOG("wrong checksum\n");
+static bool
+encrypted_try_key(pgp_source_encrypted_param_t *param,
+                  pgp_pk_sesskey_t &            sesskey,
+                  rnp::Key &                    seckey,
+                  rnp::SecurityContext &        ctx)
+{
+    auto encmaterial = sesskey.parse_material();
+    if (!encmaterial || !seckey.material()) {
+        return false;
+    }
+    seckey.material()->validate(ctx, false);
+    if (!seckey.material()->valid()) {
+        /* LCOV_EXCL_START */
+        RNP_LOG("Attempt to decrypt using the key with invalid material.");
+        return false;
+        /* LCOV_EXCL_END */
+    }
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* Crypto Refresh:
+        - The payload following any v6 PKESK or v6 SKESK packet MUST be a v2 SEIPD.
+        - implementations MUST NOT precede a v2 SEIPD payload with either v3 PKESK or v4
+       SKESK packets. */
+    if ((param->is_v2_seipd() && (sesskey.version != PGP_PKSK_V6)) ||
+        (param->auth_type == rnp::AuthType::MDC && (sesskey.version != PGP_PKSK_V3))) {
+        RNP_LOG("Attempt to mix SEIPD v1 with PKESK v6 or SEIPD v2 with PKESK v3");
+        return false;
+    }
+#endif
+
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+    /* If AES is forced then salg must be stored plaintext in material */
+    sesskey.salg = encmaterial->salg;
+    /* check that AES is used when mandated by the standard */
+    if (!check_enforce_aes_v3_pkesk(sesskey.alg, sesskey.salg, sesskey.version)) {
+        RNP_LOG("For the given asymmetric encryption algorithm in the PKESK, only AES is "
+                "allowed but another algorithm has been detected.");
+        return false;
+    }
+#endif
+
+    /* Decrypting session key value */
+    rnp::secure_bytes decbuf;
+    if (sesskey.alg == PGP_PKA_ECDH) {
+        auto ecdh = dynamic_cast<pgp::ECDHEncMaterial *>(encmaterial.get());
+        assert(ecdh);
+        ecdh->enc.fp = seckey.fp().vec();
+    }
+    auto err = seckey.pkt().material->decrypt(ctx, decbuf, *encmaterial);
+    if (err) {
         return false;
     }
 
+    /* This is always true for non-experimental pqc/crypto refresh */
+    if (do_encrypt_pkesk_v3_alg_id(sesskey.alg)) {
+        sesskey.salg = static_cast<pgp_symm_alg_t>(decbuf[0]);
+        decbuf.erase(decbuf.begin());
+    }
+    size_t keylen = 0;
+    if (sesskey.version == PGP_PKSK_V3) {
+        keylen = pgp_key_size(sesskey.salg);
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    else if (sesskey.version == PGP_PKSK_V6) { // V6 PKESK
+        keylen = pgp_key_size(param->aead_hdr.ealg);
+    }
+#endif
+    /* Check checksum if there is one */
+    if (!check_decrypted_symkey(sesskey.alg, keylen, decbuf)) {
+        return false;
+    }
+
+#if defined(ENABLE_PQC_DBG_LOG)
+    RNP_LOG_U8VEC("Session Key: %s",
+                  std::vector<uint8_t>(decbuf.data(), decbuf.data() + keylen));
+#endif
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (sesskey.version == PGP_PKSK_V6) { // PGP_PKSK_V6
+        /* NOTEMTG: salg not part of the v6 PKESK, assignment here just to make the following
+         * call "happy" */
+        return encrypted_start_aead(param, param->aead_hdr.ealg, decbuf.data());
+    }
+#endif
+    /* v3 PKSK by default */
+    bool res = false;
     if (param->use_cfb()) {
         /* Decrypt header */
-        res = encrypted_decrypt_cfb_header(param, salg, &decbuf[1]);
+        res = encrypted_decrypt_cfb_header(param, sesskey.salg, decbuf.data());
     } else {
         /* Start AEAD decrypting, assuming we have correct key */
-        res = encrypted_start_aead(param, salg, &decbuf[1]);
+        res = encrypted_start_aead(param, sesskey.salg, decbuf.data());
     }
     if (res) {
-        param->salg = salg;
+        param->salg = sesskey.salg;
     }
     return res;
 }
-
-#if defined(ENABLE_AEAD)
-static bool
-encrypted_sesk_set_ad(pgp_crypt_t *crypt, pgp_sk_sesskey_t *skey)
-{
-    /* TODO: this method is exact duplicate as in stream-write.c. Not sure where to put it */
-    uint8_t ad_data[4];
-
-    ad_data[0] = PGP_PKT_SK_SESSION_KEY | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
-    ad_data[1] = skey->version;
-    ad_data[2] = skey->alg;
-    ad_data[3] = skey->aalg;
-
-    return pgp_cipher_aead_set_ad(crypt, ad_data, 4);
-}
-#endif
 
 static int
 encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password)
@@ -1606,7 +1721,7 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
             }
 
             /* set additional data */
-            if (!encrypted_sesk_set_ad(&crypt, &skey)) {
+            if (!encrypted_sesk_set_ad(crypt, skey)) {
                 RNP_LOG("failed to set ad");
                 continue;
             }
@@ -1670,7 +1785,7 @@ init_packet_params(pgp_source_packet_param_t &param)
     if (ret) {
         return ret;
     }
-    src_skip(param.readsrc, param.hdr.hdr_len);
+    param.readsrc->skip(param.hdr.hdr_len);
     if (!param.hdr.partial) {
         return RNP_SUCCESS;
     }
@@ -1700,13 +1815,13 @@ init_literal_src(pgp_source_t *src, pgp_source_t *readsrc)
     uint8_t                     timestamp[4];
 
     if (!init_src_common(src, sizeof(*param))) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     param = (pgp_source_literal_param_t *) src->param;
     param->pkt.readsrc = readsrc;
-    src->read = literal_src_read;
-    src->close = literal_src_close;
+    src->raw_read = literal_src_read;
+    src->raw_close = literal_src_close;
     src->type = PGP_STREAM_LITERAL;
 
     /* Reading packet length/checking whether it is partial */
@@ -1715,7 +1830,7 @@ init_literal_src(pgp_source_t *src, pgp_source_t *readsrc)
     }
 
     /* data format */
-    if (!src_read_eq(param->pkt.readsrc, &format, 1)) {
+    if (!param->pkt.readsrc->read_eq(&format, 1)) {
         RNP_LOG("failed to read data format");
         ret = RNP_ERROR_READ;
         goto finish;
@@ -1735,12 +1850,12 @@ init_literal_src(pgp_source_t *src, pgp_source_t *readsrc)
     }
     param->hdr.format = format;
     /* file name */
-    if (!src_read_eq(param->pkt.readsrc, &nlen, 1)) {
+    if (!param->pkt.readsrc->read_eq(&nlen, 1)) {
         RNP_LOG("failed to read file name length");
         ret = RNP_ERROR_READ;
         goto finish;
     }
-    if (nlen && !src_read_eq(param->pkt.readsrc, param->hdr.fname, nlen)) {
+    if (nlen && !param->pkt.readsrc->read_eq(param->hdr.fname, nlen)) {
         RNP_LOG("failed to read file name");
         ret = RNP_ERROR_READ;
         goto finish;
@@ -1748,7 +1863,7 @@ init_literal_src(pgp_source_t *src, pgp_source_t *readsrc)
     param->hdr.fname[nlen] = 0;
     param->hdr.fname_len = nlen;
     /* timestamp */
-    if (!src_read_eq(param->pkt.readsrc, timestamp, 4)) {
+    if (!param->pkt.readsrc->read_eq(timestamp, 4)) {
         RNP_LOG("failed to read file timestamp");
         ret = RNP_ERROR_READ;
         goto finish;
@@ -1767,25 +1882,16 @@ init_literal_src(pgp_source_t *src, pgp_source_t *readsrc)
     }
     ret = RNP_SUCCESS;
 finish:
-    if (ret != RNP_SUCCESS) {
-        src_close(src);
+    if (ret) {
+        src->close();
     }
     return ret;
 }
 
-bool
-get_literal_src_hdr(pgp_source_t *src, pgp_literal_hdr_t *hdr)
+const pgp_literal_hdr_t &
+get_literal_src_hdr(pgp_source_t &src)
 {
-    pgp_source_literal_param_t *param;
-
-    if (src->type != PGP_STREAM_LITERAL) {
-        RNP_LOG("wrong stream");
-        return false;
-    }
-
-    param = (pgp_source_literal_param_t *) src->param;
-    *hdr = param->hdr;
-    return true;
+    return (static_cast<pgp_source_literal_param_t *>(src.param))->hdr;
 }
 
 rnp_result_t
@@ -1797,13 +1903,13 @@ init_compressed_src(pgp_source_t *src, pgp_source_t *readsrc)
     int                            zret;
 
     if (!init_src_common(src, sizeof(*param))) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     param = (pgp_source_compressed_param_t *) src->param;
     param->pkt.readsrc = readsrc;
-    src->read = compressed_src_read;
-    src->close = compressed_src_close;
+    src->raw_read = compressed_src_read;
+    src->raw_close = compressed_src_close;
     src->type = PGP_STREAM_COMPRESSED;
 
     /* Reading packet length/checking whether it is partial */
@@ -1813,7 +1919,7 @@ init_compressed_src(pgp_source_t *src, pgp_source_t *readsrc)
     }
 
     /* Reading compression algorithm */
-    if (!src_read_eq(param->pkt.readsrc, &alg, 1)) {
+    if (!param->pkt.readsrc->read_eq(&alg, 1)) {
         RNP_LOG("failed to read compression algorithm");
         errcode = RNP_ERROR_READ;
         goto finish;
@@ -1857,7 +1963,7 @@ init_compressed_src(pgp_source_t *src, pgp_source_t *readsrc)
     errcode = RNP_SUCCESS;
 finish:
     if (errcode != RNP_SUCCESS) {
-        src_close(src);
+        src->close();
     }
     return errcode;
 }
@@ -1877,12 +1983,45 @@ get_compressed_src_alg(pgp_source_t *src, uint8_t *alg)
     return true;
 }
 
+static bool
+parse_aead_chunk_size(uint8_t chunk_size_octet, size_t &chunk_size)
+{
+    if (chunk_size_octet > 56) {
+        RNP_LOG("too large chunk size: %d", chunk_size_octet);
+        return false;
+    }
+    if (chunk_size_octet > 16) {
+        RNP_LOG("Warning: AEAD chunk bits > 16.");
+    }
+    chunk_size = 1L << (chunk_size_octet + 6);
+    return true;
+}
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+bool
+get_seipdv2_src_hdr(pgp_source_t *src, pgp_seipdv2_hdr_t *hdr)
+{
+    uint8_t hdrbt[3 + PGP_SEIPDV2_SALT_LEN] = {0};
+
+    if (!src->read_eq(hdrbt, sizeof(hdrbt))) {
+        return false;
+    }
+
+    hdr->version = PGP_SE_IP_DATA_V2;
+    hdr->cipher_alg = (pgp_symm_alg_t) hdrbt[0];
+    hdr->aead_alg = (pgp_aead_alg_t) hdrbt[1];
+    hdr->chunk_size_octet = hdrbt[2];
+    std::memcpy(hdr->salt, &hdrbt[3], PGP_SEIPDV2_SALT_LEN);
+    return true;
+}
+#endif
+
 bool
 get_aead_src_hdr(pgp_source_t *src, pgp_aead_hdr_t *hdr)
 {
     uint8_t hdrbt[4] = {0};
 
-    if (!src_read_eq(src, hdrbt, 4)) {
+    if (!src->read_eq(hdrbt, 4)) {
         return false;
     }
 
@@ -1896,7 +2035,7 @@ get_aead_src_hdr(pgp_source_t *src, pgp_aead_hdr_t *hdr)
         return false;
     }
 
-    return src_read_eq(src, hdr->iv, hdr->ivlen);
+    return src->read_eq(hdr->iv, hdr->ivlen);
 }
 
 #define MAX_RECIPIENTS 16384
@@ -1915,7 +2054,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
                 return RNP_ERROR_BAD_STATE;
             }
             uint8_t ptag;
-            if (!src_peek_eq(param->pkt.readsrc, &ptag, 1)) {
+            if (!param->pkt.readsrc->peek_eq(&ptag, 1)) {
                 RNP_LOG("failed to read packet header");
                 return RNP_ERROR_READ;
             }
@@ -1933,7 +2072,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
                     errors++;
                     continue;
                 }
-                param->symencs.push_back(skey);
+                param->symencs.push_back(std::move(skey));
                 break;
             }
             case PGP_PKT_PK_SESSION_KEY: {
@@ -1948,7 +2087,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
                     errors++;
                     continue;
                 }
-                param->pubencs.push_back(pkey);
+                param->pubencs.push_back(std::move(pkey));
                 break;
             }
             case PGP_PKT_SE_DATA:
@@ -1962,11 +2101,15 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
             }
         }
     } catch (const rnp::rnp_exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s: %d", e.what(), e.code());
         return e.code();
+        /* LCOV_EXCL_END */
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return RNP_ERROR_GENERIC;
+        /* LCOV_EXCL_END */
     }
 
     /* Reading packet length/checking whether it is partial */
@@ -1979,7 +2122,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
     if (ptype == PGP_PKT_AEAD_ENCRYPTED) {
         param->auth_type = rnp::AuthType::AEADv1;
         uint8_t hdr[4];
-        if (!src_peek_eq(param->pkt.readsrc, hdr, 4)) {
+        if (!param->pkt.readsrc->peek_eq(hdr, 4)) {
             return RNP_ERROR_READ;
         }
 
@@ -1989,7 +2132,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
         }
 
         /* check AEAD encrypted data packet header */
-        if (param->aead_hdr.version != 1) {
+        if (!is_valid_seipd_version(param->aead_hdr.version)) {
             RNP_LOG("unknown aead ver: %d", param->aead_hdr.version);
             return RNP_ERROR_BAD_FORMAT;
         }
@@ -1997,14 +2140,11 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
             RNP_LOG("unknown aead alg: %d", (int) param->aead_hdr.aalg);
             return RNP_ERROR_BAD_FORMAT;
         }
-        if (param->aead_hdr.csize > 56) {
-            RNP_LOG("too large chunk size: %d", param->aead_hdr.csize);
+
+        /* parse chunk size */
+        if (!parse_aead_chunk_size(param->aead_hdr.csize, param->chunklen)) {
             return RNP_ERROR_BAD_FORMAT;
         }
-        if (param->aead_hdr.csize > 16) {
-            RNP_LOG("Warning: AEAD chunk bits > 16.");
-        }
-        param->chunklen = 1L << (param->aead_hdr.csize + 6);
 
         /* build additional data */
         param->aead_adlen = 13;
@@ -2012,16 +2152,65 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
         memcpy(param->aead_ad + 1, hdr, 4);
         memset(param->aead_ad + 5, 0, 8);
     } else if (ptype == PGP_PKT_SE_IP_DATA) {
-        uint8_t mdcver;
-        if (!src_read_eq(param->pkt.readsrc, &mdcver, 1)) {
+        uint8_t SEIPD_version;
+        if (!param->pkt.readsrc->read_eq(&SEIPD_version, 1)) {
             return RNP_ERROR_READ;
         }
 
-        if (mdcver != 1) {
-            RNP_LOG("unknown mdc ver: %d", (int) mdcver);
+        if (SEIPD_version == PGP_SE_IP_DATA_V1) {
+            param->auth_type = rnp::AuthType::MDC;
+            param->auth_validated = false;
+        }
+#ifdef ENABLE_CRYPTO_REFRESH
+        else if (SEIPD_version == PGP_SE_IP_DATA_V2) {
+            /*  SKESK v6 is not yet implemented, thus we must not attempt to decrypt
+               SEIPDv2 here
+                TODO: Once SKESK v6 is implemented, replace this check with a check for
+               consistency between SEIPD and SKESK version
+            */
+            if (param->symencs.size() > 0) {
+                RNP_LOG("SEIPDv2 not usable with SKESK version");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+
+            param->auth_type = rnp::AuthType::AEADv2;
+            param->seipdv2_hdr.version = PGP_SE_IP_DATA_V2;
+            uint8_t hdr[4];
+            if (!param->pkt.readsrc->peek_eq(hdr, 4)) {
+                return RNP_ERROR_READ;
+            }
+
+            if (!get_seipdv2_src_hdr(param->pkt.readsrc, &param->seipdv2_hdr)) {
+                RNP_LOG("failed to read SEIPDv2 header");
+                return RNP_ERROR_READ;
+            }
+
+            /* check SEIPDv2 packet header */
+            if ((param->seipdv2_hdr.aead_alg != PGP_AEAD_EAX) &&
+                (param->seipdv2_hdr.aead_alg != PGP_AEAD_OCB)) {
+                RNP_LOG("unknown AEAD alg: %d", (int) param->seipdv2_hdr.aead_alg);
+                return RNP_ERROR_BAD_FORMAT;
+            }
+
+            /* parse chunk size */
+            if (!parse_aead_chunk_size(param->seipdv2_hdr.chunk_size_octet, param->chunklen)) {
+                return RNP_ERROR_BAD_FORMAT;
+            }
+
+            /* build additional data */
+            param->aead_adlen = 5;
+            param->aead_ad[0] = param->pkt.hdr.hdr[0];
+            memcpy(param->aead_ad + 1, hdr, 4);
+
+            param->aead_hdr.aalg = param->seipdv2_hdr.aead_alg;
+            param->aead_hdr.csize = param->seipdv2_hdr.chunk_size_octet; // needed?
+            param->aead_hdr.ealg = param->seipdv2_hdr.cipher_alg;
+        }
+#endif
+        else {
+            RNP_LOG("unknown SEIPD version: %d", (int) SEIPD_version);
             return RNP_ERROR_BAD_FORMAT;
         }
-        param->auth_type = rnp::AuthType::MDC;
     }
     param->auth_validated = false;
 
@@ -2034,18 +2223,18 @@ static rnp_result_t
 init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *readsrc)
 {
     if (!init_src_common(src, 0)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     pgp_source_encrypted_param_t *param = new (std::nothrow) pgp_source_encrypted_param_t();
     if (!param) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     src->param = param;
     param->pkt.readsrc = readsrc;
     param->handler = handler;
 
-    src->close = encrypted_src_close;
-    src->finish = encrypted_src_finish;
+    src->raw_close = encrypted_src_close;
+    src->raw_finish = encrypted_src_finish;
     src->type = PGP_STREAM_ENCRYPTED;
 
     /* Read the packet-related information */
@@ -2054,13 +2243,21 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
         goto finish;
     }
 
-    src->read = !param->use_cfb() ? encrypted_src_read_aead : encrypted_src_read_cfb;
+    src->raw_read = (!param->use_cfb()
+#ifdef ENABLE_CRYPTO_REFRESH
+                     || param->is_v2_seipd()
+#endif
+                       ) ?
+                      encrypted_src_read_aead :
+                      encrypted_src_read_cfb;
 
     /* Obtaining the symmetric key */
     if (!handler->password_provider) {
+        /* LCOV_EXCL_START */
         RNP_LOG("no password provider");
         errcode = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
+        /* LCOV_EXCL_END */
     }
 
     /* informing handler about the available pubencs/symencs */
@@ -2073,27 +2270,46 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
     /* Trying public-key decryption */
     if (!param->pubencs.empty()) {
         if (!handler->key_provider) {
+            /* LCOV_EXCL_START */
             RNP_LOG("no key provider");
             errcode = RNP_ERROR_BAD_PARAMETERS;
             goto finish;
+            /* LCOV_EXCL_END */
         }
-
-        pgp_key_request_ctx_t keyctx(PGP_OP_DECRYPT, true, PGP_KEY_SEARCH_KEYID);
 
         size_t pubidx = 0;
         size_t hidden_tries = 0;
         errcode = RNP_ERROR_NO_SUITABLE_KEY;
         while (pubidx < param->pubencs.size()) {
-            auto &pubenc = param->pubencs[pubidx];
-            keyctx.search.by.keyid = pubenc.key_id;
+            auto &                          pubenc = param->pubencs[pubidx];
+            std::unique_ptr<rnp::KeySearch> search;
+#if defined(ENABLE_CRYPTO_REFRESH)
+            if (pubenc.version == PGP_PKSK_V3) {
+#endif
+                search = rnp::KeySearch::create(pubenc.key_id);
+#if defined(ENABLE_CRYPTO_REFRESH)
+            } else { // PGP_PKSK_V6
+                search = rnp::KeySearch::create(pubenc.fp);
+            }
+#endif
+
             /* Get the key if any */
-            pgp_key_t *seckey = pgp_request_key(handler->key_provider, &keyctx);
+            auto seckey = handler->key_provider->request_key(*search, PGP_OP_DECRYPT, true);
             if (!seckey) {
                 pubidx++;
                 continue;
             }
             /* Check whether key fits our needs */
-            bool hidden = pubenc.key_id == pgp_key_id_t({});
+            bool hidden;
+#if defined(ENABLE_CRYPTO_REFRESH)
+            if (pubenc.version == PGP_PKSK_V3) {
+#endif
+                hidden = (pubenc.key_id == pgp::KeyID({}));
+#if defined(ENABLE_CRYPTO_REFRESH)
+            } else { // PGP_PKSK_V6
+                hidden = !pubenc.fp.size();
+            }
+#endif
             if (!hidden || (++hidden_tries >= MAX_HIDDEN_TRIES)) {
                 pubidx++;
             }
@@ -2113,7 +2329,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
 
             /* Try to initialize the decryption */
             rnp::LogStop logstop(hidden);
-            if (encrypted_try_key(param, &pubenc, &seckey->pkt(), *handler->ctx->ctx)) {
+            if (encrypted_try_key(param, pubenc, *seckey, handler->ctx->sec_ctx)) {
                 have_key = true;
                 /* inform handler that we used this pubenc */
                 if (handler->on_decryption_start) {
@@ -2162,7 +2378,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
     errcode = RNP_SUCCESS;
 finish:
     if (errcode != RNP_SUCCESS) {
-        src_close(src);
+        src->close();
     }
     return errcode;
 }
@@ -2175,7 +2391,7 @@ init_cleartext_signed_src(pgp_source_t *src)
     pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
 
     /* checking header line */
-    if (!src_read_eq(param->readsrc, buf, hdrlen)) {
+    if (!param->readsrc->read_eq(buf, hdrlen)) {
         RNP_LOG("failed to read header");
         return RNP_ERROR_READ;
     }
@@ -2186,13 +2402,13 @@ init_cleartext_signed_src(pgp_source_t *src)
     }
 
     /* eol */
-    if (!src_skip_eol(param->readsrc)) {
+    if (!param->readsrc->skip_eol()) {
         RNP_LOG("no eol after the cleartext header");
         return RNP_ERROR_BAD_FORMAT;
     }
 
     /* parsing Hash headers */
-    if (!cleartext_parse_headers(src)) {
+    if (!cleartext_parse_headers(param)) {
         return RNP_ERROR_BAD_FORMAT;
     }
 
@@ -2210,36 +2426,40 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
     pgp_source_signed_param_t *param;
     uint8_t                    ptag;
     int                        ptype;
-    pgp_signature_t *          sig = NULL;
+    pgp::pkt::Signature *      sig = nullptr;
     bool                       cleartext;
     size_t                     sigerrors = 0;
 
     if (!init_src_common(src, 0)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     try {
         param = new pgp_source_signed_param_t();
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
     src->param = param;
 
-    cleartext = is_cleartext_source(readsrc);
+    cleartext = readsrc->is_cleartext();
     param->readsrc = readsrc;
     param->handler = handler;
     param->cleartext = cleartext;
     param->stripped_crs = 0;
-    src->read = cleartext ? cleartext_src_read : signed_src_read;
-    src->close = signed_src_close;
-    src->finish = signed_src_finish;
+    src->raw_read = cleartext ? cleartext_src_read : signed_src_read;
+    src->raw_close = signed_src_close;
+    src->raw_finish = signed_src_finish;
     src->type = cleartext ? PGP_STREAM_CLEARTEXT : PGP_STREAM_SIGNED;
 
     /* we need key provider to validate signatures */
     if (!handler->key_provider) {
+        /* LCOV_EXCL_START */
         RNP_LOG("no key provider");
         errcode = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
+        /* LCOV_EXCL_END */
     }
 
     if (cleartext) {
@@ -2257,7 +2477,7 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
         }
 
         size_t readb = readsrc->readb;
-        if (!src_peek_eq(readsrc, &ptag, 1)) {
+        if (!readsrc->peek_eq(&ptag, 1)) {
             RNP_LOG("failed to read packet header");
             errcode = RNP_ERROR_READ;
             goto finish;
@@ -2275,7 +2495,7 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
             try {
                 errcode = onepass.parse(*readsrc);
             } catch (const std::exception &e) {
-                errcode = RNP_ERROR_GENERIC;
+                errcode = RNP_ERROR_GENERIC; // LCOV_EXCL_LINE
             }
             if (errcode) {
                 if (errcode == RNP_ERROR_READ) {
@@ -2292,9 +2512,11 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
             try {
                 param->onepasses.push_back(onepass);
             } catch (const std::exception &e) {
+                /* LCOV_EXCL_START */
                 RNP_LOG("%s", e.what());
                 errcode = RNP_ERROR_OUT_OF_MEMORY;
                 goto finish;
+                /* LCOV_EXCL_END */
             }
 
             /* adding hash context */
@@ -2341,7 +2563,7 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
             goto finish;
         }
         /* for detached signature we'll get eof */
-        if (src_eof(readsrc)) {
+        if (readsrc->eof()) {
             param->detached = true;
             break;
         }
@@ -2360,7 +2582,7 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
     errcode = RNP_SUCCESS;
 finish:
     if (errcode != RNP_SUCCESS) {
-        src_close(src);
+        src->close();
     }
 
     return errcode;
@@ -2369,7 +2591,7 @@ finish:
 pgp_processing_ctx_t::~pgp_processing_ctx_t()
 {
     for (auto &src : sources) {
-        src_close(&src);
+        src.close();
     }
 }
 
@@ -2384,7 +2606,7 @@ init_packet_sequence(pgp_processing_ctx_t &ctx, pgp_source_t &src)
 
     while (1) {
         uint8_t ptag = 0;
-        if (!src_peek_eq(lsrc, &ptag, 1)) {
+        if (!lsrc->peek_eq(&ptag, 1)) {
             RNP_LOG("cannot read packet tag");
             return RNP_ERROR_READ;
         }
@@ -2446,9 +2668,11 @@ init_packet_sequence(pgp_processing_ctx_t &ctx, pgp_source_t &src)
             ctx.sources.push_back(psrc);
             lsrc = &ctx.sources.back();
         } catch (const std::exception &e) {
-            src_close(&psrc);
+            /* LCOV_EXCL_START */
+            psrc.close();
             RNP_LOG("%s", e.what());
             return RNP_ERROR_OUT_OF_MEMORY;
+            /* LCOV_EXCL_END */
         }
 
         if (lsrc->type == PGP_STREAM_LITERAL) {
@@ -2479,9 +2703,11 @@ init_cleartext_sequence(pgp_processing_ctx_t &ctx, pgp_source_t &src)
     try {
         ctx.sources.push_back(clrsrc);
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
-        src_close(&clrsrc);
+        clrsrc.close();
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
     return RNP_SUCCESS;
 }
@@ -2499,9 +2725,11 @@ init_armored_sequence(pgp_processing_ctx_t &ctx, pgp_source_t &src)
     try {
         ctx.sources.push_back(armorsrc);
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
-        src_close(&armorsrc);
+        armorsrc.close();
         return RNP_ERROR_OUT_OF_MEMORY;
+        /* LCOV_EXCL_END */
     }
     return init_packet_sequence(ctx, ctx.sources.back());
 }
@@ -2524,10 +2752,10 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
         res = init_packet_sequence(ctx, src);
     } else {
         /* Trying armored or cleartext data */
-        if (is_cleartext_source(&src)) {
+        if (src.is_cleartext()) {
             /* Initializing cleartext message */
             res = init_cleartext_sequence(ctx, src);
-        } else if (is_armored_source(&src)) {
+        } else if (src.is_armored()) {
             /* Initializing armored message */
             res = init_armored_sequence(ctx, src);
         } else {
@@ -2541,10 +2769,12 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
         goto finish;
     }
 
-    if ((readbuf = (uint8_t *) calloc(1, PGP_INPUT_CACHE_SIZE)) == NULL) {
+    if (!(readbuf = (uint8_t *) calloc(1, PGP_INPUT_CACHE_SIZE))) {
+        /* LCOV_EXCL_START */
         RNP_LOG("allocation failure");
         res = RNP_ERROR_OUT_OF_MEMORY;
         goto finish;
+        /* LCOV_EXCL_END */
     }
 
     if (ctx.msg_type == PGP_MESSAGE_DETACHED) {
@@ -2560,9 +2790,9 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
             goto finish;
         }
 
-        while (!datasrc.eof) {
+        while (!datasrc.eof_) {
             size_t read = 0;
-            if (!src_read(&datasrc, readbuf, PGP_INPUT_CACHE_SIZE, &read)) {
+            if (!datasrc.read(readbuf, PGP_INPUT_CACHE_SIZE, &read)) {
                 res = RNP_ERROR_GENERIC;
                 break;
             }
@@ -2570,34 +2800,34 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
                 signed_src_update(ctx.signed_src, readbuf, read);
             }
         }
-        src_close(&datasrc);
+        datasrc.close();
     } else {
         if (handler->ctx->detached) {
-            RNP_LOG("Detached signature expected.");
+            RNP_LOG("Attached signature expected.");
             res = RNP_ERROR_BAD_STATE;
             goto finish;
         }
         /* file processing case */
         decsrc = &ctx.sources.back();
-        char *   filename = NULL;
-        uint32_t mtime = 0;
+        const pgp_literal_hdr_t *lithdr = nullptr;
 
         if (ctx.literal_src) {
-            auto *param = static_cast<pgp_source_literal_param_t *>(ctx.literal_src->param);
-            filename = param->hdr.fname;
-            mtime = param->hdr.timestamp;
+            lithdr = &get_literal_src_hdr(*ctx.literal_src);
+            if (ctx.signed_src) {
+                signed_src_set_literal_hdr(*ctx.signed_src, *lithdr);
+            }
         }
 
         if (!handler->dest_provider ||
-            !handler->dest_provider(handler, &outdest, &closeout, filename, mtime)) {
+            !handler->dest_provider(handler, &outdest, &closeout, lithdr)) {
             res = RNP_ERROR_WRITE;
             goto finish;
         }
 
         /* reading the input */
-        while (!decsrc->eof) {
+        while (!decsrc->eof_) {
             size_t read = 0;
-            if (!src_read(decsrc, readbuf, PGP_INPUT_CACHE_SIZE, &read)) {
+            if (!decsrc->read(readbuf, PGP_INPUT_CACHE_SIZE, &read)) {
                 res = RNP_ERROR_GENERIC;
                 break;
             }
@@ -2617,9 +2847,9 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
     }
 
     /* finalizing the input. Signatures are checked on this step */
-    if (res == RNP_SUCCESS) {
+    if (!res) {
         for (auto &ctxsrc : ctx.sources) {
-            fres = src_finish(&ctxsrc);
+            fres = ctxsrc.finish();
             if (fres) {
                 res = fres;
             }

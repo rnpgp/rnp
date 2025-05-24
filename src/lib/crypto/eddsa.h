@@ -1,10 +1,6 @@
-/*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+/*-
+ * Copyright (c) 2017-2024 Ribose Inc.
  * All rights reserved.
- *
- * This code is originally derived from software contributed to
- * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
- * carried further by Ribose Inc (https://www.ribose.com).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,22 +29,25 @@
 
 #include "ec.h"
 
-rnp_result_t eddsa_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret);
+namespace pgp {
+namespace eddsa {
+
+rnp_result_t validate_key(rnp::RNG &rng, const ec::Key &key, bool secret);
 /*
  * curve_len must be 255 currently (for Ed25519)
  * If Ed448 was supported in the future curve_len=448 would also be allowed.
  */
-rnp_result_t eddsa_generate(rnp::RNG *rng, pgp_ec_key_t *key);
+rnp_result_t generate(rnp::RNG &rng, ec::Key &key);
 
-rnp_result_t eddsa_verify(const pgp_ec_signature_t *sig,
-                          const uint8_t *           hash,
-                          size_t                    hash_len,
-                          const pgp_ec_key_t *      key);
+rnp_result_t verify(const ec::Signature &    sig,
+                    const rnp::secure_bytes &hash,
+                    const ec::Key &          key);
 
-rnp_result_t eddsa_sign(rnp::RNG *          rng,
-                        pgp_ec_signature_t *sig,
-                        const uint8_t *     hash,
-                        size_t              hash_len,
-                        const pgp_ec_key_t *key);
+rnp_result_t sign(rnp::RNG &               rng,
+                  ec::Signature &          sig,
+                  const rnp::secure_bytes &hash,
+                  const ec::Key &          key);
+} // namespace eddsa
+} // namespace pgp
 
 #endif

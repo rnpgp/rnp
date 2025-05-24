@@ -28,10 +28,11 @@
 #include <rekey/rnp_key_store.h>
 #include "rnp_tests.h"
 #include "support.h"
-#include "pgp-key.h"
+#include "key.hpp"
+#include "keygen.hpp"
 
-static const pgp_subsig_t *
-find_subsig(const pgp_key_t *key, const char *userid)
+static const rnp::Signature *
+find_subsig(const rnp::Key *key, const char *userid)
 {
     // find the userid index
     int uididx = -1;
@@ -46,7 +47,7 @@ find_subsig(const pgp_key_t *key, const char *userid)
     }
     // find the subsig index
     for (size_t i = 0; i < key->sig_count(); i++) {
-        const pgp_subsig_t &subsig = key->get_sig(i);
+        auto &subsig = key->get_sig(i);
         if ((int) subsig.uid == uididx) {
             return &subsig;
         }
@@ -56,22 +57,21 @@ find_subsig(const pgp_key_t *key, const char *userid)
 
 TEST_F(rnp_tests, test_load_user_prefs)
 {
-    rnp_key_store_t *pubring =
-      new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/1/pubring.gpg", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
-    assert_int_equal(rnp_key_store_get_key_count(pubring), 7);
+    auto pubring = new rnp::KeyStore("data/keyrings/1/pubring.gpg", global_ctx);
+    assert_true(pubring->load());
+    assert_int_equal(pubring->key_count(), 7);
 
     {
         const char *userid = "key1-uid0";
 
         // find the key
-        pgp_key_t *key = NULL;
+        rnp::Key *key = nullptr;
         assert_non_null(key = rnp_tests_key_search(pubring, userid));
 
-        const pgp_subsig_t *subsig = find_subsig(key, userid);
+        auto subsig = find_subsig(key, userid);
         assert_non_null(subsig);
 
-        const pgp_user_prefs_t &prefs = subsig->prefs;
+        const rnp::UserPrefs prefs(subsig->sig);
 
         // symm algs
         std::vector<uint8_t> expected = {PGP_SA_AES_192, PGP_SA_CAST5};
@@ -93,13 +93,13 @@ TEST_F(rnp_tests, test_load_user_prefs)
         const char *userid = "key0-uid0";
 
         // find the key
-        pgp_key_t *key = NULL;
+        rnp::Key *key = nullptr;
         assert_non_null(key = rnp_tests_key_search(pubring, userid));
 
-        const pgp_subsig_t *subsig = find_subsig(key, userid);
+        auto subsig = find_subsig(key, userid);
         assert_non_null(subsig);
 
-        const pgp_user_prefs_t &prefs = subsig->prefs;
+        const rnp::UserPrefs prefs(subsig->sig);
         // symm algs
         std::vector<uint8_t> expected = {PGP_SA_AES_256,
                                          PGP_SA_AES_192,

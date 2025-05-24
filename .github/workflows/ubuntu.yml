@@ -74,8 +74,8 @@ jobs:
           - { CC: gcc,    CXX: g++     }
           - { CC: clang,  CXX: clang++ }
         include:
-        # This implies openssl 1.1.1 as opposed to ubuntu-latest which is openssl 3
-          - os: ubuntu-20.04
+        # Since ubuntu-20.04 runner is deprecated we do not test OpenSSL 1.1.1 here.
+          - os: ubuntu-22.04
             shared_libs: 'on'
             backend: { name: 'openssl',  package: 'libssl-dev' }
             env: { CC: gcc, CXX: g++ }
@@ -90,7 +90,7 @@ jobs:
     timeout-minutes: 50
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           submodules: true
@@ -99,7 +99,7 @@ jobs:
 #     Already installed on GHA: build-essential libbz2-dev zlib1g-dev
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install cmake libjson-c-dev ${{ matrix.backend.package }} asciidoctor
+          sudo apt-get -y install cmake libbz2-dev libjson-c-dev ${{ matrix.backend.package }} asciidoctor
 
       - name: Configure
         run: |
@@ -125,7 +125,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           submodules: true
@@ -133,7 +133,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install cmake libjson-c-dev libbotan-2-dev asciidoctor googletest
+          sudo apt-get -y install cmake libbz2-dev libjson-c-dev libbotan-2-dev asciidoctor googletest
 
       - name: Configure
         run: |
@@ -166,7 +166,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           submodules: true
@@ -174,7 +174,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install cmake libjson-c-dev libbotan-2-dev asciidoctor googletest
+          sudo apt-get -y install cmake libbz2-dev libjson-c-dev libbotan-2-dev asciidoctor googletest
 
       - name: Build googletest
         run: |
@@ -221,10 +221,10 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install cmake libjson-c-dev libbotan-2-dev asciidoctor
+          sudo apt-get -y install cmake libbz2-dev libjson-c-dev libbotan-2-dev asciidoctor
 
       - name: Checkout sexpp
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: rnpgp/sexpp
           path: sexpp
@@ -248,7 +248,7 @@ jobs:
         run: rm -rf sexpp
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           submodules: false
@@ -278,7 +278,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           submodules: true
@@ -286,7 +286,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install cmake libjson-c-dev libbotan-2-dev asciidoctor
+          sudo apt-get -y install cmake libbz2-dev libjson-c-dev libbotan-2-dev asciidoctor
 
       - name: Configure
         run: |
@@ -301,14 +301,14 @@ jobs:
         run: cpack -B build/source-deb -G DEB --config build/CPackSourceConfig.cmake
 
       - name: Upload source package
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: 'source-debian'
           path: 'build/source-deb/*.deb'
           retention-days: 5
 
       - name: Stash packaging tests
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: tests
           path: 'ci/tests/**'
@@ -323,10 +323,10 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install cmake libjson-c-dev libbotan-2-dev asciidoctor
+          sudo apt-get -y install cmake libbz2-dev libjson-c-dev libbotan-2-dev asciidoctor
 
       - name: Download source package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: 'source-debian'
           path: source-debian
@@ -351,7 +351,7 @@ jobs:
         run: cpack -G DEB -B debian --config rnp/build/CPackConfig.cmake
 
       - name: Upload binary package
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: 'debian'
           path: 'debian/*.deb'
@@ -363,18 +363,18 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Download enp deb file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: 'debian'
 
       - name: Checkout shell test framework
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: kward/shunit2
           path: ci/tests/shunit2
 
       - name: Unstash tests
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: tests
           path: ci/tests

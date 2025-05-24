@@ -1,58 +1,28 @@
 /*
- * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
- * Copyright (c) 2009 The NetBSD Foundation, Inc.
+ * Copyright (c) 2017-2020, 2023 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
- * This code is originally derived from software contributed to
- * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
- * carried further by Ribose Inc (https://www.ribose.com).
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * 1.  Redistributions of source code must retain the above copyright notice,
+ *     this list of conditions and the following disclaimer.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * 2.  Redistributions in binary form must reproduce the above copyright notice,
+ *     this list of conditions and the following disclaimer in the documentation
+ *     and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*
- * Copyright (c) 2005-2008 Nominet UK (www.nic.uk)
- * All rights reserved.
- * Contributors: Ben Laurie, Rachel Willmer. The Contributors have asserted
- * their moral rights under the UK Copyright Design and Patents Act 1988 to
- * be recorded as the authors of this copyright work.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License.
- *
- * You may obtain a copy of the License at
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-#if defined(__NetBSD__)
-__COPYRIGHT("@(#) Copyright (c) 2009 The NetBSD Foundation, Inc. All rights reserved.");
-__RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
-#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -64,74 +34,70 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include "crypto/mem.h"
 
 #include "types.h"
-#include "key_store_pgp.h"
-#include "pgp-key.h"
+#include "key.hpp"
+#include "rekey/rnp_key_store.h"
 
+namespace rnp {
 bool
-rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
-                                      pgp_transferable_subkey_t *tskey,
-                                      pgp_key_t *                pkey)
+KeyStore::add_ts_subkey(const pgp_transferable_subkey_t &tskey, Key *pkey)
 {
     try {
         /* create subkey */
-        pgp_key_t skey(*tskey, pkey);
+        Key skey(tskey, pkey);
         /* add it to the storage */
-        return rnp_key_store_add_key(keyring, &skey);
+        return add_key(skey);
     } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        RNP_LOG_KEY_PKT("failed to create subkey %s", tskey->subkey);
+        /* LCOV_EXCL_START */
+        RNP_LOG("failed to create subkey: %s", e.what());
         RNP_LOG_KEY("primary key is %s", pkey);
         return false;
+        /* LCOV_EXCL_END */
     }
 }
 
 bool
-rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_key_t *tkey)
+KeyStore::add_ts_key(pgp_transferable_key_t &tkey)
 {
-    pgp_key_t *addkey = NULL;
+    Key *addkey = nullptr;
 
     /* create key from transferable key */
     try {
-        pgp_key_t key(*tkey);
+        Key key(tkey);
         /* temporary disable key validation */
-        keyring->disable_validation = true;
+        disable_validation = true;
         /* add key to the storage before subkeys */
-        addkey = rnp_key_store_add_key(keyring, &key);
+        addkey = add_key(key);
     } catch (const std::exception &e) {
-        keyring->disable_validation = false;
-        RNP_LOG_KEY_PKT("failed to add key %s", tkey->key);
+        disable_validation = false;
+        RNP_LOG("failed to add key: %s", e.what());
         return false;
     }
 
     if (!addkey) {
-        keyring->disable_validation = false;
+        disable_validation = false;
         RNP_LOG("Failed to add key to key store.");
         return false;
     }
 
     /* add subkeys */
-    for (auto &subkey : tkey->subkeys) {
-        if (!rnp_key_store_add_transferable_subkey(keyring, &subkey, addkey)) {
+    for (auto &subkey : tkey.subkeys) {
+        if (!add_ts_subkey(subkey, addkey)) {
             RNP_LOG("Failed to add subkey to key store.");
-            keyring->disable_validation = false;
-            goto error;
+            disable_validation = false;
+            /* during key addition all fields are copied so will be cleaned below */
+            remove_key(*addkey, false);
+            return false;
         }
     }
 
     /* now validate/refresh the whole key with subkeys */
-    keyring->disable_validation = false;
-    addkey->revalidate(*keyring);
+    disable_validation = false;
+    addkey->revalidate(*this);
     return true;
-error:
-    /* during key addition all fields are copied so will be cleaned below */
-    rnp_key_store_remove_key(keyring, addkey, false);
-    return false;
 }
 
 rnp_result_t
-rnp_key_store_pgp_read_key_from_src(rnp_key_store_t &keyring,
-                                    pgp_source_t &   src,
-                                    bool             skiperrors)
+KeyStore::load_pgp_key(pgp_source_t &src, bool skiperrors)
 {
     pgp_transferable_key_t key;
     rnp_result_t           ret = process_pgp_key_auto(src, key, true, skiperrors);
@@ -142,8 +108,7 @@ rnp_key_store_pgp_read_key_from_src(rnp_key_store_t &keyring,
 
     /* check whether we have primary key */
     if (key.key.tag != PGP_PKT_RESERVED) {
-        return rnp_key_store_add_transferable_key(&keyring, &key) ? RNP_SUCCESS :
-                                                                    RNP_ERROR_BAD_STATE;
+        return add_ts_key(key) ? RNP_SUCCESS : RNP_ERROR_BAD_STATE;
     }
 
     /* we just skipped some unexpected packets and read nothing */
@@ -151,57 +116,49 @@ rnp_key_store_pgp_read_key_from_src(rnp_key_store_t &keyring,
         return RNP_SUCCESS;
     }
 
-    return rnp_key_store_add_transferable_subkey(&keyring, &key.subkeys.front(), NULL) ?
-             RNP_SUCCESS :
-             RNP_ERROR_BAD_STATE;
+    return add_ts_subkey(key.subkeys.front()) ? RNP_SUCCESS : RNP_ERROR_BAD_STATE;
 }
 
 rnp_result_t
-rnp_key_store_pgp_read_from_src(rnp_key_store_t *keyring, pgp_source_t *src, bool skiperrors)
+KeyStore::load_pgp(pgp_source_t &src, bool skiperrors)
 {
     /* check whether we have transferable subkey in source */
-    if (is_subkey_pkt(stream_pkt_type(*src))) {
+    if (is_subkey_pkt(stream_pkt_type(src))) {
         pgp_transferable_subkey_t tskey;
-        rnp_result_t              ret = process_pgp_subkey(*src, tskey, skiperrors);
+        rnp_result_t              ret = process_pgp_subkey(src, tskey, skiperrors);
         if (ret) {
             return ret;
         }
-        return rnp_key_store_add_transferable_subkey(keyring, &tskey, NULL) ?
-                 RNP_SUCCESS :
-                 RNP_ERROR_BAD_STATE;
+        return add_ts_subkey(tskey) ? RNP_SUCCESS : RNP_ERROR_BAD_STATE;
     }
 
     /* process armored or raw transferable key packets sequence(s) */
     try {
         pgp_key_sequence_t keys;
-        rnp_result_t       ret = process_pgp_keys(*src, keys, skiperrors);
+        rnp_result_t       ret = process_pgp_keys(src, keys, skiperrors);
         if (ret) {
             return ret;
         }
         for (auto &key : keys.keys) {
-            if (!rnp_key_store_add_transferable_key(keyring, &key)) {
+            if (!add_ts_key(key)) {
                 return RNP_ERROR_BAD_STATE;
             }
         }
         return RNP_SUCCESS;
     } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
         RNP_LOG("%s", e.what());
         return RNP_ERROR_BAD_PARAMETERS;
+        /* LCOV_EXCL_END */
     }
 }
+} // namespace rnp
 
-std::vector<uint8_t>
-rnp_key_to_vec(const pgp_key_t &key)
+namespace {
+bool
+do_write(rnp::KeyStore &key_store, pgp_dest_t &dst, bool secret)
 {
-    rnp::MemoryDest dst;
-    key.write(dst.dst());
-    return dst.to_vector();
-}
-
-static bool
-do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
-{
-    for (auto &key : key_store->keys) {
+    for (auto &key : key_store.keys) {
         if (key.is_secret() != secret) {
             continue;
         }
@@ -210,32 +167,36 @@ do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
             continue;
         }
 
-        if (key.format != PGP_KEY_STORE_GPG) {
-            RNP_LOG("incorrect format (conversions not supported): %d", key.format);
+        if (key.format != rnp::KeyFormat::GPG) {
+            RNP_LOG("incorrect format (conversions not supported): %d",
+                    static_cast<int>(key.format));
             return false;
         }
-        key.write(*dst);
-        if (dst->werr) {
+        key.write(dst);
+        if (dst.werr) {
             return false;
         }
         for (auto &sfp : key.subkey_fps()) {
-            pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(key_store, sfp);
+            auto *subkey = key_store.get_key(sfp);
             if (!subkey) {
                 RNP_LOG("Missing subkey");
                 continue;
             }
-            subkey->write(*dst);
-            if (dst->werr) {
+            subkey->write(dst);
+            if (dst.werr) {
                 return false;
             }
         }
     }
     return true;
 }
+} // namespace
 
+namespace rnp {
 bool
-rnp_key_store_pgp_write_to_dst(rnp_key_store_t *key_store, pgp_dest_t *dst)
+KeyStore::write_pgp(pgp_dest_t &dst)
 {
     // two separate passes (public keys, then secret keys)
-    return do_write(key_store, dst, false) && do_write(key_store, dst, true);
+    return do_write(*this, dst, false) && do_write(*this, dst, true);
 }
+} // namespace rnp

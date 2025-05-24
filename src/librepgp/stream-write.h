@@ -34,14 +34,6 @@
 #include "stream-common.h"
 #include "stream-ctx.h"
 
-typedef struct pgp_write_handler_t {
-    pgp_password_provider_t *password_provider;
-    pgp_key_provider_t *     key_provider;
-    rnp_ctx_t *              ctx;
-
-    void *param;
-} pgp_write_handler_t;
-
 /** @brief sign the input data, producing attached, detached or cleartext signature.
  *         Type of the signature is controlled by clearsign and detached fields of the
  *         rnp_ctx_t structure
@@ -50,17 +42,15 @@ typedef struct pgp_write_handler_t {
  *  @param src input source: file, stdin, memory, whatever else conforming to pgp_source_t
  *  @param dst output destination: file, stdout, memory, whatever else conforming to pgp_dest_t
  **/
-rnp_result_t rnp_sign_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst);
+rnp_result_t rnp_sign_src(rnp_ctx_t &ctx, pgp_source_t &src, pgp_dest_t &dst);
 
-/** @brief encrypt and sign the input data. Signatures will be enrypted together with data.
+/** @brief encrypt and sign the input data. Signatures will be encrypted together with data.
  *  @param handler handler handler to respond on stream processor callbacks, and additional
  *         processing parameters, including rnp_ctx_t
  *  @param src input source: file, stdin, memory, whatever else conforming to pgp_source_t
  *  @param dst output destination: file, stdout, memory, whatever else conforming to pgp_dest_t
  **/
-rnp_result_t rnp_encrypt_sign_src(pgp_write_handler_t *handler,
-                                  pgp_source_t *       src,
-                                  pgp_dest_t *         dst);
+rnp_result_t rnp_encrypt_sign_src(rnp_ctx_t &ctx, pgp_source_t &src, pgp_dest_t &dst);
 
 /* Following functions are used only in tests currently. Later could be used in CLI for debug
  * commands like --wrap-literal, --encrypt-raw, --compress-raw, etc. */

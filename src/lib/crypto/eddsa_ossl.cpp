@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2024, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,127 +30,113 @@
 #include "ec.h"
 #include "ec_ossl.h"
 #include "utils.h"
-#include "bn.h"
+#include "ossl_utils.hpp"
 #include <openssl/evp.h>
 #include <openssl/objects.h>
 #include <openssl/err.h>
 #include <openssl/ec.h>
 
+namespace pgp {
+namespace eddsa {
+
 rnp_result_t
-eddsa_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret)
+validate_key(rnp::RNG &rng, const ec::Key &key, bool secret)
 {
     /* Not implemented in the OpenSSL, so just do basic size checks. */
-    if ((mpi_bytes(&key->p) != 33) || (key->p.mpi[0] != 0x40)) {
+    if ((key.p.size() != 33) || (key.p[0] != 0x40)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (secret && mpi_bytes(&key->x) > 32) {
+    if (secret && key.x.size() > 32) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     return RNP_SUCCESS;
 }
 
 rnp_result_t
-eddsa_generate(rnp::RNG *rng, pgp_ec_key_t *key)
+generate(rnp::RNG &rng, ec::Key &key)
 {
-    rnp_result_t ret = ec_generate(rng, key, PGP_PKA_EDDSA, PGP_CURVE_ED25519);
+    rnp_result_t ret = key.generate(rng, PGP_PKA_EDDSA, PGP_CURVE_ED25519);
     if (!ret) {
-        key->curve = PGP_CURVE_ED25519;
+        key.curve = PGP_CURVE_ED25519;
     }
     return ret;
 }
 
 rnp_result_t
-eddsa_verify(const pgp_ec_signature_t *sig,
-             const uint8_t *           hash,
-             size_t                    hash_len,
-             const pgp_ec_key_t *      key)
+verify(const ec::Signature &sig, const rnp::secure_bytes &hash, const ec::Key &key)
 {
-    if ((mpi_bytes(&sig->r) > 32) || (mpi_bytes(&sig->s) > 32)) {
+    if ((sig.r.size() > 32) || (sig.s.size() > 32)) {
         RNP_LOG("Invalid EdDSA signature.");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if ((mpi_bytes(&key->p) != 33) || (key->p.mpi[0] != 0x40)) {
+    if ((key.p.size() != 33) || (key.p[0] != 0x40)) {
         RNP_LOG("Invalid EdDSA public key.");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    EVP_PKEY *evpkey = ec_load_key(key->p, NULL, PGP_CURVE_ED25519);
+    auto evpkey = ec::load_key(key.p, NULL, PGP_CURVE_ED25519);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp_result_t ret = RNP_ERROR_SIGNATURE_INVALID;
-    uint8_t      sigbuf[64] = {0};
     /* init context and sign */
-    EVP_PKEY_CTX *ctx = NULL;
-    EVP_MD_CTX *  md = EVP_MD_CTX_new();
+    rnp::ossl::evp::MDCtx md(EVP_MD_CTX_new());
     if (!md) {
         RNP_LOG("Failed to allocate MD ctx: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
-    if (EVP_DigestVerifyInit(md, &ctx, NULL, NULL, evpkey) <= 0) {
+    /* ctx will be destroyed together with md */
+    EVP_PKEY_CTX *ctx = NULL;
+    if (EVP_DigestVerifyInit(md.get(), &ctx, NULL, NULL, evpkey.get()) <= 0) {
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
-    mpi2mem(&sig->r, &sigbuf[32 - mpi_bytes(&sig->r)]);
-    mpi2mem(&sig->s, &sigbuf[64 - mpi_bytes(&sig->s)]);
+    std::array<uint8_t, 64> sigbuf{};
+    sig.r.copy(&sigbuf[32 - sig.r.size()]);
+    sig.s.copy(&sigbuf[64 - sig.s.size()]);
 
-    if (EVP_DigestVerify(md, sigbuf, 64, hash, hash_len) > 0) {
-        ret = RNP_SUCCESS;
+    if (EVP_DigestVerify(md.get(), sigbuf.data(), 64, hash.data(), hash.size()) < 1) {
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
-done:
-    /* line below will also free ctx */
-    EVP_MD_CTX_free(md);
-    EVP_PKEY_free(evpkey);
-    return ret;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
-eddsa_sign(rnp::RNG *          rng,
-           pgp_ec_signature_t *sig,
-           const uint8_t *     hash,
-           size_t              hash_len,
-           const pgp_ec_key_t *key)
+sign(rnp::RNG &rng, ec::Signature &sig, const rnp::secure_bytes &hash, const ec::Key &key)
 {
-    if (!mpi_bytes(&key->x)) {
+    if (!key.x.size()) {
         RNP_LOG("private key not set");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    EVP_PKEY *evpkey = ec_load_key(key->p, &key->x, PGP_CURVE_ED25519);
+    auto evpkey = ec::load_key(key.p, &key.x, PGP_CURVE_ED25519);
     if (!evpkey) {
         RNP_LOG("Failed to load private key: %lu", ERR_peek_last_error());
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp_result_t ret = RNP_ERROR_GENERIC;
     /* init context and sign */
-    EVP_PKEY_CTX *ctx = NULL;
-    EVP_MD_CTX *  md = EVP_MD_CTX_new();
+    rnp::ossl::evp::MDCtx md(EVP_MD_CTX_new());
     if (!md) {
         RNP_LOG("Failed to allocate MD ctx: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    if (EVP_DigestSignInit(md, &ctx, NULL, NULL, evpkey) <= 0) {
+    /* ctx will be destroyed together with md */
+    EVP_PKEY_CTX *ctx = NULL;
+    if (EVP_DigestSignInit(md.get(), &ctx, NULL, NULL, evpkey.get()) <= 0) {
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    static_assert((sizeof(sig->r.mpi) == PGP_MPINT_SIZE) && (PGP_MPINT_SIZE >= 64),
-                  "invalid mpi type/size");
-    sig->r.len = PGP_MPINT_SIZE;
-    if (EVP_DigestSign(md, sig->r.mpi, &sig->r.len, hash, hash_len) <= 0) {
+    std::array<uint8_t, 64> sigbuf{};
+    size_t                  siglen = sigbuf.size();
+    if (EVP_DigestSign(md.get(), sigbuf.data(), &siglen, hash.data(), hash.size()) <= 0) {
         RNP_LOG("Signing failed: %lu", ERR_peek_last_error());
-        sig->r.len = 0;
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    assert(sig->r.len == 64);
-    sig->r.len = 32;
-    sig->s.len = 32;
-    memcpy(sig->s.mpi, &sig->r.mpi[32], 32);
-    ret = RNP_SUCCESS;
-done:
-    /* line below will also free ctx */
-    EVP_MD_CTX_free(md);
-    EVP_PKEY_free(evpkey);
-    return ret;
+    assert(siglen == 64);
+    sig.r.assign(sigbuf.data(), 32);
+    sig.s.assign(sigbuf.data() + 32, 32);
+    return RNP_SUCCESS;
 }
+} // namespace eddsa
+} // namespace pgp

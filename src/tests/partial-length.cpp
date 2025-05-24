@@ -212,7 +212,7 @@ TEST_F(rnp_tests, test_partial_length_first_packet_length)
     assert_rnp_success(body.read(src));
     // checking next packet header (should be partial length literal data)
     uint8_t flags = 0;
-    assert_true(src_read_eq(&src, &flags, 1));
+    assert_true(src.read_eq(&flags, 1));
     assert_int_equal(flags, PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT | PGP_PKT_LITDATA);
     // checking length
     bool last = true; // should be reset by stream_read_partial_chunk_len()
@@ -220,7 +220,7 @@ TEST_F(rnp_tests, test_partial_length_first_packet_length)
     assert_true(len >= PGP_PARTIAL_PKT_FIRST_PART_MIN_SIZE);
     assert_false(last);
     // cleanup
-    src_close(&src);
+    src.close();
     assert_rnp_success(rnp_op_sign_destroy(sign));
     assert_rnp_success(rnp_input_destroy(input));
     assert_rnp_success(rnp_output_destroy(output));

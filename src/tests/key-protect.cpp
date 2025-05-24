@@ -24,12 +24,27 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "../librekey/key_store_pgp.h"
-#include "pgp-key.h"
+#include "key.hpp"
 
 #include "rnp_tests.h"
 #include "support.h"
-#include "crypto.h"
+#include "keygen.hpp"
+
+bool
+rsa_sec_empty(const pgp::KeyMaterial &key)
+{
+    auto &rsa = dynamic_cast<const pgp::RSAKeyMaterial &>(key);
+    return mpi_empty(rsa.d()) && mpi_empty(rsa.p()) && mpi_empty(rsa.q()) &&
+           mpi_empty(rsa.u());
+}
+
+bool
+rsa_sec_filled(const pgp::KeyMaterial &key)
+{
+    auto &rsa = dynamic_cast<const pgp::RSAKeyMaterial &>(key);
+    return !mpi_empty(rsa.d()) && !mpi_empty(rsa.p()) && !mpi_empty(rsa.q()) &&
+           !mpi_empty(rsa.u());
+}
 
 /* This test loads a .gpg keyring and tests protect/unprotect functionality.
  * There is also some lock/unlock testing in here, since the two are
@@ -37,7 +52,7 @@
  */
 TEST_F(rnp_tests, test_key_protect_load_pgp)
 {
-    pgp_key_t *        key = NULL;
+    rnp::Key *         key = nullptr;
     static const char *keyids[] = {"7bc6709b15c23a4a", // primary
                                    "1ed63ee56fadc34d",
                                    "1d7e8a5393c997a8",
@@ -48,28 +63,27 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
 
     // load our keyring and do some quick checks
     {
-        pgp_source_t     src = {};
-        rnp_key_store_t *ks = new rnp_key_store_t(global_ctx);
+        pgp_source_t src = {};
+        auto         ks = new rnp::KeyStore(global_ctx);
 
         assert_rnp_success(init_file_src(&src, "data/keyrings/1/secring.gpg"));
-        assert_rnp_success(rnp_key_store_pgp_read_from_src(ks, &src));
-        src_close(&src);
+        assert_rnp_success(ks->load_pgp(src));
+        src.close();
 
         for (size_t i = 0; i < ARRAY_SIZE(keyids); i++) {
-            pgp_key_t *key = NULL;
-            assert_non_null(key = rnp_tests_get_key_by_id(ks, keyids[i]));
-            assert_non_null(key);
+            rnp::Key *tmp = rnp_tests_get_key_by_id(ks, keyids[i]);
+            assert_non_null(tmp);
             // all keys in this keyring are encrypted and thus should be both protected and
             // locked initially
-            assert_true(key->is_protected());
-            assert_true(key->is_locked());
+            assert_true(tmp->is_protected());
+            assert_true(tmp->is_locked());
         }
 
-        pgp_key_t *tmp = NULL;
-        assert_non_null(tmp = rnp_tests_get_key_by_id(ks, keyids[0]));
+        rnp::Key *tmp = rnp_tests_get_key_by_id(ks, keyids[0]);
+        assert_non_null(tmp);
 
         // steal this key from the store
-        key = new pgp_key_t(*tmp);
+        key = new rnp::Key(*tmp);
         assert_non_null(key);
         delete ks;
     }
@@ -78,10 +92,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     assert_int_equal(key->alg(), PGP_PKA_RSA);
 
     // confirm key material is currently all NULL (in other words, the key is locked)
-    assert_true(mpi_empty(key->material().rsa.d));
-    assert_true(mpi_empty(key->material().rsa.p));
-    assert_true(mpi_empty(key->material().rsa.q));
-    assert_true(mpi_empty(key->material().rsa.u));
+    assert_true(rsa_sec_empty(*key->material()));
 
     // try to unprotect with a failing password provider
     pgp_password_provider_t pprov(failing_password_callback);
@@ -100,10 +111,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     assert_true(key->is_locked());
 
     // confirm secret key material is still NULL
-    assert_true(mpi_empty(key->material().rsa.d));
-    assert_true(mpi_empty(key->material().rsa.p));
-    assert_true(mpi_empty(key->material().rsa.q));
-    assert_true(mpi_empty(key->material().rsa.u));
+    assert_true(rsa_sec_empty(*key->material()));
 
     // unlock (no password required since the key is not protected)
     pprov = {asserting_password_callback};
@@ -111,29 +119,24 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     assert_false(key->is_locked());
 
     // secret key material should be available
-    assert_false(mpi_empty(key->material().rsa.d));
-    assert_false(mpi_empty(key->material().rsa.p));
-    assert_false(mpi_empty(key->material().rsa.q));
-    assert_false(mpi_empty(key->material().rsa.u));
+    assert_true(rsa_sec_filled(*key->material()));
 
     // save the secret MPIs for some later comparisons
-    pgp_mpi_t d = key->material().rsa.d;
-    pgp_mpi_t p = key->material().rsa.p;
-    pgp_mpi_t q = key->material().rsa.q;
-    pgp_mpi_t u = key->material().rsa.u;
+    auto &rsa = dynamic_cast<const pgp::RSAKeyMaterial &>(*key->material());
+    auto  d = rsa.d();
+    auto  p = rsa.p();
+    auto  q = rsa.q();
+    auto  u = rsa.u();
 
     // confirm that packets[0] is no longer encrypted
     {
-        pgp_source_t     memsrc = {};
-        rnp_key_store_t *ks = new rnp_key_store_t(global_ctx);
-        pgp_rawpacket_t &pkt = key->rawpkt();
+        auto              ks = new rnp::KeyStore(global_ctx);
+        rnp::MemorySource memsrc(key->rawpkt().data());
 
-        assert_rnp_success(init_mem_src(&memsrc, pkt.raw.data(), pkt.raw.size(), false));
-        assert_rnp_success(rnp_key_store_pgp_read_from_src(ks, &memsrc));
-        src_close(&memsrc);
+        assert_rnp_success(ks->load_pgp(memsrc.src()));
 
         // grab the first key
-        pgp_key_t *reloaded_key = NULL;
+        rnp::Key *reloaded_key = NULL;
         assert_non_null(reloaded_key = rnp_tests_get_key_by_id(ks, keyids[0]));
         assert_non_null(reloaded_key);
 
@@ -141,36 +144,35 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
         assert_false(reloaded_key->is_locked());
         assert_false(reloaded_key->is_protected());
         // secret key material should not be NULL
-        assert_false(mpi_empty(reloaded_key->material().rsa.d));
-        assert_false(mpi_empty(reloaded_key->material().rsa.p));
-        assert_false(mpi_empty(reloaded_key->material().rsa.q));
-        assert_false(mpi_empty(reloaded_key->material().rsa.u));
+        auto &rsar = dynamic_cast<const pgp::RSAKeyMaterial &>(*reloaded_key->material());
+        assert_false(mpi_empty(rsar.d()));
+        assert_false(mpi_empty(rsar.p()));
+        assert_false(mpi_empty(rsar.q()));
+        assert_false(mpi_empty(rsar.u()));
 
         // compare MPIs of the reloaded key, with the unlocked key from earlier
-        assert_true(mpi_equal(&key->material().rsa.d, &reloaded_key->material().rsa.d));
-        assert_true(mpi_equal(&key->material().rsa.p, &reloaded_key->material().rsa.p));
-        assert_true(mpi_equal(&key->material().rsa.q, &reloaded_key->material().rsa.q));
-        assert_true(mpi_equal(&key->material().rsa.u, &reloaded_key->material().rsa.u));
+        assert_true(rsa.d() == rsar.d());
+        assert_true(rsa.p() == rsar.p());
+        assert_true(rsa.q() == rsar.q());
+        assert_true(rsa.u() == rsar.u());
         // negative test to try to ensure the above is a valid test
-        assert_false(mpi_equal(&key->material().rsa.d, &reloaded_key->material().rsa.p));
+        assert_false(rsa.d() == rsar.p());
 
         // lock it
         assert_true(reloaded_key->lock());
         assert_true(reloaded_key->is_locked());
         // confirm that secret MPIs are NULL again
-        assert_true(mpi_empty(reloaded_key->material().rsa.d));
-        assert_true(mpi_empty(reloaded_key->material().rsa.p));
-        assert_true(mpi_empty(reloaded_key->material().rsa.q));
-        assert_true(mpi_empty(reloaded_key->material().rsa.u));
+        assert_true(rsa_sec_empty(*reloaded_key->material()));
         // unlock it (no password, since it's not protected)
         pgp_password_provider_t pprov(asserting_password_callback);
         assert_true(reloaded_key->unlock(pprov));
         assert_false(reloaded_key->is_locked());
         // compare MPIs of the reloaded key, with the unlocked key from earlier
-        assert_true(mpi_equal(&key->material().rsa.d, &reloaded_key->material().rsa.d));
-        assert_true(mpi_equal(&key->material().rsa.p, &reloaded_key->material().rsa.p));
-        assert_true(mpi_equal(&key->material().rsa.q, &reloaded_key->material().rsa.q));
-        assert_true(mpi_equal(&key->material().rsa.u, &reloaded_key->material().rsa.u));
+        auto &rsar2 = dynamic_cast<const pgp::RSAKeyMaterial &>(*reloaded_key->material());
+        assert_true(rsa.d() == rsar2.d());
+        assert_true(rsa.p() == rsar2.p());
+        assert_true(rsa.q() == rsar2.q());
+        assert_true(rsa.u() == rsar2.u());
 
         delete ks;
     }
@@ -213,10 +215,11 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     assert_false(key->is_locked());
 
     // compare secret MPIs with those from earlier
-    assert_true(mpi_equal(&key->material().rsa.d, &d));
-    assert_true(mpi_equal(&key->material().rsa.p, &p));
-    assert_true(mpi_equal(&key->material().rsa.q, &q));
-    assert_true(mpi_equal(&key->material().rsa.u, &u));
+    auto &rsa2 = dynamic_cast<const pgp::RSAKeyMaterial &>(*key->material());
+    assert_true(rsa2.d() == d);
+    assert_true(rsa2.p() == p);
+    assert_true(rsa2.q() == q);
+    assert_true(rsa2.u() == u);
 
     // cleanup
     delete key;
@@ -224,114 +227,70 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
 
 TEST_F(rnp_tests, test_key_protect_sec_data)
 {
-    rnp_keygen_primary_desc_t pri_desc = {};
-    pri_desc.crypto.key_alg = PGP_PKA_RSA;
-    pri_desc.crypto.rsa.modulus_bit_len = 1024;
-    pri_desc.crypto.ctx = &global_ctx;
-    pri_desc.cert.userid = "test";
+    rnp::KeygenParams keygen(PGP_PKA_RSA, global_ctx);
+    auto &            rsa = dynamic_cast<pgp::RSAKeyParams &>(keygen.key_params());
+    rsa.set_bits(1024);
 
-    rnp_keygen_subkey_desc_t sub_desc = {};
-    sub_desc.crypto.key_alg = PGP_PKA_RSA;
-    sub_desc.crypto.rsa.modulus_bit_len = 1024;
-    sub_desc.crypto.ctx = &global_ctx;
+    rnp::CertParams cert;
+    cert.userid = "test";
+
+    rnp::BindingParams binding;
 
     /* generate raw unprotected keypair */
-    pgp_key_t               skey, pkey, ssub, psub;
+    rnp::Key                skey, pkey, ssub, psub;
     pgp_password_provider_t prov = {};
-    assert_true(pgp_generate_primary_key(pri_desc, true, skey, pkey, PGP_KEY_STORE_GPG));
-    assert_true(
-      pgp_generate_subkey(sub_desc, true, skey, pkey, ssub, psub, prov, PGP_KEY_STORE_GPG));
-    assert_non_null(skey.pkt().sec_data);
-    assert_non_null(ssub.pkt().sec_data);
-    assert_null(pkey.pkt().sec_data);
-    assert_null(psub.pkt().sec_data);
+    assert_true(keygen.generate(cert, skey, pkey));
+    assert_true(keygen.generate(binding, skey, pkey, ssub, psub, prov));
+    assert_false(skey.pkt().sec_data.empty());
+    assert_false(ssub.pkt().sec_data.empty());
+    assert_true(pkey.pkt().sec_data.empty());
+    assert_true(psub.pkt().sec_data.empty());
     /* copy part of the cleartext secret key and save pointers for later checks */
-    assert_true(skey.pkt().sec_len >= 32);
-    assert_true(ssub.pkt().sec_len >= 32);
+    assert_true(skey.pkt().sec_data.size() >= 32);
+    assert_true(ssub.pkt().sec_data.size() >= 32);
     uint8_t raw_skey[32];
     uint8_t raw_ssub[32];
-    memcpy(raw_skey, skey.pkt().sec_data, 32);
-    memcpy(raw_ssub, ssub.pkt().sec_data, 32);
+    memcpy(raw_skey, skey.pkt().sec_data.data(), 32);
+    memcpy(raw_ssub, ssub.pkt().sec_data.data(), 32);
     pgp_key_pkt_t *skeypkt;
     pgp_key_pkt_t *ssubpkt;
-#if defined(__has_feature)
-#if !__has_feature(address_sanitizer)
-    /* copy keys and delete, making sure secret data is wiped*/
-    pgp_key_t *skeycp = new pgp_key_t(skey);
-    pgp_key_t *ssubcp = new pgp_key_t(ssub);
-    uint8_t *  raw_skey_ptr = skeycp->pkt().sec_data;
-    uint8_t *  raw_ssub_ptr = ssubcp->pkt().sec_data;
-    assert_int_equal(memcmp(raw_skey, raw_skey_ptr, 32), 0);
-    assert_int_equal(memcmp(raw_ssub, raw_ssub_ptr, 32), 0);
-    delete skeycp;
-    delete ssubcp;
-    assert_int_not_equal(memcmp(raw_skey, raw_skey_ptr, 32), 0);
-    assert_int_not_equal(memcmp(raw_ssub, raw_ssub_ptr, 32), 0);
-    /* do the same with key packet */
-    skeypkt = new pgp_key_pkt_t(skey.pkt());
-    ssubpkt = new pgp_key_pkt_t(ssub.pkt());
-    raw_skey_ptr = skeypkt->sec_data;
-    raw_ssub_ptr = ssubpkt->sec_data;
-    assert_int_equal(memcmp(raw_skey, raw_skey_ptr, 32), 0);
-    assert_int_equal(memcmp(raw_ssub, raw_ssub_ptr, 32), 0);
-    delete skeypkt;
-    delete ssubpkt;
-    assert_int_not_equal(memcmp(raw_skey, raw_skey_ptr, 32), 0);
-    assert_int_not_equal(memcmp(raw_ssub, raw_ssub_ptr, 32), 0);
-    /* save original pointers */
-    raw_skey_ptr = skey.pkt().sec_data;
-    raw_ssub_ptr = ssub.pkt().sec_data;
-#endif
-#endif
-
     /* protect key and subkey */
     pgp_password_provider_t     pprov(string_copy_password_callback, (void *) "password");
     rnp_key_protection_params_t prot = {};
     assert_true(skey.protect(prot, pprov, global_ctx));
     assert_true(ssub.protect(prot, pprov, global_ctx));
-    assert_int_not_equal(memcmp(raw_skey, skey.pkt().sec_data, 32), 0);
-    assert_int_not_equal(memcmp(raw_ssub, ssub.pkt().sec_data, 32), 0);
-#if defined(__has_feature)
-#if !__has_feature(address_sanitizer)
-    assert_int_not_equal(memcmp(raw_skey, raw_skey_ptr, 32), 0);
-    assert_int_not_equal(memcmp(raw_ssub, raw_ssub_ptr, 32), 0);
-#endif
-#endif
+    assert_int_not_equal(memcmp(raw_skey, skey.pkt().sec_data.data(), 32), 0);
+    assert_int_not_equal(memcmp(raw_ssub, ssub.pkt().sec_data.data(), 32), 0);
     /* make sure rawpkt is also protected */
     skeypkt = new pgp_key_pkt_t();
-    pgp_source_t memsrc = {};
-    assert_rnp_success(
-      init_mem_src(&memsrc, skey.rawpkt().raw.data(), skey.rawpkt().raw.size(), false));
-    assert_rnp_success(skeypkt->parse(memsrc));
-    src_close(&memsrc);
-    assert_int_not_equal(memcmp(raw_skey, skeypkt->sec_data, 32), 0);
+    rnp::MemorySource skeysrc(skey.rawpkt().data());
+    assert_rnp_success(skeypkt->parse(skeysrc.src()));
+    assert_int_not_equal(memcmp(raw_skey, skeypkt->sec_data.data(), 32), 0);
     assert_int_equal(skeypkt->sec_protection.s2k.specifier, PGP_S2KS_ITERATED_AND_SALTED);
     delete skeypkt;
     ssubpkt = new pgp_key_pkt_t();
-    assert_rnp_success(
-      init_mem_src(&memsrc, ssub.rawpkt().raw.data(), ssub.rawpkt().raw.size(), false));
-    assert_rnp_success(ssubpkt->parse(memsrc));
-    src_close(&memsrc);
-    assert_int_not_equal(memcmp(raw_ssub, ssubpkt->sec_data, 32), 0);
+    rnp::MemorySource ssubsrc(ssub.rawpkt().data());
+    assert_rnp_success(ssubpkt->parse(ssubsrc.src()));
+    assert_int_not_equal(memcmp(raw_ssub, ssubpkt->sec_data.data(), 32), 0);
     assert_int_equal(ssubpkt->sec_protection.s2k.specifier, PGP_S2KS_ITERATED_AND_SALTED);
     delete ssubpkt;
 
     /* unlock and make sure sec_data is not decrypted */
     assert_true(skey.unlock(pprov));
     assert_true(ssub.unlock(pprov));
-    assert_int_not_equal(memcmp(raw_skey, skey.pkt().sec_data, 32), 0);
-    assert_int_not_equal(memcmp(raw_ssub, ssub.pkt().sec_data, 32), 0);
+    assert_int_not_equal(memcmp(raw_skey, skey.pkt().sec_data.data(), 32), 0);
+    assert_int_not_equal(memcmp(raw_ssub, ssub.pkt().sec_data.data(), 32), 0);
     /* unprotect key */
     assert_true(skey.unprotect(pprov, global_ctx));
     assert_true(ssub.unprotect(pprov, global_ctx));
-    assert_int_equal(memcmp(raw_skey, skey.pkt().sec_data, 32), 0);
-    assert_int_equal(memcmp(raw_ssub, ssub.pkt().sec_data, 32), 0);
+    assert_int_equal(memcmp(raw_skey, skey.pkt().sec_data.data(), 32), 0);
+    assert_int_equal(memcmp(raw_ssub, ssub.pkt().sec_data.data(), 32), 0);
     /* protect it back  with another password */
     pgp_password_provider_t pprov2(string_copy_password_callback, (void *) "password2");
     assert_true(skey.protect(prot, pprov2, global_ctx));
     assert_true(ssub.protect(prot, pprov2, global_ctx));
-    assert_int_not_equal(memcmp(raw_skey, skey.pkt().sec_data, 32), 0);
-    assert_int_not_equal(memcmp(raw_ssub, ssub.pkt().sec_data, 32), 0);
+    assert_int_not_equal(memcmp(raw_skey, skey.pkt().sec_data.data(), 32), 0);
+    assert_int_not_equal(memcmp(raw_ssub, ssub.pkt().sec_data.data(), 32), 0);
     assert_false(skey.unlock(pprov));
     assert_false(ssub.unlock(pprov));
     assert_true(skey.unlock(pprov2));
@@ -340,19 +299,15 @@ TEST_F(rnp_tests, test_key_protect_sec_data)
     assert_true(ssub.lock());
     /* make sure rawpkt is also protected */
     skeypkt = new pgp_key_pkt_t();
-    assert_rnp_success(
-      init_mem_src(&memsrc, skey.rawpkt().raw.data(), skey.rawpkt().raw.size(), false));
-    assert_rnp_success(skeypkt->parse(memsrc));
-    src_close(&memsrc);
-    assert_int_not_equal(memcmp(raw_skey, skeypkt->sec_data, 32), 0);
+    rnp::MemorySource skey2src(skey.rawpkt().data());
+    assert_rnp_success(skeypkt->parse(skey2src.src()));
+    assert_int_not_equal(memcmp(raw_skey, skeypkt->sec_data.data(), 32), 0);
     assert_int_equal(skeypkt->sec_protection.s2k.specifier, PGP_S2KS_ITERATED_AND_SALTED);
     delete skeypkt;
     ssubpkt = new pgp_key_pkt_t();
-    assert_rnp_success(
-      init_mem_src(&memsrc, ssub.rawpkt().raw.data(), ssub.rawpkt().raw.size(), false));
-    assert_rnp_success(ssubpkt->parse(memsrc));
-    src_close(&memsrc);
-    assert_int_not_equal(memcmp(raw_ssub, ssubpkt->sec_data, 32), 0);
+    rnp::MemorySource ssub2src(ssub.rawpkt().data());
+    assert_rnp_success(ssubpkt->parse(ssub2src.src()));
+    assert_int_not_equal(memcmp(raw_ssub, ssubpkt->sec_data.data(), 32), 0);
     assert_int_equal(ssubpkt->sec_protection.s2k.specifier, PGP_S2KS_ITERATED_AND_SALTED);
     delete ssubpkt;
 }

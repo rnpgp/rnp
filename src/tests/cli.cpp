@@ -617,20 +617,21 @@ TEST_F(rnp_tests, test_cli_rnpkeys)
 
 // check both primary key and subkey for the given userid
 static int
-key_expiration_check(rnp_key_store_t *keystore,
-                     const char *     userid,
-                     uint32_t         expectedExpiration)
+key_expiration_check(rnp::KeyStore *keystore, const char *userid, uint32_t expectedExpiration)
 {
     int res = -1; // not found
     for (auto &key : keystore->keys) {
-        pgp_key_t *pk;
+        rnp::Key *pk;
         if (key.is_primary()) {
             pk = &key;
         } else {
             if (!key.has_primary_fp()) {
                 return 0;
             }
-            pk = rnp_key_store_get_key_by_fpr(keystore, key.primary_fp());
+            pk = keystore->get_key(key.primary_fp());
+            if (!pk) {
+                return 0;
+            }
         }
         if (pk->uid_count() != 1) {
             return 0;
@@ -767,12 +768,12 @@ TEST_F(rnp_tests, test_cli_rnpkeys_genkey)
     assert_int_equal(key_generate(GENKEYS, "expiration_2months@rnp", "2m"), 0);
     assert_int_equal(key_generate(GENKEYS, "expiration_2years@rnp", "2y"), 0);
 
-    auto         keystore = new rnp_key_store_t(PGP_KEY_STORE_GPG, "", global_ctx);
+    auto         keystore = new rnp::KeyStore("", global_ctx);
     pgp_source_t src = {};
     assert_rnp_success(init_file_src(&src, GENKEYS "/pubring.gpg"));
-    assert_true(rnp_key_store_load_from_src(keystore, &src, NULL));
-    assert_int_equal(rnp_key_store_get_key_count(keystore), 34);
-    src_close(&src);
+    assert_true(keystore->load(src));
+    assert_int_equal(keystore->key_count(), 34);
+    src.close();
     assert_int_equal(key_expiration_check(keystore, "expiration_max_32bit@rnp", 4294967295),
                      1);
     assert_int_equal(key_expiration_check(keystore, "expiration_max_32bit_h@rnp", 4294965600),
@@ -837,7 +838,13 @@ TEST_F(rnp_tests, test_cli_dump)
 
 TEST_F(rnp_tests, test_cli_logname)
 {
+    // getenv function is not required to be thread-safe.
+    // Another call to getenv, as well as a call to the POSIX functions setenv(), unsetenv(),
+    // and putenv() may invalidate the pointer returned by a previous call or modify the string
+    // obtained from a previous call.
     char *      logname = getenv("LOGNAME");
+    std::string saved_logname(logname ? logname : "");
+
     char *      user = getenv("USER");
     std::string testname(user ? user : "user");
     testname.append("-test-user");
@@ -850,7 +857,7 @@ TEST_F(rnp_tests, test_cli_logname)
     }
 
     if (logname) {
-        setenv("LOGNAME", logname, 1);
+        setenv("LOGNAME", saved_logname.c_str(), 1);
     } else {
         unsetenv("LOGNAME");
     }

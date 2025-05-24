@@ -38,9 +38,9 @@ secure_clear(void *vp, size_t size)
 namespace rnp {
 
 bool
-hex_encode(const uint8_t *buf, size_t buf_len, char *hex, size_t hex_len, hex_format_t format)
+hex_encode(const uint8_t *buf, size_t buf_len, char *hex, size_t hex_len, HexFormat format)
 {
-    uint32_t flags = format == HEX_LOWERCASE ? BOTAN_FFI_HEX_LOWER_CASE : 0;
+    uint32_t flags = format == HexFormat::Lowercase ? BOTAN_FFI_HEX_LOWER_CASE : 0;
 
     if (hex_len < (buf_len * 2 + 1)) {
         return false;

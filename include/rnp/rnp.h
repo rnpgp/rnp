@@ -104,6 +104,9 @@ typedef uint32_t rnp_result_t;
  * Flags for default key selection.
  */
 #define RNP_KEY_SUBKEYS_ONLY (1U << 0)
+#if defined(RNP_EXPERIMENTAL_PQC)
+#define RNP_KEY_PREFER_PQC_ENC_SUBKEY (1U << 1)
+#endif
 
 /**
  * User id type
@@ -139,11 +142,37 @@ typedef uint32_t rnp_result_t;
 #define RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT (1U << 2)
 
 /**
+ * Revocation key flags.
+ */
+#define RNP_REVOKER_SENSITIVE (1U << 0)
+
+/**
  * Key feature flags.
  */
 #define RNP_KEY_FEATURE_MDC (1U << 0)
 #define RNP_KEY_FEATURE_AEAD (1U << 1)
 #define RNP_KEY_FEATURE_V5 (1U << 2)
+
+/**
+ *  Key usage flags.
+ */
+
+#define RNP_KEY_USAGE_CERTIFY (1U << 0)
+#define RNP_KEY_USAGE_SIGN (1U << 1)
+#define RNP_KEY_USAGE_ENCRYPT_COMMS (1U << 2)
+#define RNP_KEY_USAGE_ENCRYPT_STORAGE (1U << 3)
+
+/**
+ *  Key server preferences flags.
+ */
+
+#define RNP_KEY_SERVER_NO_MODIFY (1U << 7)
+
+/**
+ *  Signature validation flags.
+ */
+
+#define RNP_SIGNATURE_REVALIDATE (1U << 0)
 
 /**
  * Return a constant string describing the result code
@@ -236,6 +265,7 @@ typedef struct rnp_op_encrypt_st *         rnp_op_encrypt_t;
 typedef struct rnp_identifier_iterator_st *rnp_identifier_iterator_t;
 typedef struct rnp_uid_handle_st *         rnp_uid_handle_t;
 typedef struct rnp_signature_handle_st *   rnp_signature_handle_t;
+typedef struct rnp_sig_subpacket_st *      rnp_sig_subpacket_t;
 typedef struct rnp_recipient_handle_st *   rnp_recipient_handle_t;
 typedef struct rnp_symenc_handle_st *      rnp_symenc_handle_t;
 
@@ -465,8 +495,22 @@ RNP_API rnp_result_t rnp_supports_feature(const char *type, const char *name, bo
 /** Get the JSON with array of supported rnp feature values (algorithms, curves, etc) by type.
  *
  * @param type type of the feature. See RNP_FEATURE_* defines for the supported values.
- * @param result after successful execution will contain the JSON with supported feature
- *        values. You must destroy it using the rnp_buffer_destroy() function.
+ * @param result after successful execution will contain the JSON array with supported feature
+ *        string values. You must destroy it using the rnp_buffer_destroy() function.\n
+ *        Example JSON array output listing available hash algorithms:\n
+ *
+ *            [
+ *              "MD5",
+ *              "SHA1",
+ *              "RIPEMD160",
+ *              "SHA256",
+ *              "SHA384",
+ *              "SHA512",
+ *              "SHA224",
+ *              "SHA3-256",
+ *              "SHA3-512"
+ *            ]
+ *
  * @return RNP_SUCCESS on success or any other value on error.
  */
 RNP_API rnp_result_t rnp_supported_features(const char *type, char **result);
@@ -649,8 +693,28 @@ RNP_API rnp_result_t rnp_unload_keys(rnp_ffi_t ffi, uint32_t flags);
  *              RNP_LOAD_SAVE_BASE64 should set to allow import of base64-encoded keys (i.e.
  *              autocrypt ones). By default only binary and OpenPGP-armored keys are allowed.
  * @param results if not NULL then after the successful execution will contain JSON with
- *                information about new and updated keys. You must free it using the
- *                rnp_buffer_destroy() function.
+ *              information about new and updated keys. You must free it using the
+ *              rnp_buffer_destroy() function.
+ *              JSON output is an object containing array of objects named "keys".
+ *              Each array item is an object representing an imported key.
+ *              It contains the following members:\n
+ * JSON member  | Description
+ * -------------|------------
+ * "public"     | string, status of a public key, one of "new", "updated", "unchanged", "none"
+ * "secret"     | string, status of a secret key, same possible values as for public
+ * "fingerprint"| string, hexadecimal fingerprint of the key
+ *              Example of JSON output:\n
+ *
+ *                  {
+ *                      "keys":[
+ *                       {
+ *                          "public":"unchanged",
+ *                          "secret":"new",
+ *                          "fingerprint":"090bd712a1166be572252c3c9747d2a6b3a63124"
+ *                       }
+ *                      ]
+ *                  }
+ *
  * @return RNP_SUCCESS on success
  *         RNP_ERROR_EOF if last key was read (if RNP_LOAD_SAVE_SINGLE was used)
  *         any other value on error.
@@ -660,14 +724,43 @@ RNP_API rnp_result_t rnp_import_keys(rnp_ffi_t   ffi,
                                      uint32_t    flags,
                                      char **     results);
 
-/** import standalone signatures to the keyring and receive JSON list of the updated keys.
+/** import standalone signatures to the keyring and receive JSON list of the updated
+ * signatures.
  *
  *  @param ffi
  *  @param input source to read from. Cannot be NULL.
  *  @param flags additional import flags, currently must be 0.
  *  @param results if not NULL then after the successful execution will contain JSON with
- *                 information about the updated keys. You must free it using the
+ *                 information about the updated signatures. You must free it using the
  *                 rnp_buffer_destroy() function.
+ *                 JSON output is an object containing array of objects named "sigs".
+ *                 Each array item is an object representing imported signature.
+ *                 It contains the following members:\n
+ * JSON member         | Description
+ * --------------------|------------
+ * "public"            |string, signature import status in a public keyring
+ * "secret"            |string, signature import status in a secret keyring
+ * "signer fingerprint"|string, optional, fingerprint of a signing key
+ *                 "public" and "secret" status strings can have any of these string values:
+ *                 "new", "unchanged", "unknown key", "none".
+ *                 The "signer fingerprint" member could be missing
+ *                 if the signer key is not available.\n
+ *                 Example JSON output:\n
+ *
+ *                     {
+ *                       "sigs":[
+ *                         {
+ *                           "public":"new",
+ *                           "secret":"unknown key",
+ *                           "signer fingerprint":"73edcc9119afc8e2dbbdcde50451409669ffde3c"
+ *                         },
+ *                         {
+ *                           "public":"none",
+ *                           "secret":"none",
+ *                         }
+ *                       ]
+ *                     }
+ *
  *  @return RNP_SUCCESS on success, or any other value on error.
  */
 RNP_API rnp_result_t rnp_import_signatures(rnp_ffi_t   ffi,
@@ -720,8 +813,87 @@ RNP_API rnp_result_t rnp_key_handle_destroy(rnp_key_handle_t key);
  *  @param ffi
  *  @param json the json data that describes the key generation.
  *         Must not be NULL.
+ *         JSON input must be an object containing one or two members:\n
+ *
+ *         JSON member | Description
+ *         ------------|------------
+ *         "primary"   | JSON object describing parameters of primary key generation.
+ *         "sub"       | optional member, JSON object describing subkey generation parameters.
+ *         Both "primary" and "sub" objects can contain the following members,
+ *         if not specified otherwise:\n
+ *         JSON member  | Description
+ *         -------------|------------
+ *         "type"       | string, key algorithm, see rnp_op_generate_create()
+ *         "length"     | integer, key size in bits, see rnp_op_generate_set_bits()
+ *         "curve"      | string, curve name, see rnp_op_generate_set_curve()
+ *         "expiration" | integer, see rnp_op_generate_set_expiration()
+ *         "usage"      | string or array of strings, see rnp_op_generate_add_usage()
+ *         "hash"       | string, hash algorithm, see rnp_op_generate_set_hash()
+ *         "userid"     | string, primary key only, user ID, see rnp_op_generate_set_userid()
+ *         "preferences"| object, primary key only, user preferences, see description below
+ *         "protection" | object, secret key protection settings, see description below
+ *         The "preferences" member object can contain the following members:\n
+ *         JSON member  | Description
+ *         -------------|------------
+ *         "hashes"     | array of strings, see rnp_op_generate_add_pref_hash()
+ *         "ciphers"    | array of strings, see rnp_op_generate_add_pref_cipher()
+ *         "compression"| array of strings, see rnp_op_generate_add_pref_compression()
+ *         "key server" | string, see rnp_op_generate_set_pref_keyserver()
+ *         The "protection" member object describes the secret key protection settings
+ *         and it can contain the following members:\n
+ *         JSON member | Description
+ *         ------------|------------
+ *         "cipher"    | string, protection cipher, see rnp_op_generate_set_protection_cipher()
+ *         "hash"      | string, protection hash, see rnp_op_generate_set_protection_hash()
+ *         "mode"      | string, protection mode, see rnp_op_generate_set_protection_mode()
+ *         "iterations"| integer, see rnp_op_generate_set_protection_iterations()
+ *         Example JSON input:\n
+ *
+ *             {
+ *               "primary": {
+ *                   "type": "ECDSA",
+ *                   "curve": "NIST P-256",
+ *                   "userid": "test0",
+ *                   "usage": "sign",
+ *                   "expiration": 0,
+ *                   "hash": "SHA256",
+ *                   "preferences" : {
+ *                     "hashes": ["SHA512", "SHA256"],
+ *                     "ciphers": ["AES256", "AES128"],
+ *                     "compression": ["Zlib"],
+ *                     "key server": "hkp://pgp.mit.edu"
+ *                   },
+ *                   "protection" : {
+ *                       "cipher": "AES256",
+ *                       "hash": "SHA256",
+ *                       "mode":  "CBC",
+ *                       "iterations": 65536
+ *                   }
+ *                },
+ *                "sub": {
+ *                   "type": "RSA",
+ *                   "length": 1024
+ *                }
+ *             }
+ *
  *  @param results pointer that will be set to the JSON results.
  *         Must not be NULL. The caller should free this with rnp_buffer_destroy.
+ *         Serialized JSON output will contain a JSON object with a mandatory
+ *         "primary" member object for the generated primary key and an optional "sub"
+ *         member object if the subkey generation was requested. Both of them contain
+ *         a single string member "grip" that holds
+ *         hexadecimal key grip of a generated key.\n
+ *         Example JSON output:\n
+ *
+ *             {
+ *               "primary":{
+ *                 "grip":"9F593A6333467A534BE8520CAE2600206BFE3681"
+ *               },
+ *               "sub":{
+ *                 "grip":"ED822D77DDF199707B13D0E1BCA00868314FE47D"
+ *               }
+ *             }
+ *
  *  @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results);
@@ -813,7 +985,7 @@ RNP_API rnp_result_t rnp_generate_key_ex(rnp_ffi_t         ffi,
  * @param op pointer to opaque key generation context.
  * @param ffi
  * @param alg key algorithm as string. Must be able to sign. Currently the following algorithms
- *            are supported (case-insensetive) : 'rsa', 'dsa', 'ecdsa', 'eddsa', 'sm2'.
+ *            are supported (case-insensitive) : 'rsa', 'dsa', 'ecdsa', 'eddsa', 'sm2'.
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_op_generate_create(rnp_op_generate_t *op,
@@ -829,7 +1001,7 @@ RNP_API rnp_result_t rnp_op_generate_create(rnp_op_generate_t *op,
  * @param ffi
  * @param primary primary key handle, must have secret part.
  * @param alg key algorithm as string. Currently the following algorithms are supported
- * (case-insensetive) : 'rsa', 'dsa', 'elgamal', 'ecdsa', 'eddsa', 'ecdh', 'sm2'.
+ *            (case-insensitive) : 'rsa', 'dsa', 'elgamal', 'ecdsa', 'eddsa', 'ecdh', 'sm2'.
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_op_generate_subkey_create(rnp_op_generate_t *op,
@@ -1040,6 +1212,35 @@ RNP_API rnp_result_t rnp_op_generate_clear_pref_ciphers(rnp_op_generate_t op);
  */
 RNP_API rnp_result_t rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op,
                                                         const char *      keyserver);
+
+#if defined(RNP_EXPERIMENTAL_CRYPTO_REFRESH)
+/** Set the generated key version to v6.
+ *  NOTE: This is an experimental feature and this function can be replaced (or removed) at any
+ *        time.
+ *
+ * @param op pointer to opaque key generation context.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_op_generate_set_v6_key(rnp_op_generate_t op);
+#endif
+
+#if defined(RNP_EXPERIMENTAL_PQC)
+/** Set the SPHINCS+ parameter set
+ *  NOTE: This is an experimental feature and this function can be replaced (or removed) at any
+ *        time.
+ *
+ * @param op pointer to opaque key generation context.
+ * @param param string, representing the SHPINCS+ parameter set.
+ *               Possible Values:
+ *                  128s, 128f, 192s, 192f, 256s, 256f
+ *               All parameter sets refer to the simple variant and the hash function is given
+ * by the algorithm id.
+ *
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_op_generate_set_sphincsplus_param(rnp_op_generate_t op,
+                                                           const char *      param);
+#endif
 
 /** Execute the prepared key or subkey generation operation.
  *  Note: if you set protection algorithm, then you need to specify ffi password provider to
@@ -1356,6 +1557,267 @@ RNP_API rnp_result_t rnp_key_get_signature_at(rnp_key_handle_t        key,
                                               rnp_signature_handle_t *sig);
 
 /**
+ * @brief Create new direct-key signature over the target, issued by signer. It may be
+ *        customized via the rnp_signature_set_* calls, and finalized via the
+ *        rnp_key_signature_sign() call.
+ *
+ * @param signer signing key, must be secret, and must exist in the keyring up to the
+ *               rnp_key_signature_sign() call. Cannot be NULL.
+ * @param target target key for which signature should be made. May be NULL, then signature
+ *               over the signer (self-signature) will be made.
+ *
+ * @param sig on success signature handle will be stored here. It is initialized with current
+ *            creation time, default hash algorithm and version. Cannot be NULL.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_direct_signature_create(rnp_key_handle_t        signer,
+                                                     rnp_key_handle_t        target,
+                                                     rnp_signature_handle_t *sig);
+
+/**
+ * @brief Create new certification signature, issued by the signer. This could be
+ *        self-certification (if uid belongs to the signer key) or certification of the other
+ *        key. This signature could be customized by rnp_signature_set_* calls and finalized
+ *        via the rnp_key_signature_sign() call.
+ *
+ * @param signer signing key, must be secret, and must exist in the keyring up to the
+ *               rnp_key_signature_sign() call. Cannot be NULL.
+ * @param uid user id which should be certified, i.e. bound to the key with signature.
+ *            Cannot be NULL.
+ * @param type certification type. May be one of the RNP_CERTIFICATION_* values, or NULL
+ *             for the default one. Default would be POSITIVE for self-certification or GENERIC
+ *             for the certification of another key.
+ *             Note: it is common to use RNP_CERTIFICATION_POSITIVE for self-certifications,
+ *             and RNP_CERTIFICATION_GENERIC while certifying other keys. However it's up to
+ *             the caller to pick the type according to OpenPGP specification.
+ * @param sig on success signature handle will be stored here. It is initialized with current
+ *            creation time, default hash algorithm and version. Cannot be NULL.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_certification_create(rnp_key_handle_t        signer,
+                                                  rnp_uid_handle_t        uid,
+                                                  const char *            type,
+                                                  rnp_signature_handle_t *sig);
+
+/**
+ * @brief Create new key or subkey revocation signature. It may be
+ *        customized via the rnp_signature_set_* calls, and finalized via the
+ *        rnp_key_signature_sign() call.
+ *
+ * @param signer revoker's key, must be secret, and must exist in the keyring up to the
+ *               rnp_key_signature_sign() call. Cannot be NULL.
+ * @param target target key for which signature should be made. May be NULL, then signer will
+ *               revoke itself.
+ *
+ * @param sig on success signature handle will be stored here. It is initialized with current
+ *            creation time, default hash algorithm and version. Cannot be NULL.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_revocation_signature_create(rnp_key_handle_t        signer,
+                                                         rnp_key_handle_t        target,
+                                                         rnp_signature_handle_t *sig);
+
+/**
+ * @brief Set hash algorithm, used during signing.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param hash hash algorithm name, i.e. "SHA256" or others.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_hash(rnp_signature_handle_t sig, const char *hash);
+
+/**
+ * @brief Set the signature creation time. While it is set by default to the current time,
+ *        caller may override it in case of need.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param creation timestamp with the creation time.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_creation(rnp_signature_handle_t sig,
+                                                    uint32_t               ctime);
+
+/**
+ * @brief Set the key usage flags, i.e. whether it is usable for signing, encryption, whatever
+ *        else.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param flags key flags, which directly maps to the ones described in the OpenPGP
+ *              specification. See the RNP_KEY_USAGE_* constants.
+ *              Note: RNP will not check whether flags are applicable to the key itself (i.e.
+ *              signing flag for encryption-only key), so it's up to the caller to check this.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_key_flags(rnp_signature_handle_t sig,
+                                                     uint32_t               flags);
+
+/**
+ * @brief Set the key expiration time. Makes sense only for self-certification or direct-key
+ *        signatures.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param expiry number of seconds since key creation when it is considered as valid. Zero
+ *               value means that key never expires.
+ *               I.e. if you want key to last for 1 year from now (given that signature
+ *               creation time is set to now), you should calculate the following:
+ *               expiry = now() - rnp_key_get_creation() + 365*24*60*60
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_key_expiration(rnp_signature_handle_t sig,
+                                                          uint32_t               expiry);
+
+/**
+ * @brief Set the key features. Makes sense only for self-signature.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param features or'ed together feature flags (RNP_FEATURE_*). For the list of currently
+ *                 supported flags please see the description of rnp_signature_get_features().
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_features(rnp_signature_handle_t sig,
+                                                    uint32_t               features);
+
+/**
+ * @brief Add preferred symmetric algorithm to the signature. Should be subsequently called for
+ *        each algorithm, making first ones of higher priority.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param alg symmetric algorithm name, cannot be NULL. See
+ *            rnp_op_generate_set_protection_cipher() for the list of possible values.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_add_preferred_alg(rnp_signature_handle_t sig,
+                                                         const char *           alg);
+
+/**
+ * @brief Add preferred hash algorithm to the signature. Should be subsequently called for each
+ *        algorithm, making first ones of higher priority.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param alg hash algorithm name, cannot be NULL. See rnp_op_generate_set_hash() for the list
+ *            of possible values.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_add_preferred_hash(rnp_signature_handle_t sig,
+                                                          const char *           hash);
+
+/**
+ * @brief Add preferred compression algorithm to the signature. Should be subsequently called
+ *        for each algorithm, making first ones of higher priority.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param alg compression algorithm name, cannot be NULL. See
+ *            rnp_op_generate_add_pref_compression() for the list of possible values.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_add_preferred_zalg(rnp_signature_handle_t sig,
+                                                          const char *           zalg);
+
+/**
+ * @brief Set whether corresponding user id should be considered as primary. Makes sense only
+ *        for self-certification.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param primary true for primary or false for not.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_primary_uid(rnp_signature_handle_t sig,
+                                                       bool                   primary);
+
+/**
+ * @brief Set the key server url which is applicable for this key.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param keyserver key server url. If NULL or empty string then key server field in the
+ * signature will be removed.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_key_server(rnp_signature_handle_t sig,
+                                                      const char *           keyserver);
+
+/**
+ * @brief Set the key server preferences flags.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param flags or'ed together preferences flags. Currently only single flag is supported -
+ *              RNP_KEY_SERVER_NO_MODIFY.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_key_server_prefs(rnp_signature_handle_t sig,
+                                                            uint32_t               flags);
+
+/**
+ * @brief Set revocation reason and code for the revocation signature.
+ *        See `rnp_key_revoke()` for the details.
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param code revocation reason code. Could be NULL, then default one will be set.
+ * @param reason human-readable reason for revocation. Could be NULL or empty string.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_revocation_reason(rnp_signature_handle_t sig,
+                                                             const char *           code,
+                                                             const char *           reason);
+
+/**
+ * @brief Add designated revoker subpacket to the signature. See RFC 4880, section 5.2.3.15.
+ *        Only single revoker could be set - subsequent calls would overwrite the previous one.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param revoker revoker's key.
+ * @param flags additional flags. The following flag is currently supported:
+ *              RNP_REVOKER_SENSITIVE: information about the revocation key should be
+ *                considered as sensitive. See RFC for the details.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_revoker(rnp_signature_handle_t sig,
+                                                   rnp_key_handle_t       revoker,
+                                                   uint32_t               flags);
+
+/**
+ * @brief Set the signature trust level and amount. See OpenPGP specification for the details
+ *        on their interpretation ('Trust Signature' signature subpacket). Makes sense only for
+ *        other key's certification.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param level trust level
+ * @param amount trust amount
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_trust_level(rnp_signature_handle_t sig,
+                                                       uint8_t                level,
+                                                       uint8_t                amount);
+
+/**
+ * @brief Finalize populating and sign signature, created with one of the
+ *        rnp_key_*_signature_create functions, and add it to the corresponding key.
+ *
+ * @param sig signature handle.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_sign(rnp_signature_handle_t sig);
+
+/**
+ * @brief Get number of the designated revokers for the key. Designated revoker is a key, which
+ * is allowed to revoke this key.
+ *
+ * @param key key handle, cannot be NULL.
+ * @param count number of designated revokers will be stored here.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_get_revoker_count(rnp_key_handle_t key, size_t *count);
+
+/**
+ * @brief Get the fingerprint of designated revoker's key, based on it's index.
+ *
+ * @param key key handle, cannot be NULL.
+ * @param idx zero-based index.
+ * @param revoker on success hex-encoded revoker's key fingerprint will be stored here. Must be
+ * later freed via rnp_buffer_destroy().
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_get_revoker_at(rnp_key_handle_t key, size_t idx, char **revoker);
+
+/**
  * @brief Get key's revocation signature handle, if any.
  *
  * @param key key handle
@@ -1408,7 +1870,7 @@ RNP_API rnp_result_t rnp_uid_get_signature_at(rnp_uid_handle_t        uid,
  *             - 'certification revocation' : certification revocation signature
  *             - 'timestamp' : timestamp signature
  *             - 'third-party' : third party confirmation signature
- *             - 'uknown: 0..255' : unknown signature with its type specified as number
+ *             - 'unknown: 0..255' : unknown signature with its type specified as number
  *
  * @return RNP_SUCCESS or error code if failed.
  */
@@ -1441,6 +1903,84 @@ RNP_API rnp_result_t rnp_signature_get_hash_alg(rnp_signature_handle_t sig, char
  */
 RNP_API rnp_result_t rnp_signature_get_creation(rnp_signature_handle_t sig, uint32_t *create);
 
+/**
+ * @brief Get number of the signature subpackets.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param count on success number of the subpackets will be stored here.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_subpacket_count(rnp_signature_handle_t sig, size_t *count);
+
+/**
+ * @brief Get signature subpacket at the specified position.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param idx index of the subpacket (see rnp_signature_subpacket_count for the total amount)
+ * @param subpkt on success handle to the subpacket object will be stored here. Must be later
+ *               destroyed via the rnp_signature_subpacket_destroy() call.
+ * @return RNP_SUCCESS on success, RNP_ERROR_NOT_FOUND if index is out of bounds, or any other
+ *         error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_subpacket_at(rnp_signature_handle_t sig,
+                                                size_t                 idx,
+                                                rnp_sig_subpacket_t *  subpkt);
+
+/**
+ * @brief Find the signature subpacket matching criteria.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param type type of the subpacket as per OpenPGP specification.
+ * @param hashed if true, then subpacket will be looked only in hashed area. If false - then in
+ *               both, hashed and unhashed areas.
+ * @param skip number of matching subpackets to skip, allowing to iterate over the subpackets
+ *             of the same type.
+ * @param subpkt on success handle to the subpacket will be stored here. Must be destroyed via
+ *               the rnp_signature_subpacket_destroy() call.
+ * @return RNP_SUCCESS if subpacket found, or RNP_ERROR_NOT_FOUND otherwise. Any other value
+ *         would mean that search failed.
+ */
+RNP_API rnp_result_t rnp_signature_subpacket_find(rnp_signature_handle_t sig,
+                                                  uint8_t                type,
+                                                  bool                   hashed,
+                                                  size_t                 skip,
+                                                  rnp_sig_subpacket_t *  subpkt);
+
+/**
+ * @brief Get the subpacket info.
+ *
+ * @param subpkt signature subpacket handle, cannot be NULL.
+ * @param type type of the subpacket as per OpenPGP specification will be stored here.
+ * @param hashed whether subpackets is stored in hased or unhashed area.
+ * @param critical whether subpacket has critical bit set.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_subpacket_info(rnp_sig_subpacket_t subpkt,
+                                                  uint8_t *           type,
+                                                  bool *              hashed,
+                                                  bool *              critical);
+
+/**
+ * @brief Get signature subpacket raw data.
+ *
+ * @param subpkt signature subpacket handle, cannot be NULL.
+ * @param data pointer to raw data will be stored here. Must be deallocated via the
+ * rnp_buffer_destroy() call.
+ * @param size size of the data will be stored here.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_subpacket_data(rnp_sig_subpacket_t subpkt,
+                                                  uint8_t **          data,
+                                                  size_t *            size);
+
+/**
+ * @brief Destroy the subpacket object.
+ *
+ * @param subpkt initialized signature subpacket handle, cannot be NULL.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_subpacket_destroy(rnp_sig_subpacket_t subpkt);
+
 /** Get the signature expiration time as number of seconds after creation time
  *
  * @param sig signature handle.
@@ -1450,8 +1990,161 @@ RNP_API rnp_result_t rnp_signature_get_creation(rnp_signature_handle_t sig, uint
 RNP_API rnp_result_t rnp_signature_get_expiration(rnp_signature_handle_t sig,
                                                   uint32_t *             expires);
 
+/**
+ * @brief Get the key features if any as per RFC 4880 and later. Do not confuse with key flags.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param features on success result will be stored here as or'ed together flag bits.
+ *                 If corresponding value is not available then 0 will be stored.
+ *                 Currently known feature bit flags are (consult RFC for more details):
+ *                 RNP_KEY_FEATURE_MDC  - support for MDC packets (see RFC 4880)
+ *                 RNP_KEY_FEATURE_AEAD - support for OCB encrypted packet and v5 SKESK (please
+ *                   see LibrePGP standard)
+ *                 RNP_KEY_FEATURE_V5   - version 5 public-key format and corresponding
+ *                   fingerprint
+ * @return RNP_SUCCESS or error code if failed.
+ */
 RNP_API rnp_result_t rnp_signature_get_features(rnp_signature_handle_t sig,
                                                 uint32_t *             features);
+
+/**
+ * @brief Get number of the preferred symmetric algorithms, listed in the signature. Applies to
+ *        the self-signature (self-certification or direct-key signature).
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param count on success nunmber of available algorithms will be stored here. It may be 0 if
+ *              no such information is available within the signature.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_preferred_alg_count(rnp_signature_handle_t sig,
+                                                           size_t *               count);
+
+/**
+ * @brief Get preferred symmetric algorithm from the preferences, specified in the signature.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param idx index in the list. Number of available items could be obtained via the
+ *            rnp_signature_get_preferred_alg_count() call.
+ * @param alg on success algorithm name will be stored here. Caller must deallocate it using
+ *            the rnp_buffer_destroy() function.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_preferred_alg(rnp_signature_handle_t sig,
+                                                     size_t                 idx,
+                                                     char **                alg);
+
+/**
+ * @brief Get number of the preferred hash algorithms, listed in the signature. Applies to the
+ *        self-signature (self-certification or direct-key signature).
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param count on success nunmber of available algorithms will be stored here. It may be 0 if
+ *              no such information is available within the signature.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_preferred_hash_count(rnp_signature_handle_t sig,
+                                                            size_t *               count);
+
+/**
+ * @brief Get preferred hash algorithm from the preferences, specified in the signature.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param idx index in the list. Number of available items could be obtained via the
+ *            rnp_signature_get_preferred_hash_count() call.
+ * @param alg on success algorithm name will be stored here. Caller must deallocate it using
+ *            the rnp_buffer_destroy() function.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_preferred_hash(rnp_signature_handle_t sig,
+                                                      size_t                 idx,
+                                                      char **                alg);
+
+/**
+ * @brief Get number of the preferred compression algorithms, listed in the signature. Applies
+ * to the self-signature (self-certification or direct-key signature).
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param count on success nunmber of available algorithms will be stored here. It may be 0 if
+ *              no such information is available within the signature.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_preferred_zalg_count(rnp_signature_handle_t sig,
+                                                            size_t *               count);
+
+/**
+ * @brief Get preferred compression algorithm from the preferences, specified in the signature.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param idx index in the list. Number of available items could be obtained via the
+ *            rnp_signature_get_preferred_zalg_count() call.
+ * @param alg on success algorithm name will be stored here. Caller must deallocate it using
+ *            the rnp_buffer_destroy() function.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_preferred_zalg(rnp_signature_handle_t sig,
+                                                      size_t                 idx,
+                                                      char **                alg);
+
+/**
+ * @brief Get key usage flags from the signature, if any. Those are mapped directly to the
+ *        values described in the OpenPGP specification.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param flags on success result will be stored here as or'ed together flag bits.
+ *              If corresponding value is not available then 0 will be stored.
+ *              These flags would correspond to string values which are passed to the
+ *              rnp_op_generate_add_usage(). See the RNP_KEY_USAGE_* constants for possible
+ *              values.
+ *
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_key_flags(rnp_signature_handle_t sig, uint32_t *flags);
+
+/**
+ * @brief Get the key expiration time from the signature.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param expiry on success result will be stored here. It is number of seconds since key
+ *               creation (not the signature creation) when this key is considered to be valid.
+ *               Zero value means that key is valid forever.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_key_expiration(rnp_signature_handle_t sig,
+                                                      uint32_t *             expiry);
+
+/**
+ * @brief Check whether signature indicates that corresponding user id should be considered as
+ *        primary.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param primary on success result will be stored here. True for primary and false otherwise.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_primary_uid(rnp_signature_handle_t sig, bool *primary);
+
+/**
+ * @brief Get the key server associated with this key, if any.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param keyserver on success key server string, stored in the signature, will be stored here.
+ *                  If it isn't present in the signature, an empty value will be stored. In
+ *                  both cases, the buffer must be deallocated via the rnp_buffer_destroy()
+ *                  call.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_key_server(rnp_signature_handle_t sig,
+                                                  char **                keyserver);
+
+/**
+ * @brief Get the key server preferences flags, if any.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param flags on success flags will be stored here. Currently only one flag is supported:
+ *              RNP_KEY_SERVER_NO_MODIFY
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_key_server_prefs(rnp_signature_handle_t sig,
+                                                        uint32_t *             flags);
 
 /** Get signer's key id from the signature.
  *  Note: if key id is not available from the signature then NULL value will
@@ -1484,11 +2177,59 @@ RNP_API rnp_result_t rnp_signature_get_signer(rnp_signature_handle_t sig,
                                               rnp_key_handle_t *     key);
 
 /**
+ * @brief Get fingerprint of the designated revocation key, if it is available. See
+ *        section 5.2.3.15 of the RFC 4880 for the details.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param revoker on success hex-encoded revocation key fingerprint will be stored here, if
+ *                available. Otherwise empty string will be stored. Must be freed via
+ *                rnp_buffer_destroy().
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_revoker(rnp_signature_handle_t sig, char **revoker);
+
+/**
+ * @brief Get revocation reason data, if it is available in the signature.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param code string with revocation code will be stored here, if not NULL. See description of
+ *             function rnp_key_revoke() for possible values. If information is not available,
+ *             empty string will be stored here.
+ * @param reason revocation reason will be stored here, if available. Otherwise empty string
+ *               will be stored here. May be NULL if this information is not needed.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_revocation_reason(rnp_signature_handle_t sig,
+                                                         char **                code,
+                                                         char **                reason);
+
+/**
+ * @brief Get the signature trust level and amount. See OpenPGP specification for the details
+ *        on their interpretation ('Trust Signature' signature subpacket).
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param level trust level will be stored here if non-NULL. If corresponding value is not
+ *              available then 0 will be stored.
+ * @param amount trust amount will be stored here if non-NULL. If corresponding value is not
+ *               available then 0 will be stored.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_trust_level(rnp_signature_handle_t sig,
+                                                   uint8_t *              level,
+                                                   uint8_t *              amount);
+
+/**
  * @brief Get signature validity, revalidating it if didn't before.
  *
- * @param sig key/userid signature handle
- * @param flags validation flags, currently must be zero.
- * @return Following error codes represents the validation status:
+ * @param sig key/userid/document signature handle
+ * @param flags validation flags. Currently supported only single flag:
+ *              RNP_SIGNATURE_REVALIDATE - force revalidation of the signature even if it was
+ *                  validated previously. Makes sense only for key signatures.
+ *
+ * @return Following error codes represents the validation status. For more detailed
+ *         information why signature is invalid it is recommended to use
+ *         rnp_signature_error_count()/rnp_signature_error_at() functions.
+ *
  *         RNP_SUCCESS : operation succeeds and signature is valid
  *         RNP_ERROR_KEY_NOT_FOUND : signer's key not found
  *         RNP_ERROR_VERIFICATION_FAILED: verification failed, so validity cannot be checked
@@ -1503,13 +2244,73 @@ RNP_API rnp_result_t rnp_signature_get_signer(rnp_signature_handle_t sig,
  */
 RNP_API rnp_result_t rnp_signature_is_valid(rnp_signature_handle_t sig, uint32_t flags);
 
+/**
+ * @brief Get number of signature validation errors. This would allow to check in details why
+ * signature verification failed.
+ *
+ * @param sig signature handle. Cannot be NULL.
+ * @param count on success number of verification errors would be stored here
+ * @return RNP_SUCCESS if operation succeeded,
+ *         RNP_ERROR_VERIFICATION_FAILED if signature was not validated,
+ *         RNP_ERROR_NULL_POINTER if any of the parameters is NULL.
+ */
+RNP_API rnp_result_t rnp_signature_error_count(rnp_signature_handle_t sig, size_t *count);
+
+/**
+ * @brief Get error code at the specified position.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param idx zero-based index of the error. Must be less then count obtained via the
+ *            rnp_signature_error_count() call.
+ * @param error on success error code will be stored here. Cannot be NULL.
+ *        Following error codes are currently defined (but new ones could be added):
+ *
+ *        RNP_ERROR_SIG_ERROR : some general signature validation error
+ *        RNP_ERROR_SIG_PARSE_ERROR : failed to parse signature
+ *        RNP_ERROR_SIG_SIGNER_UNTRUSTED : key which produced signature is not trusted
+ *        RNP_ERROR_SIG_PUB_ALG_MISMATCH : key and signature algorithms do not match
+ *        RNP_ERROR_SIG_WEAK_HASH : too weak hash algorithm (i.e. MD5 or SHA1)
+ *        RNP_ERROR_SIG_HASH_ALG_MISMATCH : used hash algorithm is not allowed by signature
+ *                                          algorithm
+ *        RNP_ERROR_SIG_LBITS_MISMATCH : left 16 bits of hash, stored in signature, do not
+ *                                       match hash value
+ *        RNP_ERROR_SIG_FROM_FUTURE : signature with timestamp from the future
+ *        RNP_ERROR_SIG_EXPIRED : signature is expired
+ *        RNP_ERROR_SIG_OLDER_KEY : signature is older than the key
+ *        RNP_ERROR_SIG_EXPIRED_KEY : key was expired at signature creation time
+ *        RNP_ERROR_SIG_FP_MISMATCH : key fingerprint doesn't match fingerprint from the
+ *                                    signature
+ *        RNP_ERROR_SIG_UNKNOWN_NOTATION : unknown critical notation
+ *        RNP_ERROR_SIG_NOT_DOCUMENT : non-document signature used to sign data
+ *        RNP_ERROR_SIG_NO_SIGNER_ID : unknown signer's key id/fingerprint
+ *        RNP_ERROR_SIG_NO_SIGNER_KEY : signer's key not found
+ *        RNP_ERROR_SIG_NO_HASH_CTX : no corresponding hash context
+ *        RNP_ERROR_SIG_WRONG_KEY_SIG : non-key signature used on key
+ *        RNP_ERROR_SIG_UID_MISSING : missing uid for certification
+ *        RNP_ERROR_SIG_WRONG_BINDING : wrong subkey binding
+ *        RNP_ERROR_SIG_WRONG_DIRECT : wrong direct-key signature
+ *        RNP_ERROR_SIG_WRONG_REV : wrong revocation
+ *        RNP_ERROR_SIG_UNSUPPORTED : unsupported key signature type
+ *        RNP_ERROR_SIG_NO_PRIMARY_BINDING : subkey binding without primary key binding
+ *        RNP_ERROR_SIG_BINDING_PARSE : failed to parse primary key binding signature
+ *        RNP_ERROR_SIG_WRONG_BIND_TYPE : wrong primary key binding type
+ *        RNP_ERROR_SIG_INVALID_BINDING : invalid primary key binding
+ *        RNP_ERROR_SIG_UNUSABLE_KEY : key is not usable for verification, i.e. wrong key flags
+ *
+ * @return RNP_SUCCESS on success or some other value in case of error.
+ */
+RNP_API rnp_result_t rnp_signature_error_at(rnp_signature_handle_t sig,
+                                            size_t                 idx,
+                                            rnp_result_t *         error);
+
 /** Dump signature packet to JSON, obtaining the whole information about it.
  *
  * @param sig sigmature handle, cannot be NULL
  * @param flags include additional fields in JSON (see RNP_JSON_DUMP_MPI and other
  *              RNP_JSON_DUMP_* flags)
  * @param result resulting JSON string will be stored here. You must free it using the
- *               rnp_buffer_destroy() function.
+ *               rnp_buffer_destroy() function. See rnp_dump_packets_to_json() for
+ *               detailed JSON format description.
  * @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_signature_packet_to_json(rnp_signature_handle_t sig,
@@ -1583,6 +2384,14 @@ RNP_API rnp_result_t rnp_uid_remove(rnp_key_handle_t key, rnp_uid_handle_t uid);
  */
 RNP_API rnp_result_t rnp_uid_handle_destroy(rnp_uid_handle_t uid);
 
+/**
+ * @brief Get key's version as integer.
+ *
+ * @param key key handle, should not be NULL
+ * @return RNP_SUCCESS or error code on failure.
+ */
+RNP_API rnp_result_t rnp_key_get_version(rnp_key_handle_t handle, uint32_t *version);
+
 /** Get number of the key's subkeys.
  *
  * @param key key handle.
@@ -1614,6 +2423,9 @@ RNP_API rnp_result_t rnp_key_get_subkey_at(rnp_key_handle_t  key,
  *  @param flags possible values:  RNP_KEY_SUBKEYS_ONLY - select only subkeys,
  *               otherwise if flags is 0, primary key can be returned if
  *               it is suitable for specified usage.
+ *               Note: If RNP_EXPERIMENTAL_PQC is set, then the flag
+ *               RNP_KEY_PREFER_PQC_ENC_SUBKEY can be used to prefer PQC-encryption subkeys
+ *               over non-PQC-encryption subkeys
  *  @param default_key on success resulting key handle will be stored here, otherwise it
  *                     will contain NULL value. You must free this handle after use with
  *                     rnp_key_handle_destroy().
@@ -1633,6 +2445,19 @@ RNP_API rnp_result_t rnp_key_get_default_key(rnp_key_handle_t  primary_key,
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_key_get_alg(rnp_key_handle_t key, char **alg);
+
+#if defined(RNP_EXPERIMENTAL_PQC)
+/** Get a SPHINCS+ key's parameter string
+ *
+ * @param key key handle
+ * @param alg string with parameter name will be stored here. You must free it using the
+ *            rnp_buffer_destroy() function.
+ * @return RNP_SUCCESS or error code if failed.
+ * NOTE: This is an experimental feature and this function can be replaced (or removed) at any
+ * time.
+ */
+RNP_API rnp_result_t rnp_key_sphincsplus_get_param(rnp_key_handle_t handle, char **param);
+#endif
 
 /** Get number of bits in the key. For EC-based keys it will return size of the curve.
  *
@@ -2078,7 +2903,8 @@ RNP_API rnp_result_t rnp_key_have_public(rnp_key_handle_t key, bool *result);
  * @param flags include additional fields in JSON (see RNP_JSON_DUMP_MPI and other
  *              RNP_JSON_DUMP_* flags)
  * @param result resulting JSON string will be stored here. You must free it using the
- *               rnp_buffer_destroy() function.
+ *               rnp_buffer_destroy() function. See rnp_dump_packets_to_json()
+ *               for detailed JSON format description.
  * @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_key_packets_to_json(rnp_key_handle_t key,
@@ -2091,7 +2917,35 @@ RNP_API rnp_result_t rnp_key_packets_to_json(rnp_key_handle_t key,
  * @param flags include additional fields in JSON (see RNP_JSON_DUMP_MPI and other
  *              RNP_JSON_DUMP_* flags)
  * @result resulting JSON string will be stored here. You must free it using the
- *         rnp_buffer_destroy() function.
+ *         rnp_buffer_destroy() function.\n
+ *         JSON output is an array of JSON objects, each array item
+ *         represents an OpenPGP packet. Packet objects have common
+ *         member object named "header" and packet-specific members.
+ *         The "header" object has the following members:\n
+ * JSON member     | Description
+ * ----------------|------------
+ *  "offset"       | integer, byte offset from the beginning of the binary stream
+ *  "tag"          | integer, packet tag numeric value
+ *  "tag.str"      | string, packet type string
+ *  "raw"          | string, hexadecimal raw value of the packet header
+ *  "length"       | integer, packet length in bytes
+ *  "partial"      | boolean, true if the header is a partial body length header
+ *  "indeterminate"| boolean, true if the packet is of indeterminate length
+ *         Example "header" object:\n
+ *
+ *             "header":{
+ *               "offset":63727,
+ *               "tag":2,
+ *               "tag.str":"Signature",
+ *               "raw":"c2c07c",
+ *               "length":316,
+ *               "partial":false,
+ *               "indeterminate":false
+ *             }
+ *
+ *         You can see examples of complete JSON dumps by running the `rnp`
+ *         program with `--list-packets --json` command line options.
+ *
  * @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_dump_packets_to_json(rnp_input_t input,
@@ -2277,7 +3131,8 @@ RNP_API rnp_result_t rnp_op_sign_destroy(rnp_op_sign_t op);
  *         signatures, cleartext signed data and encrypted (and possibly signed) data.
  *         For the detached signature verification the function rnp_op_verify_detached_create()
  *         should be used.
- *  @param op pointer to opaque verification context
+ *  @param op pointer to opaque verification context. When no longer needed must be destroyed
+ *            via the rnp_op_verify_destroy() call.
  *  @param ffi
  *  @param input stream with signed data. Could not be NULL.
  *  @param output stream to write results to. Could not be NULL, but may be null output stream
@@ -2290,7 +3145,8 @@ RNP_API rnp_result_t rnp_op_verify_create(rnp_op_verify_t *op,
                                           rnp_output_t     output);
 
 /** @brief Create verification operation context for detached signature.
- *  @param op pointer to opaque verification context
+ *  @param op pointer to opaque verification context. When no longer needed must be destroyed
+ *            via the rnp_op_verify_destroy() call.
  *  @param ffi
  *  @param input stream with raw data. Could not be NULL.
  *  @param signature stream with detached signature data
@@ -2327,7 +3183,7 @@ RNP_API rnp_result_t rnp_op_verify_set_flags(rnp_op_verify_t op, uint32_t flags)
  *  @return RNP_SUCCESS if data was processed successfully and output may be used. By default
  *          this means at least one valid signature for the signed data, or successfully
  *          decrypted data if no signatures are present.
- *          This behaviour may be overriden via rnp_op_verify_set_flags() call.
+ *          This behaviour may be overridden via rnp_op_verify_set_flags() call.
  *
  *          To check number of signatures and their verification status use functions
  *          rnp_op_verify_get_signature_count() and rnp_op_verify_get_signature_at().
@@ -2344,7 +3200,9 @@ RNP_API rnp_result_t rnp_op_verify_get_signature_count(rnp_op_verify_t op, size_
 
 /** @brief Get single signature information based on its index.
  *  @param op opaque verification context. Must be initialized and have execute() called on it.
- *  @param sig opaque signature context data will be stored here on success.
+ *  @param sig opaque signature context data will be stored here on success. It is not needed
+ *             to deallocate this structure manually, it will be destroyed together with op in
+ *             rnp_op_verify_destroy() call.
  *  @return RNP_SUCCESS if call succeeded.
  */
 RNP_API rnp_result_t rnp_op_verify_get_signature_at(rnp_op_verify_t            op,
@@ -2363,6 +3221,17 @@ RNP_API rnp_result_t rnp_op_verify_get_signature_at(rnp_op_verify_t            o
 RNP_API rnp_result_t rnp_op_verify_get_file_info(rnp_op_verify_t op,
                                                  char **         filename,
                                                  uint32_t *      mtime);
+
+/**
+ * @brief Get format of the data stored in the message, if available.
+ *
+ * @param op opaque verification context. Must be initialized and have execute() called on it.
+ * @param format character describing format would be stored here, see RFC 4880 section 5.9 and
+ *               further standard extensions for possible values. If information is not
+ *               available then '\0' value will be stored here. Cannot be NULL.
+ * @return RNP_SUCCESS if call succeeded.
+ */
+RNP_API rnp_result_t rnp_op_verify_get_format(rnp_op_verify_t op, char *format);
 
 /**
  * @brief Get data protection (encryption) mode, used in processed message.
@@ -2539,7 +3408,8 @@ RNP_API rnp_result_t rnp_symenc_get_s2k_iterations(rnp_symenc_handle_t symenc,
  */
 RNP_API rnp_result_t rnp_op_verify_destroy(rnp_op_verify_t op);
 
-/** @brief Get signature verification status.
+/** @brief Get signature verification status. To get more detailed signature information
+ *         function rnp_op_verify_signature_get_handle() should be used.
  *  @param sig opaque signature context obtained via rnp_op_verify_get_signature_at call.
  *  @return signature verification status:
  *          RNP_SUCCESS : signature is valid
@@ -2629,7 +3499,7 @@ RNP_API rnp_result_t rnp_input_from_stdin(rnp_input_t *input);
  *
  * @param input pointer to the input opaque structure
  * @param buf memory buffer. Could not be NULL.
- * @param buf_len number of bytes available to read from buf
+ * @param buf_len number of bytes available to read from buf, cannot be zero.
  * @param do_copy if true then the buffer will be copied internally. If
  *        false then the application should ensure that the buffer
  *        is valid and not modified during the lifetime of this object.
@@ -2810,6 +3680,31 @@ RNP_API rnp_result_t rnp_op_encrypt_create(rnp_op_encrypt_t *op,
  */
 RNP_API rnp_result_t rnp_op_encrypt_add_recipient(rnp_op_encrypt_t op, rnp_key_handle_t key);
 
+#if defined(RNP_EXPERIMENTAL_CRYPTO_REFRESH)
+/**
+ * @brief Enables the creation of PKESK v6 (instead of v3) which results in the use of SEIPDv2.
+ *        The actually created version depends on the capabilities of the list of recipients.
+ *        NOTE: This is an experimental feature and this function can be replaced (or removed)
+ *        at any time.
+ *
+ * @param op opaque encrypting context. Must be allocated and initialized.
+ * @return RNP_SUCCESS or errorcode if failed.
+ */
+RNP_API rnp_result_t rnp_op_encrypt_enable_pkesk_v6(rnp_op_encrypt_t op);
+#endif
+
+#if defined(RNP_EXPERIMENTAL_PQC)
+/**
+ * @brief Prefer using PQC subkeys over non-PQC subkeys when encrypting.
+ *        NOTE: This is an experimental feature and this function can be replaced (or removed)
+ *        at any time.
+ *
+ * @param op opaque encrypting context. Must be allocated and initialized.
+ * @return RNP_SUCCESS or errorcode if failed.
+ */
+RNP_API rnp_result_t rnp_op_encrypt_prefer_pqc_enc_subkey(rnp_op_encrypt_t op);
+#endif
+
 /**
  * @brief Add signature to encrypting context, so data will be encrypted and signed.
  *
@@ -2824,7 +3719,8 @@ RNP_API rnp_result_t rnp_op_encrypt_add_signature(rnp_op_encrypt_t         op,
 
 /**
  * @brief Set hash function used for signature calculation. Makes sense if encrypt-and-sign is
- * used. To set hash function for each signature separately use rnp_op_sign_signature_set_hash.
+ *        used. To set hash function for each signature separately use
+ *        rnp_op_sign_signature_set_hash.
  *
  * @param op opaque encrypting context. Must be allocated and initialized.
  * @param hash hash algorithm to be used as NULL-terminated string. Following values are
@@ -2903,8 +3799,9 @@ RNP_API rnp_result_t rnp_op_encrypt_set_cipher(rnp_op_encrypt_t op, const char *
  * @brief set AEAD mode algorithm or disable AEAD usage. By default it is disabled.
  *
  * @param op opaque encrypting context. Must be allocated and initialized.
- * @param alg NULL-terminated AEAD algorithm name. Use "None" to disable AEAD, or "EAX", "OCB"
- *            to use the corresponding algorithm.
+ * @param alg NULL-terminated AEAD algorithm name. Use "None" to disable AEAD, or "OCB"
+ *            to use AEAD-OCB authenticated encryption.
+ *            Note: there is "EAX" mode which is deprecated and should not be used.
  * @return RNP_SUCCESS or error code if failed
  */
 RNP_API rnp_result_t rnp_op_encrypt_set_aead(rnp_op_encrypt_t op, const char *alg);
@@ -2942,7 +3839,7 @@ RNP_API rnp_result_t rnp_op_encrypt_set_compression(rnp_op_encrypt_t op,
  *              RNP_ENCRYPT_NOWRAP - do not wrap the data in a literal data packet. This
  *              would allow to encrypt already signed data.
  *
- * @return RNP_SUCESS or error code if failed.
+ * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_op_encrypt_set_flags(rnp_op_encrypt_t op, uint32_t flags);
 
@@ -2951,7 +3848,8 @@ RNP_API rnp_result_t rnp_op_encrypt_set_flags(rnp_op_encrypt_t op, uint32_t flag
  *
  * @param op opaque encrypted context. Must be allocated and initialized
  * @param filename file name as NULL-terminated string. May be empty string. Value "_CONSOLE"
- * may have specific processing (see RFC 4880 for the details), depending on implementation.
+ *                 may have specific processing (see RFC 4880 for the details), depending on
+ *                 implementation.
  * @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_op_encrypt_set_file_name(rnp_op_encrypt_t op, const char *filename);
@@ -2985,7 +3883,8 @@ RNP_API rnp_result_t rnp_op_encrypt_destroy(rnp_op_encrypt_t op);
  */
 RNP_API rnp_result_t rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output);
 
-/** retrieve the raw data for a public key
+/**
+ *  @brief retrieve the raw data for a public key
  *
  *  This will always be PGP packets and will never include ASCII armor.
  *
@@ -2998,7 +3897,8 @@ RNP_API rnp_result_t rnp_get_public_key_data(rnp_key_handle_t handle,
                                              uint8_t **       buf,
                                              size_t *         buf_len);
 
-/** retrieve the raw data for a secret key
+/**
+ *  @brief retrieve the raw data for a secret key
  *
  *  If this is a G10 key, this will be the s-expr data. Otherwise, it will
  *  be PGP packets.
@@ -3019,7 +3919,97 @@ RNP_API rnp_result_t rnp_get_secret_key_data(rnp_key_handle_t handle,
  * @param handle the key handle, could not be NULL
  * @param flags controls which key data is printed, see RNP_JSON_* constants.
  * @param result pointer to the resulting string will be stored here on success. You must
- *               release it afterwards via rnp_buffer_destroy() function call.
+ *               release it afterwards via rnp_buffer_destroy() function call.\n
+ *               JSON output will be a JSON object that contains the following members:\n
+ * JSON member     | Description
+ * ----------------|------------
+ *  "type"         | string, key algorithm, see rnp_op_generate_create()
+ *  "length"       | integer, key size in bits, see rnp_op_generate_set_bits()
+ *  "curve"        | string, curve name, see rnp_op_generate_set_curve()
+ *  "keyid"        | string, hexadecimal PGP key id
+ *  "fingerprint"  | string, hexadecimal PGP key fingerprint
+ *  "grip"         | string, hexadecimal PGP key grip
+ *  "revoked"      | boolean, true if key is revoked
+ *  "creation time"| integer, creation time in seconds since Jan, 1 1970 UTC
+ *  "expiration"   | integer, see rnp_op_generate_set_expiration()
+ *  "usage"        | array of strings, see rnp_op_generate_add_usage()
+ *  "subkey grips" | array of strings, hexadecimal PGP key grips of subkeys
+ *  "public key"   | object, describes public key, see description below
+ *  "secret key"   | object, describes secret key, see description below
+ *  "userids"      | array of strings, user ID-s
+ *  "signatures"   | array of objects, each object represents a signature
+ *               "public key" object can contain the following members:
+ * JSON member     | Description
+ * ----------------|------------
+ *  "present"      | boolean, true of public key is present
+ *  "mpis"         | object, contains MPI-s of the key
+ *               "secret key" object can contain the following members:
+ * JSON member     | Description
+ * ----------------|------------
+ *  "present"      | boolean, true of secret key is present
+ *  "mpis"         | object, contains MPI-s of the key, can be null
+ *  "locked"       | boolean, true if the key is locked
+ *  "protected"    | boolean, true if the secret key is protected
+ *               The "signatures" member is present only if the flag RNP_JSON_SIGNATURES
+ *               is set. Each signature object can contain the following members:
+ * JSON member     | Description
+ * ----------------|------------
+ *  "userid"       | integer, index of user id, primary key only
+ *  "trust"        | object, trust level, see description below
+ *  "usage"        | array of strings, see rnp_op_generate_add_usage()
+ *  "preferences"  | object, see description of "preferences" in rnp_generate_key_json()
+ *  "version"      | integer, version
+ *  "type"         | string, signature type (textual)
+ *  "key type"     | string, key algorithm used for signature
+ *  "hash"         | string, hash algorithm used for signature
+ *  "creation time"| integer, creation time in seconds since Jan, 1 1970 UTC
+ *  "expiration"   | integer, see rnp_op_generate_set_expiration()
+ *  "signer"       | object, describes signing key
+ *  "mpis"         | object, MPI-s of the signature
+ *               The "trust" object member in signature object contains two members:
+ * JSON member     | Description
+ * ----------------|------------
+ *  "level"        | integer, trust level
+ *  "amount"       | integer, trust amount. See OpenPGP RFC for details.
+ *               The format of the "mpis" object in the "signatures", "public key" and
+ *               "secret key" members may vary and depends on the key algorithm.
+ *               But generally they contain hexadecimal strings representing
+ *               MPI-s (multi-precision integers) of the key or signature.\n
+ *               "mpis" objects are present if the flags argument contains
+ *               RNP_JSON_SIGNATURE_MPIS,RNP_JSON_PUBLIC_MPIS and RNP_JSON_SECRET_MPIS
+ *               flag respectively.\n
+ *               Example of the JSON output string:\n
+ *
+ *                   {
+ *                    "type":"ECDSA",
+ *                    "length":256,
+ *                    "curve":"NIST P-256",
+ *                    "keyid":"014F7B24CD14F2A5",
+ *                    "fingerprint":"9034431D2F803D20F9840833014F7B24CD14F2A5",
+ *                    "grip":"B5331B92954B51C72904B97527EC85BEC4FF3154",
+ *                    "revoked":false,
+ *                    "creation time":1683104807,
+ *                    "expiration":0,
+ *                    "usage":[
+ *                      "sign"
+ *                    ],
+ *                    "subkey grips":[
+ *                      "E50D9738D779A587425248D3483DB8E1805B0174"
+ *                    ],
+ *                    "public key":{
+ *                      "present":true
+ *                    },
+ *                    "secret key":{
+ *                      "present":true,
+ *                      "locked":true,
+ *                      "protected":true
+ *                    },
+ *                    "userids":[
+ *                      "test0"
+ *                    ]
+ *                  }
+ *
+ *
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_key_to_json(rnp_key_handle_t handle, uint32_t flags, char **result);
@@ -3105,6 +4095,14 @@ RNP_API const char *rnp_backend_version();
 
 #endif
 
+/**
+ * Certification signature type strings.
+ */
+#define RNP_CERTIFICATION_GENERIC "generic"
+#define RNP_CERTIFICATION_PERSONA "persona"
+#define RNP_CERTIFICATION_CASUAL "casual"
+#define RNP_CERTIFICATION_POSITIVE "positive"
+
 /** Algorithm Strings
  */
 #ifndef RNP_ALGNAME_PLAINTEXT
@@ -3116,6 +4114,26 @@ RNP_API const char *rnp_backend_version();
 #define RNP_ALGNAME_ECDH "ECDH"
 #define RNP_ALGNAME_ECDSA "ECDSA"
 #define RNP_ALGNAME_EDDSA "EDDSA"
+#if defined(RNP_EXPERIMENTAL_CRYPTO_REFRESH) || defined(RNP_EXPERIMENTAL_PQC)
+#define RNP_ALGNAME_ED25519 "ED25519"
+#define RNP_ALGNAME_X25519 "X25519"
+#endif
+#if defined(RNP_EXPERIMENTAL_PQC)
+#define RNP_ALGNAME_KYBER768_X25519 "ML-KEM-768+X25519"
+#define RNP_ALGNAME_KYBER1024_X448 "ML-KEM-1024+X448"
+#define RNP_ALGNAME_KYBER768_P256 "ML-KEM-768+ECDH-P256"
+#define RNP_ALGNAME_KYBER1024_P384 "ML-KEM-1024+ECDH-P384"
+#define RNP_ALGNAME_KYBER768_BP256 "ML-KEM-768+ECDH-BP256"
+#define RNP_ALGNAME_KYBER1024_BP384 "ML-KEM-1024+ECDH-BP384"
+#define RNP_ALGNAME_DILITHIUM3_ED25519 "ML-DSA-65+ED25519"
+#define RNP_ALGNAME_DILITHIUM5_ED448 "ML-DSA-87+ED448"
+#define RNP_ALGNAME_DILITHIUM3_P256 "ML-DSA-65+ECDSA-P256"
+#define RNP_ALGNAME_DILITHIUM5_P384 "ML-DSA-87+ECDSA-P384"
+#define RNP_ALGNAME_DILITHIUM3_BP256 "ML-DSA-65+ECDSA-BP256"
+#define RNP_ALGNAME_DILITHIUM5_BP384 "ML-DSA-87+ECDSA-BP384"
+#define RNP_ALGNAME_SPHINCSPLUS_SHA2 "SLH-DSA-SHA2"
+#define RNP_ALGNAME_SPHINCSPLUS_SHAKE "SLH-DSA-SHAKE"
+#endif
 #define RNP_ALGNAME_IDEA "IDEA"
 #define RNP_ALGNAME_TRIPLEDES "TRIPLEDES"
 #define RNP_ALGNAME_CAST5 "CAST5"
@@ -3140,6 +4158,9 @@ RNP_API const char *rnp_backend_version();
 #define RNP_ALGNAME_SHA3_512 "SHA3-512"
 #define RNP_ALGNAME_RIPEMD160 "RIPEMD160"
 #define RNP_ALGNAME_CRC24 "CRC24"
+#define RNP_ALGNAME_ZLIB "ZLib"
+#define RNP_ALGNAME_BZIP2 "BZip2"
+#define RNP_ALGNAME_ZIP "ZIP"
 
 /* SHA1 is not considered secured anymore and SHOULD NOT be used to create messages (as per
  * Appendix C of RFC 4880-bis-02). SHA2 MUST be implemented.

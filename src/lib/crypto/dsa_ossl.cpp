@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2023 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2024 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -27,7 +27,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <rnp/rnp_def.h>
-#include "bn.h"
 #include "dsa.h"
 #include "dl_ossl.h"
 #include "utils.h"
@@ -40,394 +39,318 @@
 #include <openssl/param_build.h>
 #endif
 
-#define DSA_MAX_Q_BITLEN 256
-
+namespace pgp {
+namespace dsa {
 static bool
-dsa_decode_sig(const uint8_t *data, size_t len, pgp_dsa_signature_t &sig)
+decode_sig(const uint8_t *data, size_t len, Signature &sig)
 {
-    DSA_SIG *dsig = d2i_DSA_SIG(NULL, &data, len);
+    rnp::ossl::DSASig dsig(d2i_DSA_SIG(NULL, &data, len));
     if (!dsig) {
         RNP_LOG("Failed to parse DSA sig: %lu", ERR_peek_last_error());
         return false;
     }
-    const BIGNUM *r, *s;
-    DSA_SIG_get0(dsig, &r, &s);
-    bn2mpi(r, &sig.r);
-    bn2mpi(s, &sig.s);
-    DSA_SIG_free(dsig);
-    return true;
+    rnp::bn r, s;
+    DSA_SIG_get0(dsig.get(), r.cptr(), s.cptr());
+    return r.mpi(sig.r) && s.mpi(sig.s);
 }
 
 static bool
-dsa_encode_sig(uint8_t *data, size_t *len, const pgp_dsa_signature_t &sig)
+encode_sig(uint8_t *data, size_t *len, const Signature &sig)
 {
-    bool     res = false;
-    DSA_SIG *dsig = DSA_SIG_new();
-    BIGNUM * r = mpi2bn(&sig.r);
-    BIGNUM * s = mpi2bn(&sig.s);
+    rnp::ossl::DSASig dsig(DSA_SIG_new());
+    rnp::bn           r(sig.r);
+    rnp::bn           s(sig.s);
     if (!dsig || !r || !s) {
         RNP_LOG("Allocation failed.");
-        goto done;
+        return false;
     }
-    DSA_SIG_set0(dsig, r, s);
-    r = NULL;
-    s = NULL;
-    int outlen;
-    outlen = i2d_DSA_SIG(dsig, &data);
+    DSA_SIG_set0(dsig.get(), r.own(), s.own());
+    auto outlen = i2d_DSA_SIG(dsig.get(), &data);
     if (outlen < 0) {
         RNP_LOG("Failed to encode signature.");
-        goto done;
+        return false;
     }
     *len = outlen;
-    res = true;
-done:
-    DSA_SIG_free(dsig);
-    BN_free(r);
-    BN_free(s);
-    return res;
+    return true;
 }
 
 #if defined(CRYPTO_BACKEND_OPENSSL3)
-static OSSL_PARAM *
-dsa_build_params(bignum_t *p, bignum_t *q, bignum_t *g, bignum_t *y, bignum_t *x)
+static rnp::ossl::Param
+build_params(rnp::bn &p, rnp::bn &q, rnp::bn &g, rnp::bn &y, rnp::bn &x)
 {
-    OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
-    if (!bld) {
-        return NULL; // LCOV_EXCL_LINE
+    rnp::ossl::ParamBld bld(OSSL_PARAM_BLD_new());
+    if (!bld || !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_FFC_P, p.get()) ||
+        !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_FFC_Q, q.get()) ||
+        !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_FFC_G, g.get()) ||
+        !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_PUB_KEY, y.get()) ||
+        (x && !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_PRIV_KEY, x.get()))) {
+        return nullptr; // LCOV_EXCL_LINE
     }
-    if (!OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_P, p) ||
-        !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_Q, q) ||
-        !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_G, g) ||
-        !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PUB_KEY, y) ||
-        (x && !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY, x))) {
-        /* LCOV_EXCL_START */
-        OSSL_PARAM_BLD_free(bld);
-        return NULL;
-        /* LCOV_EXCL_END */
-    }
-    OSSL_PARAM *param = OSSL_PARAM_BLD_to_param(bld);
-    OSSL_PARAM_BLD_free(bld);
-    return param;
+    return rnp::ossl::Param(OSSL_PARAM_BLD_to_param(bld.get()));
 }
 #endif
 
-static EVP_PKEY *
-dsa_load_key(const pgp_dsa_key_t *key, bool secret = false)
+static rnp::ossl::evp::PKey
+load_key(const Key &key, bool secret = false)
 {
-    EVP_PKEY *evpkey = NULL;
-    rnp::bn   p(mpi2bn(&key->p));
-    rnp::bn   q(mpi2bn(&key->q));
-    rnp::bn   g(mpi2bn(&key->g));
-    rnp::bn   y(mpi2bn(&key->y));
-    rnp::bn   x(secret ? mpi2bn(&key->x) : NULL);
+    rnp::bn p(key.p);
+    rnp::bn q(key.q);
+    rnp::bn g(key.g);
+    rnp::bn y(key.y);
+    rnp::bn x(secret ? &key.x : NULL);
 
-    if (!p.get() || !q.get() || !g.get() || !y.get() || (secret && !x.get())) {
+    if (!p || !q || !g || !y || (secret && !x)) {
         /* LCOV_EXCL_START */
         RNP_LOG("out of memory");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
 
 #if defined(CRYPTO_BACKEND_OPENSSL3)
-    OSSL_PARAM *params = dsa_build_params(p.get(), q.get(), g.get(), y.get(), x.get());
+    auto params = build_params(p, q, g, y, x);
     if (!params) {
         /* LCOV_EXCL_START */
         RNP_LOG("failed to build dsa params");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_DSA, NULL);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_DSA, NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("failed to create dsa context");
-        OSSL_PARAM_free(params);
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
-    if ((EVP_PKEY_fromdata_init(ctx) != 1) ||
-        (EVP_PKEY_fromdata(
-           ctx, &evpkey, secret ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY, params) != 1)) {
+    EVP_PKEY *rawkey = NULL;
+    if ((EVP_PKEY_fromdata_init(ctx.get()) != 1) ||
+        (EVP_PKEY_fromdata(ctx.get(),
+                           &rawkey,
+                           secret ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY,
+                           params.get()) != 1)) {
         RNP_LOG("failed to create key from data");
-        evpkey = NULL;
+        return nullptr;
     }
-    OSSL_PARAM_free(params);
-    EVP_PKEY_CTX_free(ctx);
-    return evpkey;
+    return rnp::ossl::evp::PKey(rawkey);
 #else
-    DSA *dsa = DSA_new();
+    rnp::ossl::DSA dsa(DSA_new());
     if (!dsa) {
         /* LCOV_EXCL_START */
         RNP_LOG("Out of memory");
-        goto done;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
-    if (DSA_set0_pqg(dsa, p.own(), q.own(), g.own()) != 1) {
+    if (DSA_set0_pqg(dsa.get(), p.own(), q.own(), g.own()) != 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to set pqg. Error: %lu", ERR_peek_last_error());
-        goto done;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
-    if (DSA_set0_key(dsa, y.own(), x.own()) != 1) {
+    if (DSA_set0_key(dsa.get(), y.own(), x.own()) != 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Secret key load error: %lu", ERR_peek_last_error());
-        goto done;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
 
-    evpkey = EVP_PKEY_new();
+    rnp::ossl::evp::PKey evpkey(EVP_PKEY_new());
     if (!evpkey) {
         /* LCOV_EXCL_START */
         RNP_LOG("allocation failed");
-        goto done;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
-    if (EVP_PKEY_set1_DSA(evpkey, dsa) <= 0) {
+    if (EVP_PKEY_set1_DSA(evpkey.get(), dsa.get()) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to set key: %lu", ERR_peek_last_error());
-        EVP_PKEY_free(evpkey);
-        evpkey = NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
-done:
-    DSA_free(dsa);
     return evpkey;
 #endif
 }
 
 rnp_result_t
-dsa_validate_key(rnp::RNG *rng, const pgp_dsa_key_t *key, bool secret)
+Key::validate(rnp::RNG &rng, bool secret) const noexcept
 {
     /* OpenSSL doesn't implement key checks for the DSA, however we may use DL via DH */
-    EVP_PKEY *pkey = dl_load_key(key->p, &key->q, key->g, key->y, secret ? &key->x : NULL);
+    rnp::ossl::evp::PKey pkey = dl_load_key(p, &q, g, y, secret ? &x : NULL);
     if (!pkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    rnp_result_t ret = dl_validate_key(pkey, secret ? &key->x : NULL);
-    EVP_PKEY_free(pkey);
-    return ret;
+    return dl_validate_key(pkey, secret ? &x : NULL);
 }
 
 rnp_result_t
-dsa_sign(rnp::RNG *           rng,
-         pgp_dsa_signature_t *sig,
-         const uint8_t *      hash,
-         size_t               hash_len,
-         const pgp_dsa_key_t *key)
+Key::sign(rnp::RNG &rng, Signature &sig, const rnp::secure_bytes &hash) const
 {
-    if (mpi_bytes(&key->x) == 0) {
+    if (!x.size()) {
         RNP_LOG("private key not set");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     /* Load secret key to DSA structure*/
-    EVP_PKEY *evpkey = dsa_load_key(key, true);
+    auto evpkey = load_key(*this, true);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp_result_t ret = RNP_ERROR_GENERIC;
     /* init context and sign */
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evpkey, NULL);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new(evpkey.get(), NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    if (EVP_PKEY_sign_init(ctx) <= 0) {
+    if (EVP_PKEY_sign_init(ctx.get()) <= 0) {
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    sig->s.len = PGP_MPINT_SIZE;
-    if (EVP_PKEY_sign(ctx, sig->s.mpi, &sig->s.len, hash, hash_len) <= 0) {
+    /* signature is two q-group numbers + DER encoding, 16 safe enough */
+    std::vector<uint8_t> dersig(2 * q.size() + 16, 0);
+    size_t               siglen = dersig.size();
+    if (EVP_PKEY_sign(ctx.get(), dersig.data(), &siglen, hash.data(), hash.size()) <= 0) {
         RNP_LOG("Signing failed: %lu", ERR_peek_last_error());
-        sig->s.len = 0;
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    if (!dsa_decode_sig(&sig->s.mpi[0], sig->s.len, *sig)) {
+    if (!decode_sig(dersig.data(), siglen, sig)) {
         RNP_LOG("Failed to parse DSA sig: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    ret = RNP_SUCCESS;
-done:
-    EVP_PKEY_CTX_free(ctx);
-    EVP_PKEY_free(evpkey);
-    return ret;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
-dsa_verify(const pgp_dsa_signature_t *sig,
-           const uint8_t *            hash,
-           size_t                     hash_len,
-           const pgp_dsa_key_t *      key)
+Key::verify(const Signature &sig, const rnp::secure_bytes &hash) const
 {
-    /* Load secret key to DSA structure*/
-    EVP_PKEY *evpkey = dsa_load_key(key, false);
+    /* Load secret key to EVP key */
+    auto evpkey = load_key(*this, false);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp_result_t ret = RNP_ERROR_GENERIC;
     /* init context and sign */
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evpkey, NULL);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new(evpkey.get(), NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    if (EVP_PKEY_verify_init(ctx) <= 0) {
+    if (EVP_PKEY_verify_init(ctx.get()) <= 0) {
         RNP_LOG("Failed to initialize verify: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    pgp_mpi_t sigbuf;
-    if (!dsa_encode_sig(sigbuf.mpi, &sigbuf.len, *sig)) {
-        goto done;
+    /* signature is two q-group numbers + DER encoding, 16 safe enough */
+    std::vector<uint8_t> dersig(2 * q.size() + 16);
+    size_t               siglen = dersig.size();
+    if (!encode_sig(dersig.data(), &siglen, sig)) {
+        return RNP_ERROR_GENERIC;
     }
-    if (EVP_PKEY_verify(ctx, sigbuf.mpi, sigbuf.len, hash, hash_len) <= 0) {
-        ret = RNP_ERROR_SIGNATURE_INVALID;
-    } else {
-        ret = RNP_SUCCESS;
+    if (EVP_PKEY_verify(ctx.get(), dersig.data(), siglen, hash.data(), hash.size()) <= 0) {
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
-done:
-    EVP_PKEY_CTX_free(ctx);
-    EVP_PKEY_free(evpkey);
-    return ret;
+    return RNP_SUCCESS;
 }
 
 static bool
-dsa_extract_key(EVP_PKEY *pkey, pgp_dsa_key_t &key)
+extract_key(rnp::ossl::evp::PKey &pkey, Key &key)
 {
 #if defined(CRYPTO_BACKEND_OPENSSL3)
-    rnp::bn p;
-    rnp::bn q;
-    rnp::bn g;
-    rnp::bn y;
-    rnp::bn x;
-
-    bool res = EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_FFC_P, p.ptr()) &&
-               EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_FFC_Q, q.ptr()) &&
-               EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_FFC_G, g.ptr()) &&
-               EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_PUB_KEY, y.ptr()) &&
-               EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_PRIV_KEY, x.ptr());
-    return res && p.mpi(key.p) && q.mpi(key.q) && g.mpi(key.g) && y.mpi(key.y) && x.mpi(key.x);
+    rnp::bn p, q, g, y, x;
+    return EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_FFC_P, p.ptr()) &&
+           EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_FFC_Q, q.ptr()) &&
+           EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_FFC_G, g.ptr()) &&
+           EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_PUB_KEY, y.ptr()) &&
+           EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_PRIV_KEY, x.ptr()) &&
+           p.mpi(key.p) && q.mpi(key.q) && g.mpi(key.g) && y.mpi(key.y) && x.mpi(key.x);
 #else
-    const DSA *dsa = EVP_PKEY_get0_DSA(pkey);
+    const DSA *dsa = EVP_PKEY_get0_DSA(pkey.get());
     if (!dsa) {
         RNP_LOG("Failed to retrieve DSA key: %lu", ERR_peek_last_error());
         return false;
     }
 
-    const bignum_t *p = DSA_get0_p(dsa);
-    const bignum_t *q = DSA_get0_q(dsa);
-    const bignum_t *g = DSA_get0_g(dsa);
-    const bignum_t *y = DSA_get0_pub_key(dsa);
-    const bignum_t *x = DSA_get0_priv_key(dsa);
+    rnp::bn p(DSA_get0_p(dsa));
+    rnp::bn q(DSA_get0_q(dsa));
+    rnp::bn g(DSA_get0_g(dsa));
+    rnp::bn y(DSA_get0_pub_key(dsa));
+    rnp::bn x(DSA_get0_priv_key(dsa));
 
     if (!p || !q || !g || !y || !x) {
         return false;
     }
-    return bn2mpi(p, &key.p) && bn2mpi(q, &key.q) && bn2mpi(g, &key.g) && bn2mpi(y, &key.y) &&
-           bn2mpi(x, &key.x);
+    return p.mpi(key.p) && q.mpi(key.q) && g.mpi(key.g) && y.mpi(key.y) && x.mpi(key.x);
 #endif
 }
 
 rnp_result_t
-dsa_generate(rnp::RNG *rng, pgp_dsa_key_t *key, size_t keylen, size_t qbits)
+Key::generate(rnp::RNG &rng, size_t keylen, size_t qbits)
 {
     if ((keylen < 1024) || (keylen > 3072) || (qbits < 160) || (qbits > 256)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp_result_t  ret = RNP_ERROR_GENERIC;
-    EVP_PKEY *    pkey = NULL;
-    EVP_PKEY *    parmkey = NULL;
-    EVP_PKEY_CTX *ctx = NULL;
-
     /* Generate DSA params */
-    ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_DSA, NULL);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_DSA, NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to create ctx: %lu", ERR_peek_last_error());
-        return ret;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    if (EVP_PKEY_paramgen_init(ctx) <= 0) {
+    if (EVP_PKEY_paramgen_init(ctx.get()) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to init keygen: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    if (EVP_PKEY_CTX_set_dsa_paramgen_bits(ctx, keylen) <= 0) {
+    if (EVP_PKEY_CTX_set_dsa_paramgen_bits(ctx.get(), keylen) <= 0) {
         RNP_LOG("Failed to set key bits: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
 #if OPENSSL_VERSION_NUMBER < 0x1010105fL
-    EVP_PKEY_CTX_ctrl(
-      ctx, EVP_PKEY_DSA, EVP_PKEY_OP_PARAMGEN, EVP_PKEY_CTRL_DSA_PARAMGEN_Q_BITS, qbits, NULL);
+    EVP_PKEY_CTX_ctrl(ctx.get(),
+                      EVP_PKEY_DSA,
+                      EVP_PKEY_OP_PARAMGEN,
+                      EVP_PKEY_CTRL_DSA_PARAMGEN_Q_BITS,
+                      qbits,
+                      NULL);
 #else
-    if (EVP_PKEY_CTX_set_dsa_paramgen_q_bits(ctx, qbits) <= 0) {
+    if (EVP_PKEY_CTX_set_dsa_paramgen_q_bits(ctx.get(), qbits) <= 0) {
         RNP_LOG("Failed to set key qbits: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
 #endif
-    if (EVP_PKEY_paramgen(ctx, &parmkey) <= 0) {
+    EVP_PKEY *rparmkey = NULL;
+    if (EVP_PKEY_paramgen(ctx.get(), &rparmkey) <= 0) {
         RNP_LOG("Failed to generate parameters: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    EVP_PKEY_CTX_free(ctx);
+    rnp::ossl::evp::PKey parmkey(rparmkey);
     /* Generate DSA key */
-    ctx = EVP_PKEY_CTX_new(parmkey, NULL);
-    if (!ctx) {
+    rnp::ossl::evp::PKeyCtx genctx(EVP_PKEY_CTX_new(parmkey.get(), NULL));
+    if (!genctx) {
         RNP_LOG("Failed to create ctx: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    if (EVP_PKEY_keygen_init(ctx) <= 0) {
+    if (EVP_PKEY_keygen_init(genctx.get()) <= 0) {
         RNP_LOG("Failed to init keygen: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    if (EVP_PKEY_keygen(ctx, &pkey) <= 0) {
+    EVP_PKEY *rpkey = NULL;
+    if (EVP_PKEY_keygen(genctx.get(), &rpkey) <= 0) {
         RNP_LOG("DSA keygen failed: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-
-    if (dsa_extract_key(pkey, *key)) {
-        ret = RNP_SUCCESS;
+    rnp::ossl::evp::PKey pkey(rpkey);
+    if (!extract_key(pkey, *this)) {
+        return RNP_ERROR_GENERIC;
     }
-done:
-    EVP_PKEY_CTX_free(ctx);
-    EVP_PKEY_free(parmkey);
-    EVP_PKEY_free(pkey);
-    return ret;
+    return RNP_SUCCESS;
 }
-
-pgp_hash_alg_t
-dsa_get_min_hash(size_t qsize)
-{
-    /*
-     * I'm using _broken_ SHA1 here only because
-     * some old implementations may not understand keys created
-     * with other hashes. If you're sure we don't have to support
-     * such implementations, please be my guest and remove it.
-     */
-    return (qsize < 160)  ? PGP_HASH_UNKNOWN :
-           (qsize == 160) ? PGP_HASH_SHA1 :
-           (qsize <= 224) ? PGP_HASH_SHA224 :
-           (qsize <= 256) ? PGP_HASH_SHA256 :
-           (qsize <= 384) ? PGP_HASH_SHA384 :
-           (qsize <= 512) ? PGP_HASH_SHA512
-                            /*(qsize>512)*/ :
-                            PGP_HASH_UNKNOWN;
-}
-
-size_t
-dsa_choose_qsize_by_psize(size_t psize)
-{
-    return (psize == 1024) ? 160 :
-           (psize <= 2047) ? 224 :
-           (psize <= 3072) ? DSA_MAX_Q_BITLEN :
-                             0;
-}
+} // namespace dsa
+} // namespace pgp

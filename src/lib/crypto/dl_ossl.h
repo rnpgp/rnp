@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2024 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -27,18 +27,16 @@
 #ifndef DL_OSSL_H_
 #define DL_OSSL_H_
 
-#include "types.h"
-#include "config.h"
+#include "mpi.hpp"
 #include <rnp/rnp_def.h>
-#include "mpi.h"
-#include <openssl/evp.h>
+#include "ossl_utils.hpp"
 
-EVP_PKEY *dl_load_key(const pgp_mpi_t &mp,
-                      const pgp_mpi_t *mq,
-                      const pgp_mpi_t &mg,
-                      const pgp_mpi_t &my,
-                      const pgp_mpi_t *mx);
+rnp::ossl::evp::PKey dl_load_key(const pgp::mpi &mp,
+                                 const pgp::mpi *mq,
+                                 const pgp::mpi &mg,
+                                 const pgp::mpi &my,
+                                 const pgp::mpi *mx);
 
-rnp_result_t dl_validate_key(EVP_PKEY *pkey, const pgp_mpi_t *mx);
+rnp_result_t dl_validate_key(rnp::ossl::evp::PKey &pkey, const pgp::mpi *x);
 
 #endif

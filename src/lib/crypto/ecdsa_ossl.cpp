@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2024, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -27,164 +27,132 @@
 #include "ecdsa.h"
 #include "utils.h"
 #include <string.h>
-#include "bn.h"
 #include "ec_ossl.h"
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #include <openssl/ec.h>
 
+namespace pgp {
+namespace ecdsa {
+
 static bool
-ecdsa_decode_sig(const uint8_t *data, size_t len, pgp_ec_signature_t &sig)
+decode_sig(const uint8_t *data, size_t len, ec::Signature &sig)
 {
-    ECDSA_SIG *esig = d2i_ECDSA_SIG(NULL, &data, len);
-    if (!esig) {
+    rnp::ossl::ECDSASig esig(d2i_ECDSA_SIG(NULL, &data, len));
+    if (!esig.get()) {
         RNP_LOG("Failed to parse ECDSA sig: %lu", ERR_peek_last_error());
         return false;
     }
-    const BIGNUM *r, *s;
-    ECDSA_SIG_get0(esig, &r, &s);
-    bn2mpi(r, &sig.r);
-    bn2mpi(s, &sig.s);
-    ECDSA_SIG_free(esig);
+    rnp::bn r, s;
+    ECDSA_SIG_get0(esig.get(), r.cptr(), s.cptr());
+    r.mpi(sig.r);
+    s.mpi(sig.s);
     return true;
 }
 
 static bool
-ecdsa_encode_sig(uint8_t *data, size_t *len, const pgp_ec_signature_t &sig)
+encode_sig(uint8_t *data, size_t *len, const ec::Signature &sig)
 {
-    bool       res = false;
     ECDSA_SIG *dsig = ECDSA_SIG_new();
-    BIGNUM *   r = mpi2bn(&sig.r);
-    BIGNUM *   s = mpi2bn(&sig.s);
+    rnp::bn    r(sig.r);
+    rnp::bn    s(sig.s);
     if (!dsig || !r || !s) {
         RNP_LOG("Allocation failed.");
-        goto done;
+        ECDSA_SIG_free(dsig);
+        return false;
     }
-    ECDSA_SIG_set0(dsig, r, s);
-    r = NULL;
-    s = NULL;
-    int outlen;
-    outlen = i2d_ECDSA_SIG(dsig, &data);
+    ECDSA_SIG_set0(dsig, r.own(), s.own());
+    int outlen = i2d_ECDSA_SIG(dsig, &data);
+    ECDSA_SIG_free(dsig);
     if (outlen < 0) {
         RNP_LOG("Failed to encode signature.");
-        goto done;
+        return false;
     }
     *len = outlen;
-    res = true;
-done:
-    ECDSA_SIG_free(dsig);
-    BN_free(r);
-    BN_free(s);
-    return res;
+    return true;
 }
 
 rnp_result_t
-ecdsa_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret)
+validate_key(rnp::RNG &rng, const ec::Key &key, bool secret)
 {
-    return ec_validate_key(*key, secret);
+    return ec::validate_key(key, secret);
 }
 
 rnp_result_t
-ecdsa_sign(rnp::RNG *          rng,
-           pgp_ec_signature_t *sig,
-           pgp_hash_alg_t      hash_alg,
-           const uint8_t *     hash,
-           size_t              hash_len,
-           const pgp_ec_key_t *key)
+sign(rnp::RNG &               rng,
+     ec::Signature &          sig,
+     pgp_hash_alg_t           hash_alg,
+     const rnp::secure_bytes &hash,
+     const ec::Key &          key)
 {
-    if (mpi_bytes(&key->x) == 0) {
+    if (!key.x.size()) {
         RNP_LOG("private key not set");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     /* Load secret key to DSA structure*/
-    EVP_PKEY *evpkey = ec_load_key(key->p, &key->x, key->curve);
+    auto evpkey = ec::load_key(key.p, &key.x, key.curve);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp_result_t ret = RNP_ERROR_GENERIC;
     /* init context and sign */
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evpkey, NULL);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new(evpkey.get(), NULL));
     if (!ctx) {
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    if (EVP_PKEY_sign_init(ctx) <= 0) {
+    if (EVP_PKEY_sign_init(ctx.get()) <= 0) {
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    sig->s.len = PGP_MPINT_SIZE;
-    if (EVP_PKEY_sign(ctx, sig->s.mpi, &sig->s.len, hash, hash_len) <= 0) {
+    /* DER encoded {r, s} pair, 16 bytes of overhead is enough */
+    std::vector<uint8_t> dersig(2 * MAX_CURVE_BYTELEN + 16, 0);
+    size_t               siglen = dersig.size();
+    if (EVP_PKEY_sign(ctx.get(), dersig.data(), &siglen, hash.data(), hash.size()) <= 0) {
         RNP_LOG("Signing failed: %lu", ERR_peek_last_error());
-        sig->s.len = 0;
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    if (!ecdsa_decode_sig(&sig->s.mpi[0], sig->s.len, *sig)) {
+    if (!decode_sig(dersig.data(), siglen, sig)) {
         RNP_LOG("Failed to parse ECDSA sig: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    ret = RNP_SUCCESS;
-done:
-    EVP_PKEY_CTX_free(ctx);
-    EVP_PKEY_free(evpkey);
-    return ret;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
-ecdsa_verify(const pgp_ec_signature_t *sig,
-             pgp_hash_alg_t            hash_alg,
-             const uint8_t *           hash,
-             size_t                    hash_len,
-             const pgp_ec_key_t *      key)
+verify(const ec::Signature &    sig,
+       pgp_hash_alg_t           hash_alg,
+       const rnp::secure_bytes &hash,
+       const ec::Key &          key)
 {
     /* Load secret key to DSA structure*/
-    EVP_PKEY *evpkey = ec_load_key(key->p, NULL, key->curve);
+    auto evpkey = ec::load_key(key.p, NULL, key.curve);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-
-    rnp_result_t ret = RNP_ERROR_SIGNATURE_INVALID;
     /* init context and sign */
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evpkey, NULL);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new(evpkey.get(), NULL));
     if (!ctx) {
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
-    if (EVP_PKEY_verify_init(ctx) <= 0) {
+    if (EVP_PKEY_verify_init(ctx.get()) <= 0) {
         RNP_LOG("Failed to initialize verify: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
-    pgp_mpi_t sigbuf;
-    if (!ecdsa_encode_sig(sigbuf.mpi, &sigbuf.len, *sig)) {
-        goto done;
+    /* signature is two coordinates + DER encoding, 16 is safe enough */
+    std::vector<uint8_t> sigbuf(sig.r.size() + sig.s.size() + 16);
+    size_t               siglen = sigbuf.size();
+    if (!encode_sig(sigbuf.data(), &siglen, sig)) {
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
-    if (EVP_PKEY_verify(ctx, sigbuf.mpi, sigbuf.len, hash, hash_len) > 0) {
-        ret = RNP_SUCCESS;
+    if (EVP_PKEY_verify(ctx.get(), sigbuf.data(), siglen, hash.data(), hash.size()) < 1) {
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
-done:
-    EVP_PKEY_CTX_free(ctx);
-    EVP_PKEY_free(evpkey);
-    return ret;
+    return RNP_SUCCESS;
 }
-
-pgp_hash_alg_t
-ecdsa_get_min_hash(pgp_curve_t curve)
-{
-    switch (curve) {
-    case PGP_CURVE_NIST_P_256:
-    case PGP_CURVE_BP256:
-    case PGP_CURVE_P256K1:
-        return PGP_HASH_SHA256;
-    case PGP_CURVE_NIST_P_384:
-    case PGP_CURVE_BP384:
-        return PGP_HASH_SHA384;
-    case PGP_CURVE_NIST_P_521:
-    case PGP_CURVE_BP512:
-        return PGP_HASH_SHA512;
-    default:
-        return PGP_HASH_UNKNOWN;
-    }
-}
+} // namespace ecdsa
+} // namespace pgp

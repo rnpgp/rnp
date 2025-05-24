@@ -27,6 +27,10 @@
 #ifndef RNP_KBX_BLOB_HPP
 #define RNP_KBX_BLOB_HPP
 
+#include <vector>
+#include "repgp/repgp_def.h"
+#include "fingerprint.hpp"
+
 typedef enum : uint8_t {
     KBX_EMPTY_BLOB = 0,
     KBX_HEADER_BLOB = 1,
@@ -90,7 +94,7 @@ class kbx_header_blob_t : public kbx_blob_t {
 };
 
 typedef struct {
-    uint8_t  fp[PGP_FINGERPRINT_SIZE];
+    uint8_t  fp[PGP_MAX_FINGERPRINT_SIZE];
     uint32_t keyid_offset;
     uint16_t flags;
 } kbx_pgp_key_t;

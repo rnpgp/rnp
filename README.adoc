@@ -2,7 +2,6 @@
 
 image:https://github.com/rnpgp/rnp/workflows/macos/badge.svg["macOS Build Status", link="https://github.com/rnpgp/rnp/actions?workflow=macos"]
 image:https://github.com/rnpgp/rnp/workflows/ubuntu/badge.svg["Ubuntu Build Status", link="https://github.com/rnpgp/rnp/actions?workflow=ubuntu"]
-image:https://github.com/rnpgp/rnp/workflows/centos7/badge.svg["CentOS 7 Build Status", link="https://github.com/rnpgp/rnp/actions?workflow=centos7"]
 image:https://github.com/rnpgp/rnp/workflows/windows-native/badge.svg["Windows Native Build Status", link="https://github.com/rnpgp/rnp/actions?workflow=windows-native"]
 image:https://github.com/rnpgp/rnp/workflows/windows-msys2/badge.svg["Windows MSys2 Build Status", link="https://github.com/rnpgp/rnp/actions?workflow=windows-msys2"]
 image:https://github.com/rnpgp/rnp/workflows/nix/badge.svg["Nix Build Status", link="https://github.com/rnpgp/rnp/actions?workflow=nix"]
@@ -33,10 +32,7 @@ Currently supported platforms:
 * MacOS
 * Windows
 * Debian
-
-Upcoming supported platforms:
-
-* OpenSUSE Leap
+* openSUSE Leap, openSUSE Tumbleweed
 * SLES
 
 == link:docs/installation.adoc[Installation]

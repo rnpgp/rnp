@@ -29,12 +29,12 @@
 
 #include "config.h"
 #include <string>
+#include <vector>
 #include <stdarg.h>
 #include <stddef.h>
 #include <setjmp.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -56,6 +56,7 @@
 #include "../rnp/fficli.h"
 #include "file-utils.h"
 #include "crypto/mem.h"
+#include "key.hpp"
 
 #ifdef _WIN32
 #define pipe(fds) _pipe(fds, 256, O_BINARY)
@@ -121,17 +122,21 @@ void clean_temp_dir(const char *path);
 /* check whether bin value is equals hex string */
 bool bin_eq_hex(const uint8_t *data, size_t len, const char *val);
 
-bool hex2mpi(pgp_mpi_t *val, const char *hex);
+bool hex2mpi(pgp::mpi *val, const char *hex);
 
 /* check whether key id is equal to hex string */
-bool cmp_keyid(const pgp_key_id_t &id, const std::string &val);
+bool cmp_keyid(const pgp::KeyID &id, const std::string &val);
 
 /* check whether key fp is equal to hex string */
-bool cmp_keyfp(const pgp_fingerprint_t &fp, const std::string &val);
+bool cmp_keyfp(const pgp::Fingerprint &fp, const std::string &val);
 
 void test_ffi_init(rnp_ffi_t *ffi);
 
-bool mpi_empty(const pgp_mpi_t &val);
+bool mpi_empty(const pgp::mpi &val);
+
+bool rsa_sec_empty(const pgp::KeyMaterial &key);
+
+bool rsa_sec_filled(const pgp::KeyMaterial &key);
 
 bool write_pass_to_pipe(int fd, size_t count);
 /* Setup readable pipe with default password inside */
@@ -214,13 +219,13 @@ bool check_json_field_int(json_object *obj, const std::string &field, int value)
 bool check_json_field_bool(json_object *obj, const std::string &field, bool value);
 bool check_json_pkt_type(json_object *pkt, int tag);
 
-pgp_key_t *rnp_tests_get_key_by_id(rnp_key_store_t *  keyring,
-                                   const std::string &keyid,
-                                   pgp_key_t *        after = NULL);
-pgp_key_t *rnp_tests_get_key_by_fpr(rnp_key_store_t *keyring, const std::string &keyid);
-pgp_key_t *rnp_tests_get_key_by_grip(rnp_key_store_t *keyring, const std::string &grip);
-pgp_key_t *rnp_tests_get_key_by_grip(rnp_key_store_t *keyring, const pgp_key_grip_t &grip);
-pgp_key_t *rnp_tests_key_search(rnp_key_store_t *keyring, const std::string &uid);
+rnp::Key *rnp_tests_get_key_by_id(rnp::KeyStore *    keyring,
+                                  const std::string &keyid,
+                                  rnp::Key *         after = NULL);
+rnp::Key *rnp_tests_get_key_by_fpr(rnp::KeyStore *keyring, const std::string &keyid);
+rnp::Key *rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const std::string &grip);
+rnp::Key *rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const pgp::KeyGrip &grip);
+rnp::Key *rnp_tests_key_search(rnp::KeyStore *keyring, const std::string &uid);
 
 /* key load/reload  shortcuts */
 void reload_pubring(rnp_ffi_t *ffi);
@@ -248,6 +253,8 @@ void dump_key_stdout(rnp_key_handle_t key, bool secret = false);
 
 /* some shortcuts for less code */
 bool     check_key_valid(rnp_key_handle_t key, bool validity);
+bool     check_key_revoked(rnp_key_handle_t key, bool revoked);
+bool     check_key_locked(rnp_key_handle_t key, bool locked);
 uint32_t get_key_expiry(rnp_key_handle_t key);
 size_t   get_key_uids(rnp_key_handle_t key);
 bool     check_sub_valid(rnp_key_handle_t key, size_t idx, bool validity);
@@ -260,6 +267,21 @@ void     check_loaded_keys(const char *                    format,
                            const char *                    id_type,
                            const std::vector<std::string> &expected_ids,
                            bool                            secret);
+bool     check_key_grip(rnp_key_handle_t key, const std::string &expected);
+bool     check_key_fp(rnp_key_handle_t key, const std::string &expected);
+bool     check_key_revreason(rnp_key_handle_t key, const char *reason);
+bool     check_has_key(rnp_ffi_t          ffi,
+                       const std::string &id,
+                       bool               secret = false,
+                       bool               valid = true);
+bool     check_sig_hash(rnp_signature_handle_t sig, const char *hash);
+bool     check_sig_type(rnp_signature_handle_t sig, const char *type);
+bool     check_sig_revreason(rnp_signature_handle_t sig,
+                             const char *           revcode,
+                             const char *           revreason);
+
+rnp_key_handle_t get_key_by_fp(rnp_ffi_t ffi, const char *fp);
+rnp_key_handle_t get_key_by_uid(rnp_ffi_t ffi, const char *uid);
 
 /* create bogus key handle with NULL pub/sec keys */
 rnp_key_handle_t bogus_key_handle(rnp_ffi_t ffi);
@@ -287,10 +309,11 @@ rnp_round_up(size_t n, size_t align_to)
 /* load g10/g23 gpg key and verify that it can be
    unprotected/protected
 */
-bool test_load_gpg_check_key(rnp_key_store_t *pub, rnp_key_store_t *sec, const char *id);
+bool test_load_gpg_check_key(rnp::KeyStore *pub, rnp::KeyStore *sec, const char *id);
 
 #define MD5_FROM 1325376000
 #define SHA1_DATA_FROM 1547856000
 #define SHA1_KEY_FROM 1705629600
+#define CAST5_3DES_IDEA_BLOWFISH_FROM 1727730000
 
 #endif /* SUPPORT_H_ */

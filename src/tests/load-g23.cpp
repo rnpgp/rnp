@@ -24,8 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "../librekey/key_store_pgp.h"
-#include "pgp-key.h"
+#include "key.hpp"
 
 #include "rnp_tests.h"
 #include "support.h"
@@ -35,18 +34,16 @@
  */
 TEST_F(rnp_tests, test_load_g23)
 {
-    rnp_key_store_t *  pub_store = NULL;
-    rnp_key_store_t *  sec_store = NULL;
-    pgp_key_provider_t key_provider(rnp_key_provider_store);
+    rnp::KeyProvider key_provider(rnp_key_provider_store);
 
     /* another store */
-    pub_store = new rnp_key_store_t(
-      PGP_KEY_STORE_KBX, "data/test_stream_key_load/g23/pubring.kbx", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pub_store, NULL));
-    sec_store = new rnp_key_store_t(
-      PGP_KEY_STORE_G10, "data/test_stream_key_load/g23/private-keys-v1.d", global_ctx);
+    auto pub_store = new rnp::KeyStore(
+      "data/test_stream_key_load/g23/pubring.kbx", global_ctx, rnp::KeyFormat::KBX);
+    assert_true(pub_store->load());
+    auto sec_store = new rnp::KeyStore(
+      "data/test_stream_key_load/g23/private-keys-v1.d", global_ctx, rnp::KeyFormat::G10);
     key_provider.userdata = pub_store;
-    assert_true(rnp_key_store_load_from_path(sec_store, &key_provider));
+    assert_true(sec_store->load(&key_provider));
 
 #ifdef CRYPTO_BACKEND_BOTAN
     /*  GnuPG extended key format requires AEAD support that is available for BOTAN backend

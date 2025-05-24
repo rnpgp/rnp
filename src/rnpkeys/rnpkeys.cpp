@@ -45,45 +45,48 @@ const char *usage =
   "Manipulate OpenPGP keys and keyrings.\n"
   "Usage: rnpkeys --command [options] [files]\n"
   "Commands:\n"
-  "  -h, --help             This help message.\n"
-  "  -V, --version          Print RNP version information.\n"
-  "  -g, --generate-key     Generate a new keypair (default is RSA).\n"
-  "    --userid             Specify key's userid.\n"
-  "    --expert             Select key type, size, and additional parameters.\n"
-  "    --numbits            Override default key size (2048).\n"
-  "    --expiration         Set key and subkey expiration time.\n"
-  "    --cipher             Set cipher used to encrypt a secret key.\n"
-  "    --hash               Set hash which is used for key derivation.\n"
-  "    --allow-weak-hash    Allow usage of a weak hash algorithm.\n"
-  "  -l, --list-keys        List keys in the keyrings.\n"
-  "    --secret             List secret keys instead of public ones.\n"
-  "    --with-sigs          List signatures as well.\n"
-  "  --import               Import keys or signatures.\n"
-  "  --import-keys          Import keys.\n"
-  "  --import-sigs          Import signatures.\n"
-  "    --permissive         Skip erroring keys/sigs instead of failing.\n"
-  "  --export-key           Export a key.\n"
-  "    --secret             Export a secret key instead of a public.\n"
-  "  --export-rev           Export a key's revocation.\n"
-  "    --rev-type           Set revocation type.\n"
-  "    --rev-reason         Human-readable reason for revocation.\n"
-  "  --revoke-key           Revoke a key specified.\n"
-  "  --remove-key           Remove a key specified.\n"
-  "  --edit-key             Edit key properties.\n"
-  "    --add-subkey         Add new subkey.\n"
-  "    --check-cv25519-bits Check whether Cv25519 subkey bits are correct.\n"
-  "    --fix-cv25519-bits   Fix Cv25519 subkey bits.\n"
-  "    --set-expire         Set key expiration time.\n"
+  "  -h, --help              This help message.\n"
+  "  -V, --version           Print RNP version information.\n"
+  "  -g, --generate-key      Generate a new keypair (default is RSA).\n"
+  "    --userid              Specify key's userid.\n"
+  "    --expert              Select key type, size, and additional parameters.\n"
+  "    --numbits             Override default key size (2048).\n"
+  "    --expiration          Set key and subkey expiration time.\n"
+  "    --cipher              Set cipher used to encrypt a secret key.\n"
+  "    --hash                Set hash which is used for key derivation.\n"
+  "    --allow-weak-hash     Allow usage of a weak hash algorithm.\n"
+  "    --allow-sha1-key-sigs Allow usage of a SHA-1 key signatures.\n"
+  "  -l, --list-keys         List keys in the keyrings.\n"
+  "    --secret              List secret keys instead of public ones.\n"
+  "    --with-sigs           List signatures as well.\n"
+  "  --import                Import keys or signatures.\n"
+  "  --import-keys           Import keys.\n"
+  "  --import-sigs           Import signatures.\n"
+  "    --permissive          Skip erroring keys/sigs instead of failing.\n"
+  "  --export-key            Export a key.\n"
+  "    --secret              Export a secret key instead of a public.\n"
+  "  --export-rev            Export a key's revocation.\n"
+  "    --rev-type            Set revocation type.\n"
+  "    --rev-reason          Human-readable reason for revocation.\n"
+  "  --revoke-key            Revoke a key specified.\n"
+  "  --remove-key            Remove a key specified.\n"
+  "  --edit-key              Edit key properties.\n"
+  "    --add-subkey          Add new subkey.\n"
+  "    --check-cv25519-bits  Check whether Cv25519 subkey bits are correct.\n"
+  "    --fix-cv25519-bits    Fix Cv25519 subkey bits.\n"
+  "    --set-expire          Set key expiration time.\n"
   "\n"
   "Other options:\n"
-  "  --homedir              Override home directory (default is ~/.rnp/).\n"
-  "  --password             Password, which should be used during operation.\n"
-  "  --pass-fd              Read password(s) from the file descriptor.\n"
-  "  --force                Force operation (like secret key removal).\n"
-  "  --output [file, -]     Write data to the specified file or stdout.\n"
-  "  --overwrite            Overwrite output file without a prompt.\n"
-  "  --notty                Do not write anything to the TTY.\n"
-  "  --current-time         Override system's time.\n"
+  "  --homedir               Override home directory (default is ~/.rnp/).\n"
+  "  --password              Password, which should be used during operation.\n"
+  "  --pass-fd               Read password(s) from the file descriptor.\n"
+  "  --force                 Force operation (like secret key removal).\n"
+  "  --keyfile               Load key(s) only from the file specified.\n"
+  "  --output [file, -]      Write data to the specified file or stdout.\n"
+  "  --overwrite             Overwrite output file without a prompt.\n"
+  "  --notty                 Do not write anything to the TTY.\n"
+  "  --current-time          Override system's time.\n"
+  "  --allow-old-ciphers     Allow to use 64-bit ciphers (CAST5, 3DES, IDEA, BLOWFISH).\n"
   "\n"
   "See man page for a detailed listing and explanation.\n"
   "\n";
@@ -140,7 +143,10 @@ struct option options[] = {
   {"add-subkey", no_argument, NULL, OPT_ADD_SUBKEY},
   {"set-expire", required_argument, NULL, OPT_SET_EXPIRE},
   {"current-time", required_argument, NULL, OPT_CURTIME},
+  {"allow-old-ciphers", no_argument, NULL, OPT_ALLOW_OLD_CIPHERS},
   {"allow-weak-hash", no_argument, NULL, OPT_ALLOW_WEAK_HASH},
+  {"allow-sha1-key-sigs", no_argument, NULL, OPT_ALLOW_SHA1},
+  {"keyfile", required_argument, NULL, OPT_KEYFILE},
   {NULL, 0, NULL, 0},
 };
 
@@ -153,7 +159,7 @@ print_keys_info(cli_rnp_t *rnp, FILE *fp, const char *filter)
     int  flags = CLI_SEARCH_SUBKEYS_AFTER | (psecret ? CLI_SEARCH_SECRET : 0);
     std::vector<rnp_key_handle_t> keys;
 
-    if (!cli_rnp_keys_matching_string(rnp, keys, filter ? filter : "", flags)) {
+    if (!rnp->keys_matching(keys, filter ? filter : "", flags)) {
         fprintf(fp, "Key(s) not found.\n");
         return false;
     }
@@ -405,10 +411,6 @@ rnp_cmd(cli_rnp_t *rnp, optdefs_t cmd, const char *f)
             fs = rnp->cfg().get_str(CFG_USERID, 0);
             f = fs.c_str();
         }
-        if (!f) {
-            ERR_MSG("No key specified.");
-            return 0;
-        }
         return cli_rnp_export_keys(rnp, f);
     }
     case CMD_IMPORT:
@@ -519,6 +521,9 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
     case OPT_ALLOW_WEAK_HASH:
         cfg.set_bool(CFG_WEAK_HASH, true);
         return true;
+    case OPT_ALLOW_SHA1:
+        cfg.set_bool(CFG_ALLOW_SHA1, true);
+        return true;
     case OPT_HASH_ALG:
         return cli_rnp_set_hash(cfg, arg);
     case OPT_S2K_ITER: {
@@ -608,11 +613,18 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
     case OPT_CURTIME:
         cfg.set_str(CFG_CURTIME, arg);
         return true;
+    case OPT_ALLOW_OLD_CIPHERS:
+        cfg.set_bool(CFG_ALLOW_OLD_CIPHERS, true);
+        return true;
     case OPT_ADD_SUBKEY:
         cfg.set_bool(CFG_ADD_SUBKEY, true);
         return true;
     case OPT_SET_EXPIRE:
         cfg.set_str(CFG_SET_KEY_EXPIRE, arg);
+        return true;
+    case OPT_KEYFILE:
+        cfg.set_str(CFG_KEYFILE, arg);
+        cfg.set_bool(CFG_KEYSTORE_DISABLED, true);
         return true;
     default:
         *cmd = CMD_HELP;
@@ -642,7 +654,24 @@ rnpkeys_init(cli_rnp_t &rnp, const rnp_cfg &cfg)
                 "want to use it.");
         return false;
     }
-    /* TODO: at some point we should check for error here */
-    (void) rnp.load_keyrings(true);
+
+    if (!cli_rnp_check_old_ciphers(&rnp)) {
+        ERR_MSG("Old cipher detected. Pass --allow-old-ciphers option if you really "
+                "want to use it.");
+        return false;
+    }
+
+    bool disable_ks = rnp.cfg().get_bool(CFG_KEYSTORE_DISABLED);
+    if (!disable_ks && !rnp.load_keyrings(true)) {
+        ERR_MSG("fatal: failed to load keys");
+        return false;
+    }
+
+    /* load the keyfile if any */
+    if (disable_ks && !rnp.cfg().get_str(CFG_KEYFILE).empty() && !cli_rnp_add_key(&rnp)) {
+        ERR_MSG("fatal: failed to load key(s) from the file");
+        return false;
+    }
+
     return true;
 }

@@ -30,50 +30,49 @@
 #include "config.h"
 #include "ec.h"
 
-typedef struct pgp_sm2_encrypted_t {
-    pgp_mpi_t m;
-} pgp_sm2_encrypted_t;
-
 namespace rnp {
 class Hash;
 } // namespace rnp
 
+namespace pgp {
+namespace sm2 {
+class Encrypted {
+  public:
+    mpi m;
+};
+
 #if defined(ENABLE_SM2)
-rnp_result_t sm2_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret);
+rnp_result_t validate_key(rnp::RNG &rng, const ec::Key &key, bool secret);
 
 /**
  * Compute the SM2 "ZA" field, and add it to the hash object
  *
  * If ident_field is null, uses the default value
  */
-rnp_result_t sm2_compute_za(const pgp_ec_key_t &key,
-                            rnp::Hash &         hash,
-                            const char *        ident_field = NULL);
+rnp_result_t compute_za(const pgp::ec::Key &key,
+                        rnp::Hash &         hash,
+                        const char *        ident_field = NULL);
 
-rnp_result_t sm2_sign(rnp::RNG *          rng,
-                      pgp_ec_signature_t *sig,
-                      pgp_hash_alg_t      hash_alg,
-                      const uint8_t *     hash,
-                      size_t              hash_len,
-                      const pgp_ec_key_t *key);
+rnp_result_t sign(rnp::RNG &               rng,
+                  ec::Signature &          sig,
+                  pgp_hash_alg_t           hash_alg,
+                  const rnp::secure_bytes &hash,
+                  const pgp::ec::Key &     key);
 
-rnp_result_t sm2_verify(const pgp_ec_signature_t *sig,
-                        pgp_hash_alg_t            hash_alg,
-                        const uint8_t *           hash,
-                        size_t                    hash_len,
-                        const pgp_ec_key_t *      key);
+rnp_result_t verify(const ec::Signature &    sig,
+                    pgp_hash_alg_t           hash_alg,
+                    const rnp::secure_bytes &hash,
+                    const ec::Key &          key);
 
-rnp_result_t sm2_encrypt(rnp::RNG *           rng,
-                         pgp_sm2_encrypted_t *out,
-                         const uint8_t *      in,
-                         size_t               in_len,
-                         pgp_hash_alg_t       hash_algo,
-                         const pgp_ec_key_t * key);
+rnp_result_t encrypt(rnp::RNG &               rng,
+                     Encrypted &              out,
+                     const rnp::secure_bytes &in,
+                     pgp_hash_alg_t           hash_algo,
+                     const ec::Key &          key);
 
-rnp_result_t sm2_decrypt(uint8_t *                  out,
-                         size_t *                   out_len,
-                         const pgp_sm2_encrypted_t *in,
-                         const pgp_ec_key_t *       key);
+rnp_result_t decrypt(rnp::secure_bytes &out, const Encrypted &in, const ec::Key &key);
 #endif // defined(ENABLE_SM2)
+} // namespace sm2
+} // namespace pgp
 
 #endif // SM2_H_

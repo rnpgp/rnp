@@ -32,6 +32,8 @@
 #include <sys/types.h>
 #include "types.h"
 #include "stream-common.h"
+#include "enc_material.hpp"
+#include "fingerprint.hpp"
 
 /* maximum size of the 'small' packet */
 #define PGP_MAX_PKT_SIZE 0x100000
@@ -68,6 +70,7 @@ typedef struct pgp_packet_body_t {
      *  @param len number of available bytes in mem
      */
     pgp_packet_body_t(const uint8_t *data, size_t len);
+    pgp_packet_body_t(const std::vector<uint8_t> &data);
 
     pgp_packet_body_t(const pgp_packet_body_t &src) = delete;
     pgp_packet_body_t(pgp_packet_body_t &&src) = delete;
@@ -77,10 +80,15 @@ typedef struct pgp_packet_body_t {
 
     /** @brief pointer to the data, kept in the packet */
     uint8_t *data() noexcept;
+    /** @brief pointer to the current data pointer */
+    uint8_t *cur() noexcept;
     /** @brief number of bytes, kept in the packet (without the header) */
     size_t size() const noexcept;
     /** @brief number of bytes left to read */
     size_t left() const noexcept;
+    /** @brief skip bytes in packet body */
+    void skip(size_t bt) noexcept;
+    void skip_back(size_t bt) noexcept;
     /** @brief get next byte from the packet body, populated with read() call.
      *  @param val result will be stored here on success
      *  @return true on success or false otherwise (if end of the packet is reached)
@@ -102,23 +110,31 @@ typedef struct pgp_packet_body_t {
      *  @return true on success or false otherwise (if end of the packet is reached)
      **/
     bool get(uint8_t *val, size_t len) noexcept;
+    /**
+     * @brief Get some bytes of data to vector, resizing it accordingly.
+     *
+     * @param len number of bytes to read.
+     */
+    bool get(std::vector<uint8_t> &val, size_t len);
     /** @brief get next keyid from the packet body, populated with read() call.
      *  @param val result will be stored here on success
      *  @return true on success or false otherwise (if end of the packet is reached)
      **/
-    bool get(pgp_key_id_t &val) noexcept;
+    bool get(pgp::KeyID &val) noexcept;
     /** @brief get next mpi from the packet body, populated with read() call.
      *  @param val result will be stored here on success
      *  @return true on success or false otherwise (if end of the packet is reached
      *          or mpi is ill-formed)
      **/
-    bool get(pgp_mpi_t &val) noexcept;
+    bool get(pgp::mpi &val) noexcept;
     /** @brief Read ECC key curve and convert it to pgp_curve_t */
     bool get(pgp_curve_t &val) noexcept;
     /** @brief read s2k from the packet */
     bool get(pgp_s2k_t &s2k) noexcept;
     /** @brief append some bytes to the packet body */
     void add(const void *data, size_t len);
+    /** @brief append some bytes to the packet body */
+    void add(const std::vector<uint8_t> &data);
     /** @brief append single byte to the packet body */
     void add_byte(uint8_t bt);
     /** @brief append big endian 16-bit value to the packet body */
@@ -126,15 +142,15 @@ typedef struct pgp_packet_body_t {
     /** @brief append big endian 32-bit value to the packet body */
     void add_uint32(uint32_t val);
     /** @brief append keyid to the packet body */
-    void add(const pgp_key_id_t &val);
+    void add(const pgp::KeyID &val);
     /** @brief add pgp mpi (including header) to the packet body */
-    void add(const pgp_mpi_t &val);
+    void add(const pgp::mpi &val);
     /**
      * @brief add pgp signature subpackets (including their length) to the packet body
      * @param sig signature, containing subpackets
      * @param hashed whether write hashed or not hashed subpackets
      */
-    void add_subpackets(const pgp_signature_t &sig, bool hashed);
+    void add_subpackets(const pgp::pkt::Signature &sig, bool hashed);
     /** @brief add ec curve description to the packet body */
     void add(const pgp_curve_t curve);
     /** @brief add s2k description to the packet body */
@@ -155,24 +171,31 @@ typedef struct pgp_packet_body_t {
 
 /** public-key encrypted session key packet */
 typedef struct pgp_pk_sesskey_t {
-    unsigned             version{};
-    pgp_key_id_t         key_id{};
+    pgp_pkesk_version_t  version{};
     pgp_pubkey_alg_t     alg{};
     std::vector<uint8_t> material_buf{};
+
+    /* v3 PKESK */
+    pgp::KeyID     key_id{};
+    pgp_symm_alg_t salg;
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* v6 PKESK */
+    pgp::Fingerprint fp;
+#endif
 
     void         write(pgp_dest_t &dst) const;
     rnp_result_t parse(pgp_source_t &src);
     /**
      * @brief Parse encrypted material which is stored in packet in raw.
-     * @param material on success parsed material will be stored here.
-     * @return true on success or false otherwise. May also throw an exception.
+     * @return Parsed material or nullptr. May also throw an exception.
      */
-    bool parse_material(pgp_encrypted_material_t &material) const;
+    std::unique_ptr<pgp::EncMaterial> parse_material() const;
     /**
      * @brief Write encrypted material to the material_buf.
      * @param material populated encrypted material.
      */
-    void write_material(const pgp_encrypted_material_t &material);
+    void write_material(const pgp::EncMaterial &material);
 } pgp_pk_sesskey_t;
 
 /** pkp_sk_sesskey_t */
@@ -182,7 +205,7 @@ typedef struct pgp_sk_sesskey_t {
     pgp_s2k_t      s2k{};
     uint8_t        enckey[PGP_MAX_KEY_SIZE + PGP_AEAD_MAX_TAG_LEN + 1]{};
     unsigned       enckeylen{};
-    /* v5 specific fields */
+    /* v5/v6 specific fields */
     pgp_aead_alg_t aalg{};
     uint8_t        iv[PGP_MAX_BLOCK_SIZE]{};
     unsigned       ivlen{};
@@ -197,7 +220,7 @@ typedef struct pgp_one_pass_sig_t {
     pgp_sig_type_t   type{};
     pgp_hash_alg_t   halg{};
     pgp_pubkey_alg_t palg{};
-    pgp_key_id_t     keyid{};
+    pgp::KeyID       keyid{};
     unsigned         nested{};
 
     void         write(pgp_dest_t &dst) const;
@@ -208,28 +231,16 @@ typedef struct pgp_one_pass_sig_t {
  *  binary blob as it is. It may be distinguished by tag field.
  */
 typedef struct pgp_userid_pkt_t {
-    pgp_pkt_type_t tag;
-    uint8_t *      uid;
-    size_t         uid_len;
+    pgp_pkt_type_t       tag;
+    std::vector<uint8_t> uid;
 
-    pgp_userid_pkt_t() : tag(PGP_PKT_RESERVED), uid(NULL), uid_len(0){};
-    pgp_userid_pkt_t(const pgp_userid_pkt_t &src);
-    pgp_userid_pkt_t(pgp_userid_pkt_t &&src);
-    pgp_userid_pkt_t &operator=(pgp_userid_pkt_t &&src);
-    pgp_userid_pkt_t &operator=(const pgp_userid_pkt_t &src);
-    bool              operator==(const pgp_userid_pkt_t &src) const;
-    bool              operator!=(const pgp_userid_pkt_t &src) const;
-    ~pgp_userid_pkt_t();
+    bool operator==(const pgp_userid_pkt_t &src) const;
+    bool operator!=(const pgp_userid_pkt_t &src) const;
+    pgp_userid_pkt_t() : tag(PGP_PKT_RESERVED){};
 
     void         write(pgp_dest_t &dst) const;
     rnp_result_t parse(pgp_source_t &src);
 } pgp_userid_pkt_t;
-
-uint16_t read_uint16(const uint8_t *buf);
-
-uint32_t read_uint32(const uint8_t *buf);
-
-void write_uint16(uint8_t *buf, uint16_t val);
 
 /** @brief write new packet length
  *  @param buf pre-allocated buffer, must have 5 bytes
@@ -272,7 +283,7 @@ size_t get_partial_pkt_len(uint8_t blen);
  *  @param pktlen packet length will be stored here on success. Cannot be NULL.
  *  @return true on success or false if there is read error or packet length is ill-formed
  **/
-bool stream_read_pkt_len(pgp_source_t *src, size_t *pktlen);
+bool stream_read_pkt_len(pgp_source_t &src, size_t *pktlen);
 
 /** @brief Read partial packet chunk length.
  *

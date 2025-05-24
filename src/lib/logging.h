@@ -58,40 +58,56 @@ class LogStop {
 };
 } // namespace rnp
 
-#define RNP_LOG_FD(fd, ...)                                                  \
-    do {                                                                     \
-        if (!rnp_log_switch())                                               \
-            break;                                                           \
-        (void) fprintf((fd), "[%s() %s:%d] ", __func__, __FILE__, __LINE__); \
-        (void) fprintf((fd), __VA_ARGS__);                                   \
-        (void) fprintf((fd), "\n");                                          \
+/* remove "src" */
+#ifndef SOURCE_PATH_SIZE
+#define SOURCE_PATH_SIZE 0
+#endif
+#define __SOURCE_PATH_FILE__ (&(__FILE__[SOURCE_PATH_SIZE + 3]))
+
+#define RNP_LOG_FD(fd, ...)                                                              \
+    do {                                                                                 \
+        if (!rnp_log_switch())                                                           \
+            break;                                                                       \
+        (void) fprintf((fd), "[%s() %s:%d] ", __func__, __SOURCE_PATH_FILE__, __LINE__); \
+        (void) fprintf((fd), __VA_ARGS__);                                               \
+        (void) fprintf((fd), "\n");                                                      \
     } while (0)
 
 #define RNP_LOG(...) RNP_LOG_FD(stderr, __VA_ARGS__)
 
-#define RNP_LOG_KEY(msg, key)                                                            \
-    do {                                                                                 \
-        if (!(key)) {                                                                    \
-            RNP_LOG(msg, "(null)");                                                      \
-            break;                                                                       \
-        }                                                                                \
-        char                keyid[PGP_KEY_ID_SIZE * 2 + 1] = {0};                        \
-        const pgp_key_id_t &id = key->keyid();                                           \
-        rnp::hex_encode(id.data(), id.size(), keyid, sizeof(keyid), rnp::HEX_LOWERCASE); \
-        RNP_LOG(msg, keyid);                                                             \
+#define RNP_LOG_KEY(msg, key)                                                           \
+    do {                                                                                \
+        if (!(key)) {                                                                   \
+            RNP_LOG(msg, "(null)");                                                     \
+            break;                                                                      \
+        }                                                                               \
+        auto keyid = (key)->keyid();                                                    \
+        auto idhex = bin_to_hex(keyid.data(), keyid.size(), rnp::HexFormat::Lowercase); \
+        RNP_LOG(msg, idhex.c_str());                                                    \
     } while (0)
 
-#define RNP_LOG_KEY_PKT(msg, key)                                                      \
-    do {                                                                               \
-        pgp_key_id_t keyid = {};                                                       \
-        if (pgp_keyid(keyid, (key))) {                                                 \
-            RNP_LOG(msg, "unknown");                                                   \
-            break;                                                                     \
-        };                                                                             \
-        char keyidhex[PGP_KEY_ID_SIZE * 2 + 1] = {0};                                  \
-        rnp::hex_encode(                                                               \
-          keyid.data(), keyid.size(), keyidhex, sizeof(keyidhex), rnp::HEX_LOWERCASE); \
-        RNP_LOG(msg, keyidhex);                                                        \
+#if defined(ENABLE_PQC_DBG_LOG)
+
+#define RNP_LOG_FD_NO_POS_INFO(fd, ...)    \
+    do {                                   \
+        if (!rnp_log_switch())             \
+            break;                         \
+        (void) fprintf((fd), "[LOG] ");    \
+        (void) fprintf((fd), __VA_ARGS__); \
+        (void) fprintf((fd), "\n");        \
     } while (0)
+
+#define RNP_LOG_NO_POS_INFO(...) RNP_LOG_FD_NO_POS_INFO(stderr, __VA_ARGS__)
+
+#define RNP_LOG_U8VEC(msg, vec)                                             \
+    do {                                                                    \
+        if (vec.empty() {                                   \
+            RNP_LOG(msg, "(empty)");                        \
+            break;                                          \
+        }                                                   \
+        auto _tmp_hex_vec = rnp::hex_to_bin(vec, rnp::HexFormat::Lowercase) \
+        RNP_LOG_NO_POS_INFO(msg, _tmp_hex_vec.c_str());                     \
+    } while (0)
+#endif
 
 #endif

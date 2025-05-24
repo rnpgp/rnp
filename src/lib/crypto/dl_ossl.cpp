@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2023 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2024 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -27,9 +27,9 @@
 #include <cstdlib>
 #include <string>
 #include <cassert>
-#include "bn.h"
 #include "dl_ossl.h"
 #include "utils.h"
+#include "ossl_utils.hpp"
 #include <openssl/dh.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -39,200 +39,174 @@
 #endif
 
 #if defined(CRYPTO_BACKEND_OPENSSL3)
-static OSSL_PARAM *
-dl_build_params(bignum_t *p, bignum_t *q, bignum_t *g, bignum_t *y, bignum_t *x)
+static rnp::ossl::Param
+dl_build_params(
+  const rnp::bn &p, const rnp::bn &q, const rnp::bn &g, const rnp::bn &y, const rnp::bn &x)
 {
-    OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
-    if (!bld) {
-        return NULL; // LCOV_EXCL_LINE
+    rnp::ossl::ParamBld bld(OSSL_PARAM_BLD_new());
+    if (!bld || !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_FFC_P, p.c_get()) ||
+        (q && !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_FFC_Q, q.c_get())) ||
+        !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_FFC_G, g.c_get()) ||
+        !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_PUB_KEY, y.c_get()) ||
+        (x && !OSSL_PARAM_BLD_push_BN(bld.get(), OSSL_PKEY_PARAM_PRIV_KEY, x.c_get()))) {
+        return rnp::ossl::Param(); // LCOV_EXCL_LINE
     }
-    if (!OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_P, p) ||
-        (q && !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_Q, q)) ||
-        !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_G, g) ||
-        !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PUB_KEY, y) ||
-        (x && !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY, x))) {
-        /* LCOV_EXCL_START */
-        OSSL_PARAM_BLD_free(bld);
-        return NULL;
-        /* LCOV_EXCL_END */
-    }
-    OSSL_PARAM *param = OSSL_PARAM_BLD_to_param(bld);
-    OSSL_PARAM_BLD_free(bld);
-    return param;
+    return rnp::ossl::Param(OSSL_PARAM_BLD_to_param(bld.get()));
 }
 #endif
 
-EVP_PKEY *
-dl_load_key(const pgp_mpi_t &mp,
-            const pgp_mpi_t *mq,
-            const pgp_mpi_t &mg,
-            const pgp_mpi_t &my,
-            const pgp_mpi_t *mx)
+rnp::ossl::evp::PKey
+dl_load_key(const pgp::mpi &mp,
+            const pgp::mpi *mq,
+            const pgp::mpi &mg,
+            const pgp::mpi &my,
+            const pgp::mpi *mx)
 {
-    EVP_PKEY *evpkey = NULL;
-    rnp::bn   p(mpi2bn(&mp));
-    rnp::bn   q(mq ? mpi2bn(mq) : NULL);
-    rnp::bn   g(mpi2bn(&mg));
-    rnp::bn   y(mpi2bn(&my));
-    rnp::bn   x(mx ? mpi2bn(mx) : NULL);
+    rnp::bn p(mp);
+    rnp::bn q(mq);
+    rnp::bn g(mg);
+    rnp::bn y(my);
+    rnp::bn x(mx);
 
-    if (!p.get() || (mq && !q.get()) || !g.get() || !y.get() || (mx && !x.get())) {
+    if (!p || (mq && !q) || !g || !y || (mx && !x)) {
         /* LCOV_EXCL_START */
         RNP_LOG("out of memory");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
 
 #if defined(CRYPTO_BACKEND_OPENSSL3)
-    OSSL_PARAM *params = dl_build_params(p.get(), q.get(), g.get(), y.get(), x.get());
+    auto params = dl_build_params(p, q, g, y, x);
     if (!params) {
         /* LCOV_EXCL_START */
         RNP_LOG("failed to build dsa params");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_DH, NULL);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_DH, NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("failed to create dl context");
-        OSSL_PARAM_free(params);
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
-    if ((EVP_PKEY_fromdata_init(ctx) != 1) ||
-        (EVP_PKEY_fromdata(
-           ctx, &evpkey, mx ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY, params) != 1)) {
-        /* LCOV_EXCL_START */
-        RNP_LOG("failed to create key from data");
-        evpkey = NULL;
-        /* LCOV_EXCL_END */
+    EVP_PKEY *rawkey = NULL;
+    int       sel = mx ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY;
+    if ((EVP_PKEY_fromdata_init(ctx.get()) != 1) ||
+        (EVP_PKEY_fromdata(ctx.get(), &rawkey, sel, params.get()) != 1)) {
+        RNP_LOG("failed to create key from data"); // LCOV_EXCL_LINE
     }
-    OSSL_PARAM_free(params);
-    EVP_PKEY_CTX_free(ctx);
-    return evpkey;
+    return rnp::ossl::evp::PKey(rawkey);
 #else
-    DH *dh = DH_new();
+    rnp::ossl::DH dh(DH_new());
     if (!dh) {
         /* LCOV_EXCL_START */
         RNP_LOG("out of memory");
-        return NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
     /* line below must not fail */
-    int res = DH_set0_pqg(dh, p.own(), q.own(), g.own());
+    int res = DH_set0_pqg(dh.get(), p.own(), q.own(), g.own());
     assert(res == 1);
     if (res < 1) {
-        goto done;
+        return nullptr;
     }
     /* line below must not fail */
-    res = DH_set0_key(dh, y.own(), x.own());
+    res = DH_set0_key(dh.get(), y.own(), x.own());
     assert(res == 1);
     if (res < 1) {
-        goto done;
+        return nullptr;
     }
 
-    evpkey = EVP_PKEY_new();
+    rnp::ossl::evp::PKey evpkey(EVP_PKEY_new());
     if (!evpkey) {
         /* LCOV_EXCL_START */
         RNP_LOG("allocation failed");
-        goto done;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
-    if (EVP_PKEY_set1_DH(evpkey, dh) <= 0) {
+    if (EVP_PKEY_set1_DH(evpkey.get(), dh.get()) <= 0) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to set key: %lu", ERR_peek_last_error());
-        EVP_PKEY_free(evpkey);
-        evpkey = NULL;
+        return nullptr;
         /* LCOV_EXCL_END */
     }
-done:
-    DH_free(dh);
     return evpkey;
 #endif
 }
 
 #if !defined(CRYPTO_BACKEND_OPENSSL3)
 static rnp_result_t
-dl_validate_secret_key(EVP_PKEY *dlkey, const pgp_mpi_t &mx)
+dl_validate_secret_key(rnp::ossl::evp::PKey &dlkey, const pgp::mpi &mx)
 {
-    const DH *dh = EVP_PKEY_get0_DH(dlkey);
+    auto dh = EVP_PKEY_get0_DH(dlkey.get());
     assert(dh);
-    const bignum_t *p = DH_get0_p(dh);
-    const bignum_t *q = DH_get0_q(dh);
-    const bignum_t *g = DH_get0_g(dh);
-    const bignum_t *y = DH_get0_pub_key(dh);
+    const rnp::bn p(DH_get0_p(dh));
+    rnp::bn       q(DH_get0_q(dh));
+    const rnp::bn g(DH_get0_g(dh));
+    const rnp::bn y(DH_get0_pub_key(dh));
     assert(p && g && y);
-    bignum_t *p1 = NULL;
 
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
-    BN_CTX *  ctx = BN_CTX_new();
-    bignum_t *x = mpi2bn(&mx);
-    bignum_t *cy = bn_new();
+    rnp::ossl::BNCtx ctx(BN_CTX_new());
+    rnp::bn          x(mx);
+    rnp::bn          cy(BN_new());
 
     if (!x || !cy || !ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Allocation failed");
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
     if (!q) {
         /* if q is NULL then group order is (p - 1) / 2 */
-        p1 = BN_dup(p);
+        rnp::bn p1(BN_dup(p.c_get()));
         if (!p1) {
             /* LCOV_EXCL_START */
             RNP_LOG("Allocation failed");
-            goto done;
+            return RNP_ERROR_GENERIC;
             /* LCOV_EXCL_END */
         }
-        int res;
-        res = BN_rshift(p1, p1, 1);
+        int res = BN_rshift(p1.get(), p1.get(), 1);
         assert(res == 1);
         if (res < 1) {
             /* LCOV_EXCL_START */
             RNP_LOG("BN_rshift failed.");
-            goto done;
+            return RNP_ERROR_GENERIC;
             /* LCOV_EXCL_END */
         }
-        q = p1;
+        q = std::move(p1);
     }
-    if (BN_cmp(x, q) != -1) {
+    if (BN_cmp(x.get(), q.c_get()) != -1) {
         RNP_LOG("x is too large.");
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    if (BN_mod_exp_mont_consttime(cy, g, x, p, ctx, NULL) < 1) {
+    BN_CTX_start(ctx.get());
+    if (BN_mod_exp_mont_consttime(cy.get(), g.c_get(), x.c_get(), p.c_get(), ctx.get(), NULL) <
+        1) {
         RNP_LOG("Exponentiation failed");
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
-    if (BN_cmp(cy, y) == 0) {
-        ret = RNP_SUCCESS;
+    if (BN_cmp(cy.get(), y.c_get()) != 0) {
+        return RNP_ERROR_GENERIC;
     }
-done:
-    BN_CTX_free(ctx);
-    bn_free(x);
-    bn_free(cy);
-    bn_free(p1);
-    return ret;
+    return RNP_SUCCESS;
 }
 #endif
 
 rnp_result_t
-dl_validate_key(EVP_PKEY *pkey, const pgp_mpi_t *x)
+dl_validate_key(rnp::ossl::evp::PKey &pkey, const pgp::mpi *x)
 {
-    rnp_result_t  ret = RNP_ERROR_GENERIC;
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, NULL);
+    rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new(pkey.get(), NULL));
     if (!ctx) {
         /* LCOV_EXCL_START */
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
-        goto done;
+        return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    int res;
-    res = EVP_PKEY_param_check(ctx);
+    int res = EVP_PKEY_param_check(ctx.get());
     if (res < 0) {
-        RNP_LOG("Param validation error: %lu (%s)",
-                ERR_peek_last_error(),
-                ERR_reason_error_string(ERR_peek_last_error()));
+        RNP_LOG(
+          "Param validation error: %lu (%s)", ERR_peek_last_error(), rnp::ossl::latest_err());
     }
     if (res < 1) {
         /* ElGamal specification doesn't seem to restrict P to the safe prime */
@@ -241,30 +215,24 @@ dl_validate_key(EVP_PKEY *pkey, const pgp_mpi_t *x)
         if ((ERR_GET_REASON(err) == DH_R_CHECK_P_NOT_SAFE_PRIME)) {
             RNP_LOG("Warning! P is not a safe prime.");
         } else {
-            goto done;
+            return RNP_ERROR_GENERIC;
         }
     }
 #if defined(CRYPTO_BACKEND_OPENSSL3)
-    res = x ? EVP_PKEY_pairwise_check(ctx) : EVP_PKEY_public_check(ctx);
-    if (res == 1) {
-        ret = RNP_SUCCESS;
-    }
+    res = x ? EVP_PKEY_pairwise_check(ctx.get()) : EVP_PKEY_public_check(ctx.get());
+    return res == 1 ? RNP_SUCCESS : RNP_ERROR_GENERIC;
 #else
-    res = EVP_PKEY_public_check(ctx);
+    res = EVP_PKEY_public_check(ctx.get());
     if (res < 0) {
         RNP_LOG("Key validation error: %lu", ERR_peek_last_error());
     }
     if (res < 1) {
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
     /* There is no private key check in OpenSSL yet, so need to check x vs y manually */
     if (!x) {
-        ret = RNP_SUCCESS;
-        goto done;
+        return RNP_SUCCESS;
     }
-    ret = dl_validate_secret_key(pkey, *x);
+    return dl_validate_secret_key(pkey, *x);
 #endif
-done:
-    EVP_PKEY_CTX_free(ctx);
-    return ret;
 }

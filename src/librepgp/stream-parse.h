@@ -34,16 +34,15 @@
 #include "stream-common.h"
 #include "stream-ctx.h"
 #include "stream-packet.h"
+#include "signature.hpp"
 
-typedef struct pgp_parse_handler_t  pgp_parse_handler_t;
-typedef struct pgp_signature_info_t pgp_signature_info_t;
-typedef bool                        pgp_destination_func_t(pgp_parse_handler_t *handler,
-                                                           pgp_dest_t **        dst,
-                                                           bool *               closedst,
-                                                           const char *         filename,
-                                                           uint32_t             mtime);
+typedef struct pgp_parse_handler_t pgp_parse_handler_t;
+typedef bool                       pgp_destination_func_t(pgp_parse_handler_t *    handler,
+                                                          pgp_dest_t **            dst,
+                                                          bool *                   closedst,
+                                                          const pgp_literal_hdr_t *lithdr);
 typedef bool pgp_source_func_t(pgp_parse_handler_t *handler, pgp_source_t *src);
-typedef void pgp_signatures_func_t(const std::vector<pgp_signature_info_t> &sigs, void *param);
+typedef void pgp_signatures_func_t(const std::vector<rnp::SignatureInfo> &sigs, void *param);
 
 typedef void pgp_on_recipients_func_t(const std::vector<pgp_pk_sesskey_t> &recipients,
                                       const std::vector<pgp_sk_sesskey_t> &passwords,
@@ -60,9 +59,9 @@ typedef void pgp_decryption_done_func_t(bool validated, void *param);
 /* handler used to return needed information during pgp source processing */
 typedef struct pgp_parse_handler_t {
     pgp_password_provider_t *password_provider; /* if NULL then default will be used */
-    pgp_key_provider_t *     key_provider; /* must be set when key is required, i.e. during
-                                              signing/verification/public key encryption and
-                                              deryption */
+    rnp::KeyProvider *       key_provider; /* must be set when key is required, i.e. during
+                                                signing/verification/public key encryption and
+                                                decryption */
     pgp_destination_func_t *dest_provider; /* called when destination stream is required */
     pgp_source_func_t *     src_provider;  /* required to provider source during the detached
                                               signature verification */
@@ -108,10 +107,18 @@ rnp_result_t init_literal_src(pgp_source_t *src, pgp_source_t *readsrc);
 
 /* @brief Get the literal data packet information fields (not the OpenPGP packet header)
  * @param src literal data source, initialized with init_literal_src
+ * @return reference to the structure
+ */
+const pgp_literal_hdr_t &get_literal_src_hdr(pgp_source_t &src);
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+/* @brief Get the SEIPDv2 packet information fields (not the OpenPGP packet header)
+ * @param src SEIPDv2-encrypted data source (starting from packet data itself, not the header)
  * @param hdr pointer to header structure, where result will be stored
  * @return true on success or false otherwise
  */
-bool get_literal_src_hdr(pgp_source_t *src, pgp_literal_hdr_t *hdr);
+bool get_seipdv2_src_hdr(pgp_source_t *src, pgp_seipdv2_hdr_t *hdr);
+#endif
 
 /* @brief Get the AEAD-encrypted packet information fields (not the OpenPGP packet header)
  * @param src AEAD-encrypted data source (starting from packet data itself, not the header)

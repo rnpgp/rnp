@@ -35,6 +35,13 @@ RNG::RNG(Type type)
     if (botan_rng_init(&botan_rng, type == Type::DRBG ? "user" : NULL)) {
         throw rnp::rnp_exception(RNP_ERROR_RNG);
     }
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+    if (type == Type::DRBG) {
+        botan_rng_obj.reset(new Botan::AutoSeeded_RNG);
+    } else {
+        botan_rng_obj.reset(new Botan::System_RNG);
+    }
+#endif
 }
 
 RNG::~RNG()
@@ -56,4 +63,12 @@ RNG::handle()
 {
     return botan_rng;
 }
+
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+Botan::RandomNumberGenerator *
+RNG::obj() const
+{
+    return botan_rng_obj.get();
+}
+#endif
 } // namespace rnp

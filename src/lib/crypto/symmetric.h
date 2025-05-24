@@ -69,6 +69,12 @@
 /* Maximum AEAD nonce length */
 #define PGP_AEAD_MAX_NONCE_LEN 16
 
+#ifdef ENABLE_CRYPTO_REFRESH
+#define PGP_AEAD_MAX_NONCE_OR_SALT_LEN PGP_SEIPDV2_SALT_LEN
+#else
+#define PGP_AEAD_MAX_NONCE_OR_SALT_LEN PGP_AEAD_MAX_NONCE_LEN
+#endif
+
 /* Authentication tag len for AEAD/EAX and AEAD/OCB */
 #define PGP_AEAD_EAX_OCB_TAG_LEN 16
 
@@ -97,12 +103,12 @@ struct pgp_crypt_aead_param_t {
     struct botan_cipher_struct *obj;
 #endif
 #ifdef CRYPTO_BACKEND_OPENSSL
-    EVP_CIPHER_CTX *             obj;
-    const EVP_CIPHER *           cipher;
-    rnp::secure_vector<uint8_t> *key;
-    uint8_t                      ad[PGP_AEAD_MAX_AD_LEN];
-    size_t                       ad_len;
-    size_t                       n_len;
+    EVP_CIPHER_CTX *   obj;
+    const EVP_CIPHER * cipher;
+    rnp::secure_bytes *key;
+    uint8_t            ad[PGP_AEAD_MAX_AD_LEN];
+    size_t             ad_len;
+    size_t             n_len;
 #endif
     pgp_aead_alg_t alg;
     bool           decrypt;
@@ -124,10 +130,11 @@ typedef struct pgp_crypt_t {
     rnp::RNG *     rng;
 } pgp_crypt_t;
 
-unsigned pgp_block_size(pgp_symm_alg_t);
-unsigned pgp_key_size(pgp_symm_alg_t);
-bool     pgp_is_sa_supported(int alg, bool silent = false);
-size_t   pgp_cipher_block_size(pgp_crypt_t *crypt);
+size_t pgp_block_size(pgp_symm_alg_t);
+size_t pgp_key_size(pgp_symm_alg_t);
+bool   pgp_is_sa_supported(int alg, bool silent = false);
+bool   pgp_is_sa_aes(pgp_symm_alg_t alg);
+size_t pgp_cipher_block_size(pgp_crypt_t *crypt);
 
 /**
  * Initialize a cipher object.
@@ -145,6 +152,8 @@ int pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, 
 int pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t len);
 
 void pgp_cipher_cfb_resync(pgp_crypt_t *crypt, const uint8_t *buf);
+
+int pgp_cipher_encrypt_block(pgp_crypt_t *crypt, uint8_t *iv, size_t blsize);
 
 #if defined(ENABLE_AEAD)
 /** @brief Initialize AEAD cipher instance
@@ -205,10 +214,12 @@ bool pgp_cipher_aead_start(pgp_crypt_t *crypt, const uint8_t *nonce, size_t len)
  *             len bytes
  *  @param in buffer with input, cannot be NULL
  *  @param len number of bytes to process. Should be multiple of update granularity.
+ *  @param read number of bytes read and processed, in rare cases could be less then len.
  *  @return true on success or false otherwise. On success exactly len processed bytes will be
  *          stored in out buffer
  */
-bool pgp_cipher_aead_update(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t len);
+bool pgp_cipher_aead_update(
+  pgp_crypt_t &crypt, uint8_t *out, const uint8_t *in, size_t len, size_t &read);
 
 /** @brief Do final update on the cipher. For decryption final chunk should contain at least
  *         authentication tag, for encryption input could be zero-size.

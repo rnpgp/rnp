@@ -15,6 +15,7 @@ on:
       - '**.md'
       - '**.nix'
       - 'flake.lock'
+      - 'version.txt'
       - '.github/workflows/*.yml'
       - '!.github/workflows/debian.yml'
   pull_request:
@@ -28,6 +29,7 @@ on:
       - '**.md'
       - '**.nix'
       - 'flake.lock'
+      - 'version.txt'
 
 concurrency:
   group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
@@ -67,13 +69,13 @@ jobs:
     steps:
       - name: Checkout on x86_x64
         if: matrix.image.cpu == 'x86_64'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: true
 
       - name: Checkout on i386
         if: matrix.image.cpu == 'i386'
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
         with:
           submodules: true
 

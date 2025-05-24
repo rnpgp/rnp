@@ -50,8 +50,11 @@
 #define CFG_NEEDSSECKEY "needsseckey"    /* needs secret key for the ongoing operation */
 #define CFG_USERID "userid"              /* userid for the ongoing operation */
 #define CFG_RECIPIENTS "recipients"      /* list of encrypted data recipients */
-#define CFG_SIGNERS "signers"            /* list of signers */
-#define CFG_HOMEDIR "homedir"            /* home directory - folder with keyrings and so on */
+#if defined(ENABLE_CRYPTO_REFRESH)
+#define CFG_V3_PKESK_ONLY "v3-pkesk-only" /* disable v6 PKESK */
+#endif
+#define CFG_SIGNERS "signers"     /* list of signers */
+#define CFG_HOMEDIR "homedir"     /* home directory - folder with keyrings and so on */
 #define CFG_KEYFILE "keyfile"     /* path to the file with key(s), used instead of keyring */
 #define CFG_PASSFD "pass-fd"      /* password file descriptor */
 #define CFG_PASSWD "password"     /* password as command-line constant */
@@ -63,6 +66,7 @@
 #define CFG_CIPHER "cipher"             /* symmetric encryption algorithm as string */
 #define CFG_HASH "hash"                 /* hash algorithm used, string like 'SHA1'*/
 #define CFG_WEAK_HASH "weak-hash"       /* allow weak algorithms */
+#define CFG_ALLOW_SHA1 "allow-sha1"     /* allow SHA-1 key signatures */
 #define CFG_S2K_ITER "s2k-iter"         /* number of S2K hash iterations to perform */
 #define CFG_S2K_MSEC "s2k-msec"         /* number of milliseconds S2K should target */
 #define CFG_ENCRYPT_PK "encrypt_pk"     /* public key should be used during encryption */
@@ -72,7 +76,7 @@
 #define CFG_EXPERT "expert"             /* expert key generation mode */
 #define CFG_ZLEVEL "zlevel"             /* compression level: 0..9 (0 for no compression) */
 #define CFG_ZALG "zalg"                 /* compression algorithm: zip, zlib or bzip2 */
-#define CFG_AEAD "aead"                 /* if nonzero then AEAD enryption mode, int */
+#define CFG_AEAD "aead"                 /* if nonzero then AEAD encryption mode, int */
 #define CFG_AEAD_CHUNK "aead_chunk"     /* AEAD chunk size bits, int from 0 to 56 */
 #define CFG_KEYSTORE_DISABLED \
     "disable_keystore"              /* indicates whether keystore must be initialized */
@@ -92,8 +96,10 @@
 #define CFG_ADD_SUBKEY "add-subkey"           /* add subkey to existing primary */
 #define CFG_SET_KEY_EXPIRE "key-expire"       /* set/update key expiration time */
 #define CFG_SOURCE "source"                   /* source for the detached signature */
-#define CFG_NOWRAP "no-wrap"            /* do not wrap the output in a literal data packet */
-#define CFG_CURTIME "curtime"           /* date or timestamp to override the system's time */
+#define CFG_NOWRAP "no-wrap"  /* do not wrap the output in a literal data packet */
+#define CFG_CURTIME "curtime" /* date or timestamp to override the system's time */
+#define CFG_ALLOW_OLD_CIPHERS \
+    "allow-old-ciphers" /* Allow to use 64-bit ciphers (CAST5, 3DES, IDEA, BLOWFISH) */
 #define CFG_ALLOW_HIDDEN "allow-hidden" /* allow hidden recipients */
 
 /* rnp keyring setup variables */
@@ -112,10 +118,28 @@
 #define CFG_KG_SUBKEY_BITS "kg-subkey-bits"
 #define CFG_KG_SUBKEY_CURVE "kg-subkey-curve"
 #define CFG_KG_SUBKEY_EXPIRATION "kg-subkey-expiration"
+#if defined(ENABLE_PQC)
+#define CFG_KG_SUBKEY_2_ALG "kg-subkey-2-alg"
+#define CFG_KG_SUBKEY_2_BITS "kg-subkey-2-bits"
+#define CFG_KG_SUBKEY_2_CURVE "kg-subkey-2-curve"
+#define CFG_KG_SUBKEY_2_EXPIRATION "kg-subkey-2-expiration"
+#endif
 #define CFG_KG_HASH "kg-hash"
 #define CFG_KG_PROT_HASH "kg-prot-hash"
 #define CFG_KG_PROT_ALG "kg-prot-alg"
 #define CFG_KG_PROT_ITERATIONS "kg-prot-iterations"
+#if defined(ENABLE_CRYPTO_REFRESH)
+#define CFG_KG_V6_KEY \
+    "kg-v6-key" /* represents a boolean property: non-empty string means 'true' */
+#endif
+#if defined(ENABLE_PQC)
+#define CFG_KG_PRIMARY_SPHINCSPLUS_PARAM \
+    "kg-primary-sphincsplus-param" /* 128f, 128s, 192f, 192s, 256f, 256s */
+#define CFG_KG_SUBKEY_SPHINCSPLUS_PARAM \
+    "kg-subkey-sphincsplus-param" /* 128f, 128s, 192f, 192s, 256f, 256s */
+#define CFG_KG_SUBKEY_2_SPHINCSPLUS_PARAM \
+    "kg-subkey-2-sphincsplus-param" /* 128f, 128s, 192f, 192s, 256f, 256s */
+#endif
 
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration
  * options */
@@ -174,6 +198,8 @@ class rnp_cfg {
     int get_pswdtries() const;
     /** @brief get hash algorithm */
     const std::string get_hashalg() const;
+    /** @brief get cipher algorithm */
+    const std::string get_cipher() const;
 
     /** @brief Get expiration time from the cfg variable, as value relative to the current
      * time. As per OpenPGP standard it should fit in 32 bit value, otherwise error is

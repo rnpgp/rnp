@@ -49,6 +49,7 @@
 #cmakedefine HAVE_O_BINARY
 #cmakedefine HAVE__O_BINARY
 #cmakedefine HAVE__TEMPNAM
+#cmakedefine HAVE_WIN_STAT
 
 #cmakedefine CRYPTO_BACKEND_BOTAN
 #cmakedefine CRYPTO_BACKEND_BOTAN3
@@ -61,6 +62,8 @@
 #cmakedefine ENABLE_TWOFISH
 #cmakedefine ENABLE_BRAINPOOL
 #cmakedefine ENABLE_IDEA
+#cmakedefine ENABLE_CRYPTO_REFRESH
+#cmakedefine ENABLE_PQC
 #cmakedefine ENABLE_BLOWFISH
 #cmakedefine ENABLE_CAST5
 #cmakedefine ENABLE_RIPEMD160
@@ -71,4 +74,11 @@
     (defined(WIN32) && !defined(MSYS)) || \
     ((defined(__clang__) && (__clang_major__ >= 4)))
 #define RNP_USE_STD_REGEX 1
+#endif
+
+/* do not use the statement for old MSVC versions */
+#if (!defined(_MSVC_LANG) || _MSVC_LANG >= 201703L)
+# define FALLTHROUGH_STATEMENT [[fallthrough]]
+#else
+# define FALLTHROUGH_STATEMENT
 #endif

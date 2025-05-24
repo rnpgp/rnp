@@ -292,8 +292,8 @@ rnp_cfg::get_list(const std::string &key) const
 int
 rnp_cfg::get_pswdtries() const
 {
-    const std::string &numtries = get_str(CFG_NUMTRIES);
-    int                num = atoi(numtries.c_str());
+    auto &numtries = get_str(CFG_NUMTRIES);
+    int   num = atoi(numtries.c_str());
     if (numtries.empty() || (num <= 0)) {
         return MAX_PASSWORD_ATTEMPTS;
     } else if (numtries == "unlimited") {
@@ -305,11 +305,21 @@ rnp_cfg::get_pswdtries() const
 const std::string
 rnp_cfg::get_hashalg() const
 {
-    const std::string hash_alg = get_str(CFG_HASH);
+    auto &hash_alg = get_str(CFG_HASH);
     if (!hash_alg.empty()) {
         return hash_alg;
     }
     return DEFAULT_HASH_ALG;
+}
+
+const std::string
+rnp_cfg::get_cipher() const
+{
+    auto &cipher_alg = get_str(CFG_CIPHER);
+    if (!cipher_alg.empty()) {
+        return cipher_alg;
+    }
+    return DEFAULT_SYMM_ALG;
 }
 
 bool
@@ -518,6 +528,7 @@ rnp_cfg::parse_date(const std::string &s, uint64_t &t) const
     tm.tm_min = 0;
     tm.tm_sec = 0;
     const char *reg = "^([0-9]{4})[-/\\.]([0-9]{2})[-/\\.]([0-9]{2})$";
+    int         year = 0, mon = 0, mday = 0;
 #ifndef RNP_USE_STD_REGEX
     static regex_t r;
     static int     compiled;
@@ -525,27 +536,36 @@ rnp_cfg::parse_date(const std::string &s, uint64_t &t) const
     if (!compiled) {
         compiled = 1;
         if (regcomp(&r, reg, REG_EXTENDED)) {
+            /* LCOV_EXCL_START */
             RNP_LOG("failed to compile regexp");
             return false;
+            /* LCOV_EXCL_END */
         }
     }
     regmatch_t matches[4];
     if (regexec(&r, s.c_str(), ARRAY_SIZE(matches), matches, 0)) {
         return false;
     }
-    int year = strtol(&s[matches[1].rm_so], NULL, 10);
-    int mon = strtol(&s[matches[2].rm_so], NULL, 10);
-    int mday = strtol(&s[matches[3].rm_so], NULL, 10);
+    year = strtol(&s[matches[1].rm_so], NULL, 10);
+    mon = strtol(&s[matches[2].rm_so], NULL, 10);
+    mday = strtol(&s[matches[3].rm_so], NULL, 10);
 #else
-    static std::regex re(reg, std::regex_constants::extended);
-    std::smatch       result;
+    try {
+        static std::regex re(reg, std::regex_constants::extended);
+        std::smatch       result;
 
-    if (!std::regex_search(s, result, re)) {
+        if (!std::regex_search(s, result, re)) {
+            return false;
+        }
+        year = std::stoi(result[1].str());
+        mon = std::stoi(result[2].str());
+        mday = std::stoi(result[3].str());
+    } catch (const std::exception &e) {
+        /* LCOV_EXCL_START */
+        RNP_LOG("got regex exception: %s", e.what());
         return false;
+        /* LCOV_EXCL_END */
     }
-    int year = std::stoi(result[1].str());
-    int mon = std::stoi(result[2].str());
-    int mday = std::stoi(result[3].str());
 #endif
     if (year < 1970 || mon < 1 || mon > 12 || !mday || (mday > days_in_month(year, mon))) {
         RNP_LOG("invalid date: %s.", s.c_str());

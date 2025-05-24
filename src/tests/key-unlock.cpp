@@ -24,9 +24,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "../librekey/key_store_pgp.h"
 #include "../librepgp/stream-ctx.h"
-#include "pgp-key.h"
+#include "key.hpp"
 #include "ffi-priv-types.h"
 #include "rnp_tests.h"
 #include "support.h"
@@ -87,10 +86,7 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     rnp_buffer_destroy(alg);
 
     // confirm the secret MPIs are NULL
-    assert_true(mpi_empty(key->sec->material().rsa.d));
-    assert_true(mpi_empty(key->sec->material().rsa.p));
-    assert_true(mpi_empty(key->sec->material().rsa.q));
-    assert_true(mpi_empty(key->sec->material().rsa.u));
+    assert_true(rsa_sec_empty(*key->sec->material()));
 
     // try to unlock with a failing password provider
     provider.callback = failing_password_callback;
@@ -115,10 +111,7 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     assert_false(locked);
 
     // confirm the secret MPIs are now filled in
-    assert_false(mpi_empty(key->sec->material().rsa.d));
-    assert_false(mpi_empty(key->sec->material().rsa.p));
-    assert_false(mpi_empty(key->sec->material().rsa.q));
-    assert_false(mpi_empty(key->sec->material().rsa.u));
+    assert_true(rsa_sec_filled(*key->sec->material()));
 
     // now the signing key is unlocked, confirm that no password is required for signing
     assert_rnp_success(

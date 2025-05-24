@@ -1,10 +1,6 @@
-/*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+/*-
+ * Copyright (c) 2017-2024 Ribose Inc.
  * All rights reserved.
- *
- * This code is originally derived from software contributed to
- * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
- * carried further by Ribose Inc (https://www.ribose.com).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,57 +30,69 @@
 #include <rnp/rnp_def.h>
 #include <repgp/repgp_def.h>
 #include "crypto/rng.h"
-#include "crypto/mpi.h"
+#include "crypto/mpi.hpp"
+#include "mem.h"
 
-typedef struct pgp_rsa_key_t {
-    pgp_mpi_t n;
-    pgp_mpi_t e;
+namespace pgp {
+namespace rsa {
+
+class Signature {
+  public:
+    mpi s{};
+};
+
+class Encrypted {
+  public:
+    mpi m;
+};
+
+class Key {
+  public:
+    mpi n{};
+    mpi e{};
     /* secret mpis */
-    pgp_mpi_t d;
-    pgp_mpi_t p;
-    pgp_mpi_t q;
-    pgp_mpi_t u;
-} pgp_rsa_key_t;
+    mpi d{};
+    mpi p{};
+    mpi q{};
+    mpi u{};
 
-typedef struct pgp_rsa_signature_t {
-    pgp_mpi_t s;
-} pgp_rsa_signature_t;
+    void
+    clear_secret()
+    {
+        d.forget();
+        p.forget();
+        q.forget();
+        u.forget();
+    }
 
-typedef struct pgp_rsa_encrypted_t {
-    pgp_mpi_t m;
-} pgp_rsa_encrypted_t;
+    ~Key()
+    {
+        clear_secret();
+    }
 
-/*
- * RSA encrypt/decrypt
- */
+    rnp_result_t validate(rnp::RNG &rng, bool secret) const noexcept;
 
-rnp_result_t rsa_validate_key(rnp::RNG *rng, const pgp_rsa_key_t *key, bool secret);
+    rnp_result_t generate(rnp::RNG &rng, size_t numbits) noexcept;
 
-rnp_result_t rsa_generate(rnp::RNG *rng, pgp_rsa_key_t *key, size_t numbits);
+    rnp_result_t encrypt_pkcs1(rnp::RNG &               rng,
+                               Encrypted &              out,
+                               const rnp::secure_bytes &in) const noexcept;
 
-rnp_result_t rsa_encrypt_pkcs1(rnp::RNG *           rng,
-                               pgp_rsa_encrypted_t *out,
-                               const uint8_t *      in,
-                               size_t               in_len,
-                               const pgp_rsa_key_t *key);
+    rnp_result_t decrypt_pkcs1(rnp::RNG &         rng,
+                               rnp::secure_bytes &out,
+                               const Encrypted &  in) const noexcept;
 
-rnp_result_t rsa_decrypt_pkcs1(rnp::RNG *                 rng,
-                               uint8_t *                  out,
-                               size_t *                   out_len,
-                               const pgp_rsa_encrypted_t *in,
-                               const pgp_rsa_key_t *      key);
+    rnp_result_t verify_pkcs1(const Signature &        sig,
+                              pgp_hash_alg_t           hash_alg,
+                              const rnp::secure_bytes &hash) const noexcept;
 
-rnp_result_t rsa_verify_pkcs1(const pgp_rsa_signature_t *sig,
-                              pgp_hash_alg_t             hash_alg,
-                              const uint8_t *            hash,
-                              size_t                     hash_len,
-                              const pgp_rsa_key_t *      key);
+    rnp_result_t sign_pkcs1(rnp::RNG &               rng,
+                            Signature &              sig,
+                            pgp_hash_alg_t           hash_alg,
+                            const rnp::secure_bytes &hash) const noexcept;
+};
 
-rnp_result_t rsa_sign_pkcs1(rnp::RNG *           rng,
-                            pgp_rsa_signature_t *sig,
-                            pgp_hash_alg_t       hash_alg,
-                            const uint8_t *      hash,
-                            size_t               hash_len,
-                            const pgp_rsa_key_t *key);
+} // namespace rsa
+} // namespace pgp
 
 #endif

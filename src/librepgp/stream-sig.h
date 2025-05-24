@@ -33,45 +33,51 @@
 #include "rnp.h"
 #include "stream-common.h"
 #include "stream-packet.h"
+#include "sig_subpacket.hpp"
+#include "sig_material.hpp"
 
-typedef struct pgp_signature_t {
+namespace pgp {
+namespace pkt {
+
+class Signature {
   private:
     pgp_sig_type_t       type_;
-    std::vector<uint8_t> preferred(pgp_sig_subpacket_type_t type) const;
-    void set_preferred(const std::vector<uint8_t> &data, pgp_sig_subpacket_type_t type);
-    rnp_result_t parse_v3(pgp_packet_body_t &pkt);
-    rnp_result_t parse_v4(pgp_packet_body_t &pkt);
-    bool         parse_subpackets(uint8_t *buf, size_t len, bool hashed);
+    std::vector<uint8_t> preferred(sigsub::Type type) const;
+    void                 set_preferred(const std::vector<uint8_t> &data, sigsub::Type type);
+    rnp_result_t         parse_v2v3(pgp_packet_body_t &pkt);
+    rnp_result_t         parse_v4up(pgp_packet_body_t &pkt);
+    bool                 get_subpkt_len(pgp_packet_body_t &pkt, size_t &len);
+    bool                 parse_subpackets(uint8_t *buf, size_t len, bool hashed);
+    static bool          version_supported(pgp_version_t version);
+
+    const sigsub::RevocationKey *revoker_subpkt() const noexcept;
 
   public:
     pgp_version_t version;
     /* common v3 and v4 fields */
-    pgp_pubkey_alg_t palg;
-    pgp_hash_alg_t   halg;
-    uint8_t          lbits[2];
-    uint8_t *        hashed_data;
-    size_t           hashed_len;
-    uint8_t *        material_buf; /* raw signature material */
-    size_t           material_len; /* raw signature material length */
+    pgp_pubkey_alg_t       palg;
+    pgp_hash_alg_t         halg;
+    std::array<uint8_t, 2> lbits{};
+    std::vector<uint8_t>   hashed_data;
+    std::vector<uint8_t>   material_buf; /* raw signature material */
 
     /* v3 - only fields */
-    uint32_t     creation_time;
-    pgp_key_id_t signer;
+    uint32_t creation_time;
+    KeyID    signer{};
 
-    /* v4 - only fields */
-    std::vector<pgp_sig_subpkt_t> subpkts;
+    /* common v4, v5 and v6 fields */
+    sigsub::List subpkts;
 
-    pgp_signature_t()
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* v6 - only fields */
+    std::vector<uint8_t> salt;
+#endif
+
+    Signature()
         : type_(PGP_SIG_BINARY), version(PGP_VUNKNOWN), palg(PGP_PKA_NOTHING),
-          halg(PGP_HASH_UNKNOWN), hashed_data(NULL), hashed_len(0), material_buf(NULL),
-          material_len(0), creation_time(0){};
-    pgp_signature_t(const pgp_signature_t &src);
-    pgp_signature_t(pgp_signature_t &&src);
-    pgp_signature_t &operator=(pgp_signature_t &&src);
-    pgp_signature_t &operator=(const pgp_signature_t &src);
-    bool             operator==(const pgp_signature_t &src) const;
-    bool             operator!=(const pgp_signature_t &src) const;
-    ~pgp_signature_t();
+          halg(PGP_HASH_UNKNOWN), creation_time(0){};
+    bool operator==(const Signature &src) const;
+    bool operator!=(const Signature &src) const;
 
     /* @brief Get signature's type */
     pgp_sig_type_t
@@ -92,20 +98,23 @@ typedef struct pgp_signature_t {
     };
 
     /** @brief Calculate the unique signature identifier by hashing signature's fields. */
-    pgp_sig_id_t get_id() const;
+    SigID get_id() const;
 
+    size_t find_subpkt(uint8_t type, bool hashed = true, size_t skip = 0) const;
+    size_t find_subpkt(sigsub::Type type, bool hashed = true, size_t skip = 0) const;
     /**
-     * @brief Get v4 signature's subpacket of the specified type and hashedness.
+     * @brief Get v4 and up signature's subpacket of the specified type and hashedness.
      * @param stype subpacket type.
-     * @param hashed If true (default), then will search for subpacket only in hashed (i.e.
-     * covered by signature) area, otherwise will search in both hashed and non-hashed areas.
-     * @return pointer to the subpacket, or NULL if subpacket was not found.
+     * @param hashed whether subpacket must be in hashed area on in any area.
+     * @return pointer to the subpacket, or nullptr if subpacket was not found.
      */
-    pgp_sig_subpkt_t *      get_subpkt(pgp_sig_subpacket_type_t stype, bool hashed = true);
-    const pgp_sig_subpkt_t *get_subpkt(pgp_sig_subpacket_type_t stype,
-                                       bool                     hashed = true) const;
+    sigsub::Raw *      get_subpkt(uint8_t stype, bool hashed = true);
+    const sigsub::Raw *get_subpkt(uint8_t stype, bool hashed = true) const;
+    sigsub::Raw *      get_subpkt(sigsub::Type type, bool hashed = true);
+    const sigsub::Raw *get_subpkt(sigsub::Type type, bool hashed = true) const;
+
     /* @brief Check whether v4 signature has subpacket of the specified type/hashedness */
-    bool has_subpkt(pgp_sig_subpacket_type_t stype, bool hashed = true) const;
+    bool has_subpkt(uint8_t stype, bool hashed = true) const;
     /* @brief Check whether signature has signing key id (via v3 field, or v4 key id/key fp
      * subpacket) */
     bool has_keyid() const;
@@ -113,10 +122,10 @@ typedef struct pgp_signature_t {
      * @brief Get signer's key id if available. Availability may be checked via has_keyid().
      * @return signer's key id if available, or empty (zero-filled) keyid otherwise.
      */
-    pgp_key_id_t keyid() const noexcept;
+    KeyID keyid() const noexcept;
     /** @brief Set the signer's key id for the signature being populated. Version should be set
      *         prior of setting key id. */
-    void set_keyid(const pgp_key_id_t &id);
+    void set_keyid(const KeyID &id);
     /**
      * @brief Check whether signature has valid issuer fingerprint subpacket.
      * @return true if there is one, and it can be safely returned via keyfp() method or false
@@ -128,11 +137,11 @@ typedef struct pgp_signature_t {
      *        has_keyfp() method.
      * @return fingerprint (or empty zero-size fp in case it is unavailable)
      */
-    pgp_fingerprint_t keyfp() const noexcept;
+    Fingerprint keyfp() const noexcept;
 
     /** @brief Set signing key's fingerprint. Works only for signatures with version 4 and up,
      *         so version should be set prior to fingerprint. */
-    void set_keyfp(const pgp_fingerprint_t &fp);
+    void set_keyfp(const Fingerprint &fp);
 
     /**
      * @brief Get signature's creation time
@@ -220,6 +229,16 @@ typedef struct pgp_signature_t {
      *         corresponding subpacket is deleted. */
     void set_preferred_z_algs(const std::vector<uint8_t> &algs);
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /** @brief Get preferred AEAD algorithms if any. If there are no ones then empty
+     *         vector is returned.*/
+    std::vector<uint8_t> preferred_aead_algs() const;
+
+    /** @brief Set the preferred AEAD algorithms. If empty vector is passed then
+     *         corresponding subpacket is deleted. */
+    void set_preferred_aead_algs(const std::vector<uint8_t> &algs);
+#endif
+
     /** @brief Get key server preferences flags. If subpacket is not available then 0 is
      *         returned. */
     uint8_t key_server_prefs() const;
@@ -269,12 +288,17 @@ typedef struct pgp_signature_t {
      */
     pgp_revocation_type_t revocation_code() const;
 
+    /**
+     * @brief Check whether signature has revocation reason and code subpacket.
+     */
+    bool has_revocation_reason() const;
+
     /** @brief Set the revocation reason and code for key/subkey revocation signature. See the
      *         RFC 4880, 5.2.3.24 for the detailed explanation.
      */
     void set_revocation_reason(pgp_revocation_type_t code, const std::string &reason);
 
-    pgp_key_feature_t key_get_features() const;
+    uint32_t key_get_features() const;
 
     /**
      * @brief Check whether signer's key supports certain feature(s). Makes sense only for
@@ -284,14 +308,14 @@ typedef struct pgp_signature_t {
      * @return true if key is claimed to support all of the features listed in flags, or false
      *         otherwise
      */
-    bool key_has_features(pgp_key_feature_t flags) const;
+    bool key_has_features(uint32_t flags) const;
 
     /**
      * @brief Set the features supported by the signer's key, makes sense only for
      *        self-signature. For more details see the RFC 4880bis, 5.2.3.25.
      * @param flags one or more flags, combined via bitwise OR operation.
      */
-    void set_key_features(pgp_key_feature_t flags);
+    void set_key_features(uint32_t flags);
 
     /** @brief Get signer's user id, if available. Otherwise empty string is returned. See the
      *         RFC 4880bis, 5.2.3.23 for details.
@@ -299,7 +323,7 @@ typedef struct pgp_signature_t {
     std::string signer_uid() const;
 
     /**
-     * @brief Set the signer's uid, responcible for the signature creation. See the RFC
+     * @brief Set the signer's uid, responsible for the signature creation. See the RFC
      *        4880bis, 5.2.3.23 for details.
      */
     void set_signer_uid(const std::string &uid);
@@ -323,23 +347,39 @@ typedef struct pgp_signature_t {
      * @brief Set the embedded signature.
      * @param esig populated and calculated embedded signature.
      */
-    void set_embedded_sig(const pgp_signature_t &esig);
+    void set_embedded_sig(const Signature &esig);
 
     /**
-     * @brief Add subpacket of the specified type to v4 signature
-     * @param type type of the subpacket
-     * @param datalen length of the subpacket body
-     * @param reuse replace already existing subpacket of the specified type if any
+     * @brief Check whether signature includes revocation key subpacket.
+     */
+    bool has_revoker() const noexcept;
+
+    /**
+     * @brief Get the revocation key fingerprint, if it is available. Otherwise empty
+     * fingerprint will be returned.
+     */
+    Fingerprint revoker() const noexcept;
+
+    /**
+     * @brief Set the revocation key.
+     *
+     * @param revoker revoker's key packet.
+     */
+    void set_revoker(const rnp::Key &revoker, bool sensitive = false);
+
+    /**
+     * @brief Add subpacket to v4 and up signature
+     * @param sub pointer to the subpacket object.
+     * @param replace replace already existing subpacket of the specified type if any
      * @return reference to the subpacket structure or throws an exception
      */
-    pgp_sig_subpkt_t &add_subpkt(pgp_sig_subpacket_type_t type, size_t datalen, bool reuse);
+    void add_subpkt(std::unique_ptr<sigsub::Raw> &&sub, bool replace = true);
 
     /**
      * @brief Remove signature's subpacket
-     * @param subpkt subpacket to remove. If not in the subpackets list then no action is
-     * taken.
+     * @param idx Index of the subpacket in list.
      */
-    void remove_subpkt(pgp_sig_subpkt_t *subpkt);
+    void remove_subpkt(size_t idx);
 
     /**
      * @brief Check whether signature packet matches one-pass signature packet.
@@ -370,60 +410,55 @@ typedef struct pgp_signature_t {
      * @param material on success parsed material will be stored here.
      * @return true on success or false otherwise. May also throw an exception.
      */
-    bool parse_material(pgp_signature_material_t &material) const;
+    std::unique_ptr<SigMaterial> parse_material() const;
 
     /**
      * @brief Write signature to the destination. May throw an exception.
      */
-    void write(pgp_dest_t &dst) const;
+    void                 write(pgp_dest_t &dst, bool hdr = true) const;
+    std::vector<uint8_t> write(bool hdr = true) const;
 
     /**
      * @brief Write the signature material's raw representation. May throw an exception.
      *
      * @param material populated signature material.
      */
-    void write_material(const pgp_signature_material_t &material);
+    void write_material(const SigMaterial &material);
 
     /**
      * @brief Fill signature's hashed data. This includes all the fields from signature which
      * are hashed after the previous document or key fields.
      */
     void fill_hashed_data();
-} pgp_signature_t;
+};
 
-typedef std::vector<pgp_signature_t> pgp_signature_list_t;
+using Signatures = std::vector<Signature>;
 
-/* information about the validated signature */
-typedef struct pgp_signature_info_t {
-    pgp_signature_t *sig{};     /* signature, or NULL if there were parsing error */
-    bool             valid{};   /* signature is cryptographically valid (but may be expired) */
-    bool             unknown{}; /* signature is unknown - parsing error, wrong version, etc */
-    bool             no_signer{};     /* no signer's public key available */
-    bool             expired{};       /* signature is expired */
-    bool             signer_valid{};  /* assume that signing key is valid */
-    bool             ignore_expiry{}; /* ignore signer's key expiration time */
-} pgp_signature_info_t;
+} // namespace pkt
+} // namespace pgp
 
 /**
  * @brief Hash key packet. Used in signatures and v4 fingerprint calculation.
  *        Throws exception on error.
  * @param key key packet, must be populated
  * @param hash initialized hash context
+ * @param pgpver for fingerprint calculation, the key version is required,
+ * otherwise the signature version is required
  */
-void signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash);
+void signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash, pgp_version_t pgpver);
 
 void signature_hash_userid(const pgp_userid_pkt_t &uid, rnp::Hash &hash, pgp_version_t sigver);
 
-std::unique_ptr<rnp::Hash> signature_hash_certification(const pgp_signature_t & sig,
-                                                        const pgp_key_pkt_t &   key,
-                                                        const pgp_userid_pkt_t &userid);
+std::unique_ptr<rnp::Hash> signature_hash_certification(const pgp::pkt::Signature &sig,
+                                                        const pgp_key_pkt_t &      key,
+                                                        const pgp_userid_pkt_t &   userid);
 
-std::unique_ptr<rnp::Hash> signature_hash_binding(const pgp_signature_t &sig,
-                                                  const pgp_key_pkt_t &  key,
-                                                  const pgp_key_pkt_t &  subkey);
+std::unique_ptr<rnp::Hash> signature_hash_binding(const pgp::pkt::Signature &sig,
+                                                  const pgp_key_pkt_t &      key,
+                                                  const pgp_key_pkt_t &      subkey);
 
-std::unique_ptr<rnp::Hash> signature_hash_direct(const pgp_signature_t &sig,
-                                                 const pgp_key_pkt_t &  key);
+std::unique_ptr<rnp::Hash> signature_hash_direct(const pgp::pkt::Signature &sig,
+                                                 const pgp_key_pkt_t &      key);
 
 /**
  * @brief Parse stream with signatures to the signatures list.
@@ -434,6 +469,6 @@ std::unique_ptr<rnp::Hash> signature_hash_direct(const pgp_signature_t &sig,
  * @param sigs on success parsed signature structures will be put here.
  * @return RNP_SUCCESS or error code otherwise.
  */
-rnp_result_t process_pgp_signatures(pgp_source_t &src, pgp_signature_list_t &sigs);
+rnp_result_t process_pgp_signatures(pgp_source_t &src, pgp::pkt::Signatures &sigs);
 
 #endif

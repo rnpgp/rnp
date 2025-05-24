@@ -24,30 +24,46 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "../librekey/key_store_pgp.h"
-#include "pgp-key.h"
+#include "key.hpp"
 
 #include "rnp_tests.h"
 #include "support.h"
+
+TEST_F(rnp_tests, test_invalid_g10)
+{
+    rnp::KeyProvider key_provider(rnp_key_provider_store);
+    // load pubring
+    auto pub_store =
+      new rnp::KeyStore("data/keyrings/3/pubring.kbx", global_ctx, rnp::KeyFormat::KBX);
+    assert_true(pub_store->load());
+    // trigger "Unsupported public key algorithm:" error message
+    auto sec_store = new rnp::KeyStore(
+      "data/test_invalid_g10/private-keys-v1.d", global_ctx, rnp::KeyFormat::G10);
+    key_provider.userdata = pub_store;
+    assert_true(sec_store->load(&key_provider));
+    // NULL key_provider
+    assert_true(sec_store->load());
+
+    delete pub_store;
+    delete sec_store;
+}
 
 /* This test loads G10 keyrings and verifies certain properties
  * of the keys are correct.
  */
 TEST_F(rnp_tests, test_load_g10)
 {
-    rnp_key_store_t *  pub_store = NULL;
-    rnp_key_store_t *  sec_store = NULL;
-    pgp_key_provider_t key_provider(rnp_key_provider_store);
+    rnp::KeyProvider key_provider(rnp_key_provider_store);
 
     // load pubring
-    pub_store =
-      new rnp_key_store_t(PGP_KEY_STORE_KBX, "data/keyrings/3/pubring.kbx", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pub_store, NULL));
+    auto pub_store =
+      new rnp::KeyStore("data/keyrings/3/pubring.kbx", global_ctx, rnp::KeyFormat::KBX);
+    assert_true(pub_store->load());
     // load secring
-    sec_store =
-      new rnp_key_store_t(PGP_KEY_STORE_G10, "data/keyrings/3/private-keys-v1.d", global_ctx);
+    auto sec_store =
+      new rnp::KeyStore("data/keyrings/3/private-keys-v1.d", global_ctx, rnp::KeyFormat::G10);
     key_provider.userdata = pub_store;
-    assert_true(rnp_key_store_load_from_path(sec_store, &key_provider));
+    assert_true(sec_store->load(&key_provider));
 
     /* check primary key and subkey */
     test_load_gpg_check_key(pub_store, sec_store, "4BE147BB22DF1E60");
@@ -58,13 +74,13 @@ TEST_F(rnp_tests, test_load_g10)
     delete sec_store;
 
     /* another store */
-    pub_store = new rnp_key_store_t(
-      PGP_KEY_STORE_KBX, "data/test_stream_key_load/g10/pubring.kbx", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pub_store, NULL));
-    sec_store = new rnp_key_store_t(
-      PGP_KEY_STORE_G10, "data/test_stream_key_load/g10/private-keys-v1.d", global_ctx);
+    pub_store = new rnp::KeyStore(
+      "data/test_stream_key_load/g10/pubring.kbx", global_ctx, rnp::KeyFormat::KBX);
+    assert_true(pub_store->load());
+    sec_store = new rnp::KeyStore(
+      "data/test_stream_key_load/g10/private-keys-v1.d", global_ctx, rnp::KeyFormat::G10);
     key_provider.userdata = pub_store;
-    assert_true(rnp_key_store_load_from_path(sec_store, &key_provider));
+    assert_true(sec_store->load(&key_provider));
 
     /* dsa/eg key */
     assert_true(test_load_gpg_check_key(pub_store, sec_store, "C8A10A7D78273E10"));

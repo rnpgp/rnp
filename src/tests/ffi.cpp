@@ -41,7 +41,7 @@
 #include "file-utils.h"
 #include "str-utils.h"
 #include <librepgp/stream-ctx.h>
-#include "pgp-key.h"
+#include "key.hpp"
 #include "ffi-priv-types.h"
 
 TEST_F(rnp_tests, test_ffi_homedir)
@@ -420,6 +420,7 @@ TEST_F(rnp_tests, test_ffi_save_keys)
     assert_rnp_failure(rnp_save_keys(ffi, "GPG", NULL, RNP_LOAD_SAVE_PUBLIC_KEYS));
     assert_rnp_failure(rnp_save_keys(ffi, "WRONG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
     assert_rnp_failure(rnp_save_keys(ffi, "GPG", output, 0));
+    assert_rnp_failure(rnp_save_keys(ffi, "GPG", output, 0x77));
     assert_rnp_success(rnp_save_keys(ffi, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
     assert_rnp_success(rnp_output_destroy(output));
     output = NULL;
@@ -749,21 +750,6 @@ TEST_F(rnp_tests, test_ffi_add_userid)
     rnp_ffi_destroy(ffi);
 }
 
-static bool
-file_equals(const char *filename, const void *data, size_t len)
-{
-    pgp_source_t msrc = {};
-    bool         res = false;
-
-    if (file_to_mem_src(&msrc, filename)) {
-        return false;
-    }
-
-    res = (msrc.size == len) && !memcmp(mem_src_get_memory(&msrc), data, len);
-    src_close(&msrc);
-    return res;
-}
-
 static void
 test_ffi_init_sign_file_input(rnp_input_t *input, rnp_output_t *output)
 {
@@ -835,9 +821,12 @@ test_ffi_setup_signatures(rnp_ffi_t *ffi, rnp_op_sign_t *op)
     const uint32_t issued2 = 1516211900;  // Unix epoch, nowish
     const uint32_t expires2 = 2000000000; // expires later
 
+    assert_rnp_failure(rnp_op_sign_set_armor(NULL, true));
     assert_rnp_success(rnp_op_sign_set_armor(*op, true));
     assert_rnp_success(rnp_op_sign_set_hash(*op, "SHA256"));
+    assert_rnp_failure(rnp_op_sign_set_creation_time(NULL, issued));
     assert_rnp_success(rnp_op_sign_set_creation_time(*op, issued));
+    assert_rnp_failure(rnp_op_sign_set_expiration_time(NULL, expires));
     assert_rnp_success(rnp_op_sign_set_expiration_time(*op, expires));
 
     // set pass provider
@@ -893,29 +882,6 @@ test_ffi_check_signatures(rnp_op_verify_t *verify)
     rnp_buffer_destroy(hname);
 }
 
-static bool
-test_ffi_check_recovered()
-{
-    pgp_source_t msrc1 = {};
-    pgp_source_t msrc2 = {};
-    bool         res = false;
-
-    if (file_to_mem_src(&msrc1, "recovered")) {
-        return false;
-    }
-
-    if (file_to_mem_src(&msrc2, "plaintext")) {
-        goto finish;
-    }
-
-    res = (msrc1.size == msrc2.size) &&
-          !memcmp(mem_src_get_memory(&msrc1), mem_src_get_memory(&msrc2), msrc1.size);
-finish:
-    src_close(&msrc1);
-    src_close(&msrc2);
-    return res;
-}
-
 TEST_F(rnp_tests, test_ffi_signatures_memory)
 {
     rnp_ffi_t       ffi = NULL;
@@ -933,10 +899,15 @@ TEST_F(rnp_tests, test_ffi_signatures_memory)
     // init input
     test_ffi_init_sign_memory_input(&input, &output);
     // create signature operation
+    assert_rnp_failure(rnp_op_sign_create(NULL, ffi, input, output));
+    assert_rnp_failure(rnp_op_sign_create(&op, NULL, input, output));
+    assert_rnp_failure(rnp_op_sign_create(&op, ffi, NULL, output));
+    assert_rnp_failure(rnp_op_sign_create(&op, ffi, input, NULL));
     assert_rnp_success(rnp_op_sign_create(&op, ffi, input, output));
     // setup signature(s)
     test_ffi_setup_signatures(&ffi, &op);
     // execute the operation
+    assert_rnp_failure(rnp_op_sign_execute(NULL));
     assert_rnp_success(rnp_op_sign_execute(op));
     // make sure the output file was created
     assert_rnp_failure(rnp_output_memory_get_buf(NULL, &signed_buf, &signed_len, true));
@@ -1025,7 +996,7 @@ TEST_F(rnp_tests, test_ffi_signatures)
     output = NULL;
     assert_rnp_success(rnp_ffi_destroy(ffi));
     // check output
-    assert_true(test_ffi_check_recovered());
+    assert_true(file_to_vec("recovered") == file_to_vec("plaintext"));
 }
 
 TEST_F(rnp_tests, test_ffi_signatures_detached_memory)
@@ -1156,6 +1127,8 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
     assert_rnp_success(rnp_op_verify_signature_get_status(sig));
     rnp_signature_handle_t sighandle = NULL;
+    assert_rnp_failure(rnp_op_verify_signature_get_handle(NULL, &sighandle));
+    assert_rnp_failure(rnp_op_verify_signature_get_handle(sig, NULL));
     assert_rnp_success(rnp_op_verify_signature_get_handle(sig, &sighandle));
     assert_non_null(sighandle);
     /* check signature type */
@@ -1163,8 +1136,8 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_rnp_success(rnp_signature_get_type(sighandle, &sigtype));
     assert_string_equal(sigtype, "binary");
     rnp_buffer_destroy(sigtype);
-    /* attempt to validate it via wrong function */
-    assert_int_equal(rnp_signature_is_valid(sighandle, 0), RNP_ERROR_BAD_PARAMETERS);
+    /* make sure it is valid */
+    assert_rnp_success(rnp_signature_is_valid(sighandle, 0));
     /* cleanup, making sure that sighandle doesn't depend on verify */
     assert_rnp_success(rnp_op_verify_destroy(verify));
     assert_rnp_success(rnp_input_destroy(input));
@@ -1263,8 +1236,8 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_rnp_success(rnp_signature_get_type(sighandle, &sigtype));
     assert_string_equal(sigtype, "text");
     rnp_buffer_destroy(sigtype);
-    /* attempt to validate it via wrong function */
-    assert_int_equal(rnp_signature_is_valid(sighandle, 0), RNP_ERROR_BAD_PARAMETERS);
+    /* make sure it is valid */
+    assert_rnp_success(rnp_signature_is_valid(sighandle, 0));
     /* cleanup, making sure that sighandle doesn't depend on verify */
     assert_rnp_success(rnp_op_verify_destroy(verify));
     assert_rnp_success(rnp_input_destroy(input));
@@ -1361,8 +1334,8 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_rnp_success(rnp_signature_get_type(sighandle, &sigtype));
     assert_string_equal(sigtype, "timestamp");
     rnp_buffer_destroy(sigtype);
-    /* attempt to validate it via wrong function */
-    assert_int_equal(rnp_signature_is_valid(sighandle, 0), RNP_ERROR_BAD_PARAMETERS);
+    /* make sure validity status could be checked */
+    assert_int_equal(rnp_signature_is_valid(sighandle, 0), RNP_ERROR_SIGNATURE_INVALID);
     /* cleanup, making sure that sighandle doesn't depend on verify */
     assert_rnp_success(rnp_op_verify_destroy(verify));
     assert_rnp_success(rnp_input_destroy(input));
@@ -1495,6 +1468,24 @@ TEST_F(rnp_tests, test_ffi_locate_key)
     // load our keyrings
     assert_true(load_keys_gpg(ffi, "data/keyrings/1/pubring.gpg"));
 
+    // edge cases
+    {
+        rnp_key_handle_t key = NULL;
+        assert_rnp_failure(rnp_locate_key(NULL, "keyid", "7BC6709B15C23A4A", &key));
+        assert_rnp_failure(rnp_locate_key(ffi, NULL, "7BC6709B15C23A4A", &key));
+        assert_rnp_failure(rnp_locate_key(ffi, "keyid", NULL, &key));
+        assert_rnp_failure(rnp_locate_key(ffi, "keyid", "7BC6709B15C23A4A", NULL));
+        assert_rnp_failure(rnp_locate_key(ffi, "wrong", "7BC6709B15C23A4A", &key));
+        assert_rnp_failure(rnp_locate_key(ffi, "keyid", "C6709B15C23A4A", &key));
+        assert_rnp_failure(
+          rnp_locate_key(ffi, "fingerprint", "5A3CBF583AA80A2CCC53AA7BC6709B15C23A4A", &key));
+        assert_rnp_failure(
+          rnp_locate_key(ffi, "grip", "D6A0800A3FACDE0C0EB60B16B3669ED380FDFA", &key));
+        assert_rnp_failure(rnp_locate_key(ffi, "keyid", "0x7BC6 709B\r15C2 3A4A\n", &key));
+        assert_rnp_success(rnp_locate_key(ffi, "keyid", "0x7BC6 709B\t15C2 3A4A\t", &key));
+        assert_non_null(key);
+        rnp_key_handle_destroy(key);
+    }
     // keyid
     {
         static const char *ids[] = {"7BC6709B15C23A4A",
@@ -1647,6 +1638,7 @@ TEST_F(rnp_tests, test_ffi_signatures_detached_memory_g10)
     assert_non_null(opsign);
 
     // add the signer
+    assert_rnp_failure(rnp_op_sign_add_signature(NULL, key, NULL));
     assert_rnp_success(rnp_op_sign_add_signature(opsign, key, NULL));
     // execute the signing operation
     assert_rnp_success(rnp_op_sign_execute(opsign));
@@ -2793,6 +2785,8 @@ TEST_F(rnp_tests, test_ffi_file_output)
     assert_true(sz != file_size(KEY_OUT_PATH));
     sz = file_size(KEY_OUT_PATH);
     // test output to file - will fail without overwrite
+    assert_rnp_failure(rnp_output_to_file(NULL, KEY_OUT_PATH, RNP_OUTPUT_FILE_OVERWRITE));
+    assert_rnp_failure(rnp_output_to_file(&output, NULL, RNP_OUTPUT_FILE_OVERWRITE));
     assert_rnp_failure(rnp_output_to_file(&output, KEY_OUT_PATH, 0));
     // fail with wrong flags
     assert_rnp_failure(rnp_output_to_file(&output, KEY_OUT_PATH, 0x100));
@@ -3109,7 +3103,16 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     /* public key algorithm */
     assert_rnp_success(rnp_supported_features(RNP_FEATURE_PK_ALG, &features));
     assert_non_null(features);
-    assert_true(check_features(RNP_FEATURE_PK_ALG, features, 6 + has_sm2));
+    size_t pqc_opt = 0;
+    size_t crypto_refresh_opt = 0;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    crypto_refresh_opt = 2; // X25519 + ED25519
+#endif
+#if defined(ENABLE_PQC)
+    pqc_opt = 12; // kyber+ecc and dilithium+ecc and sphincs+ variants
+#endif
+    assert_true(check_features(
+      RNP_FEATURE_PK_ALG, features, 6 + has_sm2 + pqc_opt + crypto_refresh_opt));
     rnp_buffer_destroy(features);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_PK_ALG, "RSA", &supported));
     assert_true(supported);
@@ -3384,6 +3387,20 @@ TEST_F(rnp_tests, test_ffi_rnp_guess_contents)
     assert_string_equal(msgt, "unknown");
     rnp_buffer_destroy(msgt);
     rnp_input_destroy(input);
+
+    const char *msg1 = "-----BEGIN PGP PGP";
+    assert_rnp_success(rnp_input_from_memory(&input, (uint8_t *) msg1, strlen(msg1), false));
+    assert_rnp_success(rnp_guess_contents(input, &msgt));
+    assert_string_equal(msgt, "unknown");
+    rnp_buffer_destroy(msgt);
+    rnp_input_destroy(input);
+
+    const char *msg2 = "-----BEGIN PGP PGP PGP PGP PGP PGP PGP";
+    assert_rnp_success(rnp_input_from_memory(&input, (uint8_t *) msg2, strlen(msg2), false));
+    assert_rnp_success(rnp_guess_contents(input, &msgt));
+    assert_string_equal(msgt, "unknown");
+    rnp_buffer_destroy(msgt);
+    rnp_input_destroy(input);
 }
 
 TEST_F(rnp_tests, test_ffi_literal_filename)
@@ -3404,9 +3421,11 @@ TEST_F(rnp_tests, test_ffi_literal_filename)
     // setup signature(s)
     test_ffi_setup_signatures(&ffi, &op);
     // setup filename and modification time
+    assert_rnp_failure(rnp_op_sign_set_file_name(NULL, "checkleak.dat"));
     assert_rnp_success(rnp_op_sign_set_file_name(op, "checkleak.dat"));
     assert_rnp_success(rnp_op_sign_set_file_name(op, NULL));
     assert_rnp_success(rnp_op_sign_set_file_name(op, "testfile.dat"));
+    assert_rnp_failure(rnp_op_sign_set_file_mtime(NULL, 12345678));
     assert_rnp_success(rnp_op_sign_set_file_mtime(op, 12345678));
     // execute the operation
     assert_rnp_success(rnp_op_sign_execute(op));
@@ -3458,6 +3477,7 @@ TEST_F(rnp_tests, test_ffi_op_set_hash)
     test_ffi_setup_signatures(&ffi, &op);
     // make sure it doesn't fail on NULL hash value
     assert_rnp_failure(rnp_op_sign_set_hash(op, NULL));
+    assert_rnp_failure(rnp_op_sign_set_hash(NULL, "SHA256"));
     assert_rnp_failure(rnp_op_sign_set_hash(op, "Unknown"));
     assert_rnp_success(rnp_op_sign_set_hash(op, "SHA256"));
     // execute the operation with wrong password
@@ -3629,7 +3649,7 @@ TEST_F(rnp_tests, test_ffi_aead_params)
     rnp_output_destroy(output);
     output = NULL;
     // compare the decrypted file
-    assert_true(file_equals("decrypted", plaintext, strlen(plaintext)));
+    assert_string_equal(file_to_str("decrypted").c_str(), plaintext);
     rnp_unlink("decrypted");
 
     // final cleanup
@@ -3830,6 +3850,11 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
     assert_int_equal(sigcount, 1);
     assert_true(check_signature(verify, 0, RNP_SUCCESS));
+    char format = 'b';
+    assert_rnp_failure(rnp_op_verify_get_format(NULL, &format));
+    assert_rnp_failure(rnp_op_verify_get_format(verify, NULL));
+    assert_rnp_success(rnp_op_verify_get_format(verify, &format));
+    assert_int_equal(format, '\0');
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(source);
     rnp_input_destroy(input);
@@ -3876,6 +3901,11 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
     assert_int_equal(sigcount, 1);
     assert_true(check_signature(verify, 0, RNP_SUCCESS));
+    format = '\0';
+    assert_rnp_failure(rnp_op_verify_get_format(NULL, &format));
+    assert_rnp_failure(rnp_op_verify_get_format(verify, NULL));
+    assert_rnp_success(rnp_op_verify_get_format(verify, &format));
+    assert_int_equal(format, 't');
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(input);
     rnp_output_destroy(output);
@@ -4250,6 +4280,41 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
     assert_int_equal(sigcount, 1);
     assert_true(check_signature(verify, 0, RNP_ERROR_SIGNATURE_INVALID));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* message signed with encrypt-only subkey */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    import_pub_keys(ffi, "data/test_messages/key-rsas-rsae.asc");
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message-signed-rsae.txt.pgp"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    verify = NULL;
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    sigcount = 255;
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 1);
+    rnp_op_verify_signature_t vsig = NULL;
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &vsig));
+    assert_int_equal(rnp_op_verify_signature_get_status(vsig), RNP_ERROR_SIGNATURE_INVALID);
+    rnp_signature_handle_t sig = NULL;
+    assert_rnp_success(rnp_op_verify_signature_get_handle(vsig, &sig));
+    char *type = NULL;
+    assert_rnp_success(rnp_signature_get_type(sig, &type));
+    assert_string_equal(type, "binary");
+    rnp_buffer_destroy(type);
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_ERROR_SIGNATURE_INVALID);
+    size_t errors = 0;
+    assert_rnp_success(rnp_signature_error_count(sig, &errors));
+    assert_int_equal(errors, 1);
+    rnp_result_t error = 0;
+    assert_rnp_success(rnp_signature_error_at(sig, 0, &error));
+    assert_int_equal(error, RNP_ERROR_SIG_UNUSABLE_KEY);
+    assert_int_equal(rnp_signature_is_valid(sig, RNP_SIGNATURE_REVALIDATE),
+                     RNP_ERROR_SIGNATURE_INVALID);
+    rnp_signature_handle_destroy(sig);
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(input);
     rnp_output_destroy(output);
@@ -5544,6 +5609,8 @@ TEST_F(rnp_tests, test_ffi_exception)
             throw std::bad_alloc();
             return true;
         };
+        assert_rnp_failure(rnp_input_from_callback(NULL, reader, NULL, NULL));
+        assert_rnp_failure(rnp_input_from_callback(&input, NULL, NULL, NULL));
         assert_rnp_success(rnp_input_from_callback(&input, reader, NULL, NULL));
         assert_rnp_success(rnp_output_to_memory(&output, 0));
         assert_int_equal(RNP_ERROR_OUT_OF_MEMORY, rnp_output_pipe(input, output));
@@ -5761,7 +5828,7 @@ TEST_F(rnp_tests, test_ffi_security_profile)
     assert_rnp_failure(
       rnp_get_security_rule(NULL, RNP_FEATURE_HASH_ALG, "SHA1", 0, &flags, &from, &level));
     assert_rnp_failure(rnp_get_security_rule(ffi, NULL, "SHA1", 0, &flags, &from, &level));
-    assert_rnp_failure(
+    assert_rnp_success(
       rnp_get_security_rule(ffi, RNP_FEATURE_SYMM_ALG, "AES256", 0, &flags, &from, &level));
     assert_rnp_failure(
       rnp_get_security_rule(ffi, RNP_FEATURE_HASH_ALG, "Unknown", 0, &flags, &from, &level));
@@ -5922,12 +5989,14 @@ TEST_F(rnp_tests, test_ffi_security_profile)
     removed = 0;
     assert_rnp_failure(rnp_remove_security_rule(ffi, NULL, NULL, 0, 0x17, 0, &removed));
     assert_rnp_success(rnp_remove_security_rule(ffi, NULL, NULL, 0, 0, 0, &removed));
-    assert_int_equal(removed, 3);
+    assert_int_equal(removed, 3 /*HASH*/ + 4 /*SYMM*/);
     rnp_ffi_destroy(ffi);
     rnp_ffi_create(&ffi, "GPG", "GPG");
     /* Remove all rules for hash */
-    assert_rnp_failure(
+    removed = 0;
+    assert_rnp_success(
       rnp_remove_security_rule(ffi, RNP_FEATURE_SYMM_ALG, NULL, 0, 0, 0, &removed));
+    assert_int_equal(removed, 4);
     removed = 0;
     assert_rnp_success(
       rnp_remove_security_rule(ffi, RNP_FEATURE_HASH_ALG, NULL, 0, 0, 0, &removed));
@@ -6008,6 +6077,9 @@ TEST_F(rnp_tests, test_result_to_string)
     result_string = rnp_result_to_string(RNP_SUCCESS);
     assert_string_equal(result_string, "Success");
 
+    result_string = rnp_result_to_string(1);
+    assert_string_equal(result_string, "Unsupported error code");
+
     /* Cover all defined error code ranges,
      * check that each defined
      * code has corresponding unique string */
@@ -6032,4 +6104,14 @@ TEST_F(rnp_tests, test_result_to_string)
             stringset.insert(result_string);
         }
     }
+}
+
+TEST_F(rnp_tests, test_ffi_wrong_hex_length)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_failure(rnp_locate_key(ffi, "keyid", "BC6709B15C23A4A", &key));
+    assert_rnp_failure(rnp_locate_key(ffi, "keyid", "C6709B15C23A4A", &key));
+    rnp_ffi_destroy(ffi);
 }

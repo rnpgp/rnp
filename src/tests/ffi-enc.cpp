@@ -39,7 +39,7 @@
 #include <string>
 #include "file-utils.h"
 #include <librepgp/stream-ctx.h>
-#include "pgp-key.h"
+#include "key.hpp"
 #include "ffi-priv-types.h"
 
 static bool
@@ -151,10 +151,15 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
     str_to_file("plaintext", plaintext);
     // create input+output w/ bad paths (should fail)
     input = NULL;
+    assert_rnp_failure(rnp_input_from_stdin(NULL));
+    assert_rnp_failure(rnp_input_from_path(NULL, "noexist"));
+    assert_rnp_failure(rnp_input_from_path(&input, NULL));
     assert_rnp_failure(rnp_input_from_path(&input, "noexist"));
     assert_null(input);
     assert_rnp_failure(rnp_output_to_path(&output, ""));
     assert_null(output);
+    assert_rnp_failure(rnp_output_to_path(NULL, "path"));
+    assert_rnp_failure(rnp_output_to_path(&output, NULL));
 
     // create input+output
     assert_rnp_success(rnp_input_from_path(&input, "plaintext"));
@@ -173,6 +178,17 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
     assert_rnp_failure(rnp_op_encrypt_add_password(op, "pass1", "WRONG", 0, NULL));
     assert_rnp_failure(rnp_op_encrypt_add_password(op, "pass1", NULL, 0, "WRONG"));
     assert_rnp_success(rnp_op_encrypt_add_password(op, "pass1", NULL, 0, NULL));
+
+    // Allow insecure ciphers
+    if (blowfish_enabled()) {
+        assert_rnp_success(rnp_remove_security_rule(
+          ffi, RNP_FEATURE_SYMM_ALG, "BLOWFISH", 0, RNP_SECURITY_REMOVE_ALL, 0, nullptr));
+    }
+    if (cast5_enabled()) {
+        assert_rnp_success(rnp_remove_security_rule(
+          ffi, RNP_FEATURE_SYMM_ALG, "CAST5", 0, RNP_SECURITY_REMOVE_ALL, 0, nullptr));
+    }
+
     // add password
     if (!sm2_enabled() && !twofish_enabled()) {
         assert_rnp_failure(rnp_op_encrypt_add_password(op, "pass2", "SM3", 12345, "TWOFISH"));
@@ -202,6 +218,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
         assert_rnp_success(rnp_op_encrypt_set_cipher(op, "AES256"));
     }
     // execute the operation
+    assert_rnp_failure(rnp_op_encrypt_execute(NULL));
     assert_rnp_success(rnp_op_encrypt_execute(op));
 
     // make sure the output file was created
@@ -222,6 +239,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
     assert_non_null(input);
     assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
     assert_non_null(output);
+    assert_rnp_failure(rnp_ffi_set_pass_provider(NULL, NULL, NULL));
     assert_rnp_success(rnp_ffi_set_pass_provider(ffi, NULL, NULL));
     assert_rnp_failure(rnp_decrypt(ffi, input, output));
     // cleanup
@@ -251,6 +269,9 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
     assert_non_null(output);
     assert_rnp_success(
       rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "pass1"));
+    assert_rnp_failure(rnp_decrypt(NULL, input, output));
+    assert_rnp_failure(rnp_decrypt(ffi, NULL, output));
+    assert_rnp_failure(rnp_decrypt(ffi, input, NULL));
     assert_rnp_success(rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
@@ -368,6 +389,11 @@ TEST_F(rnp_tests, test_ffi_encrypt_set_cipher)
     /* create input + output */
     rnp_input_t input = NULL;
     const char *plaintext = "Data encrypted with password using different CEK/KEK.";
+    assert_rnp_failure(
+      rnp_input_from_memory(NULL, (const uint8_t *) plaintext, strlen(plaintext), false));
+    assert_rnp_failure(rnp_input_from_memory(&input, NULL, strlen(plaintext), false));
+    assert_rnp_success(rnp_input_from_memory(&input, (const uint8_t *) plaintext, 0, false));
+    assert_rnp_success(rnp_input_destroy(input));
     assert_rnp_success(
       rnp_input_from_memory(&input, (const uint8_t *) plaintext, strlen(plaintext), false));
     rnp_output_t output = NULL;
@@ -393,6 +419,10 @@ TEST_F(rnp_tests, test_ffi_encrypt_set_cipher)
       rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password1"));
     rnp_op_verify_t verify;
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_set_flags(NULL, RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT));
+    assert_rnp_failure(rnp_op_verify_set_flags(verify, 0x77));
+    assert_rnp_success(rnp_op_verify_set_flags(verify, RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT));
+    assert_rnp_success(rnp_op_verify_set_flags(verify, 0));
     assert_rnp_success(rnp_op_verify_execute(verify));
     rnp_input_destroy(input);
     rnp_output_destroy(output);
@@ -494,6 +524,79 @@ TEST_F(rnp_tests, test_ffi_encrypt_set_cipher)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_encrypt_empty_buffer)
+{
+    /* setup FFI */
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    /* create input + output */
+    rnp_input_t input = NULL;
+    const char *plaintext = "";
+    assert_rnp_success(
+      rnp_input_from_memory(&input, (const uint8_t *) plaintext, strlen(plaintext), false));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_path(&output, "encrypted"));
+    /* create encrypt operation */
+    rnp_op_encrypt_t op = NULL;
+    assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
+    assert_rnp_success(rnp_op_encrypt_add_password(op, "password1", NULL, 0, "AES192"));
+    /* execute the operation */
+    assert_rnp_success(rnp_op_encrypt_execute(op));
+    assert_true(rnp_file_exists("encrypted"));
+    /* cleanup */
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_op_encrypt_destroy(op));
+    /* decrypt with password1 */
+    assert_rnp_success(rnp_input_from_path(&input, "encrypted"));
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password1"));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    assert_string_equal(file_to_str("decrypted").c_str(), plaintext);
+    unlink("decrypted");
+    unlink("encrypted");
+
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_encrypt_null_buffer)
+{
+    /* setup FFI */
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    /* create input + output */
+    rnp_input_t input = NULL;
+    assert_rnp_failure(rnp_input_from_memory(&input, NULL, 10 /*not zero value*/, false));
+    assert_rnp_success(rnp_input_from_memory(&input, NULL, 0, false));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_path(&output, "encrypted"));
+    /* create encrypt operation */
+    rnp_op_encrypt_t op = NULL;
+    assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
+    assert_rnp_success(rnp_op_encrypt_add_password(op, "password1", NULL, 0, "AES192"));
+    /* execute the operation */
+    assert_rnp_success(rnp_op_encrypt_execute(op));
+    assert_true(rnp_file_exists("encrypted"));
+    /* cleanup */
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_op_encrypt_destroy(op));
+    /* decrypt with password1 */
+    assert_rnp_success(rnp_input_from_path(&input, "encrypted"));
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password1"));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    assert_string_equal(file_to_str("decrypted").c_str(), "");
+    unlink("decrypted");
+    unlink("encrypted");
+
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_encrypt_pk)
 {
     rnp_ffi_t        ffi = NULL;
@@ -532,8 +635,12 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk)
     key = NULL;
     // set the data encryption cipher
     if (cast5_enabled()) {
+        assert_rnp_success(rnp_remove_security_rule(
+          ffi, RNP_FEATURE_SYMM_ALG, "CAST5", 0, RNP_SECURITY_REMOVE_ALL, 0, nullptr));
         assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
     } else {
+        assert_rnp_failure(rnp_remove_security_rule(
+          ffi, RNP_FEATURE_SYMM_ALG, "CAST5", 0, RNP_SECURITY_REMOVE_ALL, 0, nullptr));
         assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "CAST5"));
         assert_rnp_success(rnp_op_encrypt_set_cipher(op, "AES256"));
     }
@@ -596,6 +703,165 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk)
     // read in the decrypted file
     assert_string_equal(file_to_str("decrypted").c_str(), plaintext);
     // final cleanup
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_select_deprecated_ciphers)
+{
+    rnp_ffi_t        ffi = NULL;
+    rnp_input_t      input = NULL;
+    rnp_output_t     output = NULL;
+    rnp_op_encrypt_t op = NULL;
+    const char *     plaintext = "data1";
+
+    // setup FFI
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    assert_rnp_success(
+      rnp_input_from_memory(&input, (const uint8_t *) plaintext, strlen(plaintext), false));
+    assert_rnp_success(rnp_output_to_path(&output, "encrypted"));
+    // create encrypt operation
+    assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
+
+    /* check predefined rules */
+    uint32_t flags = 0;
+    uint64_t from = 0;
+    uint32_t level = 0;
+    if (cast5_enabled()) {
+        assert_rnp_success(rnp_get_security_rule(ffi,
+                                                 RNP_FEATURE_SYMM_ALG,
+                                                 "CAST5",
+                                                 CAST5_3DES_IDEA_BLOWFISH_FROM + 1,
+                                                 &flags,
+                                                 &from,
+                                                 &level));
+        assert_int_equal(from, CAST5_3DES_IDEA_BLOWFISH_FROM);
+        assert_int_equal(level, RNP_SECURITY_INSECURE);
+    }
+
+    assert_rnp_success(rnp_get_security_rule(ffi,
+                                             RNP_FEATURE_SYMM_ALG,
+                                             "TRIPLEDES",
+                                             CAST5_3DES_IDEA_BLOWFISH_FROM + 1,
+                                             &flags,
+                                             &from,
+                                             &level));
+    assert_int_equal(from, CAST5_3DES_IDEA_BLOWFISH_FROM);
+    assert_int_equal(level, RNP_SECURITY_INSECURE);
+    if (idea_enabled()) {
+        assert_rnp_success(rnp_get_security_rule(ffi,
+                                                 RNP_FEATURE_SYMM_ALG,
+                                                 "IDEA",
+                                                 CAST5_3DES_IDEA_BLOWFISH_FROM + 1,
+                                                 &flags,
+                                                 &from,
+                                                 &level));
+        assert_int_equal(from, CAST5_3DES_IDEA_BLOWFISH_FROM);
+        assert_int_equal(level, RNP_SECURITY_INSECURE);
+    }
+    if (blowfish_enabled()) {
+        assert_rnp_success(rnp_get_security_rule(ffi,
+                                                 RNP_FEATURE_SYMM_ALG,
+                                                 "BLOWFISH",
+                                                 CAST5_3DES_IDEA_BLOWFISH_FROM + 1,
+                                                 &flags,
+                                                 &from,
+                                                 &level));
+        assert_int_equal(from, CAST5_3DES_IDEA_BLOWFISH_FROM);
+        assert_int_equal(level, RNP_SECURITY_INSECURE);
+    }
+
+    ffi->context.set_time(CAST5_3DES_IDEA_BLOWFISH_FROM + 1);
+    // set the data encryption cipher
+    if (cast5_enabled()) {
+        assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "CAST5"));
+    }
+    assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "TRIPLEDES"));
+    if (idea_enabled()) {
+        assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "IDEA"));
+    }
+    if (blowfish_enabled()) {
+        assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "BLOWFISH"));
+    }
+
+    ffi->context.set_time(CAST5_3DES_IDEA_BLOWFISH_FROM - 1);
+
+    if (cast5_enabled()) {
+        assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
+    }
+    assert_rnp_success(rnp_op_encrypt_set_cipher(op, "TRIPLEDES"));
+    if (idea_enabled()) {
+        assert_rnp_success(rnp_op_encrypt_set_cipher(op, "IDEA"));
+    }
+    if (blowfish_enabled()) {
+        assert_rnp_success(rnp_op_encrypt_set_cipher(op, "BLOWFISH"));
+    }
+
+    // cleanup
+    assert_rnp_success(rnp_op_encrypt_destroy(op));
+    op = NULL;
+    rnp_ffi_destroy(ffi);
+
+    // check again but with removing rules now
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    // create encrypt operation
+    assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
+
+    ffi->context.set_time(CAST5_3DES_IDEA_BLOWFISH_FROM + 1);
+    // set the data encryption cipher
+    if (cast5_enabled()) {
+        assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "CAST5"));
+    }
+    assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "TRIPLEDES"));
+    if (idea_enabled()) {
+        assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "IDEA"));
+    }
+    if (blowfish_enabled()) {
+        assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "BLOWFISH"));
+    }
+
+    size_t removed = 0;
+    if (cast5_enabled()) {
+        removed = 0;
+        assert_rnp_success(rnp_remove_security_rule(
+          ffi, RNP_FEATURE_SYMM_ALG, "CAST5", 0, RNP_SECURITY_REMOVE_ALL, 0, &removed));
+        assert_int_equal(removed, 1);
+    }
+    removed = 0;
+    assert_rnp_success(rnp_remove_security_rule(
+      ffi, RNP_FEATURE_SYMM_ALG, "TRIPLEDES", 0, RNP_SECURITY_REMOVE_ALL, 0, &removed));
+    assert_int_equal(removed, 1);
+    if (idea_enabled()) {
+        removed = 0;
+        assert_rnp_success(rnp_remove_security_rule(
+          ffi, RNP_FEATURE_SYMM_ALG, "IDEA", 0, RNP_SECURITY_REMOVE_ALL, 0, &removed));
+        assert_int_equal(removed, 1);
+    }
+    if (blowfish_enabled()) {
+        removed = 0;
+        assert_rnp_success(rnp_remove_security_rule(
+          ffi, RNP_FEATURE_SYMM_ALG, "BLOWFISH", 0, RNP_SECURITY_REMOVE_ALL, 0, &removed));
+        assert_int_equal(removed, 1);
+    }
+
+    if (cast5_enabled()) {
+        assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
+    }
+    assert_rnp_success(rnp_op_encrypt_set_cipher(op, "TRIPLEDES"));
+    if (idea_enabled()) {
+        assert_rnp_success(rnp_op_encrypt_set_cipher(op, "IDEA"));
+    }
+    if (blowfish_enabled()) {
+        assert_rnp_success(rnp_op_encrypt_set_cipher(op, "BLOWFISH"));
+    }
+
+    // cleanup
+    assert_rnp_success(rnp_input_destroy(input));
+    input = NULL;
+    assert_rnp_success(rnp_output_destroy(output));
+    output = NULL;
+    assert_rnp_success(rnp_op_encrypt_destroy(op));
+    op = NULL;
     rnp_ffi_destroy(ffi);
 }
 
@@ -736,6 +1002,246 @@ TEST_F(rnp_tests, test_ffi_decrypt_pk_unlocked)
     rnp_ffi_destroy(ffi);
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+TEST_F(rnp_tests, test_ffi_decrypt_v6_pkesk_test_vector)
+{
+    rnp_ffi_t    ffi = NULL;
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_all_keys(ffi, "data/test_v6_valid_data/transferable_seckey_v6.asc"));
+
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_v6_valid_data/v6pkesk.asc"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_decrypt(ffi, input, output));
+
+    // cleanup
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    rnp_ffi_destroy(ffi);
+}
+
+#if defined(ENABLE_PQC)
+// NOTE: this tests ML-KEM-ipd test vectors
+// The final implementation of the PQC draft implementation will use the final NIST standard.
+TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
+{
+    bool expect_success = true;
+#if !(defined(BOTAN_HAS_ML_KEM_INITIAL_PUBLIC_DRAFT) && defined(ENABLE_PQC_MLKEM_IPD))
+    // we can only verify the test vectors with ML-KEM-ipd
+    expect_success = false;
+#endif
+
+    rnp_ffi_t    ffi = NULL;
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_all_keys(ffi, "data/draft-ietf-openpgp-pqc/v6-eddsa-mlkem.sec.asc"));
+    assert_true(import_all_keys(ffi, "data/draft-ietf-openpgp-pqc/v4-eddsa-mlkem.sec.asc"));
+
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-seipdv2.asc"));
+    assert_non_null(input);
+    if (expect_success) {
+        assert_rnp_success(rnp_decrypt(ffi, input, output));
+        assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
+    } else {
+        assert_rnp_failure(rnp_decrypt(ffi, input, output));
+    }
+    assert_int_equal(unlink("decrypted"), 0);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v4-seipdv1.asc"));
+    assert_non_null(input);
+    if (expect_success) {
+        assert_rnp_success(rnp_decrypt(ffi, input, output));
+        assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
+    } else {
+        assert_rnp_failure(rnp_decrypt(ffi, input, output));
+    }
+    assert_int_equal(unlink("decrypted"), 0);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v4-seipdv1.asc"));
+    assert_non_null(input);
+    if (expect_success) {
+        assert_rnp_success(rnp_decrypt(ffi, input, output));
+        assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
+    } else {
+        assert_rnp_failure(rnp_decrypt(ffi, input, output));
+    }
+    assert_int_equal(unlink("decrypted"), 0);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_pqc_default_enc_subkey)
+{
+    rnp_ffi_t         ffi = NULL;
+    rnp_key_handle_t  key1 = NULL;
+    rnp_key_handle_t  key2 = NULL;
+    rnp_key_handle_t  defkey1 = NULL;
+    rnp_key_handle_t  defkey2 = NULL;
+    rnp_op_generate_t op = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* generate key 1 */
+    assert_rnp_success(rnp_op_generate_create(&op, ffi, "ML-DSA-65+ED25519"));
+    assert_rnp_success(rnp_op_generate_set_hash(op, "SHA3-256"));
+    assert_rnp_success(rnp_op_generate_execute(op));
+
+    assert_rnp_success(rnp_op_generate_get_key(op, &key1));
+    assert_non_null(key1);
+    assert_rnp_success(rnp_op_generate_destroy(op));
+    op = NULL;
+    assert_rnp_success(rnp_op_generate_subkey_create(&op, ffi, key1, "ML-KEM-768+X25519"));
+    assert_rnp_success(rnp_op_generate_execute(op));
+    rnp_op_generate_destroy(op);
+    op = NULL;
+    assert_rnp_success(rnp_op_generate_subkey_create(&op, ffi, key1, "ECDH"));
+    assert_rnp_success(rnp_op_generate_set_curve(op, "NIST P-256"));
+    assert_rnp_success(rnp_op_generate_execute(op));
+    rnp_op_generate_destroy(op);
+    op = NULL;
+
+    /* generate key 2 */
+    assert_rnp_success(rnp_op_generate_create(&op, ffi, "ML-DSA-65+ED25519"));
+    assert_rnp_success(rnp_op_generate_set_hash(op, "SHA3-256"));
+    assert_rnp_success(rnp_op_generate_execute(op));
+    assert_rnp_success(rnp_op_generate_get_key(op, &key2));
+    assert_non_null(key2);
+    assert_rnp_success(rnp_op_generate_destroy(op));
+    op = NULL;
+    assert_rnp_success(rnp_op_generate_subkey_create(&op, ffi, key2, "ECDH"));
+    assert_rnp_success(rnp_op_generate_set_curve(op, "NIST P-256"));
+    assert_rnp_success(rnp_op_generate_execute(op));
+    rnp_op_generate_destroy(op);
+    op = NULL;
+    assert_rnp_success(rnp_op_generate_subkey_create(&op, ffi, key2, "ML-KEM-768+X25519"));
+    assert_rnp_success(rnp_op_generate_execute(op));
+    rnp_op_generate_destroy(op);
+    op = NULL;
+
+    /* check default key */
+    assert_rnp_success(
+      rnp_key_get_default_key(key1, "encrypt", RNP_KEY_PREFER_PQC_ENC_SUBKEY, &defkey1));
+    // PQC key is older but preferred
+    assert(defkey1->pub->alg() == PGP_PKA_KYBER768_X25519);
+    assert_rnp_success(
+      rnp_key_get_default_key(key2, "encrypt", RNP_KEY_PREFER_PQC_ENC_SUBKEY, &defkey2));
+    // PQC key is newer and preferred
+    assert(defkey2->pub->alg() == PGP_PKA_KYBER768_X25519);
+
+    /* cleanup */
+    rnp_key_handle_destroy(key1);
+    rnp_key_handle_destroy(key2);
+    rnp_key_handle_destroy(defkey1);
+    rnp_key_handle_destroy(defkey2);
+    rnp_ffi_destroy(ffi);
+}
+#endif
+
+TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
+{
+    rnp_ffi_t        ffi = NULL;
+    rnp_input_t      input = NULL;
+    rnp_output_t     output = NULL;
+    rnp_op_encrypt_t op = NULL;
+    const char *     plaintext = "data1";
+
+    // setup FFI
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    assert_true(import_all_keys(ffi, "data/test_v6_valid_data/transferable_seckey_v6.asc"));
+
+    std::vector<std::string> ciphers = {"AES128", "AES192", "AES256"};
+    std::vector<std::string> aead_modes = {"None", "EAX", "OCB"};
+    std::vector<bool>        enable_pkeskv6_modes = {true, false};
+
+    for (auto enable_pkeskv6 : enable_pkeskv6_modes)
+        for (auto aead : aead_modes)
+            for (auto cipher : ciphers) {
+                // write out some data
+                FILE *fp = fopen("plaintext", "wb");
+                assert_non_null(fp);
+                assert_int_equal(1, fwrite(plaintext, strlen(plaintext), 1, fp));
+                assert_int_equal(0, fclose(fp));
+
+                // create input+output
+                assert_rnp_success(rnp_input_from_path(&input, "plaintext"));
+                assert_non_null(input);
+                assert_rnp_success(rnp_output_to_path(&output, "encrypted"));
+                assert_non_null(output);
+                // create encrypt operation
+                assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
+                // add recipients
+                rnp_key_handle_t key = NULL;
+                assert_rnp_success(rnp_locate_key(ffi, "keyid", "12c83f1e706f6308", &key));
+                assert_non_null(key);
+
+                assert_rnp_failure(rnp_op_encrypt_add_recipient(op, NULL)); // what for ?
+                assert_rnp_success(rnp_op_encrypt_add_recipient(op, key));
+                if (enable_pkeskv6) {
+                    assert_rnp_success(rnp_op_encrypt_enable_pkesk_v6(op));
+                }
+                rnp_key_handle_destroy(key);
+                key = NULL;
+
+                // set the data encryption cipher
+                if ((aead == "None") && enable_pkeskv6) {
+                    // already enabled v6 pkesk, does not make any sense to set AEAD to None
+                    // explicitly.
+                    assert_rnp_failure(rnp_op_encrypt_set_aead(op, aead.c_str()));
+                } else {
+                    assert_rnp_success(rnp_op_encrypt_set_aead(op, aead.c_str()));
+                }
+                assert_rnp_success(rnp_op_encrypt_set_cipher(op, cipher.c_str()));
+
+                // execute the operation
+                assert_rnp_success(rnp_op_encrypt_execute(op));
+
+                // make sure the output file was created
+                assert_true(rnp_file_exists("encrypted"));
+
+                // cleanup
+                assert_rnp_success(rnp_input_destroy(input));
+                input = NULL;
+                assert_rnp_success(rnp_output_destroy(output));
+                output = NULL;
+                assert_rnp_success(rnp_op_encrypt_destroy(op));
+                op = NULL;
+
+                /* decrypt */
+
+                // decrypt
+                assert_rnp_success(rnp_input_from_path(&input, "encrypted"));
+                assert_non_null(input);
+                assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+                assert_non_null(output);
+                assert_rnp_success(rnp_ffi_set_pass_provider(ffi, NULL, NULL));
+                assert_rnp_success(rnp_decrypt(ffi, input, output));
+                // cleanup
+                rnp_input_destroy(input);
+                input = NULL;
+                rnp_output_destroy(output);
+                output = NULL;
+            }
+    rnp_ffi_destroy(ffi);
+}
+#endif
+
 TEST_F(rnp_tests, test_ffi_encrypt_pk_key_provider)
 {
     rnp_ffi_t        ffi = NULL;
@@ -792,6 +1298,10 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_key_provider)
     key = NULL;
     // set the data encryption cipher
     if (cast5_enabled()) {
+        if (cast5_enabled()) {
+            assert_rnp_success(rnp_remove_security_rule(
+              ffi, RNP_FEATURE_SYMM_ALG, "CAST5", 0, RNP_SECURITY_REMOVE_ALL, 0, NULL));
+        }
         assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
     } else {
         assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "CAST5"));
@@ -901,6 +1411,10 @@ TEST_F(rnp_tests, test_ffi_encrypt_and_sign)
     key = NULL;
     // set the data encryption cipher
     if (cast5_enabled()) {
+        if (cast5_enabled()) {
+            assert_rnp_success(rnp_remove_security_rule(
+              ffi, RNP_FEATURE_SYMM_ALG, "CAST5", 0, RNP_SECURITY_REMOVE_ALL, 0, NULL));
+        }
         assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
     } else {
         assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "CAST5"));
@@ -940,7 +1454,9 @@ TEST_F(rnp_tests, test_ffi_encrypt_and_sign)
     // add second signature with different hash/issued/expiration
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key1-uid2", &key));
     assert_rnp_success(rnp_op_encrypt_add_signature(op, key, &signsig));
+    assert_rnp_failure(rnp_op_sign_signature_set_creation_time(NULL, issued2));
     assert_rnp_success(rnp_op_sign_signature_set_creation_time(signsig, issued2));
+    assert_rnp_failure(rnp_op_sign_signature_set_expiration_time(NULL, expires2));
     assert_rnp_success(rnp_op_sign_signature_set_expiration_time(signsig, expires2));
     assert_rnp_failure(rnp_op_sign_signature_set_hash(signsig, NULL));
     assert_rnp_failure(rnp_op_sign_signature_set_hash(NULL, "SHA512"));
@@ -1054,16 +1570,28 @@ TEST_F(rnp_tests, test_ffi_encrypt_and_sign)
 
     assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sig_count));
     assert_int_equal(sig_count, 2);
+    assert_rnp_failure(rnp_op_verify_get_signature_at(NULL, 0, &sig));
+    assert_rnp_failure(rnp_op_verify_get_signature_at(verify, 0, NULL));
+    assert_rnp_failure(rnp_op_verify_get_signature_at(verify, 10, &sig));
     // signature 1
     assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
+    assert_rnp_failure(rnp_op_verify_signature_get_status(NULL));
     assert_rnp_success(rnp_op_verify_signature_get_status(sig));
     assert_rnp_success(rnp_op_verify_signature_get_times(sig, &sig_create, &sig_expires));
     assert_int_equal(sig_create, issued);
     assert_int_equal(sig_expires, expires);
+    assert_rnp_failure(rnp_op_verify_signature_get_hash(NULL, &hname));
+    assert_rnp_failure(rnp_op_verify_signature_get_hash(sig, NULL));
     assert_rnp_success(rnp_op_verify_signature_get_hash(sig, &hname));
     assert_string_equal(hname, "SHA256");
     rnp_buffer_destroy(hname);
     hname = NULL;
+    key = NULL;
+    assert_rnp_failure(rnp_op_verify_signature_get_key(NULL, &key));
+    assert_rnp_failure(rnp_op_verify_signature_get_key(sig, NULL));
+    assert_rnp_success(rnp_op_verify_signature_get_key(sig, &key));
+    assert_non_null(key);
+    rnp_key_handle_destroy(key);
     // signature 2
     assert_rnp_success(rnp_op_verify_get_signature_at(verify, 1, &sig));
     assert_rnp_success(rnp_op_verify_signature_get_status(sig));
@@ -1123,6 +1651,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_subkey_selection)
 
     assert_rnp_success(
       rnp_input_from_memory(&input, (uint8_t *) plaintext, strlen(plaintext), false));
+    assert_rnp_failure(rnp_output_to_memory(NULL, 0));
     assert_rnp_success(rnp_output_to_memory(&output, 0));
     /* create encrypt operation, add recipient and execute */
     assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
@@ -1362,6 +1891,54 @@ TEST_F(rnp_tests, test_ffi_encrypt_no_wrap)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_v5_signatures)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    /* import v5 keys */
+    assert_true(import_pub_keys(ffi, "data/test_stream_key_load/v5-rsa-pub.asc"));
+    /* verify v5 attached signature */
+    rnp_input_t input = NULL;
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.signed.v5-rsa"));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_null(&output));
+    rnp_op_verify_t verify = NULL;
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    rnp_op_verify_signature_t sig = NULL;
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
+    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    /* verify v5 detached signature */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt"));
+    rnp_input_t sigin = NULL;
+    assert_rnp_success(
+      rnp_input_from_path(&sigin, "data/test_messages/message.txt.signed.v5-detached-rsa"));
+    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, input, sigin));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
+    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_input_destroy(sigin);
+    /* verify cleartext signature */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.signed.v5-clear-rsa"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
+    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_mimemode_signature)
 {
     rnp_ffi_t ffi = NULL;
@@ -1382,6 +1959,9 @@ TEST_F(rnp_tests, test_ffi_mimemode_signature)
     rnp_op_verify_signature_t sig = NULL;
     assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
     assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    char format = 0;
+    assert_rnp_success(rnp_op_verify_get_format(verify, &format));
+    assert_int_equal(format, 'm');
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(input);
     rnp_output_destroy(output);

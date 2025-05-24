@@ -29,19 +29,21 @@
 
 #include "ecdh.h"
 
-#define MAX_SP800_56A_OTHER_INFO 56
 // Keys up to 312 bits (+1 bytes of PKCS5 padding)
 #define MAX_SESSION_KEY_SIZE 40
 #define MAX_AES_KEY_SIZE 32
 
-size_t kdf_other_info_serialize(uint8_t                  other_info[MAX_SP800_56A_OTHER_INFO],
-                                const ec_curve_desc_t *  ec_curve,
-                                const pgp_fingerprint_t &fingerprint,
-                                const pgp_hash_alg_t     kdf_hash,
-                                const pgp_symm_alg_t     wrap_alg);
+namespace pgp {
+namespace ecdh {
+std::vector<uint8_t> kdf_other_info_serialize(const ec::Curve &           curve,
+                                              const std::vector<uint8_t> &fp,
+                                              const pgp_hash_alg_t        kdf_hash,
+                                              const pgp_symm_alg_t        wrap_alg);
 
-bool pad_pkcs7(uint8_t *buf, size_t buf_len, size_t offset);
+void pad_pkcs7(rnp::secure_bytes &buf, uint8_t padding);
 
-bool unpad_pkcs7(uint8_t *buf, size_t buf_len, size_t *offset);
+bool unpad_pkcs7(rnp::secure_bytes &buf);
+} // namespace ecdh
+} // namespace pgp
 
 #endif // ECDH_UTILS_H_

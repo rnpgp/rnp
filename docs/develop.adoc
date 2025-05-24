@@ -7,13 +7,13 @@ contributors.
 
 === Pull Requests
 
-See also: https://github.com/thoughtbot/guides/tree/master/code-review[Thoughtbot’s Code Review guide]
+See also: https://github.com/thoughtbot/guides/tree/main/code-review[Thoughtbot’s Code Review guide]
 
 Pull Requests should be used for any non-trivial changes. This presents
 an opportunity for feedback and allows the CI tests to complete prior to
 merging.
 
-The `master` branch should generally always be in a buildable and
+The `main` branch should generally always be in a buildable and
 functional state.
 
 Pull Requests should be:
@@ -30,12 +30,21 @@ Pull Requests should be:
 * Approved by **2** reviewers before merging.
   (Updates related to policies, like this section, should be approved by
   the project owner)
-* Merged by a reviewer via the most appropriate method
-  (see https://github.com/rnpgp/guides/tree/master/protocol/git[here]).
+* Merged by a reviewer via the `rebase and merge`
+
+=== Tests
+
+All newly added functionality should be covered by tests—either GTest-based
+API tests (see the rnp_tests target) or CLI tests (see cli_tests.py).
+It may also be helpful to check the Codecov report to identify any uncovered lines or cases.
+
+=== Coding style
+
+In general, the coding style should follow the existing modern C++ code rather than
+the legacy C-style remnants. For example, prefer rnp::Key over pgp_key_t, 
+use .hpp headers instead of .h, and so on.
 
 === Branches
-
-See also: https://github.com/rnpgp/guides/tree/master/protocol/git[Guides - Protocol / Git]
 
 Git branches should be used generously. Most branches should be topic branches,
 created for adding a specific feature or fixing a specific bug.
@@ -78,7 +87,7 @@ history of `main`, depending on how they are merged.
 
 Github actions are used for continuously testing new commits and pull requests.
 Those include testing for different operating systems, linting via clang-format and shellcheck,
-and code coverage and quality checks via `Codecov` and `LGTM.io`.
+and code coverage and quality checks via `Codecov` and `CodeQL`.
 
 For Github workflows sources see `.github/workflows/` folder and scripts from the `ci/` folder.
 Also there is a Cirrus CI runner, configuration for which is stored in `.cirrus.yml`.
@@ -97,9 +106,28 @@ Or, more specific:
 [source,console]
 --
 ctest -V -R cli_tests-Misc
+python3 ../rnp/src/tests/cli_tests.py -v -d Misc.test_armor_with_spaces_import
 --
 
-If test fails under the specific OS, you should construct corresponding Docker container and run tests inside, taking Github workflows as a guide.
+If test fails under the specific OS, you may use corresponding Docker container which is used by the CI.
+We maintain a bunch of containers which install all the prerequisites in this repository: https://github.com/rnpgp/rnp-ci-containers
+
+Sample building and running process could be as following:
+
+[source,console]
+--
+# Start docker, mounting rnp sources directory
+docker run -it -v $(pwd):/opt/rnp:ro ghcr.io/rnpgp/ci-rnp-fedora-38-amd64 bash
+
+# Configure and build rnp, adding additional options like backend selection or enabled sanitizers if needed
+cd /opt
+cmake -B build -DBUILD_SHARED_LIBS=On -DCRYPTO_BACKEND=Botan ./rnp
+cmake --build build --parallel "$(nproc)"
+
+# Run the tests. Please note that some tests would fail if run under the root as they check permissions.
+# Please see how this is handled in centos-and-fedora.yml or other workflows.
+ctest --parallel $(nproc) --test-dir build --output-on-failure
+--
 
 == Code Coverage
 
@@ -240,6 +268,8 @@ docker commit clang-format clang-format
 docker rm clang-format
 --
 
+How to use pre-built docker container from the linter action please see below.
+
 You can then reformat a file (say, `src/lib/crypto/bn.cpp`) like so:
 
 [source,console]
@@ -260,6 +290,29 @@ docker run --rm -v $PWD:/rnp -w /rnp clang-format clang-format -style=file -i `g
 [source,console]
 --
 docker run --rm -v $PWD:/rnp -w /rnp clang-format clang-format -style=file -i `git diff --name-only 54c5476..HEAD |grep "\.\(c\|h\|cpp\)\$"`
+--
+
+==== clang-format (manually, using the docker container from the clang-format-lint-action)
+
+Build container:
+
+[source,console]
+--
+docker build -t clang-format-lint github.com/DoozyX/clang-format-lint-action
+--
+
+Get a diff with formatting errors:
+
+[source,console]
+--
+docker run -it --rm --workdir /src -v $(pwd):/src clang-format-lint --clang-format-executable /clang-format/clang-format11.0.0 -r --exclude .git .
+--
+
+To edit files in-place, fixing the formatting errors, you should add `--inplace` parameter:
+
+[source,console]
+--
+docker run -it --rm --workdir /src -v $(pwd):/src clang-format-lint --clang-format-executable /clang-format/clang-format11.0.0 -r --exclude .git . --inplace true
 --
 
 === Style Guide
@@ -403,20 +456,19 @@ responsible according to this list.
 
 General:
 
-* Code style: @dewyatt
-* Algorithms: @randombit, @dewyatt, @flowher, @catap, @ni4
+* Code style: @dewyatt, @ni4
+* Algorithms: @randombit, @dewyatt, @catap, @ni4
 * Performance: @catap, @ni4
 * CLI: @ni4
-* GnuPG compatibility: @MohitKumarAgniotri, @frank-trampe, @ni4
-* Security Testing/Analysis: @MohitKumarAgniotri, @flowher
-* Autotools: @randombit, @zgyarmati, @catap
+* GnuPG compatibility: @ni4
+* Security Testing/Analysis: @ni4
+* CMake: @ni4
+* CI/CD: @maxirmx, @ni4
 
 Data formats:
 
-* OpenPGP Packet: @randombit, @catap, @ni4
-* Keystore: @catap
-* JSON: @zgyarmati
-* SSH: @ni4
+* OpenPGP Packet: @ni4
+* Keystore: @catap, @maxirmx
 
 Bindings:
 

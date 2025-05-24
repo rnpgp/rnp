@@ -50,6 +50,12 @@ error_writer(void *app_ctx, const void *buf, size_t len)
     return false;
 }
 
+static bool
+ignoring_writer(void *app_ctx, const void *buf, size_t len)
+{
+    return true;
+}
+
 TEST_F(rnp_tests, test_pipe)
 {
     uint8_t *         buf = NULL;
@@ -101,5 +107,23 @@ TEST_F(rnp_tests, test_pipe_dest_error)
     assert_rnp_failure(rnp_output_pipe(input, output));
 
     assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+}
+
+TEST_F(rnp_tests, test_output_write)
+{
+    rnp_output_t      output = NULL;
+    const std::string msg("this is a test");
+
+    assert_rnp_failure(rnp_output_to_callback(NULL, ignoring_writer, NULL, NULL));
+    assert_rnp_failure(rnp_output_to_callback(&output, NULL, NULL, NULL));
+    assert_rnp_success(rnp_output_to_callback(&output, ignoring_writer, NULL, NULL));
+    size_t written = 100;
+    assert_rnp_failure(rnp_output_write(NULL, msg.c_str(), msg.size(), &written));
+    assert_rnp_failure(rnp_output_write(output, NULL, 10, &written));
+    assert_rnp_success(rnp_output_write(output, NULL, 0, &written));
+    assert_int_equal(written, 0);
+    assert_rnp_success(rnp_output_write(output, msg.c_str(), msg.size(), NULL));
+    assert_rnp_failure(rnp_output_finish(NULL));
     assert_rnp_success(rnp_output_destroy(output));
 }

@@ -41,7 +41,7 @@ TEST_F(rnp_tests, test_large_mpi_rsa_pub)
     assert_rnp_success(init_file_src(&keysrc, "data/test_large_MPIs/rsa-pub-65535bits.pgp"));
     assert_rnp_failure(process_pgp_keys(keysrc, keyseq, false));
     assert_true(keyseq.keys.empty());
-    src_close(&keysrc);
+    keysrc.close();
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_rnp_success(

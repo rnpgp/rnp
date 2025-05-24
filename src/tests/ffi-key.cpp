@@ -28,7 +28,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include <librepgp/stream-ctx.h>
-#include "pgp-key.h"
+#include "key.hpp"
 #include "ffi-priv-types.h"
 #include "str-utils.h"
 #ifndef RNP_USE_STD_REGEX
@@ -39,16 +39,16 @@
 
 static void
 check_key_properties(rnp_key_handle_t key,
-                     bool             primary_exptected,
+                     bool             primary_expected,
                      bool             have_public_expected,
                      bool             have_secret_expected)
 {
-    bool isprimary = !primary_exptected;
+    bool isprimary = !primary_expected;
     assert_rnp_success(rnp_key_is_primary(key, &isprimary));
-    assert_true(isprimary == primary_exptected);
-    bool issub = primary_exptected;
+    assert_true(isprimary == primary_expected);
+    bool issub = primary_expected;
     assert_rnp_success(rnp_key_is_sub(key, &issub));
-    assert_true(issub == !primary_exptected);
+    assert_true(issub == !primary_expected);
     bool have_public = !have_public_expected;
     assert_rnp_success(rnp_key_have_public(key, &have_public));
     assert_true(have_public == have_public_expected);
@@ -113,8 +113,12 @@ TEST_F(rnp_tests, test_ffi_keygen_json_pair)
     json_object_put(parsed_results);
 
     // check the key counts
+    assert_rnp_failure(rnp_get_public_key_count(NULL, &count));
+    assert_rnp_failure(rnp_get_public_key_count(ffi, NULL));
     assert_rnp_success(rnp_get_public_key_count(ffi, &count));
     assert_int_equal(2, count);
+    assert_rnp_failure(rnp_get_secret_key_count(NULL, &count));
+    assert_rnp_failure(rnp_get_secret_key_count(ffi, NULL));
     assert_rnp_success(rnp_get_secret_key_count(ffi, &count));
     assert_int_equal(2, count);
 
@@ -435,6 +439,7 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
 {
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_failure(rnp_ffi_set_key_provider(NULL, unused_getkeycb, NULL));
     assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
 
     /* make sure we do not leak key handle and do not access NULL */
@@ -533,6 +538,23 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
     assert_true(prot);
     /* cleanup */
     rnp_key_handle_destroy(key);
+    /* generate key with signing subkey using rnp_generate_key_ex() */
+    key = NULL;
+    subkey = NULL;
+    flag = false;
+    assert_rnp_success(rnp_generate_key_ex(
+      ffi, "ECDSA", "ECDSA", 0, 0, "secp256k1", "NIST P-256", "ex_sign", NULL, &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "sign", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "certify", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "encrypt", &flag));
+    assert_false(flag);
+    rnp_key_handle_destroy(subkey);
+    rnp_key_handle_destroy(key);
 
     /* generate key with signing subkey */
     rnp_op_generate_t op = NULL;
@@ -550,6 +572,10 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
     assert_rnp_success(rnp_key_get_keyid(primary, &keyid));
 
     rnp_op_generate_t subop = NULL;
+    assert_rnp_failure(rnp_op_generate_subkey_create(NULL, ffi, primary, "ECDSA"));
+    assert_rnp_failure(rnp_op_generate_subkey_create(&subop, NULL, primary, "ECDSA"));
+    assert_rnp_failure(rnp_op_generate_subkey_create(&subop, ffi, NULL, "ECDSA"));
+    assert_rnp_failure(rnp_op_generate_subkey_create(&subop, ffi, primary, NULL));
     assert_rnp_success(rnp_op_generate_subkey_create(&subop, ffi, primary, "ECDSA"));
     assert_rnp_success(rnp_op_generate_set_curve(subop, "NIST P-256"));
     assert_rnp_success(rnp_op_generate_add_usage(subop, "sign"));
@@ -563,6 +589,13 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
 
     rnp_output_t output = NULL;
     rnp_output_to_memory(&output, 0);
+    assert_rnp_failure(rnp_key_export(NULL, output, RNP_KEY_EXPORT_PUBLIC));
+    assert_rnp_failure(rnp_key_export(primary, NULL, RNP_KEY_EXPORT_PUBLIC));
+    assert_rnp_failure(rnp_key_export(primary, output, 0));
+    assert_rnp_failure(
+      rnp_key_export(primary, output, RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_SECRET));
+    assert_rnp_failure(rnp_key_export(primary, output, 0x77));
+
     assert_rnp_success(
       rnp_key_export(primary,
                      output,
@@ -702,6 +735,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_rsa)
     assert_int_equal(uids, 1);
     assert_rnp_failure(rnp_key_get_uid_at(key, 1, &uid));
     assert_null(uid);
+    assert_rnp_failure(rnp_key_get_uid_at(NULL, 0, &uid));
+    assert_rnp_failure(rnp_key_get_uid_at(key, 0, NULL));
     assert_rnp_success(rnp_key_get_uid_at(key, 0, &uid));
     assert_string_equal(uid, "rsa_1024");
     rnp_buffer_destroy(uid);
@@ -751,6 +786,16 @@ TEST_F(rnp_tests, test_ffi_key_generate_rsa)
     assert_rnp_success(rnp_key_get_subkey_count(key, &subkeys));
     assert_int_equal(subkeys, 0);
     /* cleanup */
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    /* generate RSA keypair with default sizes */
+    assert_rnp_success(rnp_generate_key_ex(
+      ffi, RNP_ALGNAME_RSA, RNP_ALGNAME_RSA, 0, 0, NULL, NULL, "rsa_default", NULL, &key));
+    assert_rnp_success(rnp_key_get_bits(key, &bits));
+    assert_int_equal(bits, 3072);
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &subkey));
+    assert_rnp_success(rnp_key_get_bits(subkey, &bits));
+    assert_int_equal(bits, 3072);
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
     assert_rnp_success(rnp_key_handle_destroy(key));
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
@@ -852,6 +897,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_dsa)
     assert_non_null(key);
     assert_rnp_success(rnp_key_get_subkey_count(key, &subkeys));
     assert_int_equal(subkeys, 0);
+    /* make sure we fail to generate 4096-bit DSA key */
+    assert_rnp_failure(rnp_generate_key_dsa_eg(ffi, 4096, 0, "dsa_4096", NULL, &key));
     /* cleanup */
     assert_rnp_success(rnp_key_handle_destroy(key));
     assert_rnp_success(rnp_ffi_destroy(ffi));
@@ -1170,6 +1217,7 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     /* Generate RSA key with misc options set */
     rnp_op_generate_t keygen = NULL;
     assert_rnp_success(rnp_op_generate_create(&keygen, ffi, "RSA"));
+    assert_rnp_failure(rnp_op_generate_set_bits(NULL, 1024));
     assert_rnp_success(rnp_op_generate_set_bits(keygen, 1024));
     assert_rnp_failure(rnp_op_generate_set_dsa_qbits(keygen, 256));
     /* key usage */
@@ -2088,13 +2136,11 @@ static json_object *
 get_json_obj(json_object *jso, const char *field)
 {
     const char *start = field;
-    const char *end;
     char        buf[32];
 
-    do {
-        end = strchr(start, '.');
-
-        size_t len = end ? (end - start) : strlen(start);
+    while (start && *start) {
+        const char *end = strchr(start, '.');
+        size_t      len = end ? (end - start) : strlen(start);
         if (len >= sizeof(buf)) {
             return NULL;
         }
@@ -2105,8 +2151,8 @@ get_json_obj(json_object *jso, const char *field)
             return NULL;
         }
 
-        start = end + 1;
-    } while (end);
+        start = end ? end + 1 : NULL;
+    };
     return jso;
 }
 
@@ -3138,6 +3184,144 @@ TEST_F(rnp_tests, test_ffi_malformed_keys_import)
     rnp_ffi_destroy(ffi);
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+TEST_F(rnp_tests, test_ffi_v6_sig_subpackets)
+{
+    rnp_ffi_t ffi = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, unused_getpasscb, NULL));
+
+    rnp_op_generate_t op = NULL;
+    assert_rnp_success(rnp_op_generate_create(&op, ffi, "EDDSA"));
+    assert_rnp_success(rnp_op_generate_set_v6_key(op));
+    assert_rnp_success(rnp_op_generate_set_userid(op, "test"));
+    assert_rnp_success(rnp_op_generate_add_usage(op, "sign"));
+    assert_rnp_success(rnp_op_generate_add_usage(op, "certify"));
+    assert_rnp_success(rnp_op_generate_set_expiration(op, 0));
+    assert_rnp_success(rnp_op_generate_execute(op));
+    rnp_key_handle_t primary = NULL;
+    assert_rnp_success(rnp_op_generate_get_key(op, &primary));
+
+    assert_true(primary->pub->get_sig(0).sig.has_subpkt(
+      PGP_SIG_SUBPKT_ISSUER_FPR, false)); // MUST NOT have issuer key id extension
+    assert_false(primary->pub->get_sig(0).sig.has_subpkt(
+      PGP_SIG_SUBPKT_ISSUER_KEY_ID, false)); // SHOULD have issuer fingerprint
+
+    rnp_key_handle_destroy(primary);
+    rnp_op_generate_destroy(op);
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_v6_cert_import)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+    size_t      keycount = 255;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_v6_valid_data/transferable_pubkey_v6.asc"));
+    assert_rnp_success(
+      rnp_import_keys(ffi,
+                      input,
+                      RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SINGLE | RNP_LOAD_SAVE_BASE64,
+                      NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 2);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 0);
+
+    /* check that fingerprint is correct by checking the fingerprint in the signature (coming
+      from the correct input data) vs the computed fingerprint value of the primary key.
+      Issuer fingerprint is the priamry's key fingerprint for the primary and its subkeys */
+    pgp::Fingerprint primary_fp;
+    for (rnp::Key key : ffi->pubring->keys) {
+        if (key.is_primary()) {
+            primary_fp = key.fp();
+        }
+    }
+
+    for (rnp::Key key : ffi->pubring->keys) {
+        /* get first sig and its issuer fpr subpacket */
+        rnp::Signature subsig = key.get_sig(0);
+        auto issuer_fpr = subsig.sig.get_subpkt(pgp::pkt::sigsub::Type::IssuerFingerprint);
+        assert_non_null(issuer_fpr);
+
+        /* check that fingerprints match */
+        assert_int_equal(key.fp().size(), PGP_FINGERPRINT_V6_SIZE);
+        assert_memory_equal(issuer_fpr->data().data() + 1,
+                            primary_fp.data(),
+                            primary_fp.size()); // first byte in data is the version - skip
+    }
+    rnp_ffi_destroy(ffi);
+}
+
+#if defined(ENABLE_PQC)
+// NOTE: this tests ML-KEM-ipd test vectors
+// The final implementation of the PQC draft implementation will use the final NIST standard.
+TEST_F(rnp_tests, test_ffi_pqc_certs)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+    size_t      keycount = 255;
+
+    /* Public Key */
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-eddsa-mlkem.pub.asc"));
+    assert_rnp_success(
+      rnp_import_keys(ffi,
+                      input,
+                      RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SINGLE | RNP_LOAD_SAVE_BASE64,
+                      NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 2);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 0);
+    rnp_ffi_destroy(ffi);
+
+    /* Private Key */
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-eddsa-mlkem.sec.asc"));
+    assert_rnp_success(
+      rnp_import_keys(ffi,
+                      input,
+                      RNP_LOAD_SAVE_SECRET_KEYS | RNP_LOAD_SAVE_SINGLE | RNP_LOAD_SAVE_BASE64,
+                      NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 2);
+    rnp_ffi_destroy(ffi);
+}
+
+#endif
+
+TEST_F(rnp_tests, test_ffi_v6_seckey_import)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+    size_t      keycount = 255;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_v6_valid_data/transferable_seckey_v6.asc"));
+    assert_rnp_success(
+      rnp_import_keys(ffi,
+                      input,
+                      RNP_LOAD_SAVE_SECRET_KEYS | RNP_LOAD_SAVE_SINGLE | RNP_LOAD_SAVE_BASE64,
+                      NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 2);
+    rnp_ffi_destroy(ffi);
+}
+#endif
+
 TEST_F(rnp_tests, test_ffi_iterated_key_import)
 {
     rnp_ffi_t   ffi = NULL;
@@ -3960,6 +4144,7 @@ TEST_F(rnp_tests, test_ffi_key_export_autocrypt)
 
     /* remove first subkey and export again */
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "1ed63ee56fadc34d", &sub));
+    assert_rnp_failure(rnp_key_remove(sub, 0x333));
     assert_rnp_success(rnp_key_remove(sub, RNP_KEY_REMOVE_PUBLIC));
     rnp_key_handle_destroy(sub);
     assert_rnp_success(rnp_output_to_memory(&output, 0));
@@ -4312,6 +4497,7 @@ TEST_F(rnp_tests, test_ffi_sha1_self_signatures)
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
 
     /* Check the key which has SHA1 self signature, made after the cut-off date */
+    assert_rnp_failure(rnp_set_timestamp(NULL, SHA1_KEY_FROM + 10));
     assert_rnp_success(rnp_set_timestamp(ffi, SHA1_KEY_FROM + 10));
     assert_true(import_pub_keys(ffi, "data/test_forged_keys/eddsa-2024-pub.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "980e3741f632212c", &key));
@@ -4441,6 +4627,327 @@ TEST_F(rnp_tests, test_reprotect_keys)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_v5_keys)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    /* v5 rsa-rsa public key */
+    assert_true(import_pub_keys(ffi, "data/test_stream_key_load/v5-rsa-pub.asc"));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(
+      rnp_locate_key(ffi,
+                     "fingerprint",
+                     "b856a4197113d431927b925248f026615f9f390b26bc1676e81f072c70f539e9",
+                     &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(check_uid_valid(key, 0, true));
+    assert_true(check_sub_valid(key, 0, true));
+    assert_true(check_key_grip(key, "442238389AFF3D83492606F0139655330EECA70E"));
+    rnp_key_handle_destroy(key);
+    /* Locate subkey via keyid */
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "2d400055b0345c33", &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(
+      check_key_fp(key, "2D400055B0345C33363F03A72F4D2363C18298ED005780BFB2C4351FEE15446C"));
+    assert_true(check_key_grip(key, "E68FD5C5250C21D4D4646226C9A048729B2DDC21"));
+    rnp_key_handle_destroy(key);
+
+    /* add v5 rsa-rsa secret key */
+    assert_true(import_sec_keys(ffi, "data/test_stream_key_load/v5-rsa-sec.asc"));
+    assert_true(check_has_key(ffi, "b856a4197113d431", true));
+    assert_true(check_has_key(ffi, "2d400055b0345c33", true));
+
+    /* v5 dsa-eg public key */
+    assert_true(import_pub_keys(ffi, "data/test_stream_key_load/v5-dsa-eg-pub.asc"));
+    key = NULL;
+    assert_rnp_success(
+      rnp_locate_key(ffi,
+                     "fingerprint",
+                     "3069f583308ac3e4a5517a07c487756da7f7456cee5e2bdf00411b7bb00dee82",
+                     &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(check_uid_valid(key, 0, true));
+    assert_true(check_sub_valid(key, 0, true));
+    assert_true(check_key_grip(key, "48ABC799737F65015C143E28E80BF91018F101D5"));
+    rnp_key_handle_destroy(key);
+    /* subkey */
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "8514df0cab25f0d3", &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(
+      check_key_fp(key, "8514DF0CAB25F0D34768F09850BE1CB6EF007630F8D02E5E2DEAD1C83C30412D"));
+    assert_true(check_key_grip(key, "B14996A317484FC50DAB2B01F49B803E29DC687A"));
+    rnp_key_handle_destroy(key);
+    /* secret key */
+    assert_true(import_sec_keys(ffi, "data/test_stream_key_load/v5-dsa-eg-sec.asc"));
+    assert_true(check_has_key(ffi, "3069f583308ac3e4", true));
+    assert_true(check_has_key(ffi, "8514df0cab25f0d3", true));
+
+    /* v5 ecc 25519 key */
+    assert_true(import_pub_keys(ffi, "data/test_stream_key_load/v5-ecc-25519-pub.asc"));
+    key = NULL;
+    assert_rnp_success(
+      rnp_locate_key(ffi,
+                     "fingerprint",
+                     "817f60336bb9d133b59f1b91fdebe36796c1b2f47907bab49a7eb981dc719dc0",
+                     &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(check_uid_valid(key, 0, true));
+    assert_true(check_sub_valid(key, 0, true));
+    assert_true(check_key_grip(key, "AC3EA2D975FF76029DFE1E9AB01F5DB36CF8B912"));
+    rnp_key_handle_destroy(key);
+    /* subkey */
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "08b67c2205cfd75b", &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(
+      check_key_fp(key, "08B67C2205CFD75BF6E545BBFF075AAAAB1A0A37E75E05699D892B797FB02493"));
+    assert_true(check_key_grip(key, "49F25BE1255F2A726B79DF52D5EC87160C47A11D"));
+    rnp_key_handle_destroy(key);
+    /* secret key */
+    assert_true(import_sec_keys(ffi, "data/test_stream_key_load/v5-ecc-25519-sec.asc"));
+    assert_true(check_has_key(ffi, "817f60336bb9d133", true));
+    assert_true(check_has_key(ffi, "08b67c2205cfd75b", true));
+
+    /* v5 ecc 448 key : not supported yet */
+    assert_false(import_pub_keys(ffi, "data/test_stream_key_load/v5-ecc-448-pub.asc"));
+    assert_false(import_sec_keys(ffi, "data/test_stream_key_load/v5-ecc-448-sec.asc"));
+
+    /* v5 ecc p256 key */
+    assert_true(import_pub_keys(ffi, "data/test_stream_key_load/v5-ecc-p256-pub.asc"));
+    key = NULL;
+    assert_rnp_success(
+      rnp_locate_key(ffi,
+                     "fingerprint",
+                     "de96db9d6198a7a0183e29e56e48d548ca914a999fe99fbad93d077ebe61a1ef",
+                     &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(check_uid_valid(key, 0, true));
+    assert_true(check_sub_valid(key, 0, true));
+    assert_true(check_key_grip(key, "C4AC4AE27A21DA9B760573133E07E443C562C0E6"));
+    rnp_key_handle_destroy(key);
+    /* subkey */
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "da25a0907380d168", &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(
+      check_key_fp(key, "DA25A0907380D16850850C89B01D9466E79A714990595A55AA477B9CE60E970F"));
+    assert_true(check_key_grip(key, "A8B7B80C256BB50C997FD38902C434C281946A43"));
+    rnp_key_handle_destroy(key);
+    /* secret key */
+    assert_true(import_sec_keys(ffi, "data/test_stream_key_load/v5-ecc-p256-sec.asc"));
+    assert_true(check_has_key(ffi, "de96db9d6198a7a0", true));
+    assert_true(check_has_key(ffi, "da25a0907380d168", true));
+
+    reload_keyrings(&ffi);
+    /* v5 rsa */
+    assert_true(check_has_key(ffi, "b856a4197113d431", true));
+    assert_true(check_has_key(ffi, "2d400055b0345c33", true));
+    /* v5 dsa-eg */
+    assert_true(check_has_key(ffi, "3069f583308ac3e4", true));
+    assert_true(check_has_key(ffi, "8514df0cab25f0d3", true));
+    /* v5 ecc 25519 */
+    assert_true(check_has_key(ffi, "817f60336bb9d133", true));
+    assert_true(check_has_key(ffi, "08b67c2205cfd75b", true));
+    /* v5 p256 */
+    assert_true(check_has_key(ffi, "de96db9d6198a7a0", true));
+    assert_true(check_has_key(ffi, "da25a0907380d168", true));
+
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_v5_keys_g23)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "KBX", "G10"));
+    /* New format which is not supported yet */
+    assert_false(load_keys_kbx_g10(ffi,
+                                   "data/test_stream_key_load/g23-v5/pubring.kbx",
+                                   "data/test_stream_key_load/g23-v5/private-keys-v1.d"));
+
+    /* v5 rsa */
+    assert_false(check_has_key(ffi, "b856a4197113d431", true));
+    assert_false(check_has_key(ffi, "2d400055b0345c33", true));
+    /* v5 dsa-eg */
+    assert_false(check_has_key(ffi, "3069f583308ac3e4", true));
+    assert_false(check_has_key(ffi, "8514df0cab25f0d3", true));
+    /* v5 ecc 25519 */
+    assert_false(check_has_key(ffi, "817f60336bb9d133", true));
+    assert_false(check_has_key(ffi, "08b67c2205cfd75b", true));
+    /* v5 p256 */
+    assert_false(check_has_key(ffi, "de96db9d6198a7a0", true));
+    assert_false(check_has_key(ffi, "da25a0907380d168", true));
+
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_v5_sec_keys)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    /* v5 rsa-rsa secret key */
+    assert_true(import_sec_keys(ffi, "data/test_stream_key_load/v5-rsa-sec.asc"));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "b856a4197113d431", &key));
+    assert_rnp_success(rnp_key_unlock(key, "password"));
+    assert_rnp_success(rnp_key_lock(key));
+    rnp_key_handle_destroy(key);
+    /* v5 rsa secret subkey */
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "2d400055b0345c33", &key));
+    assert_rnp_success(rnp_key_unlock(key, "password"));
+    assert_rnp_success(rnp_key_lock(key));
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_designated_revokers)
+{
+    auto path_for = [](const std::string &file) {
+        return "data/test_stream_key_load/" + file;
+    };
+    rnp_ffi_t ffi = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    /* Load key, revoked by designated revocation key */
+    assert_true(load_keys_gpg(ffi, path_for("ecc-p256-desigrevoked-25519-pub.asc")));
+    /* Check whether it is revoked - not yet as there is no revoker's key */
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_non_null(key);
+    assert_true(check_key_valid(key, true));
+    assert_true(check_key_revoked(key, false));
+    rnp_signature_handle_t sig = NULL;
+    assert_rnp_success(rnp_key_get_signature_at(key, 0, &sig));
+    char *sigtype = NULL;
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "key revocation");
+    rnp_buffer_destroy(sigtype);
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_ERROR_KEY_NOT_FOUND);
+    /* Check for empty designated revoker */
+    char *revoker = NULL;
+    assert_rnp_failure(rnp_signature_get_revoker(NULL, &revoker));
+    assert_rnp_failure(rnp_signature_get_revoker(sig, NULL));
+    assert_rnp_success(rnp_signature_get_revoker(sig, &revoker));
+    assert_int_equal(strcmp(revoker, ""), 0);
+    rnp_buffer_destroy(revoker);
+    rnp_signature_handle_destroy(sig);
+    /* Now not empty */
+    assert_rnp_success(rnp_key_get_signature_at(key, 1, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "direct");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_get_revoker(sig, &revoker));
+    assert_int_equal(strcmp(revoker, "21FC68274AAE3B5DE39A4277CC786278981B0728"), 0);
+    rnp_buffer_destroy(revoker);
+    rnp_signature_handle_destroy(sig);
+    rnp_key_handle_destroy(key);
+    /* Load revoker's key and recheck */
+    assert_true(load_keys_gpg(ffi, path_for("ecc-25519-pub.asc")));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_non_null(key);
+    assert_true(check_key_valid(key, false));
+    assert_true(check_key_revoked(key, true));
+    assert_rnp_success(rnp_key_get_signature_at(key, 0, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "key revocation");
+    rnp_buffer_destroy(sigtype);
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_SUCCESS);
+    rnp_signature_handle_destroy(sig);
+    rnp_key_handle_destroy(key);
+    /* Load first revoker's key and then revoked one */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_true(import_pub_keys(ffi, path_for("ecc-25519-pub.asc")));
+    assert_true(import_pub_keys(ffi, path_for("ecc-p256-desigrevoked-25519-pub.asc")));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_true(check_key_valid(key, false));
+    assert_true(check_key_revoked(key, true));
+    rnp_key_handle_destroy(key);
+    /* Load key with revocation from non-designated revoker */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_true(import_pub_keys(ffi, path_for("ecc-25519-pub.asc")));
+    assert_true(import_pub_keys(ffi, path_for("ecc-p384-pub.asc")));
+    assert_true(import_pub_keys(ffi, path_for("ecc-p256-desig-wrong-revoker.pgp")));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(check_key_revoked(key, false));
+    assert_rnp_success(rnp_key_get_signature_at(key, 0, &sig));
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_SUCCESS);
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "direct");
+    rnp_buffer_destroy(sigtype);
+    rnp_signature_handle_destroy(sig);
+    assert_rnp_success(rnp_key_get_signature_at(key, 1, &sig));
+    /* While signature is technically valid, it is not applicable to the key */
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_SUCCESS);
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "key revocation");
+    rnp_buffer_destroy(sigtype);
+    rnp_signature_handle_destroy(sig);
+    rnp_key_handle_destroy(key);
+    /* Add key to force refresh and check back to make sure revocation status did not change */
+    assert_true(import_pub_keys(ffi, path_for("ecc-p521-pub.asc")));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(check_key_revoked(key, false));
+    rnp_key_handle_destroy(key);
+    /* Key with 2 designated revokers and 2 revocations */
+    assert_true(load_keys_gpg(ffi, path_for("ecc-p256-desigrevoked-2-revs.pgp")));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    /* Check designated revokers */
+    size_t count = 0;
+    assert_rnp_failure(rnp_key_get_revoker_count(NULL, &count));
+    assert_rnp_failure(rnp_key_get_revoker_count(key, NULL));
+    assert_rnp_success(rnp_key_get_revoker_count(key, &count));
+    assert_int_equal(count, 2);
+    assert_rnp_failure(rnp_key_get_revoker_at(NULL, 0, &revoker));
+    assert_rnp_failure(rnp_key_get_revoker_at(key, 0, NULL));
+    assert_rnp_failure(rnp_key_get_revoker_at(key, 2, &revoker));
+    assert_rnp_failure(rnp_key_get_revoker_at(key, (size_t) -1, &revoker));
+    assert_rnp_success(rnp_key_get_revoker_at(key, 0, &revoker));
+    assert_string_equal(revoker, "21FC68274AAE3B5DE39A4277CC786278981B0728");
+    rnp_buffer_destroy(revoker);
+    assert_rnp_success(rnp_key_get_revoker_at(key, 1, &revoker));
+    assert_string_equal(revoker, "AB25CBA042DD924C3ACC3ED3242A3AA5EA85F44A");
+    rnp_buffer_destroy(revoker);
+    /* Check key validity */
+    assert_true(check_key_valid(key, true));
+    /* key is revoked since designated revocation is already in the keyring and was checked
+     * with ecc-p384 key */
+    assert_true(check_key_revoked(key, true));
+    rnp_key_handle_destroy(key);
+    assert_true(load_keys_gpg(ffi, path_for("ecc-p384-pub.asc")));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_true(check_key_valid(key, false));
+    assert_true(check_key_revoked(key, true));
+    char *rev_reason = NULL;
+    assert_rnp_success(rnp_key_get_revocation_reason(key, &rev_reason));
+    assert_string_equal(rev_reason, "ecc-p384 revocation for ecc-p256");
+    rnp_buffer_destroy(rev_reason);
+    rnp_key_handle_destroy(key);
+    /* Now try another revoker */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_true(load_keys_gpg(ffi, path_for("ecc-p256-desigrevoked-2-revs.pgp")));
+    assert_true(load_keys_gpg(ffi, path_for("ecc-25519-pub.asc")));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_true(check_key_valid(key, false));
+    assert_true(check_key_revoked(key, true));
+    assert_rnp_success(rnp_key_get_revocation_reason(key, &rev_reason));
+    assert_string_equal(rev_reason, "ecc-25519 revocation for ecc-p256");
+    rnp_buffer_destroy(rev_reason);
+    rnp_key_handle_destroy(key);
+    /* Case where revocation signatures goes before the direct-key with desig revoker */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_true(load_keys_gpg(ffi, path_for("ecc-p256-desigrevoked-sigorder.pgp")));
+    assert_true(import_pub_keys(ffi, path_for("ecc-p384-pub.asc")));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_true(check_key_valid(key, false));
+    assert_true(check_key_revoked(key, true));
+    assert_rnp_success(rnp_key_get_revocation_reason(key, &rev_reason));
+    assert_string_equal(rev_reason, "ecc-p384 revocation for ecc-p256");
+    rnp_buffer_destroy(rev_reason);
+    rnp_key_handle_destroy(key);
+
+    /* Cleanup */
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_armored_keys_extra_line)
 {
     rnp_ffi_t ffi = NULL;
@@ -4449,7 +4956,7 @@ TEST_F(rnp_tests, test_armored_keys_extra_line)
     assert_true(
       import_pub_keys(ffi, "data/test_stream_key_load/ecc-25519-pub-extra-line.asc"));
     rnp_key_handle_t key = NULL;
-    assert_rnp_success(rnp_locate_key(ffi, "keyid", "cc786278981b0728", &key));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0xcc786278981b0728", &key));
     assert_true(check_key_valid(key, true));
     assert_true(check_uid_valid(key, 0, true));
     rnp_key_handle_destroy(key);
@@ -4458,7 +4965,7 @@ TEST_F(rnp_tests, test_armored_keys_extra_line)
     assert_true(
       import_pub_keys(ffi, "data/test_stream_key_load/ecc-25519-pub-extra-line-2.asc"));
     key = NULL;
-    assert_rnp_success(rnp_locate_key(ffi, "keyid", "cc786278981b0728", &key));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0xcc786278981b0728", &key));
     assert_true(check_key_valid(key, true));
     assert_true(check_uid_valid(key, 0, true));
     rnp_key_handle_destroy(key);

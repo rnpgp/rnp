@@ -29,14 +29,13 @@
 
 #include <rekey/rnp_key_store.h>
 
-bool rnp_key_store_g10_from_src(rnp_key_store_t *, pgp_source_t *, const pgp_key_provider_t *);
-bool rnp_key_store_gnupg_sexp_to_dst(pgp_key_t *, pgp_dest_t *);
-bool g10_write_seckey(pgp_dest_t *          dst,
-                      pgp_key_pkt_t *       seckey,
-                      const char *          password,
-                      rnp::SecurityContext &ctx);
-pgp_key_pkt_t *g10_decrypt_seckey(const pgp_rawpacket_t &raw,
-                                  const pgp_key_pkt_t &  pubkey,
-                                  const char *           password);
+bool           rnp_key_store_gnupg_sexp_to_dst(rnp::Key &, pgp_dest_t &);
+bool           g10_write_seckey(pgp_dest_t *          dst,
+                                pgp_key_pkt_t *       seckey,
+                                const char *          password,
+                                rnp::SecurityContext &ctx);
+pgp_key_pkt_t *g10_decrypt_seckey(const rnp::RawPacket &raw,
+                                  const pgp_key_pkt_t & pubkey,
+                                  const char *          password);
 
 #endif // RNP_KEY_STORE_G10_H

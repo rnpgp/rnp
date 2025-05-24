@@ -54,7 +54,7 @@ Prerequisites: please ensure `git` is installed on the system
 [source,console]
 ----
 # Clone the repository by version tag (or omit it to get the latest sources)
-git clone https://github.com/rnpgp/rnp.git -b v0.17.1
+git clone https://github.com/rnpgp/rnp.git -b v0.18.0
 
 Please ensure that you clone with submodules if you use a version higher then 0.16.2
 git clone https://github.com/rnpgp/rnp.git --recurse-submodules --shallow-submodules
@@ -91,7 +91,7 @@ Prerequisite: please ensure `git` is installed on the system.
 [source,console]
 ----
 # Clone the repository by version tag (or omit it to get the latest sources)
-git clone https://github.com/rnpgp/rnp.git -b v0.17.1
+git clone https://github.com/rnpgp/rnp.git -b v0.18.0
 
 Please ensure that you clone with submodules if you use a version higher then 0.16.2
 git clone https://github.com/rnpgp/rnp.git --recurse-submodules --shallow-submodules
@@ -177,6 +177,11 @@ make && make install
 
 === Using Microsoft Visual Studio 2019 and vcpkg
 
+Use appropriate command prompt for your target platform, for example "x64 Native Tools Command Prompt for VS 2019"
+```
+cmd /k "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+```
+
 Install `vcpkg` according to
 https://docs.microsoft.com/en-us/cpp/build/install-vcpkg?view=msvc-160&tabs=windows[these instructions]:
 
@@ -203,8 +208,8 @@ If you need to target 32-bit platform you'll need to to replace `x64-windows` wi
 ----
 cmake -B build -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake \
       -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=off -DCRYPTO_BACKEND="botan" .
-cmake --build . --config Release
-cmake --install .
+cmake --build build --config Release
+cmake --install build
 ----
 --
 Replace CRYPTO_BACKEND parameter to "openssl" if you target this backend.
@@ -219,6 +224,11 @@ Ensure that the following dependencies are available on path:
 * `zlib1.dll`
 
 === Using Microsoft Visual Studio 2019 and pre-installed libraries
+
+Use appropriate command prompt for your target platform, for example "x64 Native Tools Command Prompt for VS 2019"
+```
+cmd /k "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+```
 
 Install dependencies and make them available either on PATH or using CMAKE_TARGET_PREFIX parameter:
 
@@ -238,8 +248,8 @@ In such case use OPENSSL_ROOT_DIR.
 ----
 cmake -B build -G "Visual Studio 16 2019" -A x64 -DOPENSSL_ROOT_DIR=<openssl root> -DCMAKE_TARGET_PREFIX=<target prefix> \
       -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=off -DCRYPTO_BACKEND="botan" .
-cmake --build . --config Release
-cmake --install .
+cmake --build build --config Release
+cmake --install build
 ----
 --
 Replace CRYPTO_BACKEND parameter to "openssl" if you target this backend, use OPENSSL_ROOT_DIR and CMAKE_TARGET_PREFIX optionally as explained above

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2019 Ribose Inc.
+ * Copyright (c) 2019-2024 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,57 +29,98 @@
 #include <json.h>
 #include "utils.h"
 #include <list>
+#include <unordered_set>
 #include <crypto/mem.h>
 #include "sec_profile.hpp"
+#include "keygen.hpp"
 
 struct rnp_key_handle_st {
-    rnp_ffi_t        ffi;
-    pgp_key_search_t locator;
-    pgp_key_t *      pub;
-    pgp_key_t *      sec;
+    rnp_ffi_t ffi;
+    rnp::Key *pub;
+    rnp::Key *sec;
+
+    rnp_key_handle_st(rnp_ffi_t affi, rnp::Key *apub = nullptr, rnp::Key *asec = nullptr)
+        : ffi(affi), pub(apub), sec(asec)
+    {
+    }
 };
 
 struct rnp_uid_handle_st {
-    rnp_ffi_t  ffi;
-    pgp_key_t *key;
-    size_t     idx;
+    rnp_ffi_t ffi;
+    rnp::Key *key;
+    size_t    idx;
 };
 
 struct rnp_signature_handle_st {
-    rnp_ffi_t        ffi;
-    const pgp_key_t *key;
-    pgp_subsig_t *   sig;
-    bool             own_sig;
+    rnp_ffi_t ffi;
+    /**
+     * @brief Key to which this signature belongs, if available.
+     */
+    const rnp::Key *key;
+    rnp::Signature *sig;
+    /**
+     * @brief sig pointer is owned by structure and should be deallocated.
+     */
+    bool own_sig;
+    /**
+     * @brief This is a new signature, which is being populated.
+     */
+    bool new_sig;
+
+    rnp_signature_handle_st(rnp_ffi_t       affi,
+                            const rnp::Key *akey = nullptr,
+                            rnp::Signature *asig = nullptr,
+                            bool            aown_sig = false,
+                            bool            anew_sig = false)
+        : ffi(affi), key(akey), sig(asig), own_sig(aown_sig), new_sig(anew_sig)
+    {
+    }
+};
+
+struct rnp_sig_subpacket_st {
+    const pgp::pkt::sigsub::Raw &sub;
+
+    rnp_sig_subpacket_st(const pgp::pkt::sigsub::Raw &val) : sub(val)
+    {
+    }
 };
 
 struct rnp_recipient_handle_st {
     rnp_ffi_t        ffi;
-    uint8_t          keyid[PGP_KEY_ID_SIZE];
+    pgp::KeyID       keyid;
     pgp_pubkey_alg_t palg;
+
+    rnp_recipient_handle_st() : ffi(NULL), palg(PGP_PKA_NOTHING)
+    {
+    }
 };
 
 struct rnp_symenc_handle_st {
     rnp_ffi_t           ffi;
-    pgp_symm_alg_t      alg;
-    pgp_hash_alg_t      halg;
-    pgp_s2k_specifier_t s2k_type;
+    pgp_symm_alg_t      alg{};
+    pgp_hash_alg_t      halg{};
+    pgp_s2k_specifier_t s2k_type{};
     uint32_t            iterations;
-    pgp_aead_alg_t      aalg;
+    pgp_aead_alg_t      aalg{};
+
+    rnp_symenc_handle_st() : ffi(NULL), iterations(0)
+    {
+    }
 };
 
 struct rnp_ffi_st {
     FILE *                  errs;
-    rnp_key_store_t *       pubring;
-    rnp_key_store_t *       secring;
+    rnp::KeyStore *         pubring;
+    rnp::KeyStore *         secring;
     rnp_get_key_cb          getkeycb;
     void *                  getkeycb_ctx;
     rnp_password_cb         getpasscb;
     void *                  getpasscb_ctx;
-    pgp_key_provider_t      key_provider;
+    rnp::KeyProvider        key_provider;
     pgp_password_provider_t pass_provider;
     rnp::SecurityContext    context;
 
-    rnp_ffi_st(pgp_key_store_format_t pub_fmt, pgp_key_store_format_t sec_fmt);
+    rnp_ffi_st(rnp::KeyFormat pub_fmt, rnp::KeyFormat sec_fmt);
     ~rnp_ffi_st();
 
     rnp::RNG &            rng() noexcept;
@@ -114,21 +155,39 @@ struct rnp_output_st {
 };
 
 struct rnp_op_generate_st {
-    rnp_ffi_t  ffi{};
-    bool       primary{};
-    pgp_key_t *primary_sec{};
-    pgp_key_t *primary_pub{};
-    pgp_key_t *gen_sec{};
-    pgp_key_t *gen_pub{};
+    rnp_ffi_t ffi;
+    bool      primary{};
+    rnp::Key *primary_sec{};
+    rnp::Key *primary_pub{};
+    rnp::Key *gen_sec{};
+    rnp::Key *gen_pub{};
     /* password used to encrypt the key, if specified */
     rnp::secure_vector<char> password;
     /* request password for key encryption via ffi's password provider */
-    bool request_password{};
-    /* we don't use top-level keygen action here for easier fields access */
-    rnp_keygen_crypto_params_t  crypto{};
+    bool                        request_password{};
+    rnp::KeygenParams           keygen;
     rnp_key_protection_params_t protection{};
-    rnp_selfsig_cert_info_t     cert{};
-    rnp_selfsig_binding_info_t  binding{};
+    rnp::CertParams             cert;
+    rnp::BindingParams          binding;
+
+    static pgp_key_flags_t default_key_flags(pgp_pubkey_alg_t alg, bool subkey);
+
+    /* primary key generation constructor */
+    rnp_op_generate_st(rnp_ffi_t affi, pgp_pubkey_alg_t alg)
+        : ffi(affi), primary(true), keygen(alg, affi->context)
+    {
+        cert.flags = default_key_flags(alg, false);
+        cert.key_expiration = DEFAULT_KEY_EXPIRATION;
+    }
+    /* subkey generation constructor */
+    rnp_op_generate_st(rnp_ffi_t affi, pgp_pubkey_alg_t alg, rnp_key_handle_t primary)
+        : ffi(affi), primary(false), keygen(alg, affi->context)
+    {
+        binding.flags = default_key_flags(alg, true);
+        binding.key_expiration = DEFAULT_KEY_EXPIRATION;
+        primary_sec = primary->sec;
+        primary_pub = primary->pub;
+    }
 };
 
 struct rnp_op_sign_signature_st {
@@ -142,30 +201,35 @@ struct rnp_op_sign_signature_st {
 typedef std::list<rnp_op_sign_signature_st> rnp_op_sign_signatures_t;
 
 struct rnp_op_sign_st {
-    rnp_ffi_t                ffi{};
-    rnp_input_t              input{};
-    rnp_output_t             output{};
-    rnp_ctx_t                rnpctx{};
-    rnp_op_sign_signatures_t signatures{};
+    rnp_ffi_t                ffi;
+    rnp_input_t              input;
+    rnp_output_t             output;
+    rnp_ctx_t                rnpctx;
+    rnp_op_sign_signatures_t signatures;
+
+    rnp_op_sign_st(rnp_ffi_t affi, rnp_input_t in, rnp_output_t out)
+        : ffi(affi), input(in), output(out),
+          rnpctx(ffi->context, ffi->key_provider, ffi->pass_provider)
+    {
+    }
 };
 
 struct rnp_op_verify_signature_st {
-    rnp_ffi_t       ffi;
-    rnp_result_t    verify_status;
-    pgp_signature_t sig_pkt;
+    rnp_ffi_t           ffi;
+    rnp_result_t        verify_status;
+    rnp::SigValidity    validity;
+    pgp::pkt::Signature sig_pkt;
 };
 
 struct rnp_op_verify_st {
-    rnp_ffi_t    ffi{};
-    rnp_input_t  input{};
+    rnp_ffi_t    ffi;
+    rnp_input_t  input;
     rnp_input_t  detached_input{}; /* for detached signature will be source file/data */
     rnp_output_t output{};
-    rnp_ctx_t    rnpctx{};
+    rnp_ctx_t    rnpctx;
     /* these fields are filled after operation execution */
-    rnp_op_verify_signature_t signatures{};
-    size_t                    signature_count{};
-    char *                    filename{};
-    uint32_t                  file_mtime{};
+    std::vector<rnp_op_verify_signature_st> signatures_;
+    pgp_literal_hdr_t                       lithdr{};
     /* encryption information */
     bool           encrypted{};
     bool           mdc{};
@@ -176,45 +240,75 @@ struct rnp_op_verify_st {
     bool           require_all_sigs{};
     bool           allow_hidden{};
     /* recipient/symenc information */
-    rnp_recipient_handle_t recipients{};
-    size_t                 recipient_count{};
-    rnp_recipient_handle_t used_recipient{};
-    rnp_symenc_handle_t    symencs{};
-    size_t                 symenc_count{};
-    rnp_symenc_handle_t    used_symenc{};
-    size_t                 encrypted_layers{};
+    std::vector<rnp_recipient_handle_st> recipients;
+    rnp_recipient_handle_t               used_recipient{};
+    std::vector<rnp_symenc_handle_st>    symencs;
+    rnp_symenc_handle_t                  used_symenc{};
+    size_t                               encrypted_layers{};
 
+    /* Constructor for attached signature verification */
+    rnp_op_verify_st(rnp_ffi_t affi, rnp_input_t in, rnp_output_t out)
+        : ffi(affi), input(in), output(out),
+          rnpctx(ffi->context, ffi->key_provider, ffi->pass_provider)
+    {
+    }
+    /* Constructor for detached signature verification */
+    rnp_op_verify_st(rnp_ffi_t affi, rnp_input_t data, rnp_input_t signature)
+        : ffi(affi), input(signature), detached_input(data),
+          rnpctx(ffi->context, ffi->key_provider, ffi->pass_provider)
+    {
+        rnpctx.detached = true;
+    }
     ~rnp_op_verify_st();
 };
 
 struct rnp_op_encrypt_st {
-    rnp_ffi_t                ffi{};
-    rnp_input_t              input{};
-    rnp_output_t             output{};
-    rnp_ctx_t                rnpctx{};
-    rnp_op_sign_signatures_t signatures{};
+    rnp_ffi_t                ffi;
+    rnp_input_t              input;
+    rnp_output_t             output;
+    rnp_ctx_t                rnpctx;
+    rnp_op_sign_signatures_t signatures;
+
+    rnp_op_encrypt_st(rnp_ffi_t affi, rnp_input_t in, rnp_output_t out)
+        : ffi(affi), input(in), output(out),
+          rnpctx(ffi->context, ffi->key_provider, ffi->pass_provider)
+    {
+    }
 };
 
 #define RNP_LOCATOR_MAX_SIZE (MAX_ID_LENGTH + 1)
-static_assert(RNP_LOCATOR_MAX_SIZE > PGP_FINGERPRINT_SIZE * 2, "Locator size mismatch.");
+static_assert(RNP_LOCATOR_MAX_SIZE > PGP_MAX_FINGERPRINT_SIZE * 2, "Locator size mismatch.");
 static_assert(RNP_LOCATOR_MAX_SIZE > PGP_KEY_ID_SIZE * 2, "Locator size mismatch.");
 static_assert(RNP_LOCATOR_MAX_SIZE > PGP_KEY_GRIP_SIZE * 2, "Locator size mismatch.");
 static_assert(RNP_LOCATOR_MAX_SIZE > MAX_ID_LENGTH, "Locator size mismatch.");
 
 struct rnp_identifier_iterator_st {
     rnp_ffi_t                       ffi;
-    pgp_key_search_type_t           type;
-    rnp_key_store_t *               store;
-    std::list<pgp_key_t>::iterator *keyp;
-    unsigned                        uididx;
-    json_object *                   tbl;
-    char                            buf[RNP_LOCATOR_MAX_SIZE];
+    rnp::KeySearch::Type            type;
+    rnp::KeyStore *                 store;
+    std::list<rnp::Key>::iterator * keyp;
+    size_t                          uididx;
+    std::unordered_set<std::string> tbl;
+    std::string                     item;
+
+    rnp_identifier_iterator_st(rnp_ffi_t affi, rnp::KeySearch::Type atype)
+        : ffi(affi), type(atype)
+    {
+        store = nullptr;
+        keyp = new std::list<rnp::Key>::iterator();
+        uididx = 0;
+    }
+
+    ~rnp_identifier_iterator_st()
+    {
+        delete keyp;
+    }
 };
 
 struct rnp_decryption_kp_param_t {
     rnp_op_verify_t op;
     bool            has_hidden; /* key provider had hidden keyid request */
-    pgp_key_t *     last;       /* last key, returned in hidden keyid request */
+    rnp::Key *      last;       /* last key, returned in hidden keyid request */
 
     rnp_decryption_kp_param_t(rnp_op_verify_t opobj)
         : op(opobj), has_hidden(false), last(NULL){};

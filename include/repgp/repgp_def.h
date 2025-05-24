@@ -32,6 +32,7 @@
 #define REPGP_DEF_H_
 
 #include <cstdint>
+#include "config.h"
 
 /************************************/
 /* Packet Tags - RFC4880, 4.2 */
@@ -90,12 +91,10 @@
 /* Salt size for hashing */
 #define PGP_SALT_SIZE 8
 
-/* Size of the keyid */
-#define PGP_KEY_ID_SIZE 8
-
-/* Size of the fingerprint */
-#define PGP_FINGERPRINT_SIZE 20
-#define PGP_FINGERPRINT_HEX_SIZE (PGP_FINGERPRINT_SIZE * 2) + 1
+/* SEIPDv2 salt length */
+#ifdef ENABLE_CRYPTO_REFRESH
+#define PGP_SEIPDV2_SALT_LEN 32
+#endif
 
 /* Size of the key grip */
 #define PGP_KEY_GRIP_SIZE 20
@@ -103,6 +102,11 @@
 /* PGP marker packet contents */
 #define PGP_MARKER_CONTENTS "PGP"
 #define PGP_MARKER_LEN 3
+
+/* V6 Signature Salt */
+#if defined(ENABLE_CRYPTO_REFRESH)
+#define PGP_MAX_SALT_SIZE_V6_SIG 32
+#endif
 
 /** Old Packet Format Lengths.
  * Defines the meanings of the 2 bits for length type in the
@@ -203,8 +207,42 @@ typedef enum : uint8_t {
                                            * (X9.42, as defined for
                                            * IETF-S/MIME) */
     PGP_PKA_EDDSA = 22,                   /* EdDSA from draft-ietf-openpgp-rfc4880bis */
-    PGP_PKA_SM2 = 99,                     /* SM2 encryption/signature schemes */
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+    PGP_PKA_X25519 = 25,  /* v6 / Crypto Refresh */
+    PGP_PKA_ED25519 = 27, /* v6 / Crypto Refresh */
+#endif
+
+    PGP_PKA_SM2 = 99, /* SM2 encryption/signature schemes */
+
+#if defined(ENABLE_PQC)
+    /* PQC-ECC composite */
+    PGP_PKA_KYBER768_X25519 = 105,
+    // PGP_PKA_KYBER1024_X448 = 106,
+    PGP_PKA_KYBER768_P256 = 111,
+    PGP_PKA_KYBER1024_P384 = 112,
+    PGP_PKA_KYBER768_BP256 = 113,
+    PGP_PKA_KYBER1024_BP384 = 114,
+
+    PGP_PKA_DILITHIUM3_ED25519 = 107,
+    // PGP_PKA_DILITHIUM5_ED448 = 108,
+    PGP_PKA_DILITHIUM3_P256 = 115,
+    PGP_PKA_DILITHIUM5_P384 = 116,
+    PGP_PKA_DILITHIUM3_BP256 = 117,
+    PGP_PKA_DILITHIUM5_BP384 = 118,
+
+    PGP_PKA_SPHINCSPLUS_SHA2 = 109,
+    PGP_PKA_SPHINCSPLUS_SHAKE = 119,
+
+    PGP_PKA_PRIVATE00 = 100, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE01 = 101, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE02 = 102, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE03 = 103, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE04 = 104, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE06 = 106, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE08 = 108, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE10 = 110  /* Private/Experimental Algorithm */
+#else
     PGP_PKA_PRIVATE00 = 100, /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE01 = 101, /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE02 = 102, /* Private/Experimental Algorithm */
@@ -216,6 +254,7 @@ typedef enum : uint8_t {
     PGP_PKA_PRIVATE08 = 108, /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE09 = 109, /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE10 = 110  /* Private/Experimental Algorithm */
+#endif
 } pgp_pubkey_alg_t;
 
 /**
@@ -352,7 +391,7 @@ typedef enum : uint8_t {
  * \see RFC4880 5.2.3.1-5.2.3.26
  */
 
-typedef enum {
+typedef enum : uint8_t {
     PGP_SIG_SUBPKT_UNKNOWN = 0,
     PGP_SIG_SUBPKT_RESERVED_1 = 1,
     PGP_SIG_SUBPKT_CREATION_TIME = 2,   /* signature creation time */
@@ -388,7 +427,11 @@ typedef enum {
     PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE = 32, /* embedded signature */
     PGP_SIG_SUBPKT_ISSUER_FPR = 33,         /* issuer fingerprint */
     PGP_SIG_SUBPKT_PREFERRED_AEAD = 34,     /* preferred AEAD algorithms */
-    PGP_SIG_SUBPKT_PRIVATE_100 = 100,       /* private/experimental subpackets */
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* PGP_SIG_SUBPKT_INTENDED_RECIPIENT_FINGERPRINT = 35, */
+    PGP_SIG_SUBPKT_PREFERRED_AEAD_CIPHERSUITES = 39,
+#endif
+    PGP_SIG_SUBPKT_PRIVATE_100 = 100, /* private/experimental subpackets */
     PGP_SIG_SUBPKT_PRIVATE_101 = 101,
     PGP_SIG_SUBPKT_PRIVATE_102 = 102,
     PGP_SIG_SUBPKT_PRIVATE_103 = 103,
@@ -423,7 +466,10 @@ typedef enum {
 typedef enum {
     PGP_KEY_FEATURE_MDC = 0x01,
     PGP_KEY_FEATURE_AEAD = 0x02,
-    PGP_KEY_FEATURE_V5 = 0x04
+    PGP_KEY_FEATURE_V5 = 0x04,
+#if defined(ENABLE_CRYPTO_REFRESH)
+    PGP_KEY_FEATURE_SEIPDV2 = 0x08
+#endif
 } pgp_key_feature_t;
 
 /** Types of Compression */
@@ -435,10 +481,19 @@ typedef enum {
     PGP_C_UNKNOWN = 255
 } pgp_compression_type_t;
 
-enum { PGP_SE_IP_DATA_VERSION = 1, PGP_PKSK_V3 = 3, PGP_SKSK_V4 = 4, PGP_SKSK_V5 = 5 };
+enum { PGP_SKSK_V4 = 4, PGP_SKSK_V5 = 5 };
+typedef enum {
+    PGP_PKSK_V3 = 3,
+#if defined(ENABLE_CRYPTO_REFRESH)
+    PGP_PKSK_V6 = 6
+#endif
+} pgp_pkesk_version_t;
+typedef enum { PGP_SE_IP_DATA_V1 = 1, PGP_SE_IP_DATA_V2 = 2 } pgp_seipd_version_t;
 
 /** Version.
  * OpenPGP has two different protocol versions: version 3 and version 4.
+ * Also there is a draft that defines version 5, see
+ * https://datatracker.ietf.org/doc/draft-ietf-openpgp-crypto-refresh/
  *
  * \see RFC4880 5.2
  */
@@ -446,7 +501,11 @@ typedef enum {
     PGP_VUNKNOWN = 0,
     PGP_V2 = 2, /* Version 2 (essentially the same as v3) */
     PGP_V3 = 3, /* Version 3 */
-    PGP_V4 = 4  /* Version 4 */
+    PGP_V4 = 4, /* Version 4 */
+    PGP_V5 = 5, /* Version 5 */
+#if defined(ENABLE_CRYPTO_REFRESH)
+    PGP_V6 = 6 /* Version 6 (crypto refresh) */
+#endif
 } pgp_version_t;
 
 typedef enum pgp_op_t {
@@ -491,15 +550,16 @@ typedef enum : uint8_t {
     PGP_HASH_SM3 = 105,
 } pgp_hash_alg_t;
 
-typedef enum pgp_key_store_format_t {
-    PGP_KEY_STORE_UNKNOWN = 0,
-    PGP_KEY_STORE_GPG,
-    PGP_KEY_STORE_KBX,
-    PGP_KEY_STORE_G10,
-} pgp_key_store_format_t;
-
 namespace rnp {
-enum class AuthType { None, MDC, AEADv1 };
-}
+enum class AuthType {
+    None,
+    MDC,
+    AEADv1,
+#ifdef ENABLE_CRYPTO_REFRESH
+    AEADv2
+#endif
+};
+
+} // namespace rnp
 
 #endif

@@ -24,15 +24,16 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "pgp-key.h"
+#include "key.hpp"
 
 #include "rnp_tests.h"
 #include "support.h"
+#include "keygen.hpp"
 
 TEST_F(rnp_tests, test_key_prefs)
 {
-    pgp_user_prefs_t pref1 = {};
-    pgp_user_prefs_t pref2 = {};
+    rnp::UserPrefs pref1;
+    rnp::UserPrefs pref2;
 
     /* symm algs */
     pref1.add_symm_alg(PGP_SA_AES_256);
@@ -48,7 +49,7 @@ TEST_F(rnp_tests, test_key_prefs)
     pref2.add_symm_alg(PGP_SA_CAMELLIA_128);
     pref2.add_symm_alg(PGP_SA_CAMELLIA_192);
     pref2.add_symm_alg(PGP_SA_CAMELLIA_256);
-    pref1.set_symm_algs(pref2.symm_algs);
+    pref1.symm_algs = pref2.symm_algs;
     assert_int_equal(pref1.symm_algs.size(), 3);
     assert_int_equal(pref1.symm_algs[0], PGP_SA_CAMELLIA_128);
     assert_int_equal(pref1.symm_algs[1], PGP_SA_CAMELLIA_192);
@@ -67,7 +68,7 @@ TEST_F(rnp_tests, test_key_prefs)
     pref2.add_hash_alg(PGP_HASH_SHA3_512);
     pref2.add_hash_alg(PGP_HASH_SHA3_256);
     pref2.add_hash_alg(PGP_HASH_SHA1);
-    pref1.set_hash_algs(pref2.hash_algs);
+    pref1.hash_algs = pref2.hash_algs;
     assert_int_equal(pref1.hash_algs.size(), 3);
     assert_int_equal(pref1.hash_algs[0], PGP_HASH_SHA3_512);
     assert_int_equal(pref1.hash_algs[1], PGP_HASH_SHA3_256);
@@ -84,7 +85,7 @@ TEST_F(rnp_tests, test_key_prefs)
     assert_int_equal(pref1.z_algs[1], PGP_C_ZLIB);
     assert_int_equal(pref1.z_algs[2], PGP_C_BZIP2);
     pref2.add_z_alg(PGP_C_BZIP2);
-    pref1.set_z_algs(pref2.z_algs);
+    pref1.z_algs = pref2.z_algs;
     assert_int_equal(pref1.z_algs.size(), 1);
     assert_int_equal(pref1.z_algs[0], PGP_C_BZIP2);
     /* ks prefs */
@@ -93,7 +94,7 @@ TEST_F(rnp_tests, test_key_prefs)
     assert_int_equal(pref1.ks_prefs[0], PGP_KEY_SERVER_NO_MODIFY);
     pref2.add_ks_pref((pgp_key_server_prefs_t) 0x20);
     pref2.add_ks_pref((pgp_key_server_prefs_t) 0x40);
-    pref1.set_ks_prefs(pref2.ks_prefs);
+    pref1.ks_prefs = pref2.ks_prefs;
     assert_int_equal(pref1.ks_prefs.size(), 2);
     assert_int_equal(pref1.ks_prefs[0], 0x20);
     assert_int_equal(pref1.ks_prefs[1], 0x40);

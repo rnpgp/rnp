@@ -1,5 +1,27 @@
 ## Changelog
 
+### 0.18.0 [2025-05-24]
+
+#### General
+
+* Discourage use of EAX AEAD mode
+* Generate RSA 3072-bit keys by default
+* Support dearmoring of GnuPG-armored files (with ARMORED FILE header)
+* Generate rnp_ver.h header
+* Support DSA 4096 bit keys as some entities use them
+* Mark signatures, produced by encrypt-only key or subkey, as invalid
+* Allow extra spaces during armored key import
+* Better support of Botan 3.5.0+
+* Compatibility fixes for different systems
+* Update hash function from the weak one on change of the key expiration
+* Do not allow 64-bit ciphers for encryption without explicit option
+* Internal refactoring and performance updates
+
+#### FFI
+
+* Added functions rnp_signature_error_count()/rnp_signature_error_at() to check why signature validation failed.
+* Added functions to create and customize key certifications: rnp_key_certification_create(), rnp_key_signature_set_*/rnp_key_signature_get_*
+
 ### 0.17.1 [2024-04-08]
 
 #### General
@@ -11,7 +33,7 @@
 
 #### FFI
 
-* Added functions `rnp_key_set_features()` and `rnp_signature_get_features()`.
+* Added function `rnp_signature_get_features()`.
 
 ### 0.17.0 [2023-05-01]
 

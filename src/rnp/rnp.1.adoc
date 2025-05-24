@@ -81,7 +81,7 @@ Select a compression algorithm and level.
 Output ASCII data instead of binary via the *--armor* option. If the input file is _file.ext_, and *--output* is not specified, then the data will be written (depending on *--armor* option) to _file.ext.pgp_ or _file.ext.asc_. +
 
 *--no-wrap*:::
-Do not wrap the output in literal data packet. This could be used to encrypt a file which is already signed or encrypted.
+Do not wrap the output in a literal data packet. This could be used to encrypt a file which is already signed or encrypted.
 By default this would also disable compression, use option *-z* to override.
 
 *--overwrite*:::
@@ -116,6 +116,12 @@ By default, the signature is stored together with signed data. This option detac
 You may want to use *--hash* option to override default hash algorithm settings. As with encryption, output may be converted to ascii via the *--armor* option. +
 +
 Compression options also apply here. Since the secret key is usually stored encrypted, you will be asked for the password to decrypt it via _stdin_/_tty_ unless *--password* or *--pass-fd* is specified.
+
+*--allow-weak-hash*:::
+Allow usage of a weak hash algorithm.
+
+*--allow-sha1-key-sigs*:::
+Allow usage of a SHA-1 key signatures.
 
 *--clearsign*::
 Digitally sign text data, producing human-readable output with the signature attached. +
@@ -256,6 +262,7 @@ The default value is _AES256_.
 
 *--aead* [_EAX_, _OCB_]::
 Enable AEAD encryption and select algorithm to be used.
+Warning: EAX mode is deprecated and should not be used.
 
 *--aead-chunk-bits* _BITS_::
 Change AEAD chunk size bits, from 0 to 16 (actual chunk size would be 1 << (6 + bits)). See OpenPGP documentation for the details. +
@@ -330,7 +337,7 @@ By default RNP uses system's time in all signature/key checks, however in some s
 Override or set a file name, stored inside of OpenPGP message. +
 +
 By default RNP will store input filename (or empty string for *stdin*/*env* input) in the resulting OpenPGP message during encryption or embedded signing.
-This option allows to override this. Special value *_CONSOLE* may be used for "for your eyes only"-message. Refer OpenPGP documentation for the details.
+This option allows the user to override this filename. Special value *_CONSOLE* may be used for "for your eyes only"-message. Refer to OpenPGP documentation for details.
 
 *--allow-hidden* ::
 Allow hidden recipient support. +

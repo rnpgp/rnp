@@ -27,94 +27,141 @@
 #define RNP_KEY_PROVIDER_H
 
 #include "types.h"
-#include "fingerprint.h"
+#include "fingerprint.hpp"
 
-typedef struct pgp_key_t pgp_key_t;
+namespace rnp {
+class Key;
+}
 
-typedef enum {
-    PGP_KEY_SEARCH_UNKNOWN,
-    PGP_KEY_SEARCH_KEYID,
-    PGP_KEY_SEARCH_FINGERPRINT,
-    PGP_KEY_SEARCH_GRIP,
-    PGP_KEY_SEARCH_USERID
-} pgp_key_search_type_t;
+typedef struct pgp_key_request_ctx_t pgp_key_request_ctx_t;
 
-typedef struct pgp_key_search_t {
-    pgp_key_search_type_t type;
-    union {
-        pgp_key_id_t      keyid;
-        pgp_key_grip_t    grip;
-        pgp_fingerprint_t fingerprint;
-        char              userid[MAX_ID_LENGTH + 1];
-    } by;
+typedef rnp::Key *pgp_key_callback_t(const pgp_key_request_ctx_t *ctx, void *userdata);
 
-    pgp_key_search_t(pgp_key_search_type_t atype = PGP_KEY_SEARCH_UNKNOWN) : type(atype){};
-} pgp_key_search_t;
+namespace rnp {
 
-typedef struct pgp_key_request_ctx_t {
-    pgp_op_t         op;
-    bool             secret;
-    pgp_key_search_t search;
+class KeySearch {
+  public:
+    enum class Type { Unknown, KeyID, Fingerprint, Grip, UserID };
+    static Type find_type(const std::string &name);
 
-    pgp_key_request_ctx_t(pgp_op_t              anop = PGP_OP_UNKNOWN,
-                          bool                  sec = false,
-                          pgp_key_search_type_t tp = PGP_KEY_SEARCH_UNKNOWN)
-        : op(anop), secret(sec)
+    virtual Type
+    type() const
     {
-        search.type = tp;
+        return type_;
     }
-} pgp_key_request_ctx_t;
+    virtual bool              matches(const Key &key) const = 0;
+    virtual const std::string name() const = 0;
+    virtual std::string       value() const = 0;
+    virtual ~KeySearch() = default;
 
-typedef pgp_key_t *pgp_key_callback_t(const pgp_key_request_ctx_t *ctx, void *userdata);
+    static std::unique_ptr<KeySearch> create(const pgp::KeyID &keyid);
+    static std::unique_ptr<KeySearch> create(const pgp::Fingerprint &fp);
+    static std::unique_ptr<KeySearch> create(const pgp::KeyGrip &grip);
+    static std::unique_ptr<KeySearch> create(const std::string &uid);
+    static std::unique_ptr<KeySearch> create(const std::string &name,
+                                             const std::string &value);
 
-typedef struct pgp_key_provider_t {
+  protected:
+    Type type_;
+};
+
+class KeyIDSearch : public KeySearch {
+    pgp::KeyID keyid_;
+
+  public:
+    bool              matches(const Key &key) const;
+    const std::string name() const;
+    std::string       value() const;
+    bool              hidden() const;
+
+    KeyIDSearch(const pgp::KeyID &keyid);
+};
+
+class KeyFingerprintSearch : public KeySearch {
+    pgp::Fingerprint fp_;
+
+  public:
+    bool              matches(const Key &key) const;
+    const std::string name() const;
+    std::string       value() const;
+
+    KeyFingerprintSearch(const pgp::Fingerprint &fp);
+    const pgp::Fingerprint &get_fp() const;
+};
+
+class KeyGripSearch : public KeySearch {
+    pgp::KeyGrip grip_;
+
+  public:
+    bool              matches(const Key &key) const;
+    const std::string name() const;
+    std::string       value() const;
+
+    KeyGripSearch(const pgp::KeyGrip &grip);
+};
+
+class KeyUIDSearch : public KeySearch {
+    std::string uid_;
+
+  public:
+    bool              matches(const Key &key) const;
+    const std::string name() const;
+    std::string       value() const;
+
+    KeyUIDSearch(const std::string &uid);
+};
+
+class KeyProvider {
+  public:
     pgp_key_callback_t *callback;
     void *              userdata;
 
-    pgp_key_provider_t(pgp_key_callback_t *cb = NULL, void *ud = NULL)
+    KeyProvider(pgp_key_callback_t *cb = nullptr, void *ud = nullptr)
         : callback(cb), userdata(ud){};
-} pgp_key_provider_t;
 
-/** checks if a key matches search criteria
- *
- *  Note that this does not do any check on the type of key (public/secret),
- *  that is left up to the caller.
- *
- *  @param key the key to check
- *  @param search the search criteria to check against
- *  @return true if the key satisfies the search criteria, false otherwise
- **/
-bool rnp_key_matches_search(const pgp_key_t *key, const pgp_key_search_t *search);
+    /** @brief request public or secret pgp key, according to parameters
+     *  @param search search object
+     *  @param op for which operation key is requested
+     *  @param secret whether secret key is requested
+     *  @return a key pointer on success, or nullptr if key was not found otherwise
+     **/
+    Key *request_key(const KeySearch &search,
+                     pgp_op_t         op = PGP_OP_UNKNOWN,
+                     bool             secret = false) const;
+};
+} // namespace rnp
 
-/** @brief request public or secret pgp key, according to information stored in ctx
- *  @param ctx information about the request - which operation requested the key, which search
- *  criteria should be used and whether secret or public key is needed
- *  @param key pointer to the key structure will be stored here on success
- *  @return a key pointer on success, or NULL if key was not found otherwise
- **/
-pgp_key_t *pgp_request_key(const pgp_key_provider_t *   provider,
-                           const pgp_key_request_ctx_t *ctx);
+typedef struct pgp_key_request_ctx_t {
+    pgp_op_t              op;
+    bool                  secret;
+    const rnp::KeySearch &search;
 
-/** key provider callback that searches a list of pgp_key_t pointers
+    pgp_key_request_ctx_t(pgp_op_t anop, bool sec, const rnp::KeySearch &srch)
+        : op(anop), secret(sec), search(srch)
+    {
+    }
+} pgp_key_request_ctx_t;
+
+/** key provider callback that searches a list of rnp::Key pointers
  *
  *  @param ctx
- *  @param userdata must be a list of key pgp_key_t**
+ *  @param userdata must be a list of key rnp::Key**
  */
-pgp_key_t *rnp_key_provider_key_ptr_list(const pgp_key_request_ctx_t *ctx, void *userdata);
+rnp::Key *rnp_key_provider_key_ptr_list(const pgp_key_request_ctx_t *ctx, void *userdata);
 
 /** key provider callback that searches a given store
  *
  *  @param ctx
- *  @param userdata must be a pointer to rnp_key_store_t
+ *  @param userdata must be a pointer to rnp::KeyStore
  */
-pgp_key_t *rnp_key_provider_store(const pgp_key_request_ctx_t *ctx, void *userdata);
+rnp::Key *rnp_key_provider_store(const pgp_key_request_ctx_t *ctx, void *userdata);
 
 /** key provider that calls other key providers
  *
  *  @param ctx
- *  @param userdata must be an array pgp_key_provider_t pointers,
- *         ending with a NULL.
+ *  @param userdata must be an array rnp::KeyProvider pointers,
+ *         ending with a nullptr.
  */
-pgp_key_t *rnp_key_provider_chained(const pgp_key_request_ctx_t *ctx, void *userdata);
+rnp::Key *rnp_key_provider_chained(const pgp_key_request_ctx_t *ctx, void *userdata);
 
 #endif

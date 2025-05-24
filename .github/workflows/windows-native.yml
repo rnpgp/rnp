@@ -1,4 +1,4 @@
-# Copyright (c) 2023 Ribose Inc.
+# Copyright (c) 2023-2024 Ribose Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@ on:
       - '**.md'
       - '**.nix'
       - 'flake.lock'
+      - 'version.txt'
       - '.github/workflows/*.yml'
       - '!.github/workflows/windows-native.yml'
   pull_request:
@@ -51,6 +52,7 @@ on:
       - '**.md'
       - '**.nix'
       - 'flake.lock'
+      - 'version.txt'
 
 concurrency:
   group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
@@ -63,32 +65,41 @@ env:
 
 jobs:
   build_and_test:
-    name: Windows-2019 [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }}, backend ${{ matrix.backend }}, build shared libs ${{ matrix.shared_libs }}, use CMake prefix path ${{ matrix.use_cmake_prefix_path }}]
-    runs-on: windows-2019
+    name: Windows-2022 [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }}, backend ${{ matrix.backend }}, build shared libs ${{ matrix.shared_libs }}, use CMake prefix path ${{ matrix.use_cmake_prefix_path }}, sanitizers ${{ matrix.sanitizers }}]
+    runs-on: windows-2022
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     strategy:
       fail-fast: false
       matrix:
         arch: [ { name: 'x64',    triplet: 'x64-windows' } ]
-        toolset: [ 'v142',  'ClangCL' ]
+        toolset: [ 'v143',  'ClangCL' ]
         backend: [ 'botan', 'openssl' ]
         shared_libs: [ 'off']
         use_cmake_prefix_path: [ 'on', 'off' ]
+        sanitizers: [ 'off' ]
         include:
+          - arch:  { name: 'x64',    triplet: 'x64-windows' }
+            toolset:                'v143'
+            backend:                'botan'
+            use_cmake_prefix_path:  'off'
+            shared_libs:            'off'
+            sanitizers:             'on'
           - arch:  { name: 'Win32',  triplet: 'x86-windows' }
             toolset:                'ClangCL'
             backend:                'botan'
             use_cmake_prefix_path:  'on'
             shared_libs:            'off'
+            sanitizers:             'off'
           - arch:  { name: 'Win32',  triplet: 'x86-windows' }
-            toolset:                'v142'
+            toolset:                'v143'
             backend:                'openssl'
             use_cmake_prefix_path:  'off'
             shared_libs:            'off'
+            sanitizers:             'off'
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: true
           lfs: true
@@ -100,7 +111,7 @@ jobs:
           mkdir -p ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
 
       - name: vcpkg cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           key: vcpkg-${{ hashFiles('vcpkg.version') }}-${{ matrix.arch.triplet }}-${{ matrix.toolset }}-${{ matrix.backend }}
@@ -110,7 +121,20 @@ jobs:
         run: |
           dir_u=$(cygpath -u  ${{ env.VCPKG_DIR }})
           echo "VCPKG_DIR_U=$dir_u" >> $GITHUB_ENV
+          # See https://github.com/microsoft/vcpkg/issues/41339#issuecomment-2394308597 for lines below.
+          export SystemDrive="$SYSTEMDRIVE"
+          export SystemRoot="$SYSTEMROOT"
+          export windir="$WINDIR"          
           vcpkg install --triplet ${{ matrix.arch.triplet }} bzip2 zlib json-c getopt dirent ${{ matrix.backend }}
+
+      - name: Upload vcpkg logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vcpkg-error-logs
+          path: |
+            C:\vcpkg\buildtrees\*\*.log
+            C:\vcpkg\installed\vcpkg\issue_body.md
 
       - name: Set OPENSSL_ROOT_DIR
         # Ensure consistent access to openssl installation for test_backend_version test
@@ -137,11 +161,12 @@ jobs:
         run: |
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
           export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
-          cmake -B build   -G "Visual Studio 16 2019"  \
+          cmake -B build   -G "Visual Studio 17 2022"  \
                            -A ${{ matrix.arch.name }}  \
                            -T ${{ matrix.toolset }}    \
                            -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}} \
-                           -DCRYPTO_BACKEND=${{ matrix.backend }}      \
+                           -DENABLE_SANITIZERS=${{ matrix.sanitizers }} \
+                           -DCRYPTO_BACKEND=${{ matrix.backend }}       \
                            -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_DIR }}/scripts/buildsystems/vcpkg.cmake .
 
       - name: Configure using CMake prefix path
@@ -150,19 +175,29 @@ jobs:
         run: |
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
           export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
-          cmake -B build   -G "Visual Studio 16 2019"  \
+          cmake -B build   -G "Visual Studio 17 2022"  \
                            -A ${{ matrix.arch.name }}  \
                            -T ${{ matrix.toolset }}    \
                            -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}} \
-                           -DCRYPTO_BACKEND=${{ matrix.backend }}      \
+                           -DENABLE_SANITIZERS=${{ matrix.sanitizers }} \
+                           -DCRYPTO_BACKEND=${{ matrix.backend }}       \
                            -DCMAKE_PREFIX_PATH=${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }} .
 
       - name: Build
         shell: bash
         run: |
           export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
-          cmake --build build --config "Release" --parallel ${{ env.CORES }}
+          cmake --build build --parallel ${{ env.CORES }} --config Release
 
+      - name: Find Visual Studio root via vswhere
+        if: matrix.sanitizers == 'on'
+        shell: cmd
+        # Not sure why but vswhere.exe cannot be run via bash, so using cmd instead.
+        run: |
+          FOR /F "delims=" %%i in ('C:\ProgramData\Chocolatey\bin\vswhere.exe -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath') DO SET "VS_PATH=%%i"
+          echo "Detected Visual Studio path: %VS_PATH%"
+          echo VS_PATH=%VS_PATH%>> "%GITHUB_ENV%"
+          
       - name: Test
         shell: bash
         # Sometimes  running cli_tests in parallel causes instability [???]
@@ -171,6 +206,19 @@ jobs:
         # ctest --parallel ${{ env.CORES }} --test-dir build -C Release --output-on-failure
         run: |
           export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
+          if [[ "${{ matrix.sanitizers }}" == "on" ]]; then
+            # Since VS 2022 we need to add path to sanitizers libs to PATH to load those.
+            # For this we need to detect VS_PATH on the previous step via the vswhere
+            vsp=$(cygpath -u "${VS_PATH}")
+            ts_ver=$(<"$vsp/VC/Auxiliary/Build/Microsoft.VCToolsVersion.${{matrix.toolset}}.default.txt")
+            lib_dir="${vsp}/VC/Tools/MSVC/${ts_ver}/bin/Hostx64/x64"
+            if [[ ! -d "$lib_dir" ]]; then
+              echo "Looks like directory with sanitizer libs changed from ${lib_dir}. Available ones:"
+              ls -la "${vsp}/VC/Tools/MSVC"
+              exit 1
+            fi
+            export PATH=$lib_dir:$PATH
+          fi
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
           ctest --parallel ${{ env.CORES }} --test-dir build -C Release --output-on-failure

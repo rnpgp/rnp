@@ -10,7 +10,7 @@
 #include "../rnp/fficli.h"
 #include "logging.h"
 
-#define DEFAULT_RSA_NUMBITS 2048
+#define DEFAULT_RSA_NUMBITS 3072
 
 typedef enum {
     /* commands */
@@ -34,6 +34,7 @@ typedef enum {
     OPT_HOMEDIR,
     OPT_NUMBITS,
     OPT_ALLOW_WEAK_HASH,
+    OPT_ALLOW_SHA1,
     OPT_HASH_ALG,
     OPT_COREDUMPS,
     OPT_PASSWDFD,
@@ -56,8 +57,10 @@ typedef enum {
     OPT_FIX_25519_BITS,
     OPT_CHK_25519_BITS,
     OPT_CURTIME,
+    OPT_ALLOW_OLD_CIPHERS,
     OPT_ADD_SUBKEY,
     OPT_SET_EXPIRE,
+    OPT_KEYFILE,
 
     /* debug */
     OPT_DEBUG

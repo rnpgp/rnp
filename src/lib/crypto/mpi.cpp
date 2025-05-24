@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2018 Ribose Inc.
+ * Copyright (c) 2018-2025 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,22 +26,24 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include "mpi.h"
+#include "mpi.hpp"
 #include "mem.h"
 #include "utils.h"
 
+namespace pgp {
+
 size_t
-mpi_bits(const pgp_mpi_t *val)
+mpi::bits() const noexcept
 {
     size_t  bits = 0;
     size_t  idx = 0;
     uint8_t bt;
 
-    for (idx = 0; (idx < val->len) && !val->mpi[idx]; idx++)
+    for (idx = 0; (idx < size()) && !data_[idx]; idx++)
         ;
 
-    if (idx < val->len) {
-        for (bits = (val->len - idx - 1) << 3, bt = val->mpi[idx]; bt; bits++, bt = bt >> 1)
+    if (idx < size()) {
+        for (bits = (size() - idx - 1) << 3, bt = data_[idx]; bt; bits++, bt = bt >> 1)
             ;
     }
 
@@ -49,71 +51,80 @@ mpi_bits(const pgp_mpi_t *val)
 }
 
 size_t
-mpi_bytes(const pgp_mpi_t *val)
+mpi::size() const noexcept
 {
-    return val->len;
+    return data_.size();
+}
+
+uint8_t *
+mpi::data() noexcept
+{
+    return data_.data();
+}
+
+const uint8_t *
+mpi::data() const noexcept
+{
+    return data_.data();
 }
 
 bool
-mem2mpi(pgp_mpi_t *val, const void *mem, size_t len)
-{
-    if (len > sizeof(val->mpi)) {
-        return false;
-    }
-
-    memcpy(val->mpi, mem, len);
-    val->len = len;
-    return true;
-}
-
-void
-mpi2mem(const pgp_mpi_t *val, void *mem)
-{
-    memcpy(mem, val->mpi, val->len);
-}
-
-char *
-mpi2hex(const pgp_mpi_t *val)
-{
-    static const char *hexes = "0123456789abcdef";
-    char *             out;
-    size_t             len;
-    size_t             idx = 0;
-
-    len = mpi_bytes(val);
-    out = (char *) malloc(len * 2 + 1);
-
-    if (!out) {
-        return out;
-    }
-
-    for (size_t i = 0; i < len; i++) {
-        out[idx++] = hexes[val->mpi[i] >> 4];
-        out[idx++] = hexes[val->mpi[i] & 0xf];
-    }
-    out[idx] = '\0';
-    return out;
-}
-
-bool
-mpi_equal(const pgp_mpi_t *val1, const pgp_mpi_t *val2)
+mpi::operator==(const mpi &src) const
 {
     size_t idx1 = 0;
     size_t idx2 = 0;
 
-    for (idx1 = 0; (idx1 < val1->len) && !val1->mpi[idx1]; idx1++)
+    for (idx1 = 0; (idx1 < size()) && !data_[idx1]; idx1++)
         ;
 
-    for (idx2 = 0; (idx2 < val2->len) && !val2->mpi[idx2]; idx2++)
+    for (idx2 = 0; (idx2 < src.size()) && !src[idx2]; idx2++)
         ;
 
-    return ((val1->len - idx1) == (val2->len - idx2) &&
-            !memcmp(val1->mpi + idx1, val2->mpi + idx2, val1->len - idx1));
+    return ((size() - idx1) == (src.size() - idx2) &&
+            !memcmp(data() + idx1, src.data() + idx2, size() - idx1));
+}
+
+bool
+mpi::operator!=(const mpi &src) const
+{
+    return !(*this == src);
+}
+
+uint8_t &
+mpi::operator[](size_t idx)
+{
+    return data_.at(idx);
+}
+
+const uint8_t &
+mpi::operator[](size_t idx) const
+{
+    return data_.at(idx);
 }
 
 void
-mpi_forget(pgp_mpi_t *val)
+mpi::assign(const uint8_t *val, size_t size)
 {
-    secure_clear(val, sizeof(*val));
-    val->len = 0;
+    data_.assign(val, val + size);
 }
+
+void
+mpi::copy(uint8_t *dst) const noexcept
+{
+    memcpy(dst, data_.data(), data_.size());
+}
+
+void
+mpi::resize(size_t size, uint8_t fill)
+{
+    data_.resize(size, fill);
+}
+
+void
+mpi::forget() noexcept
+{
+    secure_clear(data_.data(), data_.size());
+    data_.resize(0);
+}
+
+} // namespace pgp

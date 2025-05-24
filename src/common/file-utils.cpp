@@ -136,11 +136,9 @@ rnp_access(const char *path, int mode)
 int
 rnp_stat(const char *filename, struct stat *statbuf)
 {
-#ifdef _WIN32
-    static_assert(sizeof(struct stat) == sizeof(struct _stat64i32),
-                  "stat is expected to match _stat64i32");
+#if defined(_WIN32) && !defined(HAVE_WIN_STAT)
     try {
-        return _wstat64i32(wstr_from_utf8(filename).c_str(), (struct _stat64i32 *) statbuf);
+        return _wstat64(wstr_from_utf8(filename).c_str(), statbuf);
     }
     CATCH_AND_RETURN(-1)
 #else
