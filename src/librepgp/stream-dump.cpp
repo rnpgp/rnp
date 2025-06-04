@@ -49,6 +49,10 @@
 #include "key.hpp"
 #include "json-utils.h"
 #include <algorithm>
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
+#include <cinttypes>
 
 static const id_str_pair packet_tag_map[] = {
   {PGP_PKT_RESERVED, "Reserved"},
