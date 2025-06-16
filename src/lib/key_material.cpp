@@ -162,7 +162,7 @@ KeyParams::create(pgp_pubkey_alg_t alg)
     case PGP_PKA_KYBER768_X25519:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_X448:
-         FALLTHROUGH_STATEMENT;
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
@@ -355,6 +355,12 @@ pgp_hash_alg_t
 KeyMaterial::adjust_hash(pgp_hash_alg_t hash) const
 {
     return hash;
+}
+
+bool
+KeyMaterial::sig_hash_allowed(pgp_hash_alg_t hash) const
+{
+    return true;
 }
 
 pgp_curve_t
@@ -1510,6 +1516,21 @@ Ed25519KeyMaterial::sign(rnp::SecurityContext &   ctx,
       &ctx.rng, ed25519->sig.sig, key_.priv, hash.data(), hash.size());
 }
 
+pgp_hash_alg_t
+Ed25519KeyMaterial::adjust_hash(pgp_hash_alg_t hash) const
+{
+    if (!sig_hash_allowed(hash)) {
+        return PGP_HASH_SHA256;
+    }
+    return hash;
+}
+
+bool
+Ed25519KeyMaterial::sig_hash_allowed(pgp_hash_alg_t hash) const
+{
+    return rnp::Hash::size(hash) >= 32;
+}
+
 size_t
 Ed25519KeyMaterial::bits() const noexcept
 {
@@ -1741,9 +1762,9 @@ Ed448KeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 }
 
 rnp_result_t
-Ed448KeyMaterial::verify(const rnp::SecurityContext &       ctx,
-                         const SigMaterial &   sig,
-                         const rnp::secure_bytes &hash) const
+Ed448KeyMaterial::verify(const rnp::SecurityContext &ctx,
+                         const SigMaterial &         sig,
+                         const rnp::secure_bytes &   hash) const
 {
     auto ed448 = dynamic_cast<const Ed448SigMaterial *>(&sig);
     if (!ed448) {
@@ -1753,8 +1774,8 @@ Ed448KeyMaterial::verify(const rnp::SecurityContext &       ctx,
 }
 
 rnp_result_t
-Ed448KeyMaterial::sign(rnp::SecurityContext &             ctx,
-                       SigMaterial &         sig,
+Ed448KeyMaterial::sign(rnp::SecurityContext &   ctx,
+                       SigMaterial &            sig,
                        const rnp::secure_bytes &hash) const
 {
     auto ed448 = dynamic_cast<Ed448SigMaterial *>(&sig);
@@ -1762,6 +1783,21 @@ Ed448KeyMaterial::sign(rnp::SecurityContext &             ctx,
         return RNP_ERROR_BAD_PARAMETERS;
     }
     return ed448_sign_native(&ctx.rng, ed448->sig.sig, key_.priv, hash.data(), hash.size());
+}
+
+pgp_hash_alg_t
+Ed448KeyMaterial::adjust_hash(pgp_hash_alg_t hash) const
+{
+    if (!sig_hash_allowed(hash)) {
+        return PGP_HASH_SHA256;
+    }
+    return hash;
+}
+
+bool
+Ed448KeyMaterial::sig_hash_allowed(pgp_hash_alg_t hash) const
+{
+    return rnp::Hash::size(hash) >= 64;
 }
 
 size_t
@@ -1865,8 +1901,8 @@ X448KeyMaterial::generate(rnp::SecurityContext &ctx, const KeyParams &params)
 }
 
 rnp_result_t
-X448KeyMaterial::encrypt(rnp::SecurityContext &    ctx,
-                         EncMaterial &out,
+X448KeyMaterial::encrypt(rnp::SecurityContext &   ctx,
+                         EncMaterial &            out,
                          const rnp::secure_bytes &data) const
 {
     auto x448 = dynamic_cast<X448EncMaterial *>(&out);
@@ -1877,9 +1913,9 @@ X448KeyMaterial::encrypt(rnp::SecurityContext &    ctx,
 }
 
 rnp_result_t
-X448KeyMaterial::decrypt(rnp::SecurityContext &          ctx,
+X448KeyMaterial::decrypt(rnp::SecurityContext &ctx,
                          rnp::secure_bytes &   out,
-                         const EncMaterial &in) const
+                         const EncMaterial &   in) const
 {
     auto x448 = dynamic_cast<const X448EncMaterial *>(&in);
     if (!x448) {
@@ -2139,6 +2175,21 @@ DilithiumEccKeyMaterial::sign(rnp::SecurityContext &   ctx,
       &ctx.rng, &dilithium->sig, dilithium->halg, hash.data(), hash.size());
 }
 
+pgp_hash_alg_t
+DilithiumEccKeyMaterial::adjust_hash(pgp_hash_alg_t hash) const
+{
+    if (!sig_hash_allowed(hash)) {
+        return PGP_HASH_SHA256;
+    }
+    return hash;
+}
+
+bool
+DilithiumEccKeyMaterial::sig_hash_allowed(pgp_hash_alg_t hash) const
+{
+    return rnp::Hash::size(hash) >= 32;
+}
+
 size_t
 DilithiumEccKeyMaterial::bits() const noexcept
 {
@@ -2257,6 +2308,21 @@ SlhdsaKeyMaterial::sign(rnp::SecurityContext &   ctx,
         return RNP_ERROR_BAD_PARAMETERS;
     }
     return key_.priv.sign(&ctx.rng, &slhdsa->sig, hash.data(), hash.size());
+}
+
+pgp_hash_alg_t
+SlhdsaKeyMaterial::adjust_hash(pgp_hash_alg_t hash) const
+{
+    if (!sig_hash_allowed(hash)) {
+        return PGP_HASH_SHA256;
+    }
+    return hash;
+}
+
+bool
+SlhdsaKeyMaterial::sig_hash_allowed(pgp_hash_alg_t hash) const
+{
+    return rnp::Hash::size(hash) >= 32;
 }
 
 size_t
