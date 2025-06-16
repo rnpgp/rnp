@@ -2627,7 +2627,7 @@ TEST_F(rnp_tests, test_ffi_key_self_certification_features)
 #if defined(ENABLE_PQC)
 TEST_F(rnp_tests, test_ffi_verify_detached_pqc_test_vector)
 {
-    std::string msg = "Testing\n";
+    std::string                                      msg = "Testing\n";
     std::vector<std::pair<std::string, std::string>> key_sig_pairs = {
       {"data/draft-ietf-openpgp-pqc/v6-mldsa-65-sample-pk.asc",
        "data/draft-ietf-openpgp-pqc/v6-mldsa-65-sample-signature.asc"},
@@ -2641,24 +2641,25 @@ TEST_F(rnp_tests, test_ffi_verify_detached_pqc_test_vector)
        "data/draft-ietf-openpgp-pqc/v6-slhdsa-256s-sample-signature.asc"}};
 
     for (auto key_sig_pair : key_sig_pairs) {
-      rnp_ffi_t       ffi = NULL;
-      rnp_input_t     input = NULL;
-      rnp_input_t     signature = NULL;
-      rnp_op_verify_t verify = NULL;
-  
-      assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-      assert_true(import_all_keys(ffi, key_sig_pair.first));
-      assert_rnp_success(rnp_input_from_memory(&input, (uint8_t*)msg.c_str(), msg.length(), false));
-      assert_non_null(input);
-      assert_rnp_success(rnp_input_from_path(&signature, key_sig_pair.second.c_str()));
-      assert_non_null(signature);
+        rnp_ffi_t       ffi = NULL;
+        rnp_input_t     input = NULL;
+        rnp_input_t     signature = NULL;
+        rnp_op_verify_t verify = NULL;
 
-      assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, input, signature));
-      assert_rnp_success(rnp_op_verify_execute(verify));
-      assert_rnp_success(rnp_op_verify_destroy(verify));
-      assert_rnp_success(rnp_input_destroy(input));
-      assert_rnp_success(rnp_input_destroy(signature));
-      assert_rnp_success(rnp_ffi_destroy(ffi));
+        assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+        assert_true(import_all_keys(ffi, key_sig_pair.first));
+        assert_rnp_success(
+          rnp_input_from_memory(&input, (uint8_t *) msg.c_str(), msg.length(), false));
+        assert_non_null(input);
+        assert_rnp_success(rnp_input_from_path(&signature, key_sig_pair.second.c_str()));
+        assert_non_null(signature);
+
+        assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, input, signature));
+        assert_rnp_success(rnp_op_verify_execute(verify));
+        assert_rnp_success(rnp_op_verify_destroy(verify));
+        assert_rnp_success(rnp_input_destroy(input));
+        assert_rnp_success(rnp_input_destroy(signature));
+        assert_rnp_success(rnp_ffi_destroy(ffi));
     }
 }
 #endif

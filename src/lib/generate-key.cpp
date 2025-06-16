@@ -176,7 +176,6 @@ adjust_hash_alg(rnp_keygen_crypto_params_t &crypto)
     }
 }
 
-#if defined(ENABLE_PQC)
 static void
 keygen_merge_crypto_defaults(rnp_keygen_crypto_params_t &crypto)
 {
