@@ -109,9 +109,9 @@ Fingerprint::size_valid(size_t size) noexcept
     return (size == PGP_FINGERPRINT_V4_SIZE) || (size == PGP_FINGERPRINT_V3_SIZE) ||
            (size == PGP_FINGERPRINT_V5_SIZE)
 #if defined(ENABLE_CRYPTO_REFRESH)
-            || PGP_FINGERPRINT_V6_SIZE
+           || (size == PGP_FINGERPRINT_V6_SIZE)
 #endif
-        ;
+      ;
 }
 
 const KeyID &

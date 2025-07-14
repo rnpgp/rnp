@@ -175,7 +175,7 @@ signature_validate(const pgp::pkt::Signature & sig,
     if (!key.sig_hash_allowed(hash.alg())) {
         RNP_LOG("The signature's digest size is below the minimum digest size required for "
                 "that key.");
-        return RNP_ERROR_SIGNATURE_INVALID;
+        res.add_error(RNP_ERROR_SIG_HASH_ALG_MISMATCH);
     }
 
     /* Finalize hash */

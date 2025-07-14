@@ -222,7 +222,7 @@ typedef struct pgp_one_pass_sig_t {
     pgp_pubkey_alg_t palg{};
     pgp::KeyID       keyid{};
 #if defined(ENABLE_CRYPTO_REFRESH)
-    pgp::Fingerprint    fp{};
+    pgp::Fingerprint     fp{};
     std::vector<uint8_t> salt{};
 #endif
     unsigned nested{};

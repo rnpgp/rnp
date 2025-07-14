@@ -44,61 +44,6 @@ static const uint8_t DEFAULT_COMPRESS_ALGS[] = {
 static const uint8_t DEFAULT_AEAD_ALGS[] = {PGP_AEAD_OCB};
 #endif
 
-static const id_str_pair pubkey_alg_map[] = {
-  {PGP_PKA_RSA, "RSA (Encrypt or Sign)"},
-  {PGP_PKA_RSA_ENCRYPT_ONLY, "RSA Encrypt-Only"},
-  {PGP_PKA_RSA_SIGN_ONLY, "RSA Sign-Only"},
-  {PGP_PKA_ELGAMAL, "Elgamal (Encrypt-Only)"},
-  {PGP_PKA_DSA, "DSA"},
-  {PGP_PKA_ECDH, "ECDH"},
-  {PGP_PKA_ECDSA, "ECDSA"},
-  {PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN, "Reserved (formerly Elgamal Encrypt or Sign"},
-  {PGP_PKA_RESERVED_DH, "Reserved for Diffie-Hellman (X9.42)"},
-  {PGP_PKA_EDDSA, "EdDSA"},
-  {PGP_PKA_SM2, "SM2"},
-#if defined(ENABLE_CRYPTO_REFRESH)
-  {PGP_PKA_ED25519, "ED25519"},
-  {PGP_PKA_X25519, "X25519"},
-  {PGP_PKA_ED448, "ED448"},
-  {PGP_PKA_X448, "X448"},
-#endif
-#if defined(ENABLE_PQC)
-  {PGP_PKA_KYBER768_X25519, "ML-KEM-768_X25519"},
-  {PGP_PKA_KYBER1024_X448, "ML-KEM-1024_X448"},
-  {PGP_PKA_KYBER768_P256, "ML-KEM-768_P256"},
-  {PGP_PKA_KYBER1024_P384, "ML-KEM-1024_P384"},
-  {PGP_PKA_KYBER768_BP256, "ML-KEM-768_BP256"},
-  {PGP_PKA_KYBER1024_BP384, "ML-KEM-1024_BP384"},
-  {PGP_PKA_DILITHIUM3_ED25519, "ML-DSA-65_ED25519"},
-  {PGP_PKA_DILITHIUM5_ED448, "ML-DSA-87_ED448"},
-  {PGP_PKA_DILITHIUM3_P256, "ML-DSA-65_P256"},
-  {PGP_PKA_DILITHIUM5_P384, "ML-DSA-87_P384"},
-  {PGP_PKA_DILITHIUM3_BP256, "ML-DSA-65_BP256"},
-  {PGP_PKA_DILITHIUM5_BP384, "ML-DSA-87_BP384"},
-  {PGP_PKA_SPHINCSPLUS_SHAKE_128f, "SLH-DSA-SHAKE-128f"},
-  {PGP_PKA_SPHINCSPLUS_SHAKE_128s, "SLH-DSA-SHAKE-128s"},
-  {PGP_PKA_SPHINCSPLUS_SHAKE_256s, "SLH-DSA-SHAKE-256s"},
-  {PGP_PKA_PRIVATE00, "Private/Experimental"},
-  {PGP_PKA_PRIVATE01, "Private/Experimental"},
-  {PGP_PKA_PRIVATE02, "Private/Experimental"},
-  {PGP_PKA_PRIVATE03, "Private/Experimental"},
-  {PGP_PKA_PRIVATE04, "Private/Experimental"},
-  {PGP_PKA_PRIVATE10, "Private/Experimental"},
-#else
-  {PGP_PKA_PRIVATE00, "Private/Experimental"},
-  {PGP_PKA_PRIVATE01, "Private/Experimental"},
-  {PGP_PKA_PRIVATE02, "Private/Experimental"},
-  {PGP_PKA_PRIVATE03, "Private/Experimental"},
-  {PGP_PKA_PRIVATE04, "Private/Experimental"},
-  {PGP_PKA_PRIVATE05, "Private/Experimental"},
-  {PGP_PKA_PRIVATE06, "Private/Experimental"},
-  {PGP_PKA_PRIVATE07, "Private/Experimental"},
-  {PGP_PKA_PRIVATE08, "Private/Experimental"},
-  {PGP_PKA_PRIVATE09, "Private/Experimental"},
-  {PGP_PKA_PRIVATE10, "Private/Experimental"},
-#endif
-  {0, NULL}};
-
 static bool
 load_generated_g10_key(pgp_key_t *           dst,
                        pgp_key_pkt_t *       newkey,
