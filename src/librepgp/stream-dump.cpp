@@ -1277,8 +1277,7 @@ DumpContextDst::dump_pk_session_key()
     case PGP_PKA_X448: {
         auto &x448 = dynamic_cast<const X448EncMaterial &>(*material).enc;
         dst_print_vec(dst, "x448 ephemeral public key", x448.eph_key, dump_mpi);
-        dst_print_vec(
-          dst, "x448 encrypted session key", x448.enc_sess_key, dump_mpi);
+        dst_print_vec(dst, "x448 encrypted session key", x448.enc_sess_key, dump_mpi);
         break;
     }
 #endif

@@ -115,15 +115,6 @@ pgp_decrypt_seckey(const Key &                    key,
     }
 }
 
-static const id_str_pair ss_rr_code_map[] = {
-  {PGP_REVOCATION_NO_REASON, "No reason specified"},
-  {PGP_REVOCATION_SUPERSEDED, "Key is superseded"},
-  {PGP_REVOCATION_COMPROMISED, "Key material has been compromised"},
-  {PGP_REVOCATION_RETIRED, "Key is retired and no longer used"},
-  {PGP_REVOCATION_NO_LONGER_VALID, "User ID information is no longer valid"},
-  {0x00, NULL},
-};
-
 bool
 Key::write_sec_pgp(pgp_dest_t &       dst,
                    pgp_key_pkt_t &    seckey,
