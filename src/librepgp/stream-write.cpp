@@ -1023,7 +1023,8 @@ init_encrypted_dst(rnp_ctx_t &ctx, pgp_dest_t &dst, pgp_dest_t &writedst)
 #if defined(ENABLE_CRYPTO_REFRESH)
     /* in the case of PKESK (pkeycount > 0) and all keys are PKESKv6/SEIPDv2 capable, upgrade
      * to AEADv2 */
-    if (ctx.enable_pkesk_v6 && ctx.pkeskv6_capable(&ctx.key_provider) && !ctx.recipients.empty()) {
+    if (ctx.enable_pkesk_v6 && ctx.pkeskv6_capable(&ctx.key_provider) &&
+        !ctx.recipients.empty()) {
         param->auth_type = rnp::AuthType::AEADv2;
     }
 #endif
@@ -1556,8 +1557,8 @@ init_signed_dst(rnp_ctx_t &ctx, pgp_dest_t &dst, pgp_dest_t &writedst)
 
     /* Getting signer's infos, writing one-pass signatures if needed */
     for (auto &sg : ctx.signers) {
-        ret = signed_add_signer(
-          *param, sg, param->ctx->sec_ctx.rng, &sg == &ctx.signers.back());
+        ret =
+          signed_add_signer(*param, sg, param->ctx->sec_ctx.rng, &sg == &ctx.signers.back());
         if (ret) {
             RNP_LOG("failed to add one-pass signature for signer");
             goto finish;

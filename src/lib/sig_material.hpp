@@ -118,8 +118,9 @@ class DilithiumSigMaterial : public SigMaterial {
 class SlhdsaSigMaterial : public SigMaterial {
   public:
     pgp_sphincsplus_signature_t sig;
-    pgp_pubkey_alg_t palg;
-    SlhdsaSigMaterial(pgp_pubkey_alg_t apalg, pgp_hash_alg_t ahalg) : SigMaterial(ahalg), palg(apalg){};
+    pgp_pubkey_alg_t            palg;
+    SlhdsaSigMaterial(pgp_pubkey_alg_t apalg, pgp_hash_alg_t ahalg)
+        : SigMaterial(ahalg), palg(apalg){};
 
     bool parse(pgp_packet_body_t &pkt) noexcept override;
     void write(pgp_packet_body_t &pkt) const override;

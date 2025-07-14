@@ -715,12 +715,12 @@ TEST_F(rnp_tests, sphincsplus_signverify_success)
         assert_true(keygen.generate(seckey1, true));
         assert_true(keygen.generate(seckey2, true));
 
-            auto &                 key1 = *seckey1.material;
-            auto &                 key2 = *seckey2.material;
-            rnp::secure_bytes      hash(message, message + sizeof(message));
-            pgp::SlhdsaSigMaterial sig(algs[i], keygen.hash());
-            assert_rnp_success(key1.sign(global_ctx, sig, hash));
-            assert_rnp_success(key1.verify(global_ctx, sig, hash));
+        auto &                 key1 = *seckey1.material;
+        auto &                 key2 = *seckey2.material;
+        rnp::secure_bytes      hash(message, message + sizeof(message));
+        pgp::SlhdsaSigMaterial sig(algs[i], keygen.hash());
+        assert_rnp_success(key1.sign(global_ctx, sig, hash));
+        assert_rnp_success(key1.verify(global_ctx, sig, hash));
 
         // Fails because of different key used
         assert_rnp_failure(key2.verify(global_ctx, sig, hash));

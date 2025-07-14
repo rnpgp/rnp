@@ -80,7 +80,7 @@ ecdh_kem_public_key_t::botan_key_ecdh(rnp::RNG *rng) const
     assert(curve_ >= PGP_CURVE_NIST_P_256 && curve_ <= PGP_CURVE_P256K1);
 
     auto            ec_desc = pgp::ec::Curve::get(curve_);
-    Botan::EC_Group group   = Botan::EC_Group::from_name(ec_desc->botan_name);
+    Botan::EC_Group group = Botan::EC_Group::from_name(ec_desc->botan_name);
     return Botan::ECDH_PublicKey(group, Botan::EC_AffinePoint(group, key_).to_legacy_point());
 }
 
@@ -263,7 +263,7 @@ exdsa_public_key_t::botan_key() const
 {
     // format: 04 | X | Y
     auto            ec_desc = pgp::ec::Curve::get(curve_);
-    Botan::EC_Group group   = Botan::EC_Group::from_name(ec_desc->botan_name);
+    Botan::EC_Group group = Botan::EC_Group::from_name(ec_desc->botan_name);
     return Botan::ECDSA_PublicKey(group, Botan::EC_AffinePoint(group, key_).to_legacy_point());
 }
 
