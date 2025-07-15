@@ -1003,6 +1003,89 @@ TEST_F(rnp_tests, test_ffi_decrypt_pk_unlocked)
 }
 
 #if defined(ENABLE_CRYPTO_REFRESH)
+TEST_F(rnp_tests, test_ffi_decrypt_v6_skesk_test_vectors)
+{
+    rnp_ffi_t       ffi = NULL;
+    rnp_input_t     input = NULL;
+    rnp_output_t    output = NULL;
+    rnp_op_verify_t verify;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
+
+    assert_rnp_success(rnp_input_from_path(&input, "data/RFC9580/A.9.5.v6_skesk_eax.asc"));
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_string_equal(file_to_str("decrypted").c_str(), "Hello, world!");
+    assert_int_equal(unlink("decrypted"), 0);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    rnp_op_verify_destroy(verify);
+
+    assert_rnp_success(rnp_input_from_path(&input, "data/RFC9580/A.10.5.v6_skesk_ocb.asc"));
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_string_equal(file_to_str("decrypted").c_str(), "Hello, world!");
+    assert_int_equal(unlink("decrypted"), 0);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    rnp_op_verify_destroy(verify);
+
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_v6_skesk_enc_dec)
+{
+    rnp_ffi_t        ffi = NULL;
+    rnp_input_t      input = NULL;
+    rnp_output_t     output = NULL;
+    rnp_op_encrypt_t enc = NULL;
+    rnp_op_verify_t  verify;
+
+    const char plaintext[] = "Test Plaintext String";
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    std::vector<std::string> ciphers = {"AES128", "AES192", "AES256"};
+    std::vector<std::string> aead_modes = {"EAX", "OCB"};
+
+    for (auto aead : aead_modes)
+        for (auto cipher : ciphers) {
+            assert_rnp_success(rnp_output_to_path(&output, "encrypted"));
+            assert_rnp_success(rnp_input_from_memory(
+              &input, (const uint8_t *) plaintext, strlen(plaintext), false));
+            assert_rnp_success(rnp_op_encrypt_create(&enc, ffi, input, output));
+            assert_rnp_success(
+              rnp_op_encrypt_add_password(enc, "password", NULL, 0, "AES256"));
+            assert_rnp_success(rnp_op_encrypt_set_cipher(enc, cipher.c_str()));
+            assert_rnp_success(rnp_op_encrypt_set_aead(enc, aead.c_str()));
+            assert_rnp_success(rnp_op_encrypt_enable_skesk_v6(enc));
+            assert_rnp_success(rnp_op_encrypt_execute(enc));
+            rnp_input_destroy(input);
+            rnp_output_destroy(output);
+            rnp_op_encrypt_destroy(enc);
+
+            assert_rnp_success(rnp_ffi_set_pass_provider(
+              ffi, ffi_string_password_provider, (void *) "password"));
+
+            assert_rnp_success(rnp_input_from_path(&input, "encrypted"));
+            assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+            assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+            assert_rnp_success(rnp_op_verify_execute(verify));
+            assert_string_equal(file_to_str("decrypted").c_str(), plaintext);
+            rnp_input_destroy(input);
+            rnp_output_destroy(output);
+            rnp_op_verify_destroy(verify);
+
+            assert_int_equal(unlink("decrypted"), 0);
+            assert_int_equal(unlink("encrypted"), 0);
+        }
+
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_decrypt_v6_pkesk_test_vector)
 {
     rnp_ffi_t    ffi = NULL;
@@ -1010,9 +1093,9 @@ TEST_F(rnp_tests, test_ffi_decrypt_v6_pkesk_test_vector)
     rnp_output_t output = NULL;
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_true(import_all_keys(ffi, "data/test_v6_valid_data/transferable_seckey_v6.asc"));
+    assert_true(import_all_keys(ffi, "data/RFC9580/A.4.transferable-seckey-v6.asc"));
 
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_v6_valid_data/v6pkesk.asc"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/RFC9580/A.8.5-v6pkesk-v2seipd"));
     assert_non_null(input);
     assert_rnp_success(rnp_output_to_null(&output));
     assert_rnp_success(rnp_decrypt(ffi, input, output));
@@ -1164,7 +1247,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
     // setup FFI
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
 
-    assert_true(import_all_keys(ffi, "data/test_v6_valid_data/transferable_seckey_v6.asc"));
+    assert_true(import_all_keys(ffi, "data/RFC9580/A.4.transferable-seckey-v6.asc"));
 
     std::vector<std::string> ciphers = {"AES128", "AES192", "AES256"};
     std::vector<std::string> aead_modes = {"None", "EAX", "OCB"};

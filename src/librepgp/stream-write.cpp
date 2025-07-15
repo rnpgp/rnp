@@ -59,6 +59,7 @@
 #include <algorithm>
 #ifdef ENABLE_CRYPTO_REFRESH
 #include "v2_seipd.h"
+#include "crypto/hkdf.hpp"
 #endif
 
 /* 8192 bytes, as GnuPG */
@@ -755,6 +756,79 @@ encrypted_add_password_v5(pgp_dest_encrypted_param_t &     param,
 #endif
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+static bool
+encrypted_add_password_v6(pgp_dest_encrypted_param_t &     param,
+                          const rnp_symmetric_pass_info_t &pass,
+                          const rnp::secure_bytes &        key)
+{
+#if !defined(ENABLE_AEAD)
+    RNP_LOG("AEAD support is not enabled.");
+    return RNP_ERROR_NOT_IMPLEMENTED;
+#else
+    if ((param.ctx.aalg != PGP_AEAD_EAX) && (param.ctx.aalg != PGP_AEAD_OCB)) {
+        RNP_LOG("unsupported AEAD algorithm");
+        return false;
+    }
+
+    pgp_sk_sesskey_t skey{};
+    skey.version = PGP_SKSK_V6;
+    skey.s2k = pass.s2k;
+    skey.alg = pass.s2k_cipher;
+    skey.aalg = param.ctx.aalg;
+    skey.ivlen = pgp_cipher_aead_nonce_len(skey.aalg);
+    skey.enckeylen = key.size() + pgp_cipher_aead_tag_len(skey.aalg);
+
+    auto kdf = rnp::Hkdf::create(PGP_HASH_SHA256);
+
+    std::vector<uint8_t> kdf_info;
+    kdf_info.push_back(PGP_PKT_SK_SESSION_KEY | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT);
+    kdf_info.push_back(skey.version);
+    kdf_info.push_back(skey.alg);
+    kdf_info.push_back(skey.aalg);
+
+    std::vector<uint8_t> kdf_input(pass.key.data(), pass.key.data() + pgp_key_size(skey.alg));
+    std::vector<uint8_t> derived_key(pgp_key_size(skey.alg));
+
+    kdf->extract_expand(NULL,
+                        0, // no salt
+                        kdf_input.data(),
+                        kdf_input.size(),
+                        kdf_info.data(),
+                        kdf_info.size(),
+                        derived_key.data(),
+                        derived_key.size());
+
+    param.ctx.sec_ctx.rng.get(skey.iv, skey.ivlen);
+
+    /* initialize cipher */
+    pgp_crypt_t kcrypt;
+    if (!pgp_cipher_aead_init(&kcrypt, skey.alg, skey.aalg, derived_key.data(), false)) {
+        return false;
+    }
+
+    /* set additional data */
+    if (!encrypted_sesk_set_ad(kcrypt, skey)) {
+        return false; // LCOV_EXCL_LINE
+    }
+
+    /* calculate nonce */
+    uint8_t nonce[PGP_AEAD_MAX_NONCE_LEN];
+    size_t  nlen = pgp_cipher_aead_nonce(skey.aalg, skey.iv, nonce, 0);
+
+    /* start cipher, encrypt key and get tag */
+    bool res = pgp_cipher_aead_start(&kcrypt, nonce, nlen) &&
+               pgp_cipher_aead_finish(&kcrypt, skey.enckey, key.data(), key.size());
+
+    pgp_cipher_aead_destroy(&kcrypt);
+    if (res) {
+        param.skesks.push_back(std::move(skey));
+    }
+    return res;
+#endif
+}
+#endif
+
 static bool
 encrypted_build_skesk(pgp_dest_encrypted_param_t &param,
                       rnp::secure_bytes &         key,
@@ -775,8 +849,18 @@ encrypted_build_skesk(pgp_dest_encrypted_param_t &param,
 gencek:
     ctx.sec_ctx.rng.get(key.data(), keylen);
     for (auto &pass : param.ctx.passwords) {
-        bool res = param.is_aead_auth() ? encrypted_add_password_v5(param, pass, key) :
-                                          encrypted_add_password_v4(param, pass, key);
+        bool res = false;
+        if (param.auth_type == rnp::AuthType::AEADv1) {
+            res = encrypted_add_password_v5(param, pass, key);
+        }
+#if defined(ENABLE_CRYPTO_REFRESH)
+        else if (param.auth_type == rnp::AuthType::AEADv2) {
+            res = encrypted_add_password_v6(param, pass, key);
+        }
+#endif
+        else {
+            res = encrypted_add_password_v4(param, pass, key);
+        }
         if (!res) {
             return false;
         }
@@ -1018,10 +1102,17 @@ init_encrypted_dst(rnp_ctx_t &ctx, pgp_dest_t &dst, pgp_dest_t &writedst)
     param->auth_type = ctx.aalg == PGP_AEAD_NONE ? rnp::AuthType::MDC : rnp::AuthType::AEADv1;
 
 #if defined(ENABLE_CRYPTO_REFRESH)
-    /* in the case of PKESK (pkeycount > 0) and all keys are PKESKv6/SEIPDv2 capable, upgrade
-     * to AEADv2 */
-    if (ctx.enable_pkesk_v6 && ctx.pkeskv6_capable() && !ctx.recipients.empty()) {
-        param->auth_type = rnp::AuthType::AEADv2;
+    /* We use v6 PKESK/SKESK with v2 SEIPD if all recipients support it
+    and the variables enable_pkesk_v6 or enable_skesk_v6 are set. */
+    if (ctx.aalg != PGP_AEAD_NONE) {
+        bool use_v6_pkesk = ctx.enable_pkesk_v6 && ctx.pkeskv6_capable();
+        bool use_v6_skesk = ctx.enable_skesk_v6;
+
+        // check that if we have recipients/passwords, also pkesk/skesk v6 is enabled.
+        if ((use_v6_pkesk || ctx.recipients.empty()) &&
+            (use_v6_skesk || ctx.passwords.empty())) {
+            param->auth_type = rnp::AuthType::AEADv2;
+        }
     }
 #endif
     param->aalg = ctx.aalg;
