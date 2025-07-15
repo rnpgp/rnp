@@ -939,11 +939,43 @@ pgp_sk_sesskey_t::write(pgp_dest_t &dst) const
     pgp_packet_body_t pktbody(PGP_PKT_SK_SESSION_KEY);
     /* version and algorithm fields */
     pktbody.add_byte(version);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    uint8_t s2k_len;
+    /* A one-octet scalar octet count for the 5 fields following this octet. */
+    /* TODO: unify with pgp_key_pkt_t::s2k_specifier_len() */
+    if (version == PGP_SKSK_V6) {
+        switch (s2k.specifier) {
+        case PGP_S2KS_SIMPLE:
+            s2k_len = 2;
+            break;
+        case PGP_S2KS_SALTED:
+            s2k_len = 10;
+            break;
+        case PGP_S2KS_ITERATED_AND_SALTED:
+            s2k_len = 11;
+            break;
+        default:
+            RNP_LOG("invalid specifier");
+            throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+        }
+        pktbody.add_byte(3 + s2k_len + ivlen);
+    }
+#endif
     pktbody.add_byte(alg);
-    if (version == PGP_SKSK_V5) {
+    if (version == PGP_SKSK_V5
+#if defined(ENABLE_CRYPTO_REFRESH)
+        || version == PGP_SKSK_V6
+#endif
+    ) {
         pktbody.add_byte(aalg);
     }
-    /* S2K specifier */
+/* S2K specifier */
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* A one-octet scalar octet count of the following field. */
+    if (version == PGP_SKSK_V6) {
+        pktbody.add_byte(s2k_len);
+    }
+#endif
     pktbody.add_byte(s2k.specifier);
     pktbody.add_byte(s2k.hash_alg);
 
@@ -962,7 +994,11 @@ pgp_sk_sesskey_t::write(pgp_dest_t &dst) const
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
     /* v5 : iv */
-    if (version == PGP_SKSK_V5) {
+    if (version == PGP_SKSK_V5
+#if defined(ENABLE_CRYPTO_REFRESH)
+        || version == PGP_SKSK_V6
+#endif
+    ) {
         pktbody.add(iv, ivlen);
     }
     /* encrypted key and auth tag for v5 */
@@ -972,6 +1008,82 @@ pgp_sk_sesskey_t::write(pgp_dest_t &dst) const
     /* write packet */
     pktbody.write(dst);
 }
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+rnp_result_t
+pgp_sk_sesskey_t::parse_v6(pgp_packet_body_t &pkt)
+{
+    uint8_t bt;
+    uint8_t octet_count;
+    uint8_t s2k_len;
+
+    /* A one-octet scalar octet count for the 5 fields following this octet. */
+    /* TODO: do we need to check octet_count? */
+    if (!pkt.get(octet_count)) {
+        RNP_LOG("failed to get octet count of next 5 fields");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    /* symmetric algorithm */
+    if (!pkt.get(bt)) {
+        RNP_LOG("failed to get symm alg");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    alg = (pgp_symm_alg_t) bt;
+
+    /* aead algorithm */
+    if (!pkt.get(bt)) {
+        RNP_LOG("failed to get aead alg");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    aalg = (pgp_aead_alg_t) bt;
+    if ((aalg != PGP_AEAD_EAX) && (aalg != PGP_AEAD_OCB)) {
+        RNP_LOG("unsupported AEAD algorithm : %d", (int) aalg);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    /* A one-octet scalar octet count of the following field. */
+    /* TODO: do we need to check s2k_len? */
+    if (!pkt.get(s2k_len)) {
+        RNP_LOG("failed to get octet count of next 5 fields");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    /* s2k */
+    if (!pkt.get(s2k)) {
+        RNP_LOG("failed to parse s2k");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    size_t noncelen = pgp_cipher_aead_nonce_len(aalg);
+    size_t taglen = pgp_cipher_aead_tag_len(aalg);
+    size_t keylen = 0;
+
+    if (pkt.left() > noncelen + taglen + PGP_MAX_KEY_SIZE) {
+        RNP_LOG("too long esk");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    if (pkt.left() < noncelen + taglen + 8) {
+        RNP_LOG("too short esk");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    /* iv */
+    if (!pkt.get(iv, noncelen)) {
+        RNP_LOG("failed to get iv");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    ivlen = noncelen;
+
+    /* key */
+    keylen = pkt.left();
+    if (!pkt.get(enckey, keylen)) {
+        RNP_LOG("failed to get key");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    enckeylen = keylen;
+    return RNP_SUCCESS;
+}
+#endif
 
 rnp_result_t
 pgp_sk_sesskey_t::parse(pgp_source_t &src)
@@ -985,6 +1097,12 @@ pgp_sk_sesskey_t::parse(pgp_source_t &src)
     /* version */
     uint8_t bt;
     if (!pkt.get(bt) || ((bt != PGP_SKSK_V4) && (bt != PGP_SKSK_V5))) {
+#if defined(ENABLE_CRYPTO_REFRESH)
+        if (bt == PGP_SKSK_V6) {
+            version = bt;
+            return parse_v6(pkt);
+        }
+#endif
         RNP_LOG("wrong packet version");
         return RNP_ERROR_BAD_FORMAT;
     }
