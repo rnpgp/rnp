@@ -1023,6 +1023,95 @@ TEST_F(rnp_tests, test_ffi_decrypt_v6_pkesk_test_vector)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_argon2_locked_seckey)
+{
+    rnp_ffi_t    ffi = NULL;
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(
+      import_all_keys(ffi, "data/RFC9580/A.5.sample-locked-v6-seckey-argon2-aead.asc"));
+
+    // test key unlock
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "CB186C4F0609A697", &key));
+    assert_rnp_success(rnp_key_unlock(key, "correct horse battery staple"));
+    // protect with a different passphrase
+    assert_rnp_success(rnp_key_protect(key, "some other password", NULL, NULL, NULL, 0));
+    assert_rnp_success(rnp_key_lock(key));
+    assert_rnp_failure(rnp_key_unlock(key, "some incorrect password"));
+    assert_rnp_success(rnp_key_unlock(key, "some other password"));
+    rnp_key_handle_destroy(key);
+
+    // test decrypting pkesk
+    assert_rnp_success(rnp_ffi_set_pass_provider(
+      ffi, ffi_string_password_provider, (void *) "correct horse battery staple"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_v6_valid_data/v6pkesk.asc"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    assert_rnp_success(rnp_decrypt(ffi, input, output));
+    assert_string_equal(file_to_str("decrypted").c_str(), "Hello, world!");
+    assert_int_equal(unlink("decrypted"), 0);
+
+    // cleanup
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_decrypt_argon2_skesk)
+{
+    const char               password[] = "password";
+    const char               expect_plaintext[] = "Hello, world!";
+    std::vector<std::string> ciphers = {"AES128", "AES192", "AES256"};
+    std::vector<std::string> testdata = {
+      "data/RFC9580/A.12.1.v4-skesk-argon2-aes128.asc",
+      "data/RFC9580/A.12.2.v4-skesk-argon2-aes192.asc",
+      "data/RFC9580/A.12.3.v4-skesk-argon2-aes256.asc",
+    };
+
+    for (size_t i = 0; i < size(testdata); i++) {
+        rnp_ffi_t       ffi = NULL;
+        rnp_input_t     input = NULL;
+        rnp_output_t    output = NULL;
+        rnp_op_verify_t verify;
+
+        assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+        /* decrypt */
+        assert_rnp_success(rnp_input_from_path(&input, testdata.at(i).c_str()));
+        assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+        assert_rnp_success(
+          rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) password));
+        assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+        assert_rnp_success(rnp_op_verify_execute(verify));
+        assert_string_equal(file_to_str("decrypted").c_str(), expect_plaintext);
+        assert_int_equal(unlink("decrypted"), 0);
+
+        /* Check protection info */
+        char *mode = NULL;
+        char *cipher = NULL;
+        bool  valid = false;
+        assert_rnp_success(rnp_op_verify_get_protection_info(verify, &mode, &cipher, &valid));
+        assert_string_equal(mode, "cfb-mdc");
+        assert_string_equal(cipher, ciphers.at(i).c_str());
+        assert_true(valid);
+        rnp_buffer_destroy(mode);
+        rnp_buffer_destroy(cipher);
+        /* Check SKESK count */
+        size_t count = 0;
+        assert_rnp_success(rnp_op_verify_get_symenc_count(verify, &count));
+        assert_int_equal(count, 1);
+
+        // cleanup
+        rnp_op_verify_destroy(verify);
+        rnp_input_destroy(input);
+        rnp_output_destroy(output);
+        rnp_ffi_destroy(ffi);
+    }
+}
+
 #if defined(ENABLE_PQC)
 // NOTE: this tests ML-KEM-ipd test vectors
 // The final implementation of the PQC draft implementation will use the final NIST standard.
