@@ -32,9 +32,20 @@
 #define RNP_S2K_H_
 
 #include <cstdint>
+#include <rnp/rnp_def.h>
 #include "repgp/repgp_def.h"
 
 typedef struct pgp_s2k_t pgp_s2k_t;
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+int pgp_s2k_argon2(uint8_t *      out,
+                   size_t         output_len,
+                   const char *   password,
+                   const uint8_t *salt,
+                   uint8_t        t,
+                   uint8_t        p,
+                   uint8_t        encoded_m);
+#endif
 
 int pgp_s2k_iterated(pgp_hash_alg_t alg,
                      uint8_t *      out,

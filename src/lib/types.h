@@ -129,19 +129,36 @@ typedef struct pgp_s2k_t {
     /* below fields may not all be valid, depending on the usage field above */
     pgp_s2k_specifier_t specifier{};
     pgp_hash_alg_t      hash_alg{};
-    uint8_t             salt[PGP_SALT_SIZE];
-    unsigned            iterations{};
+#if defined(ENABLE_CRYPTO_REFRESH)
+    uint8_t salt[PGP_MAX_S2K_SALT_SIZE];
+#else
+    uint8_t salt[PGP_SALT_SIZE];
+#endif
+    unsigned iterations{};
     /* GnuPG custom s2k data */
     pgp_s2k_gpg_extension_t gpg_ext_num{};
     uint8_t                 gpg_serial_len{};
     uint8_t                 gpg_serial[16];
     /* Experimental s2k data */
     std::vector<uint8_t> experimental{};
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* argon2 */
+    uint8_t argon2_t;
+    uint8_t argon2_p;
+    uint8_t argon2_encoded_m;
+#endif
+
+    static size_t  salt_size(pgp_s2k_specifier_t specifier);
+    static uint8_t specifier_len(pgp_s2k_specifier_t specifier);
 } pgp_s2k_t;
 
 typedef struct pgp_key_protection_t {
-    pgp_s2k_t         s2k{};         /* string-to-key kdf params */
-    pgp_symm_alg_t    symm_alg{};    /* symmetric alg */
+    pgp_s2k_t      s2k{};      /* string-to-key kdf params */
+    pgp_symm_alg_t symm_alg{}; /* symmetric alg */
+#if defined(ENABLE_CRYPTO_REFRESH)
+    pgp_aead_alg_t aead_alg{}; /* AEAD alg */
+#endif
     pgp_cipher_mode_t cipher_mode{}; /* block cipher mode */
     uint8_t           iv[PGP_MAX_BLOCK_SIZE];
 } pgp_key_protection_t;
