@@ -52,6 +52,9 @@
 #include <set>
 #include <algorithm>
 #include <cassert>
+#if defined(ENABLE_CRYPTO_REFRESH)
+#include "crypto/hkdf.hpp"
+#endif
 
 static bool
 skip_pgp_packets(pgp_source_t &src, const std::set<pgp_pkt_type_t> &pkts)
@@ -433,6 +436,11 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
         }
         break;
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_S2KU_AEAD: {
+        break; // nothing to do here
+    }
+#endif
     default:
         RNP_LOG("unknown s2k usage: %d", (int) key.sec_protection.s2k.usage);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -460,6 +468,98 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
         return RNP_ERROR_GENERIC;
     }
 }
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+static rnp_result_t
+crypt_secret_key_aead(pgp_key_pkt_t *                    key,
+                      rnp::secure_vector<uint8_t> const &s2k_derived_key,
+                      rnp::secure_vector<uint8_t> const &in_vec,
+                      rnp::secure_vector<uint8_t> &      out_vec,
+                      bool                               decrypt)
+{
+    size_t      nonce_len = pgp_cipher_aead_nonce_len(key->sec_protection.aead_alg);
+    uint8_t     nonce[PGP_AEAD_MAX_NONCE_LEN];
+    bool        success = true;
+    pgp_crypt_t crypt;
+    size_t      keysize = pgp_key_size(key->sec_protection.symm_alg);
+    if (!keysize) {
+        RNP_LOG("invalid algorithm");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    /* derive kek using HKDF */
+    auto                 hkdf = rnp::Hkdf::create(PGP_HASH_SHA256);
+    std::vector<uint8_t> kek(keysize);
+    std::vector<uint8_t> hkdf_info;
+    hkdf_info.push_back(key->tag | 0xC0);
+    hkdf_info.push_back(key->version);
+    hkdf_info.push_back(key->sec_protection.symm_alg);
+    hkdf_info.push_back(key->sec_protection.aead_alg);
+
+    hkdf->extract_expand(NULL,
+                         0,
+                         s2k_derived_key.data(),
+                         s2k_derived_key.size(),
+                         hkdf_info.data(),
+                         hkdf_info.size(),
+                         kek.data(),
+                         keysize);
+
+    if (!pgp_cipher_aead_init(&crypt,
+                              key->sec_protection.symm_alg,
+                              key->sec_protection.aead_alg,
+                              kek.data(),
+                              decrypt)) {
+        secure_clear(kek.data(), kek.size());
+        RNP_LOG("failed to init AEAD encryption");
+        return RNP_ERROR_ENCRYPT_FAILED;
+    }
+    secure_clear(kek.data(), kek.size());
+
+    // set up nonce
+    if (nonce_len != pgp_cipher_aead_nonce(
+                       key->sec_protection.aead_alg, key->sec_protection.iv, nonce, 0)) {
+    }
+
+    /* set up ad (associated data) */
+    std::vector<uint8_t> ad;
+    uint8_t              bytes[4];
+    // tag and version
+    ad.push_back(key->tag | 0xC0);
+    ad.push_back(key->version);
+    // creation time
+    write_uint32(bytes, key->creation_time);
+    ad.insert(ad.end(), bytes, bytes + 4);
+    // pk alg
+    ad.push_back(key->alg);
+
+    // public material
+    pgp_packet_body_t material_body(PGP_PKT_RESERVED);
+    key->material->write(material_body);
+    // also add the key material length for v6
+    if (key->version == PGP_V6) {
+        write_uint32(bytes, material_body.size());
+        ad.insert(ad.end(), bytes, bytes + 4);
+    }
+    // add public key material itself
+    ad.insert(ad.end(), material_body.data(), material_body.data() + material_body.size());
+
+    success = pgp_cipher_aead_set_ad(&crypt, ad.data(), ad.size());
+    if (success) {
+        success = pgp_cipher_aead_start(&crypt, key->sec_protection.iv, nonce_len);
+    }
+    if (success) {
+        success = pgp_cipher_aead_finish(&crypt, out_vec.data(), in_vec.data(), in_vec.size());
+    }
+
+    pgp_cipher_aead_destroy(&crypt);
+    if (!success) {
+        return RNP_ERROR_DECRYPT_FAILED;
+    }
+
+    return RNP_SUCCESS;
+}
+#endif
 
 rnp_result_t
 decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
@@ -494,6 +594,14 @@ decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if ((key->sec_protection.s2k.specifier == PGP_S2KS_ARGON2) &&
+        key->sec_protection.s2k.usage != PGP_S2KU_AEAD) {
+        RNP_LOG("s2k usage must be AEAD if using Argon2");
+        return false;
+    }
+#endif
+
     rnp::secure_array<uint8_t, PGP_MAX_KEY_SIZE> keybuf;
     size_t keysize = pgp_key_size(key->sec_protection.symm_alg);
     if (!keysize ||
@@ -505,13 +613,35 @@ decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
     try {
         rnp::secure_bytes decdata(key->sec_data.size(), 0);
         pgp_crypt_t       crypt;
+        rnp_result_t      ret = RNP_ERROR_GENERIC;
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+        /* AEAD case */
+        if (key->sec_protection.s2k.usage == PGP_S2KU_AEAD) {
+            rnp::secure_vector<uint8_t> keybuf_vec(keybuf.data(),
+                                                   keybuf.data() + keybuf.size());
+            rnp::secure_vector<uint8_t> encr_vec(key->sec_data.data(),
+                                                 key->sec_data.data() + key->sec_data.size());
+
+            ret = crypt_secret_key_aead(key, keybuf_vec, encr_vec, decdata, true);
+            if (ret) {
+                RNP_LOG("could not successfully decrypt key");
+                return ret;
+            }
+
+            // subtract authentication tag length to get the encrypted data length
+            size_t sec_len =
+              key->sec_data.size() - pgp_cipher_aead_tag_len(key->sec_protection.aead_alg);
+            return parse_secret_key_mpis(*key, decdata.data(), sec_len);
+        }
+#endif
+
         if (!pgp_cipher_cfb_start(
               &crypt, key->sec_protection.symm_alg, keybuf.data(), key->sec_protection.iv)) {
             RNP_LOG("failed to start cfb decryption");
             return RNP_ERROR_DECRYPT_FAILED;
         }
 
-        rnp_result_t ret = RNP_ERROR_GENERIC;
         switch (key->version) {
         case PGP_V3:
             if (!is_rsa_key_alg(key->alg)) {
@@ -558,6 +688,9 @@ write_secret_key_mpis(pgp_packet_body_t &body, pgp_key_pkt_t &key)
     if (key.version == PGP_V6 && key.sec_protection.s2k.usage == PGP_S2KU_NONE) {
         return; /* checksum removed for v6 and usage byte zero */
     }
+    if (key.sec_protection.s2k.usage == PGP_S2KU_AEAD) {
+        return; /* for AEAD we add the authentication tag (later) */
+    }
 #endif
 
     /* add sum16 if sha1 is not used */
@@ -583,8 +716,14 @@ encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rnp::RNG &rng)
     if (!is_secret_key_pkt(key->tag) || !key->material->secret()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (key->sec_protection.s2k.usage &&
-        (key->sec_protection.cipher_mode != PGP_CIPHER_MODE_CFB)) {
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* check that we either use AEAD or PGP_CIPHER_MODE_CFB */
+    if (key->sec_protection.s2k.usage == PGP_S2KU_AEAD) {
+        // do nothing
+    } else
+#endif
+      if (key->sec_protection.s2k.usage &&
+          (key->sec_protection.cipher_mode != PGP_CIPHER_MODE_CFB)) {
         RNP_LOG("unsupported secret key encryption mode");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -609,17 +748,86 @@ encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rnp::RNG &rng)
         /* data is encrypted */
         size_t keysize = pgp_key_size(key->sec_protection.symm_alg);
         size_t blsize = pgp_block_size(key->sec_protection.symm_alg);
+        rnp::secure_array<uint8_t, PGP_MAX_KEY_SIZE> keybuf;
         if (!keysize || !blsize) {
             RNP_LOG("wrong symm alg");
             return RNP_ERROR_BAD_PARAMETERS;
         }
-        /* generate iv and s2k salt */
-        rng.get(key->sec_protection.iv, blsize);
+        /* generate s2k salt */
         if ((key->sec_protection.s2k.specifier != PGP_S2KS_SIMPLE)) {
-            rng.get(key->sec_protection.s2k.salt, PGP_SALT_SIZE);
+            rng.get(key->sec_protection.s2k.salt,
+                    key->sec_protection.s2k.salt_size(key->sec_protection.s2k.specifier));
         }
+#if defined(ENABLE_CRYPTO_REFRESH)
+        /* AEAD case */
+        if (key->sec_protection.s2k.usage == PGP_S2KU_AEAD) {
+            switch (key->version) {
+            case PGP_V4:
+                FALLTHROUGH_STATEMENT;
+            case PGP_V6:
+                break;
+            default:
+                RNP_LOG("AEAD secret-key encryption only defined for v4 and v6 packets");
+                return RNP_ERROR_BAD_STATE;
+            }
+            /* check for reasonable symmetric algorithm */
+            switch (key->sec_protection.symm_alg) {
+            case PGP_SA_AES_128:
+                FALLTHROUGH_STATEMENT;
+            case PGP_SA_AES_192:
+                FALLTHROUGH_STATEMENT;
+            case PGP_SA_AES_256:
+                FALLTHROUGH_STATEMENT;
+            case PGP_SA_TWOFISH:
+                FALLTHROUGH_STATEMENT;
+            case PGP_SA_CAMELLIA_128:
+                FALLTHROUGH_STATEMENT;
+            case PGP_SA_CAMELLIA_192:
+                FALLTHROUGH_STATEMENT;
+            case PGP_SA_CAMELLIA_256:
+                break;
+            default:
+                RNP_LOG("Not using outdated symmetric algorithm in combination with AEAD "
+                        "encryption");
+                return RNP_ERROR_BAD_PARAMETERS;
+            }
+
+            rnp::secure_vector<uint8_t> key_vec(keysize);
+
+            // For OpenPGP AEAD modes (OCB, EAX, GCM) ciphertext len = plaintext len + tag len
+            size_t tag_len = pgp_cipher_aead_tag_len(key->sec_protection.aead_alg);
+            size_t ciphertext_size = body.size() + tag_len;
+            rnp::secure_vector<uint8_t> encdata(ciphertext_size);
+
+            /* generate IV */
+            size_t nonce_len = pgp_cipher_aead_nonce_len(key->sec_protection.aead_alg);
+            rng.get(key->sec_protection.iv, nonce_len);
+            /* derive key */
+            if (!pgp_s2k_derive_key(
+                  &key->sec_protection.s2k, password, key_vec.data(), keysize)) {
+                RNP_LOG("failed to derive key");
+                return RNP_ERROR_BAD_PARAMETERS;
+            }
+
+            rnp::secure_vector<uint8_t> plaintext(body.data(), body.data() + body.size());
+            rnp_result_t ret = crypt_secret_key_aead(key, key_vec, plaintext, encdata, false);
+            if (ret) {
+                RNP_LOG("could not successfully encrypt key");
+                return ret;
+            }
+
+            secure_clear(key->sec_data.data(), key->sec_data.size());
+            key->sec_data.assign(encdata.data(), encdata.data() + encdata.size());
+            /* cleanup cleartext fields */
+            key->material->clear_secret();
+            return RNP_SUCCESS;
+        }
+#endif
+        /* CFB case */
+        /* generate IV */
+        rng.get(key->sec_protection.iv, blsize);
+
         /* derive key */
-        rnp::secure_array<uint8_t, PGP_MAX_KEY_SIZE> keybuf;
         if (!pgp_s2k_derive_key(&key->sec_protection.s2k, password, keybuf.data(), keysize)) {
             RNP_LOG("failed to derive key");
             return RNP_ERROR_BAD_PARAMETERS;
@@ -629,7 +837,7 @@ encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rnp::RNG &rng)
         if (!pgp_cipher_cfb_start(
               &crypt, key->sec_protection.symm_alg, keybuf.data(), key->sec_protection.iv)) {
             RNP_LOG("failed to start cfb encryption");
-            return RNP_ERROR_DECRYPT_FAILED;
+            return RNP_ERROR_ENCRYPT_FAILED;
         }
         pgp_cipher_cfb_encrypt(&crypt, body.data(), body.data(), body.size());
         pgp_cipher_cfb_finish(&crypt);
@@ -782,24 +990,6 @@ pgp_key_pkt_t::~pgp_key_pkt_t()
     secure_clear(sec_data.data(), sec_data.size());
 }
 
-#if defined(ENABLE_CRYPTO_REFRESH)
-uint8_t
-pgp_key_pkt_t::s2k_specifier_len(pgp_s2k_specifier_t specifier)
-{
-    switch (specifier) {
-    case PGP_S2KS_SIMPLE:
-        return 2;
-    case PGP_S2KS_SALTED:
-        return 10;
-    case PGP_S2KS_ITERATED_AND_SALTED:
-        return 11;
-    default:
-        RNP_LOG("invalid specifier");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
-}
-#endif
-
 void
 pgp_key_pkt_t::make_s2k_params(pgp_packet_body_t &hbody)
 {
@@ -809,13 +999,7 @@ pgp_key_pkt_t::make_s2k_params(pgp_packet_body_t &hbody)
     case PGP_S2KU_ENCRYPTED_AND_HASHED:
     case PGP_S2KU_ENCRYPTED: {
         hbody.add_byte(sec_protection.symm_alg);
-#if defined(ENABLE_CRYPTO_REFRESH)
-        if (version == PGP_V6) {
-            // V6 packages contain length of the following field
-            hbody.add_byte(s2k_specifier_len(sec_protection.s2k.specifier));
-        }
-#endif
-        hbody.add(sec_protection.s2k);
+        hbody.add(sec_protection.s2k, version);
         if (sec_protection.s2k.specifier != PGP_S2KS_EXPERIMENTAL) {
             size_t blsize = pgp_block_size(sec_protection.symm_alg);
             if (!blsize) {
@@ -826,6 +1010,20 @@ pgp_key_pkt_t::make_s2k_params(pgp_packet_body_t &hbody)
         }
         break;
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_S2KU_AEAD: {
+        hbody.add_byte(sec_protection.symm_alg);
+        hbody.add_byte(sec_protection.aead_alg);
+        hbody.add(sec_protection.s2k, version);
+        size_t nonce_len = pgp_cipher_aead_nonce_len(sec_protection.aead_alg);
+        if (!nonce_len) {
+            RNP_LOG("invalid nonce size");
+            throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+        }
+        hbody.add(sec_protection.iv, nonce_len);
+        break;
+    }
+#endif
     default:
         RNP_LOG("wrong s2k usage");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -1006,9 +1204,11 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         }
 #if defined(ENABLE_CRYPTO_REFRESH)
         if (version == PGP_V6 && sec_protection.s2k.usage != PGP_S2KU_NONE) {
-            // V6 packages contain the count of the optional 1-byte parameters
-            if (!pkt.get(v5_s2k_len)) {
-                RNP_LOG("failed to read key protection");
+            // v6 packets contain the count of the following parameters
+            // ignored for now
+            uint8_t bt;
+            if (!pkt.get(bt)) {
+                RNP_LOG("failed to read s2k parameter length");
                 return RNP_ERROR_BAD_FORMAT;
             }
         }
@@ -1041,6 +1241,34 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
             sec_protection.symm_alg = (pgp_symm_alg_t) salg;
             break;
         }
+#if defined(ENABLE_CRYPTO_REFRESH)
+        case PGP_S2KU_AEAD: {
+            uint8_t symm_alg = 0;
+            uint8_t aead_alg = 0;
+            if (!pkt.get(symm_alg)) {
+                RNP_LOG("failed to read key protection (symmetric alg)");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            if (!pkt.get(aead_alg)) {
+                RNP_LOG("failed to read key protection (aead alg)");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            if (version == PGP_V6) {
+                // V6 packages contain the length of the following field
+                uint8_t s2k_specifier_len;
+                if (!pkt.get(s2k_specifier_len)) {
+                    RNP_LOG("failed to read key protection (s2k specifier length)");
+                }
+            }
+            if (!pkt.get(sec_protection.s2k)) {
+                RNP_LOG("failed to read key protection (s2k)");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            sec_protection.symm_alg = (pgp_symm_alg_t) symm_alg;
+            sec_protection.aead_alg = (pgp_aead_alg_t) aead_alg;
+            break;
+        }
+#endif
         default:
             /* old-style: usage is symmetric algorithm identifier */
             sec_protection.symm_alg = (pgp_symm_alg_t) usage;
@@ -1051,14 +1279,27 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         }
 
         /* iv */
-        if (sec_protection.s2k.usage &&
-            (sec_protection.s2k.specifier != PGP_S2KS_EXPERIMENTAL)) {
+        if ((sec_protection.s2k.usage != PGP_S2KU_NONE)
+#if defined(ENABLE_CRYPTO_REFRESH)
+            && (sec_protection.s2k.usage != PGP_S2KU_AEAD)
+#endif
+            && (sec_protection.s2k.specifier != PGP_S2KS_EXPERIMENTAL)) {
             size_t bl_size = pgp_block_size(sec_protection.symm_alg);
             if (!bl_size || !pkt.get(sec_protection.iv, bl_size)) {
                 RNP_LOG("failed to read iv");
                 return RNP_ERROR_BAD_FORMAT;
             }
         }
+#if defined(ENABLE_CRYPTO_REFRESH)
+        else if ((sec_protection.s2k.usage == PGP_S2KU_AEAD) &&
+                 (sec_protection.s2k.specifier != PGP_S2KS_EXPERIMENTAL)) {
+            size_t nonce_len = pgp_cipher_aead_nonce_len(sec_protection.aead_alg);
+            if (!nonce_len || !pkt.get(sec_protection.iv, nonce_len)) {
+                RNP_LOG("failed to read iv");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+        }
+#endif
 
         /* v5 secret key fields length */
         if (version == PGP_V5) {

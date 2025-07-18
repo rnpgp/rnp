@@ -234,6 +234,9 @@ static const id_str_pair s2k_type_map[] = {
   {PGP_S2KS_SIMPLE, "Simple"},
   {PGP_S2KS_SALTED, "Salted"},
   {PGP_S2KS_ITERATED_AND_SALTED, "Iterated and salted"},
+#if defined(ENABLE_CRYPTO_REFRESH)
+  {PGP_S2KS_ARGON2, "Argon2"},
+#endif
   {0, NULL}};
 
 static const id_str_pair key_usage_map[] = {
@@ -7689,6 +7692,11 @@ try {
     if ((s2k.usage == PGP_S2KU_ENCRYPTED) && (s2k.specifier != PGP_S2KS_EXPERIMENTAL)) {
         res = "Encrypted";
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if ((s2k.usage == PGP_S2KU_AEAD) && (s2k.specifier != PGP_S2KS_EXPERIMENTAL)) {
+        res = "AEAD-encrypted";
+    }
+#endif
     if ((s2k.usage == PGP_S2KU_ENCRYPTED_AND_HASHED) &&
         (s2k.specifier != PGP_S2KS_EXPERIMENTAL)) {
         res = "Encrypted-Hashed";

@@ -635,25 +635,50 @@ bool
 pgp_packet_body_t::get(pgp_s2k_t &s2k) noexcept
 {
     uint8_t spec = 0, halg = 0;
-    if (!get(spec) || !get(halg)) {
+    if (!get(spec)) {
         return false;
     }
     s2k.specifier = (pgp_s2k_specifier_t) spec;
-    s2k.hash_alg = (pgp_hash_alg_t) halg;
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (s2k.specifier != PGP_S2KS_ARGON2)
+#endif
+    {
+        if (!get(halg)) {
+            return false;
+        }
+        s2k.hash_alg = (pgp_hash_alg_t) halg;
+    }
 
     switch (s2k.specifier) {
     case PGP_S2KS_SIMPLE:
         return true;
     case PGP_S2KS_SALTED:
-        return get(s2k.salt, PGP_SALT_SIZE);
+        return get(s2k.salt, s2k.salt_size(s2k.specifier));
     case PGP_S2KS_ITERATED_AND_SALTED: {
         uint8_t iter = 0;
-        if (!get(s2k.salt, PGP_SALT_SIZE) || !get(iter)) {
+        if (!get(s2k.salt, s2k.salt_size(s2k.specifier)) || !get(iter)) {
             return false;
         }
         s2k.iterations = iter;
         return true;
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_S2KS_ARGON2:
+        if (!get(s2k.salt, s2k.salt_size(s2k.specifier))) {
+            return false;
+        }
+        if (!get(s2k.argon2_t)) {
+            return false;
+        }
+        if (!get(s2k.argon2_p)) {
+            return false;
+        }
+        if (!get(s2k.argon2_encoded_m)) {
+            return false;
+        }
+        return true;
+#endif
     case PGP_S2KS_EXPERIMENTAL: {
         try {
             s2k.experimental = {data_.begin() + pos_, data_.end()};
@@ -816,27 +841,43 @@ pgp_packet_body_t::add(const pgp_curve_t curve)
 }
 
 void
-pgp_packet_body_t::add(const pgp_s2k_t &s2k)
+pgp_packet_body_t::add(const pgp_s2k_t &s2k, pgp_version_t version)
 {
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (version == PGP_V6 && s2k.usage != PGP_S2KU_NONE) {
+        add_byte(pgp_s2k_t::specifier_len(s2k.specifier));
+    }
+#endif
     add_byte(s2k.specifier);
-    add_byte(s2k.hash_alg);
 
     switch (s2k.specifier) {
     case PGP_S2KS_SIMPLE:
+        add_byte(s2k.hash_alg);
         return;
     case PGP_S2KS_SALTED:
-        add(s2k.salt, PGP_SALT_SIZE);
+        add_byte(s2k.hash_alg);
+        add(s2k.salt, s2k.salt_size(s2k.specifier));
         return;
     case PGP_S2KS_ITERATED_AND_SALTED: {
+        add_byte(s2k.hash_alg);
         unsigned iter = s2k.iterations;
         if (iter > 255) {
             iter = pgp_s2k_encode_iterations(iter);
         }
-        add(s2k.salt, PGP_SALT_SIZE);
+        add(s2k.salt, s2k.salt_size(s2k.specifier));
         add_byte(iter);
         return;
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_S2KS_ARGON2:
+        add(s2k.salt, s2k.salt_size(s2k.specifier));
+        add_byte(s2k.argon2_t);
+        add_byte(s2k.argon2_p);
+        add_byte(s2k.argon2_encoded_m);
+        return;
+#endif
     case PGP_S2KS_EXPERIMENTAL: {
+        add_byte(s2k.hash_alg);
         if ((s2k.gpg_ext_num != PGP_S2K_GPG_NO_SECRET) &&
             (s2k.gpg_ext_num != PGP_S2K_GPG_SMARTCARD)) {
             RNP_LOG("Unknown experimental s2k.");
@@ -945,18 +986,30 @@ pgp_sk_sesskey_t::write(pgp_dest_t &dst) const
     }
     /* S2K specifier */
     pktbody.add_byte(s2k.specifier);
-    pktbody.add_byte(s2k.hash_alg);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (s2k.specifier != PGP_S2KS_ARGON2)
+#endif
+    {
+        pktbody.add_byte(s2k.hash_alg);
+    }
 
     switch (s2k.specifier) {
     case PGP_S2KS_SIMPLE:
         break;
     case PGP_S2KS_SALTED:
-        pktbody.add(s2k.salt, sizeof(s2k.salt));
+        pktbody.add(s2k.salt, s2k.salt_size(s2k.specifier));
         break;
     case PGP_S2KS_ITERATED_AND_SALTED:
-        pktbody.add(s2k.salt, sizeof(s2k.salt));
+        pktbody.add(s2k.salt, s2k.salt_size(s2k.specifier));
         pktbody.add_byte(s2k.iterations);
         break;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_S2KS_ARGON2:
+        pktbody.add(s2k.salt, s2k.salt_size(s2k.specifier));
+        pktbody.add_byte(s2k.argon2_t);
+        pktbody.add_byte(s2k.argon2_p);
+        pktbody.add_byte(s2k.argon2_encoded_m);
+#endif
     default:
         RNP_LOG("Unexpected s2k specifier: %d", (int) s2k.specifier);
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);

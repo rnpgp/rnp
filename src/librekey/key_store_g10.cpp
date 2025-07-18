@@ -1125,7 +1125,7 @@ gnupg_sexp_t::add_protected_seckey(pgp_key_pkt_t &       seckey,
 
     // randomize IV and salt
     ctx.rng.get(prot.iv, sizeof(prot.iv));
-    ctx.rng.get(prot.s2k.salt, sizeof(prot.s2k.salt));
+    ctx.rng.get(prot.s2k.salt, prot.s2k.salt_size(prot.s2k.specifier));
 
     // write seckey
     gnupg_sexp_t raw_s_exp;
