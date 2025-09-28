@@ -67,14 +67,7 @@ jobs:
 
     env: ${{ matrix.env }}
     steps:
-      - name: Checkout on x86_x64
-        if: matrix.image.cpu == 'x86_64'
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - name: Checkout on i386
-        if: matrix.image.cpu == 'i386'
+      - name: Checkout 
         uses: actions/checkout@v4
         with:
           submodules: true
@@ -93,10 +86,12 @@ jobs:
                 -DBUILD_SHARED_LIBS=ON                             \
                 -DCRYPTO_BACKEND=${{ matrix.image.backend }}       \
                 -DDOWNLOAD_GTEST=ON                                \
-                -DCMAKE_BUILD_TYPE=Release                         .
+                -DCMAKE_BUILD_TYPE=Release                         \
+                -DCMAKE_CXX_FLAGS_RELEASE="-UNDEBUG"               \
+                -DCMAKE_C_FLAGS_RELEASE="-UNDEBUG"                 .
 
       - name: Build
-        run: cmake --build build --parallel ${{ env.CORES }}
+        run: cmake --build build --parallel ${{ env.CORES }} -- VERBOSE=1
 
       - name: Test
         run: |
