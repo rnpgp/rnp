@@ -151,7 +151,7 @@ X25519EncMaterial::parse(pgp_packet_body_t &pkt) noexcept
         uint8_t bt = 0;
         if (!pkt.get(bt)) {
             RNP_LOG("failed to get salg");
-            return RNP_ERROR_BAD_FORMAT;
+            return false;
         }
         sess_len--;
         salg = (pgp_symm_alg_t) bt;
@@ -202,7 +202,7 @@ MlkemEcdhEncMaterial::parse(pgp_packet_body_t &pkt) noexcept
         uint8_t balg = 0;
         if (!pkt.get(balg)) {
             RNP_LOG("failed to get salg");
-            return RNP_ERROR_BAD_FORMAT;
+            return false;
         }
         salg = (pgp_symm_alg_t) balg;
         wrapped_key_len--;
