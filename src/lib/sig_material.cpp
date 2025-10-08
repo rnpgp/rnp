@@ -55,7 +55,7 @@ SigMaterial::create(pgp_pubkey_alg_t palg, pgp_hash_alg_t halg)
         return std::unique_ptr<SigMaterial>(new Ed448SigMaterial(halg));
     }
 #endif
-#if defined(ENABLE_PQC)
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_ED448:
@@ -169,7 +169,7 @@ Ed448SigMaterial::write(pgp_packet_body_t &pkt) const
 }
 #endif
 
-#if defined(ENABLE_PQC)
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
 bool
 DilithiumSigMaterial::parse(pgp_packet_body_t &pkt) noexcept
 {

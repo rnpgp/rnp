@@ -972,7 +972,7 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
     default:;
     }
 
-#if defined(ENABLE_PQC)
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     /* PQC only for v6 keys aside from MLKEM768+X25519 */
     if (rnp::Key::is_pqc_alg(alg) && version < PGP_V6 && alg != PGP_PKA_KYBER768_X25519) {
         RNP_LOG("Invalid algorithm for key version");

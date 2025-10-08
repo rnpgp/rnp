@@ -35,7 +35,7 @@
 #ifdef CRYPTO_BACKEND_BOTAN
 typedef struct botan_rng_struct *botan_rng_t;
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 #include <botan/system_rng.h>
 #include <botan/auto_rng.h>
 #endif
@@ -46,7 +46,7 @@ class RNG {
   private:
 #ifdef CRYPTO_BACKEND_BOTAN
     struct botan_rng_struct *botan_rng;
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
     std::unique_ptr<Botan::RandomNumberGenerator> botan_rng_obj;
 #endif
 #endif
@@ -80,7 +80,7 @@ class RNG {
      */
     struct botan_rng_struct *handle();
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
     /**
      * @brief Returns the Botan RNG C++ object
      *        Note: It is planned to move away from the FFI handle.

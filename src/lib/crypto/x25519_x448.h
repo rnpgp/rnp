@@ -54,6 +54,7 @@ rnp_result_t x25519_validate_key_native(rnp::RNG *              rng,
                                         const pgp_x25519_key_t *key,
                                         bool                    secret);
 
+#if defined(ENABLE_CRYPTO_REFRESH)
 rnp_result_t generate_x448_native(rnp::RNG *            rng,
                                   std::vector<uint8_t> &privkey,
                                   std::vector<uint8_t> &pubkey);
@@ -71,4 +72,5 @@ rnp_result_t x448_native_decrypt(rnp::RNG *                  rng,
                                  size_t *                    decbuf_len);
 
 rnp_result_t x448_validate_key_native(rnp::RNG *rng, const pgp_x448_key_t *key, bool secret);
+#endif
 #endif

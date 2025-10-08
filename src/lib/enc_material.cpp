@@ -50,6 +50,7 @@ EncMaterial::create(pgp_pubkey_alg_t alg)
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
@@ -60,6 +61,7 @@ EncMaterial::create(pgp_pubkey_alg_t alg)
     case PGP_PKA_KYBER768_BP256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
+#endif
         return std::unique_ptr<EncMaterial>(new MlkemEcdhEncMaterial(alg));
 #endif
     default:

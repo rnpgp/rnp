@@ -2624,7 +2624,7 @@ TEST_F(rnp_tests, test_ffi_key_self_certification_features)
     rnp_ffi_destroy(ffi);
 }
 
-#if defined(ENABLE_PQC)
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
 TEST_F(rnp_tests, test_ffi_verify_detached_pqc_test_vector)
 {
     std::string                                      msg = "Testing\n";

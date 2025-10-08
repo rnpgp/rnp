@@ -1002,8 +1002,7 @@ TEST_F(rnp_tests, test_ffi_decrypt_pk_unlocked)
     rnp_ffi_destroy(ffi);
 }
 
-#if defined(ENABLE_CRYPTO_REFRESH)
-#if defined(ENABLE_PQC)
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
 /* generate keys and make sure they are usable */
 TEST_F(rnp_tests, test_ffi_pqc_gen_enc_sign)
 {
@@ -1065,7 +1064,6 @@ TEST_F(rnp_tests, test_ffi_pqc_gen_enc_sign)
         assert_rnp_success(rnp_ffi_destroy(ffi));
     }
 }
-#endif
 
 TEST_F(rnp_tests, test_ffi_decrypt_v6_pkesk_test_vector)
 {
@@ -1150,7 +1148,6 @@ TEST_F(rnp_tests, test_ffi_verify_v2_seipd_cleartext_test_vector)
     rnp_ffi_destroy(ffi);
 }
 
-#if defined(ENABLE_PQC)
 TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
 {
     std::vector<std::pair<std::string, std::string>> key_msg_pairs = {
@@ -1250,7 +1247,6 @@ TEST_F(rnp_tests, test_ffi_pqc_default_enc_subkey)
     rnp_key_handle_destroy(defkey2);
     rnp_ffi_destroy(ffi);
 }
-#endif
 
 TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
 {

@@ -3259,7 +3259,7 @@ TEST_F(rnp_tests, test_ffi_v6_cert_import)
     rnp_ffi_destroy(ffi);
 }
 
-#if defined(ENABLE_PQC)
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
 TEST_F(rnp_tests, test_ffi_pqc_certs)
 {
     std::vector<std::pair<std::string, std::string>> pub_sec_keys = {
