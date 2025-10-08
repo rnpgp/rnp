@@ -2119,7 +2119,11 @@ Key::sign_init(RNG &                rng,
     if (version == PGP_V6 && sig.salt.empty()) {
         /* salt is either set (OPS, etc) or empty (key sigs) and needs to be set here */
         size_t salt_size;
-        assert(pgp::pkt::Signature::v6_salt_size(sig.halg, &salt_size));
+        if(!pgp::pkt::Signature::v6_salt_size(sig.halg, &salt_size))
+        {
+            // should not happen
+            throw rnp_exception(RNP_ERROR_BAD_STATE);
+        }
         sig.salt.resize(salt_size);
         rng.get(sig.salt.data(), salt_size);
     }
