@@ -155,6 +155,8 @@ static const id_str_pair pubkey_alg_map[] = {
 #endif
 #if defined(ENABLE_PQC)
   {PGP_PKA_KYBER768_X25519, "ML-KEM-768 + X25519"},
+#endif
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
   {PGP_PKA_KYBER1024_X448, "ML-KEM-1024 + X448"},
   {PGP_PKA_KYBER768_P256, "ML-KEM-768 + NIST P-256"},
   {PGP_PKA_KYBER1024_P384, "ML-KEM-1024 + NIST P-384"},
@@ -335,7 +337,7 @@ dst_print_mpi(pgp_dest_t &dst, const char *name, const pgp::mpi &mpi, bool dumpb
     }
 }
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 static void
 dst_print_vec(pgp_dest_t &                dst,
               const char *                name,
@@ -915,7 +917,7 @@ DumpContextDst::dump_signature_pkt(const pkt::Signature &sig)
         break;
     }
 #endif
-#if defined(ENABLE_PQC)
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_ED448:
@@ -1039,6 +1041,7 @@ DumpContextDst::dump_key_material(const KeyMaterial *material)
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
@@ -1048,11 +1051,15 @@ DumpContextDst::dump_key_material(const KeyMaterial *material)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384: {
+    case PGP_PKA_KYBER1024_BP384:
+#endif
+    {
         auto &kyber = dynamic_cast<const MlkemEcdhKeyMaterial &>(*material);
         dst_print_vec(dst, "mlkem-ecdh encoded pubkey", kyber.pub().get_encoded(), dump_mpi);
         return;
     }
+#endif
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_ED448:
@@ -1283,6 +1290,7 @@ DumpContextDst::dump_pk_session_key()
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
@@ -1292,7 +1300,9 @@ DumpContextDst::dump_pk_session_key()
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384: {
+    case PGP_PKA_KYBER1024_BP384:
+#endif
+    {
         auto &mlkem = dynamic_cast<const MlkemEcdhEncMaterial &>(*material).enc;
         dst_print_vec(
           dst, "mlkem-ecdh composite ciphertext", mlkem.composite_ciphertext, dump_mpi);
@@ -2048,7 +2058,7 @@ DumpContextJson::dump_signature_pkt(const pkt::Signature &sig, json_object *pkt)
         /* TODO */
         break;
 #endif
-#if defined(ENABLE_PQC)
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_ED448:
@@ -2161,6 +2171,7 @@ DumpContextJson::dump_key_material(const KeyMaterial *material, json_object *jso
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
@@ -2172,7 +2183,10 @@ DumpContextJson::dump_key_material(const KeyMaterial *material, json_object *jso
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
         // TODO
+#endif
         return true;
+#endif
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_ED448:
@@ -2373,6 +2387,7 @@ DumpContextJson::dump_pk_session_key(json_object *pkt)
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
@@ -2384,6 +2399,7 @@ DumpContextJson::dump_pk_session_key(json_object *pkt)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
         // TODO
+#endif
         break;
 #endif
     default:;

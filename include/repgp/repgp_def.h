@@ -212,9 +212,11 @@ typedef enum : uint8_t {
 
     PGP_PKA_SM2 = 99, /* SM2 encryption/signature schemes */
 
+/* PQC-ECC composite */
 #if defined(ENABLE_PQC)
-    /* PQC-ECC composite */
     PGP_PKA_KYBER768_X25519 = 35,
+#endif
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     PGP_PKA_KYBER1024_X448 = 36,
     PGP_PKA_KYBER768_P256 = 111,
     PGP_PKA_KYBER1024_P384 = 112,

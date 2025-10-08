@@ -3109,6 +3109,9 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     crypto_refresh_opt = 4; // Ed25519/X25519/Ed448/X448
 #endif
 #if defined(ENABLE_PQC)
+    pqc_opt = 1;
+#endif
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     pqc_opt = 6 + 6 + 3; // kyber+ecc + dilithium+ecc + sphincs+ variants
 #endif
     assert_true(check_features(

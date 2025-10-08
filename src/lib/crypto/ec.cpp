@@ -32,14 +32,14 @@
 #include "utils.h"
 #include "mem.h"
 #include "botan_utils.hpp"
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 #include "x25519_x448.h"
 #include "ed25519_ed448.h"
 #include "botan_utils.hpp"
 #include "botan/bigint.h"
 #include "botan/ecdh.h"
-#include <cassert>
 #endif
+#include <cassert>
 
 namespace pgp {
 namespace ec {
@@ -160,7 +160,7 @@ Key::generate(rnp::RNG &rng, const pgp_pubkey_alg_t alg_id, const pgp_curve_t cu
 } // namespace ec
 } // namespace pgp
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 static bool
 is_generic_prime_curve(pgp_curve_t curve)
 {
@@ -222,10 +222,12 @@ ec_generate_native(rnp::RNG *            rng,
         return generate_x25519_native(rng, privkey, pubkey);
     case PGP_CURVE_ED25519:
         return generate_ed25519_native(rng, privkey, pubkey);
+#if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_CURVE_448:
         return generate_x448_native(rng, privkey, pubkey);
     case PGP_CURVE_ED448:
         return generate_ed448_native(rng, privkey, pubkey);
+#endif
     default:
         break;
     }
