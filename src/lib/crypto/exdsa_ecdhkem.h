@@ -39,11 +39,15 @@
 #include <botan/ecdh.h>
 #include <botan/ed25519.h>
 #include <botan/x25519.h>
+#if defined(ENABLE_CRYPTO_REFRESH)
 #include <botan/x448.h>
 #include <botan/ed448.h>
+#endif
 
 struct ecdh_kem_key_t; /* forward declaration */
-struct exdsa_key_t;    /* forward declaration */
+#if defined(ENABLE_CRYPTO_REFRESH)
+struct exdsa_key_t; /* forward declaration */
+#endif
 
 class ec_key_t {
   public:
@@ -54,9 +58,11 @@ class ec_key_t {
     static rnp_result_t generate_ecdh_kem_key_pair(rnp::RNG *      rng,
                                                    ecdh_kem_key_t *out,
                                                    pgp_curve_t     curve);
+#if defined(ENABLE_CRYPTO_REFRESH)
     static rnp_result_t generate_exdsa_key_pair(rnp::RNG *   rng,
                                                 exdsa_key_t *out,
                                                 pgp_curve_t  curve);
+#endif
 
     pgp_curve_t
     get_curve() const
@@ -95,7 +101,9 @@ class ecdh_kem_public_key_t : public ec_key_t {
   private:
     Botan::ECDH_PublicKey   botan_key_ecdh(rnp::RNG *rng) const;
     Botan::X25519_PublicKey botan_key_x25519() const;
-    Botan::X448_PublicKey   botan_key_x448() const;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    Botan::X448_PublicKey botan_key_x448() const;
+#endif
 
     std::vector<uint8_t> key_;
 };
@@ -123,7 +131,9 @@ class ecdh_kem_private_key_t : public ec_key_t {
   private:
     Botan::ECDH_PrivateKey   botan_key_ecdh(rnp::RNG *rng) const;
     Botan::X25519_PrivateKey botan_key_x25519() const;
-    Botan::X448_PrivateKey   botan_key_x448() const;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    Botan::X448_PrivateKey botan_key_x448() const;
+#endif
 
     Botan::secure_vector<uint8_t> key_;
 };
@@ -164,6 +174,7 @@ class exdsa_public_key_t : public ec_key_t {
     std::vector<uint8_t> key_;
 };
 
+#if defined(ENABLE_CRYPTO_REFRESH)
 class exdsa_private_key_t : public ec_key_t {
   public:
     exdsa_private_key_t(uint8_t *key_buf, size_t key_buf_len, pgp_curve_t curve);
@@ -194,5 +205,6 @@ typedef struct exdsa_key_t {
     exdsa_private_key_t priv;
     exdsa_public_key_t  pub;
 } exdsa_key_t;
+#endif
 
 #endif

@@ -75,10 +75,6 @@ endif()
 if(ENABLE_CRYPTO_REFRESH AND (NOT ENABLE_AEAD))
   message(FATAL_ERROR "ENABLE_CRYPTO_REFRESH requires ENABLE_AEAD, but it's either Off or Auto and got turned off")
 endif()
-# check that ENABLE_CRYPTO_REFRESH is enabled for ENABLE_PQC
-if(ENABLE_PQC AND (NOT ENABLE_CRYPTO_REFRESH))
-  message(FATAL_ERROR "ENABLE_PQC requires ENABLE_CRYPTO_REFRESH")
-endif()
 
 # generate a config.h
 include(CheckIncludeFileCXX)
@@ -221,7 +217,7 @@ if(CRYPTO_BACKEND_BOTAN)
   resolve_feature_state(ENABLE_TWOFISH "TWOFISH")
   resolve_feature_state(ENABLE_IDEA "IDEA")
   resolve_feature_state(ENABLE_CRYPTO_REFRESH "HKDF;ED448;X448")
-  resolve_feature_state(ENABLE_PQC "DILITHIUM;KYBER;SPHINCS_PLUS_WITH_SHA2;SPHINCS_PLUS_WITH_SHAKE")
+  resolve_feature_state(ENABLE_PQC "HKDF;DILITHIUM;KYBER;SPHINCS_PLUS_WITH_SHA2;SPHINCS_PLUS_WITH_SHAKE")
   resolve_feature_state(ENABLE_BLOWFISH "BLOWFISH")
   resolve_feature_state(ENABLE_CAST5 "CAST_128")
   resolve_feature_state(ENABLE_RIPEMD160 "RIPEMD_160")
@@ -357,27 +353,31 @@ elseif(CRYPTO_BACKEND_BOTAN)
   if(ENABLE_SM2)
     list(APPEND CRYPTO_SOURCES crypto/sm2.cpp)
   endif()
-  if(ENABLE_CRYPTO_REFRESH)
+  if(ENABLE_CRYPTO_REFRESH OR ENABLE_PQC)
     list(APPEND CRYPTO_SOURCES
         crypto/exdsa_ecdhkem.cpp
-        crypto/ed25519_ed448.cpp
         crypto/x25519_x448.cpp
+        crypto/ed25519_ed448.cpp
         crypto/hkdf.cpp
         crypto/hkdf_botan.cpp
     )
   endif()
   if(ENABLE_PQC)
     list(APPEND CRYPTO_SOURCES
-        crypto/dilithium.cpp
-        crypto/dilithium_common.cpp
-        crypto/sphincsplus.cpp
         crypto/kyber_common.cpp
         crypto/kyber.cpp
         crypto/kyber_ecdh_composite.cpp
-        crypto/dilithium_exdsa_composite.cpp
         crypto/kem_combiner.cpp
     )
-    endif()
+  endif()
+  if(ENABLE_PQC AND ENABLE_CRYPTO_REFRESH)
+      list(APPEND CRYPTO_SOURCES
+        crypto/dilithium.cpp
+        crypto/dilithium_common.cpp
+        crypto/sphincsplus.cpp
+        crypto/dilithium_exdsa_composite.cpp
+      )
+  endif()
 else()
   message(FATAL_ERROR "Unknown crypto backend: ${CRYPTO_BACKEND}.")
 endif()

@@ -919,10 +919,10 @@ def rnp_check_features():
     RNP_RIPEMD160 = re.match(r'(?s)^.*Hash:.*RIPEMD160.*', out) is not None
     # SM2
     RNP_SM2 = re.match(r'(?s)^.*Public key:.*SM2.*', out) is not None
-    # Determine PQC support in general. If present, assume that all PQC schemes are supported.
+    # Determine PQC support.
     pqc_strs = ['ML-KEM', 'ML-DSA']
     RNP_PQC = any([re.match('(?s)^.*Public key:.*' + scheme + '.*', out) is not None for scheme in pqc_strs])
-    crypto_refresh_strs = ['ED25519', 'ED448', 'X25519', 'X448']
+    crypto_refresh_strs = ['ED25519', 'ED448', 'X448']
     RNP_CRYPTO_REFRESH = any([re.match('(?s)^.*Public key:.*' + scheme + '.*', out) is not None for scheme in crypto_refresh_strs])
     print('RNP_TWOFISH: ' + str(RNP_TWOFISH))
     print('RNP_BLOWFISH: ' + str(RNP_BLOWFISH))
@@ -4703,25 +4703,41 @@ class Encryption(unittest.TestCase):
     def test_encryption_and_signing_pqc(self):
         if not RNP_PQC:
             return
-        RNPDIR_PQC = RNPDIR + 'PQC'
-        os.mkdir(RNPDIR_PQC, 0o700)
-        algo_ui_exp_strs = [ "(24) Ed25519 + X25519 + (ML-KEM-768 + X25519)",
-                             "(25) (ML-DSA-65 + Ed25519) + (ML-KEM-768 + X25519)",
-                             "(26) (ML-DSA-87 + Ed448) + (ML-KEM-1024 + X448)",
-                             "(27) (ML-DSA-65 + ECDSA-NIST-P-256) + (ML-KEM-768 + ECDH-NIST-P-256)",
-                             "(28) (ML-DSA-87 + ECDSA-NIST-P-384) + (ML-KEM-1024 + ECDH-NIST-P-384)",
-                             "(29) (ML-DSA-65 + ECDSA-brainpoolP256r1) + (ML-KEM-768 + ECDH-brainpoolP256r1)",
-                             "(30) (ML-DSA-87 + ECDSA-brainpoolP384r1) + (ML-KEM-1024 + ECDH-brainpoolP384r1)",
-                             "(31) SLH-DSA-SHAKE-128f + (ML-KEM-768 + X25519)",
-                             "(32) SLH-DSA-SHAKE-128s + (ML-KEM-768 + X25519)",
-                             "(33) SLH-DSA-SHAKE-256s + (ML-KEM-1024 + ECDH-NIST-P-384)",
-                               ]
-        USERIDS = ['enc-sign25@rnp', 'enc-sign26@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign32a@rnp','enc-sign32b@rnp','enc-sign32c@rnp','enc-sign24-v4-key@rnp']
 
-        ALGO       = [25, 26,  27,   28,   29,   30,   31, 32, 33, 24, ]
-        ALGO_PARAM = [None, None, None, None, None, None,  None,  None,  None,  None ]
+        # we distinguish between PQC-only (no Crypto Refresh) and PQC with Crypto Refresh
+        RNPDIR_PQC = RNPDIR
+        algo_ui_exp_strs = []
+        USERIDS = []
+        ALGO = []
+        ALGO_PARAM = []
+        if RNP_CRYPTO_REFRESH:
+            RNPDIR_PQC += 'PQC_CR'
+            algo_ui_exp_strs = [ "(24) Ed25519 + X25519 + (ML-KEM-768 + X25519)",
+                                "(25) (ML-DSA-65 + Ed25519) + (ML-KEM-768 + X25519)",
+                                "(26) (ML-DSA-87 + Ed448) + (ML-KEM-1024 + X448)",
+                                "(27) (ML-DSA-65 + ECDSA-NIST-P-256) + (ML-KEM-768 + ECDH-NIST-P-256)",
+                                "(28) (ML-DSA-87 + ECDSA-NIST-P-384) + (ML-KEM-1024 + ECDH-NIST-P-384)",
+                                "(29) (ML-DSA-65 + ECDSA-brainpoolP256r1) + (ML-KEM-768 + ECDH-brainpoolP256r1)",
+                                "(30) (ML-DSA-87 + ECDSA-brainpoolP384r1) + (ML-KEM-1024 + ECDH-brainpoolP384r1)",
+                                "(31) SLH-DSA-SHAKE-128f + (ML-KEM-768 + X25519)",
+                                "(32) SLH-DSA-SHAKE-128s + (ML-KEM-768 + X25519)",
+                                "(33) SLH-DSA-SHAKE-256s + (ML-KEM-1024 + ECDH-NIST-P-384)",
+                                ]
+
+            USERIDS = ['enc-sign24@rnp', 'enc-sign25@rnp', 'enc-sign26@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign31@rnp','enc-sign32@rnp','enc-sign33@rnp','enc-sign34@rnp']
+            ALGO = [24, 25, 26,  27,   28,   29,   30,   31, 32, 33, 34]
+            ALGO_PARAM = [None, None, None, None, None, None,  None,  None,  None,  None, None]
+        else:
+            RNPDIR_PQC += 'PQC_ONLY'
+            algo_ui_exp_strs = ["(34) EDDSA + ECDH + (ML-KEM-768 + X25519)"]
+
+            USERIDS = ['enc-sign34@rnp']
+            ALGO = [34]
+            ALGO_PARAM = [None]
+
+        os.mkdir(RNPDIR_PQC, 0o700)
         aead_list = []
-        passwds = [ ]
+        passwds = []
         for x in range(len(ALGO)): passwds.append('testpw' if x % 1 == 0 else '')
         for x in range(len(ALGO)): aead_list.append(None if x % 3 == 0 else ('ocb' if x % 3 == 1 else 'eax' ))
         if any(len(USERIDS) != len(x) for x in [ALGO, ALGO_PARAM]):

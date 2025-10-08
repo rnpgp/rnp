@@ -610,7 +610,9 @@ class MlkemEcdhKeyMaterial : public KeyMaterial {
     const pgp_kyber_ecdh_composite_public_key_t & pub() const noexcept;
     const pgp_kyber_ecdh_composite_private_key_t &priv() const noexcept;
 };
+#endif
 
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
 class DilithiumEccKeyMaterial : public KeyMaterial {
     pgp_dilithium_exdsa_key_t key_;
 

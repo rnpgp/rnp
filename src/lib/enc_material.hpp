@@ -36,7 +36,7 @@ namespace pgp {
 
 class EncMaterial {
   public:
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
     pgp_pkesk_version_t version = PGP_PKSK_V3;
     pgp_symm_alg_t      salg = PGP_SA_UNKNOWN;
 #endif
@@ -80,7 +80,7 @@ class ECDHEncMaterial : public EncMaterial {
     void write(pgp_packet_body_t &pkt) const override;
 };
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 class X25519EncMaterial : public EncMaterial {
   public:
     pgp_x25519_encrypted_t enc;

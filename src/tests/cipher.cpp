@@ -627,11 +627,15 @@ TEST_F(rnp_tests, test_dsa_verify_negative)
 #if defined(ENABLE_PQC)
 TEST_F(rnp_tests, kyber_ecdh_roundtrip)
 {
-    pgp_pubkey_alg_t algs[] = {PGP_PKA_KYBER768_X25519,
-                               PGP_PKA_KYBER1024_X448,
-                               PGP_PKA_KYBER1024_P384,
-                               PGP_PKA_KYBER768_BP256,
-                               PGP_PKA_KYBER1024_BP384};
+    pgp_pubkey_alg_t algs[] = {
+        PGP_PKA_KYBER768_X25519,
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
+        PGP_PKA_KYBER1024_X448,
+        PGP_PKA_KYBER1024_P384,
+        PGP_PKA_KYBER768_BP256,
+        PGP_PKA_KYBER1024_BP384
+#endif
+    };
 
     rnp::secure_bytes in(32, 0);
     rnp::secure_bytes res(36);
@@ -655,7 +659,9 @@ TEST_F(rnp_tests, kyber_ecdh_roundtrip)
         assert_true(in == res);
     }
 }
+#endif
 
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
 TEST_F(rnp_tests, dilithium_exdsa_signverify_success)
 {
     uint8_t              message[64];

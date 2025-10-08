@@ -240,6 +240,7 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
         return crypto->elgamal.key_bitlen;
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
@@ -250,7 +251,10 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
     case PGP_PKA_KYBER768_BP256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
+#endif
         return pgp_kyber_ecdh_composite_public_key_t::encoded_size(crypto->key_alg) * 8;
+#endif
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_ED448:
@@ -326,7 +330,7 @@ keygen_primary_merge_defaults(rnp_keygen_primary_desc_t &desc)
         desc.cert.userid = uid;
     }
 
-#if defined(ENABLE_PQC)
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     switch (desc.crypto.key_alg) {
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
@@ -440,6 +444,7 @@ validate_keygen_subkey(rnp_keygen_subkey_desc_t &desc)
 #if defined(ENABLE_PQC)
     switch (desc.crypto.key_alg) {
     case PGP_PKA_KYBER768_X25519:
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
@@ -468,6 +473,7 @@ validate_keygen_subkey(rnp_keygen_subkey_desc_t &desc)
     case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
+#endif
         if (desc.pgp_version != PGP_V6) {
             RNP_LOG("PQC subkey requires this to be a v6 certificate");
             return false;

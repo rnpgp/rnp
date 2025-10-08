@@ -29,8 +29,10 @@
 
 #include "rnp_tests.h"
 #include <array>
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
 #include "crypto/dilithium.h"
 #include "crypto/sphincsplus.h"
+#endif
 #include "crypto/kyber.h"
 
 TEST_F(rnp_tests, test_kyber_key_function)
@@ -50,6 +52,7 @@ TEST_F(rnp_tests, test_kyber_key_function)
     }
 }
 
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
 TEST_F(rnp_tests, test_dilithium_key_function)
 {
     dilithium_parameter_e params[2] = {dilithium_L3, dilithium_L5};
@@ -126,5 +129,6 @@ TEST_F(rnp_tests, test_dilithium_exdsa_direct)
         sig.sig.data()[sig.sig.size() - 1] = ~sig.sig.data()[sig.sig.size() - 1];
     }
 }
+#endif
 
 #endif

@@ -160,6 +160,7 @@ KeyParams::create(pgp_pubkey_alg_t alg)
         return std::unique_ptr<KeyParams>(new EGKeyParams());
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
@@ -170,7 +171,10 @@ KeyParams::create(pgp_pubkey_alg_t alg)
     case PGP_PKA_KYBER768_BP256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
+#endif
         return std::unique_ptr<KeyParams>(new MlkemEcdhKeyParams(alg));
+#endif
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_ED448:
@@ -228,7 +232,9 @@ MlkemEcdhKeyParams::bits() const noexcept
 {
     return pgp_kyber_ecdh_composite_public_key_t::encoded_size(alg_) * 8;
 }
+#endif
 
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
 size_t
 DilithiumEccKeyParams::bits() const noexcept
 {
@@ -412,6 +418,7 @@ KeyMaterial::create(pgp_pubkey_alg_t alg)
         return std::unique_ptr<KeyMaterial>(new SM2KeyMaterial());
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
@@ -422,7 +429,10 @@ KeyMaterial::create(pgp_pubkey_alg_t alg)
     case PGP_PKA_KYBER768_BP256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
+#endif
         return std::unique_ptr<KeyMaterial>(new MlkemEcdhKeyMaterial(alg));
+#endif
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_ED448:
@@ -2076,7 +2086,9 @@ MlkemEcdhKeyMaterial::priv() const noexcept
 {
     return key_.priv;
 }
+#endif
 
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
 std::unique_ptr<KeyMaterial>
 DilithiumEccKeyMaterial::clone()
 {

@@ -934,6 +934,7 @@ Key::is_pqc_alg(pgp_pubkey_alg_t alg)
 {
     switch (alg) {
     case PGP_PKA_KYBER768_X25519:
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
@@ -962,6 +963,7 @@ Key::is_pqc_alg(pgp_pubkey_alg_t alg)
     case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
+#endif
         return true;
     default:
         return false;
@@ -2119,8 +2121,7 @@ Key::sign_init(RNG &                rng,
     if (version == PGP_V6 && sig.salt.empty()) {
         /* salt is either set (OPS, etc) or empty (key sigs) and needs to be set here */
         size_t salt_size;
-        if(!pgp::pkt::Signature::v6_salt_size(sig.halg, &salt_size))
-        {
+        if (!pgp::pkt::Signature::v6_salt_size(sig.halg, &salt_size)) {
             // should not happen
             throw rnp_exception(RNP_ERROR_BAD_STATE);
         }
@@ -2612,6 +2613,7 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
 
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
@@ -2622,8 +2624,11 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
     case PGP_PKA_KYBER768_BP256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
+#endif
         return PGP_KF_ENCRYPT;
+#endif
 
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_ED448:

@@ -30,7 +30,9 @@
 
 #include <botan/pubkey.h>
 #include <botan/ed25519.h>
+#if defined(ENABLE_CRYPTO_REFRESH)
 #include <botan/ed448.h>
+#endif
 #include <cassert>
 
 rnp_result_t
@@ -95,6 +97,7 @@ ed25519_validate_key_native(rnp::RNG *rng, const pgp_ed25519_key_t *key, bool se
     return RNP_SUCCESS;
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
 rnp_result_t
 generate_ed448_native(rnp::RNG *            rng,
                       std::vector<uint8_t> &privkey,
@@ -154,3 +157,4 @@ ed448_validate_key_native(rnp::RNG *rng, const pgp_ed448_key_t *key, bool secret
     }
     return RNP_SUCCESS;
 }
+#endif

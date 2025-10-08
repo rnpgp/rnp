@@ -26,7 +26,9 @@
 
 #include "x25519_x448.h"
 #include <botan/x25519.h>
+#if defined(ENABLE_CRYPTO_REFRESH)
 #include <botan/x448.h>
+#endif
 #include "exdsa_ecdhkem.h"
 #include "hkdf.hpp"
 #include "utils.h"
@@ -34,8 +36,10 @@
 
 static const std::vector<uint8_t> hkdf_x25519_info_str = {
   'O', 'p', 'e', 'n', 'P', 'G', 'P', ' ', 'X', '2', '5', '5', '1', '9'};
+#if defined(ENABLE_CRYPTO_REFRESH)
 static const std::vector<uint8_t> hkdf_x448_info_str = {
   'O', 'p', 'e', 'n', 'P', 'G', 'P', ' ', 'X', '4', '4', '8'};
+#endif
 
 static void
 x_hkdf(std::vector<uint8_t> &      derived_key,
@@ -184,6 +188,7 @@ generate_x25519_native(rnp::RNG *            rng,
     return RNP_SUCCESS;
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
 rnp_result_t
 generate_x448_native(rnp::RNG *            rng,
                      std::vector<uint8_t> &privkey,
@@ -300,3 +305,4 @@ x448_validate_key_native(rnp::RNG *rng, const pgp_x448_key_t *key, bool secret)
     // check key returns true for successful check
     return (valid_pub && valid_priv) ? RNP_SUCCESS : RNP_ERROR_BAD_PARAMETERS;
 }
+#endif

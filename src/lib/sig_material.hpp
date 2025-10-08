@@ -102,7 +102,7 @@ class Ed448SigMaterial : public SigMaterial {
 };
 #endif
 
-#if defined(ENABLE_PQC)
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
 class DilithiumSigMaterial : public SigMaterial {
   public:
     pgp_pubkey_alg_t                palg;

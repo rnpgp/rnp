@@ -179,7 +179,7 @@ bool x25519_tweak_bits(pgp::ec::Key &key);
  */
 bool x25519_bits_tweaked(const pgp::ec::Key &key);
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 typedef struct pgp_ed25519_key_t {
     std::vector<uint8_t> pub;  // \  native encoding
     std::vector<uint8_t> priv; // /

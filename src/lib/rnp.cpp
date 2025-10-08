@@ -166,6 +166,8 @@ static const id_str_pair pubkey_alg_map[] = {
 #endif
 #if defined(ENABLE_PQC)
   {PGP_PKA_KYBER768_X25519, RNP_ALGNAME_KYBER768_X25519},
+#endif
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
   {PGP_PKA_KYBER1024_X448, RNP_ALGNAME_KYBER1024_X448},
   {PGP_PKA_KYBER768_P256, RNP_ALGNAME_KYBER768_P256},
   {PGP_PKA_KYBER1024_P384, RNP_ALGNAME_KYBER1024_P384},
@@ -343,6 +345,8 @@ pub_alg_supported(int alg)
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
+#endif
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_KYBER1024_X448:
     case PGP_PKA_KYBER768_P256:
     case PGP_PKA_KYBER1024_P384:
@@ -5047,6 +5051,7 @@ rnp_op_generate_st::default_key_flags(pgp_pubkey_alg_t alg, bool subkey)
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
@@ -5057,7 +5062,10 @@ rnp_op_generate_st::default_key_flags(pgp_pubkey_alg_t alg, bool subkey)
     case PGP_PKA_KYBER768_BP256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
+#endif
         return PGP_KF_ENCRYPT;
+#endif
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_ED448:
@@ -8090,6 +8098,7 @@ add_json_mpis(json_object *jso, rnp::Key *key, bool secret = false)
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
@@ -8100,7 +8109,10 @@ add_json_mpis(json_object *jso, rnp::Key *key, bool secret = false)
     case PGP_PKA_KYBER768_BP256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
+#endif
         return RNP_SUCCESS; /* TODO */
+#endif
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_ED448:
@@ -8162,7 +8174,7 @@ add_json_sig_mpis(json_object *jso, const pgp::pkt::Signature *sig)
     case PGP_PKA_X448:
         return RNP_SUCCESS; /* TODO */
 #endif
-#if defined(ENABLE_PQC)
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_ED448:
@@ -8399,6 +8411,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
@@ -8409,7 +8422,10 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     case PGP_PKA_KYBER768_BP256:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
+#endif
         return RNP_SUCCESS; /* TODO */
+#endif
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_ED448:

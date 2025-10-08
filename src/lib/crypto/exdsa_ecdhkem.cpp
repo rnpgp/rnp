@@ -106,10 +106,12 @@ ecdh_kem_private_key_t::get_pubkey_encoded(rnp::RNG *rng) const
         Botan::X25519_PrivateKey botan_key = botan_key_x25519();
         return botan_key.public_value();
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_CURVE_448: {
         Botan::X448_PrivateKey botan_key = botan_key_x448();
         return botan_key.public_value();
     }
+#endif
     default: {
         Botan::ECDH_PrivateKey botan_key = botan_key_ecdh(rng);
         return botan_key.public_value();
@@ -117,6 +119,7 @@ ecdh_kem_private_key_t::get_pubkey_encoded(rnp::RNG *rng) const
     }
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
 Botan::X448_PrivateKey
 ecdh_kem_private_key_t::botan_key_x448() const
 {
@@ -130,6 +133,7 @@ ecdh_kem_public_key_t::botan_key_x448() const
     assert(curve_ == PGP_CURVE_448);
     return Botan::X448_PublicKey(key_);
 }
+#endif
 
 rnp_result_t
 ecdh_kem_public_key_t::encapsulate(rnp::RNG *            rng,
@@ -144,6 +148,7 @@ ecdh_kem_public_key_t::encapsulate(rnp::RNG *            rng,
         symmetric_key = Botan::unlock(key_agreement.derive_key(0, key_).bits_of());
         break;
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_CURVE_448: {
         Botan::X448_PrivateKey eph_prv_key(*(rng->obj()));
         ciphertext = eph_prv_key.public_value();
@@ -151,6 +156,7 @@ ecdh_kem_public_key_t::encapsulate(rnp::RNG *            rng,
         symmetric_key = Botan::unlock(key_agreement.derive_key(0, key_).bits_of());
         break;
     }
+#endif
     default: {
         auto curve_desc = pgp::ec::Curve::get(curve_);
         if (!curve_desc) {
@@ -181,12 +187,14 @@ ecdh_kem_private_key_t::decapsulate(rnp::RNG *                  rng,
         plaintext = Botan::unlock(key_agreement.derive_key(0, ciphertext).bits_of());
         break;
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_CURVE_448: {
         Botan::X448_PrivateKey  priv_key = botan_key_x448();
         Botan::PK_Key_Agreement key_agreement(priv_key, *(rng->obj()), "Raw");
         plaintext = Botan::unlock(key_agreement.derive_key(0, ciphertext).bits_of());
         break;
     }
+#endif
     default: {
         Botan::ECDH_PrivateKey  priv_key = botan_key_ecdh(rng);
         Botan::PK_Key_Agreement key_agreement(priv_key, *(rng->obj()), "Raw");
@@ -213,6 +221,7 @@ ec_key_t::generate_ecdh_kem_key_pair(rnp::RNG *rng, ecdh_kem_key_t *out, pgp_cur
     return RNP_SUCCESS;
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
 exdsa_public_key_t::exdsa_public_key_t(uint8_t *key_buf, size_t key_buf_len, pgp_curve_t curve)
     : ec_key_t(curve), key_(key_buf, key_buf + key_buf_len)
 {
@@ -353,6 +362,7 @@ exdsa_private_key_t::is_valid(rnp::RNG *rng) const
     }
     }
 }
+#endif
 
 bool
 ecdh_kem_public_key_t::is_valid(rnp::RNG *rng) const
@@ -362,10 +372,12 @@ ecdh_kem_public_key_t::is_valid(rnp::RNG *rng) const
         auto pub_key = botan_key_x25519();
         return pub_key.check_key(*(rng->obj()), false);
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_CURVE_448: {
         auto pub_key = botan_key_x448();
         return pub_key.check_key(*(rng->obj()), false);
     }
+#endif
     default: {
         auto pub_key = botan_key_ecdh(rng);
         return pub_key.check_key(*(rng->obj()), false);
@@ -381,10 +393,12 @@ ecdh_kem_private_key_t::is_valid(rnp::RNG *rng) const
         auto priv_key = botan_key_x25519();
         return priv_key.check_key(*(rng->obj()), false);
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_CURVE_448: {
         auto priv_key = botan_key_x448();
         return priv_key.check_key(*(rng->obj()), false);
     }
+#endif
     default: {
         auto priv_key = botan_key_ecdh(rng);
         return priv_key.check_key(*(rng->obj()), false);

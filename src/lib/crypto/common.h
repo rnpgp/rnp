@@ -41,6 +41,8 @@
 #include "eddsa.h"
 #if defined(ENABLE_PQC)
 #include "kyber_ecdh_composite.h"
+#endif
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
 #include "dilithium_exdsa_composite.h"
 #include "sphincsplus.h"
 #endif
