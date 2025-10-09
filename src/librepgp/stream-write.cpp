@@ -617,7 +617,7 @@ encrypted_add_recipient(rnp_ctx_t &              ctx,
 
     /* Encrypt the session key */
     rnp::secure_bytes enckey;
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
     if ((pkey.version == PGP_PKSK_V3) && do_encrypt_pkesk_v3_alg_id(pkey.alg)) {
         /* for pre-crypto-refresh algorithms, algorithm ID is part of the session key */
         enckey.push_back(pkey.salg);
@@ -644,6 +644,8 @@ encrypted_add_recipient(rnp_ctx_t &              ctx,
     auto material = pgp::EncMaterial::create(pkey.alg);
 #if defined(ENABLE_CRYPTO_REFRESH)
     material->version = pkey.version;
+#endif
+#if defined(ENABLE_PQC) || defined(ENABLE_CRYPTO_REFRESH)
     material->salg = pkey.salg;
 #endif
     if (userkey->alg() == PGP_PKA_ECDH) {
