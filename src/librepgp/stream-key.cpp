@@ -891,10 +891,6 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         return RNP_ERROR_BAD_FORMAT;
     }
 
-#if defined(ENABLE_CRYPTO_REFRESH)
-    std::vector<uint8_t> tmpbuf;
-#endif
-
     pgp_packet_body_t pkt((pgp_pkt_type_t) atag);
     /* Read the packet into memory */
     rnp_result_t res = pkt.read(src);
