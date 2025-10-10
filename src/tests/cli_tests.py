@@ -318,7 +318,7 @@ def clear_workfiles():
     remove_files(*TEST_WORKFILES)
     TEST_WORKFILES = []
 
-def rnp_genkey_rsa(userid, bits=2048, pswd=PASSWORD):
+def rnp_genkey_rsa(userid, bits=3072, pswd=PASSWORD):
     pipe = pswd_pipe(pswd)
     ret, _, err = run_proc(RNPK, ['--numbits', str(bits), '--homedir', RNPDIR, '--pass-fd', str(pipe),
                                   '--notty', '--s2k-iterations', '50000', '--userid', userid, '--generate-key'])
@@ -1636,8 +1636,8 @@ class Keystore(unittest.TestCase):
         tracker_1 = tracker_beginning + ''.join(map(chr, range(1,0x10))) + tracker_end
         tracker_2 = tracker_beginning + ''.join(map(chr, range(0x10,0x20))) + tracker_end
         #Run key generation
-        rnp_genkey_rsa(tracker_1, 1024)
-        rnp_genkey_rsa(tracker_2, 1024)
+        rnp_genkey_rsa(tracker_1)
+        rnp_genkey_rsa(tracker_2)
         #Read with rnpkeys
         ret, out_rnp, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
         self.assertEqual(ret, 0, 'rnpkeys : failed to read keystore')
@@ -1736,7 +1736,7 @@ class Keystore(unittest.TestCase):
             USERS.append(userid_beginning + weird_part2 + userid_end)
         # Run key generation
         for userid in USERS:
-            rnp_genkey_rsa(userid, 1024)
+            rnp_genkey_rsa(userid)
         # Read with GPG
         ret, out, _ = run_proc(GPG, ['--homedir', path_for_gpg(RNPDIR), '--list-keys', '--charset', CONSOLE_ENCODING])
         self.assertEqual(ret, 0, 'gpg : failed to read keystore')
@@ -3769,7 +3769,7 @@ class Misc(unittest.TestCase):
     def test_set_current_time(self):
         # Too old date
         is64bit = sys.maxsize > 2 ** 32
-        gparam = ['--homedir', RNPDIR2, '--notty', '--password', PASSWORD, '--generate-key', '--numbits', '1024', '--current-time']
+        gparam = ['--homedir', RNPDIR2, '--notty', '--password', PASSWORD, '--generate-key', '--numbits', '2048', '--current-time']
         rparam = ['--homedir', RNPDIR2, '--notty', '--remove-key']
         ret, out, err = run_proc(RNPK, gparam + ['1950-01-02', '--userid', 'key-1950'])
         self.assertEqual(ret, 0)
@@ -4341,8 +4341,8 @@ class Encryption(unittest.TestCase):
         # Generate keypair in RNP
         rnp_genkey_rsa(KEY_ENCRYPT)
         # Add some other keys to the keyring
-        rnp_genkey_rsa('dummy1@rnp', 1024)
-        rnp_genkey_rsa('dummy2@rnp', 1024)
+        rnp_genkey_rsa('dummy1@rnp')
+        rnp_genkey_rsa('dummy2@rnp')
         gpg_import_pubring()
         gpg_import_secring()
         Encryption.CIPHERS += rnp_supported_ciphers(False)
@@ -4568,7 +4568,7 @@ class Encryption(unittest.TestCase):
         PASSWORDS = ['password1', 'password2', 'password3']
         # Generate multiple keys and import to GnuPG
         for uid, pswd in zip(USERIDS, KEYPASS):
-            rnp_genkey_rsa(uid, 1024, pswd)
+            rnp_genkey_rsa(uid, 3072, pswd)
 
         gpg_import_pubring()
         gpg_import_secring()
@@ -4629,7 +4629,7 @@ class Encryption(unittest.TestCase):
         AEAD_C = list_upto(rnp_supported_ciphers(True), Encryption.RUNS)
         # Generate multiple keys and import to GnuPG
         for uid, pswd in zip(USERIDS, KEYPASS):
-            rnp_genkey_rsa(uid, 1024, pswd)
+            rnp_genkey_rsa(uid, 3072, pswd)
 
         gpg_import_pubring()
         gpg_import_secring()
@@ -4761,7 +4761,7 @@ class Encryption(unittest.TestCase):
     def test_encryption_weird_userids_special_1(self):
         uid = WEIRD_USERID_SPECIAL_CHARS
         pswd = 'encSpecial1Pass'
-        rnp_genkey_rsa(uid, 1024, pswd)
+        rnp_genkey_rsa(uid, 3072, pswd)
         # Encrypt
         src = data_path(MSG_TXT)
         dst, dec = reg_workfiles('weird_userids_special_1', '.rnp', '.dec')
@@ -4776,7 +4776,7 @@ class Encryption(unittest.TestCase):
         KEYPASS = ['encSpecial2Pass1', 'encSpecial2Pass2', 'encSpecial2Pass3', 'encSpecial2Pass4']
         # Generate multiple keys
         for uid, pswd in zip(USERIDS, KEYPASS):
-            rnp_genkey_rsa(uid, 1024, pswd)
+            rnp_genkey_rsa(uid, 2048, pswd)
         # Encrypt to all recipients
         src = data_path(MSG_TXT)
         dst, dec = reg_workfiles('weird_userids_special_2', '.rnp', '.dec')
@@ -4802,7 +4802,7 @@ class Encryption(unittest.TestCase):
         KEYPASS = ['encUnicodePass1', 'encUnicodePass2']
         # Generate multiple keys
         for uid, pswd in zip(USERIDS_1, KEYPASS):
-            rnp_genkey_rsa(uid, 1024, pswd)
+            rnp_genkey_rsa(uid, 3072, pswd)
         # Encrypt to all recipients
         src = data_path('test_messages') + '/message.txt'
         dst, dec = reg_workfiles('weird_unicode', '.rnp', '.dec')
@@ -5111,7 +5111,7 @@ class SignDefault(unittest.TestCase):
 
         # Generate multiple keys and import to GnuPG
         for uid, pswd in zip(USERIDS, KEYPASS):
-            rnp_genkey_rsa(uid, 1024, pswd)
+            rnp_genkey_rsa(uid, 3072, pswd)
 
         gpg_import_pubring()
         gpg_import_secring()
@@ -5151,7 +5151,7 @@ class SignDefault(unittest.TestCase):
 
         # Generate multiple keys
         for uid, pswd in zip(USERIDS, KEYPASS):
-            rnp_genkey_rsa(uid, 1024, pswd)
+            rnp_genkey_rsa(uid, 3072, pswd)
 
         gpg_import_pubring()
         gpg_import_secring()
@@ -5558,12 +5558,12 @@ class EncryptSignRSA(Encrypt, Sign):
         self._encrypt_decrypt(self.rnp, self.gpg)
         self._sign_verify(self.rnp, self.gpg)
 
-    def test_rnp_encrypt_verify_1024(self): self.do_encrypt_verify(1024)
     def test_rnp_encrypt_verify_2048(self): self.do_encrypt_verify(2048)
+    def test_rnp_encrypt_verify_3072(self): self.do_encrypt_verify(3072)
     def test_rnp_encrypt_verify_4096(self): self.do_encrypt_verify(4096)
 
-    def test_rnp_decrypt_sign_1024(self): self.do_rnp_decrypt_sign(1024)
     def test_rnp_decrypt_sign_2048(self): self.do_rnp_decrypt_sign(2048)
+    def test_rnp_decrypt_sign_3072(self): self.do_rnp_decrypt_sign(3072)
     def test_rnp_decrypt_sign_4096(self): self.do_rnp_decrypt_sign(4096)
 
     def setUp(self):
