@@ -169,11 +169,7 @@ r'3 keys found.*$'
 RE_MULTIPLE_SUBKEY_8 = r'(?s)^\s*' \
 r'8 keys found.*$'
 
-RE_GPG_SINGLE_RSA_KEY = r'(?s)^\s*' \
-r'.+-+\s*' \
-r'pub\s+rsa.+' \
-r'\s+([0-9A-F]{40})\s*' \
-r'uid\s+.+rsakey@gpg.*'
+RE_GPG_GENERATED_KEY_FPR = r'^\[GNUPG:\] KEY_CREATED P ([0-9A-F]{40})\s*'
 
 RE_GPG_GOOD_SIGNATURE = r'(?s)^.*' \
 r'gpg: Signature made .*' \
@@ -861,7 +857,7 @@ def gpg_check_features():
     GPG_AEAD_EAX = re.match(r'(?s)^.*AEAD:.*EAX.*', out) is not None
     GPG_AEAD_OCB = re.match(r'(?s)^.*AEAD:.*OCB.*', out) is not None
     # Version 2.3.0-beta1598 and up drops support of 64-bit block algos
-    match = re.match(r'(?s)^.*gpg \(GnuPG\) (\d+)\.(\d+)\.(\d+)(-beta(\d+))?.*$', out)
+    match = re.match(r'(?s)^.*gpg \(GnuPG[^\)]*\) (\d+)\.(\d+)\.(\d+)(-beta(\d+))?.*$', out)
     if not match:
         raise_err('Failed to parse GnuPG version.')
     ver = [int(match.group(1)), int(match.group(2)), int(match.group(3))]
@@ -1158,13 +1154,15 @@ class Keystore(unittest.TestCase):
         Generate key with GnuPG and import it to rnp
         '''
         # Generate key in GnuPG
+        statusfile = os.path.join(WORKDIR, "gpg-status")
         ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--passphrase',
-                                       '', '--quick-generate-key', 'rsakey@gpg', 'rsa'])
+                                       '', '--status-file', statusfile,
+                                       '--quick-generate-key', 'rsakey@gpg', 'rsa'])
         self.assertEqual(ret, 0, 'gpg key generation failed')
         # Getting fingerprint of the generated key
-        ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--list-keys'])
-        match = re.match(RE_GPG_SINGLE_RSA_KEY, out)
-        self.assertTrue(match, 'wrong gpg key list output')
+        with open(statusfile, 'r') as status:
+            match = re.search(RE_GPG_GENERATED_KEY_FPR, status.read(), re.MULTILINE)
+        self.assertTrue(match, 'wrong gpg status output')
         keyfp = match.group(1)
         # Exporting generated public key
         ret, out, err = run_proc(
