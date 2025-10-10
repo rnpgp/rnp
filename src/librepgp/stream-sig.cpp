@@ -73,7 +73,7 @@ signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash, pgp_version_t pgpv
         break;
     }
     case PGP_V5: {
-        assert(key.pub_data.size() < ((size_t) 1 << 32));
+        assert(key.pub_data.size() < ((uint64_t) 1 << 32));
         uint8_t hdr[5] = {0x9A, 0x00, 0x00, 0x00, 0x00};
         write_uint32(hdr + 1, key.pub_data.size());
         hash.add(&hdr, 5);
@@ -82,7 +82,7 @@ signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash, pgp_version_t pgpv
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_V6: {
-        assert(key.pub_data.size() < ((size_t) 1 << 32));
+        assert(key.pub_data.size() < ((uint64_t) 1 << 32));
         uint8_t hdr[5] = {0x9b, 0x00, 0x00, 0x00, 0x00};
         write_uint32(hdr + 1, key.pub_data.size());
         hash.add(hdr, sizeof(hdr));
