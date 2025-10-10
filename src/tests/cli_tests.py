@@ -10,6 +10,7 @@ import tempfile
 import time
 import unittest
 import random
+import ctypes
 from platform import architecture
 
 from cli_common import (file_text, find_utility, is_windows, list_upto,
@@ -60,6 +61,13 @@ if sys.version_info >= (3,):
 def escape_regex(str):
     return '^' + ''.join((c, "[\\x{:02X}]".format(ord(c)))[0 <= ord(c) <= 0x20 \
         or c in ['[',']','(',')','|','"','$','.','*','^','$','\\','+','?','{','}']] for c in str) + '$'
+
+def time_t_is_greater_than_32bit() -> bool:
+    if hasattr(ctypes, 'c_time_t'):
+        return ctypes.sizeof(ctypes.c_time_t) > 4
+    else:
+        # probably Python < 3.12, just guess based on sys.maxsize
+        return sys.maxsize > 2 ** 32
 
 UNICODE_LATIN_CAPITAL_A_GRAVE = unichr(192)
 UNICODE_LATIN_SMALL_A_GRAVE = unichr(224)
@@ -3761,7 +3769,6 @@ class Misc(unittest.TestCase):
 
     def test_set_current_time(self):
         # Too old date
-        is64bit = sys.maxsize > 2 ** 32
         gparam = ['--homedir', RNPDIR2, '--notty', '--password', PASSWORD, '--generate-key', '--numbits', '1024', '--current-time']
         rparam = ['--homedir', RNPDIR2, '--notty', '--remove-key']
         ret, out, err = run_proc(RNPK, gparam + ['1950-01-02', '--userid', 'key-1950'])
@@ -3839,7 +3846,7 @@ class Misc(unittest.TestCase):
 
         # Try too distant date for expiration
         ret, out, err = run_proc(RNPK, gparam + ['2024-02-29', '--expiration', '3024-02-29', '--userid', 'key-2924'])
-        if is64bit:
+        if time_t_is_greater_than_32bit():
             self.assertEqual(ret, 1)
             self.assertRegex(err, r'(?s)^.*Expiration time exceeds 32-bit value.*$')
             self.assertRegex(err, r'(?s)^.*Failed to set primary key expiration..*$')
