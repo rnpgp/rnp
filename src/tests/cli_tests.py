@@ -1644,13 +1644,15 @@ class Keystore(unittest.TestCase):
         ret, out_rnp, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
         self.assertEqual(ret, 0, 'rnpkeys : failed to read keystore')
         #Read with GPG
-        ret, out_gpg, _ = run_proc(GPG, ['--homedir', path_for_gpg(RNPDIR), '--list-keys'])
+        ret, out_gpg, _ = run_proc(GPG, ['--homedir', path_for_gpg(RNPDIR), '--with-colons', '--list-keys'])
         self.assertEqual(ret, 0, 'gpg : failed to read keystore')
         tracker_rnp = re.findall(r'' + tracker_beginning + '.*' + tracker_end + '', out_rnp)
         tracker_gpg = re.findall(r'' + tracker_beginning + '.*' + tracker_end + '', out_gpg)
         self.assertEqual(len(tracker_rnp), 2, 'failed to find expected rnp userids')
         self.assertEqual(len(tracker_gpg), 2, 'failed to find expected gpg userids')
-        self.assertEqual(tracker_rnp, tracker_gpg, 'userids from rnpkeys and gpg don\'t match')
+        self.assertEqual(set(map(decode_string_escape, tracker_rnp)),
+                         set(map(decode_string_escape, tracker_gpg)),
+                         'userids from rnpkeys and gpg don\'t match')
         clear_keyrings()
 
     def test_key_revoke(self):
@@ -1740,17 +1742,17 @@ class Keystore(unittest.TestCase):
         for userid in USERS:
             rnp_genkey_rsa(userid)
         # Read with GPG
-        ret, out, _ = run_proc(GPG, ['--homedir', path_for_gpg(RNPDIR), '--list-keys', '--charset', CONSOLE_ENCODING])
+        ret, out, _ = run_proc(GPG, ['--homedir', path_for_gpg(RNPDIR), '--with-colons', '--list-keys', '--charset', CONSOLE_ENCODING])
         self.assertEqual(ret, 0, 'gpg : failed to read keystore')
         tracker_escaped = re.findall(r'' + userid_beginning + '.*' + userid_end + '', out)
-        tracker_gpg = list(map(decode_string_escape, tracker_escaped))
-        self.assertEqual(tracker_gpg, USERS, 'gpg : failed to find expected userids from keystore')
+        tracker_gpg = set(map(decode_string_escape, tracker_escaped))
+        self.assertEqual(tracker_gpg, set(USERS), 'gpg : failed to find expected userids from keystore')
         # Read with rnpkeys
         ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
         self.assertEqual(ret, 0, 'rnpkeys : failed to read keystore')
         tracker_escaped = re.findall(r'' + userid_beginning + '.*' + userid_end + '', out)
-        tracker_rnp = list(map(decode_string_escape, tracker_escaped))
-        self.assertEqual(tracker_rnp, USERS, 'rnpkeys : failed to find expected userids from keystore')
+        tracker_rnp = set(map(decode_string_escape, tracker_escaped))
+        self.assertEqual(tracker_rnp, set(USERS), 'rnpkeys : failed to find expected userids from keystore')
         clear_keyrings()
 
     def test_userid_unicode_genkeys(self):
