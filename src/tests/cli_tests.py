@@ -543,7 +543,8 @@ def gpg_encrypt_file(src, dst, cipher=None, z=None, armor=False):
 
     ret, _, err = run_proc(GPG, params)
     if ret != 0:
-        raise_err('gpg encryption failed for cipher ' + cipher, err)
+        raise_err('gpg encryption failed for cipher ' +
+                  (cipher or 'unspecified'), err)
 
 def gpg_symencrypt_file(src, dst, cipher=None, z=None, armor=False, aead=None):
     src = path_for_gpg(src)
