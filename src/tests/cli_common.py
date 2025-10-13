@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import shutil
+import codecs
 from subprocess import Popen, PIPE
 
 RNP_ROOT = None
@@ -185,27 +186,8 @@ def run_proc_windows(proc, params, stdin=None):
     return (retcode, out, err)
 
 if sys.version_info >= (3,):
-    def decode_string_escape(s):
-        bts = bytes(s, 'utf-8')
-        result = u''
-        candidate = bytearray()
-        utf = bytearray()
-        for b in bts:
-            if b > 0x7F:
-                if len(candidate) > 0:
-                    result += candidate.decode('unicode-escape')
-                    candidate.clear()
-                utf.append(b)
-            else:
-                if len(utf) > 0:
-                    result += utf.decode('utf-8')
-                    utf.clear()
-                candidate.append(b)
-        if len(candidate) > 0:
-            result += candidate.decode('unicode-escape')
-        if len(utf) > 0:
-            result += utf.decode('utf-8')
-        return result
+    def decode_string_escape(s: str) -> str:
+        return codecs.escape_decode(bytes(s, 'utf-8'))[0].decode()
     def _decode(s):
         return s
 else: # Python 2
