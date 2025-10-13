@@ -220,7 +220,6 @@ RE_SIG_1_IMPORT = r'(?s)^.*Import finished: 1 new signature, 0 unchanged, 0 unkn
 
 RE_KEYSTORE_INFO = r'(?s)^.*fatal: cannot set keystore info'
 
-RNP_TO_GPG_ZALGS = { 'zip' : '1', 'zlib' : '2', 'bzip2' : '3' }
 # These are mostly identical
 RNP_TO_GPG_CIPHERS = {'AES' : 'aes128', 'AES192' : 'aes192', 'AES256' : 'aes256',
                       'TWOFISH' : 'twofish', 'CAMELLIA128' : 'camellia128',
@@ -523,7 +522,7 @@ def gpg_export_secret_key(userid, password, keyfile):
 def gpg_params_insert_z(params, pos, z):
     if z:
         if len(z) > 0 and z[0] != None:
-            params[pos:pos] = ['--compress-algo', RNP_TO_GPG_ZALGS[z[0]]]
+            params[pos:pos] = ['--compress-algo', z[0]]
         if len(z) > 1 and z[1] != None:
             params[pos:pos] = ['-z', str(z[1])]
 
