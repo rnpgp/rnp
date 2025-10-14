@@ -105,6 +105,7 @@ SECRING_1 = 'keyrings/1/secring.gpg'
 KEYRING_DIR_1 = 'keyrings/1'
 KEYRING_DIR_2 = 'keyrings/2'
 KEYRING_DIR_3 = 'keyrings/3'
+KEYRING_DIR_5 = 'keyrings/5'
 PUBRING_7 = 'keyrings/7/pubring.gpg'
 SECRING_G10 = 'test_stream_key_load/g10'
 KEY_ALICE_PUB = 'test_key_validity/alice-pub.asc'
@@ -5037,7 +5038,7 @@ class Compression(unittest.TestCase):
 
     def test_rnp_compression_corner_cases(self):
         shutil.rmtree(RNPDIR)
-        kring = shutil.copytree(data_path(KEYRING_DIR_1), RNPDIR)
+        kring = shutil.copytree(data_path(KEYRING_DIR_5), RNPDIR)
         gpg_import_pubring()
         gpg_import_secring()
 
