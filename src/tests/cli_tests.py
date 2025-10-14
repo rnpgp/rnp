@@ -545,6 +545,7 @@ def gpg_symencrypt_file(src, dst, cipher=None, z=None, armor=False, aead=None):
     src = path_for_gpg(src)
     dst = path_for_gpg(dst)
     params = ['--homedir', GPGHOME, '-c', '--s2k-count', '65536', '--batch',
+              GPG_LOOPBACK,
               '--passphrase', PASSWORD, '--output', dst, src]
     if z: gpg_params_insert_z(params, 3, z)
     if cipher: params[3:3] = ['--cipher-algo', RNP_TO_GPG_CIPHERS[cipher]]
@@ -1074,7 +1075,9 @@ class Keystore(unittest.TestCase):
         self.assertEqual(match.group(2), keyid.lower(), 'wrong keyid')
         self.assertEqual(match.group(1), str(bits), 'wrong key bits in list')
         # Import key to the gnupg
-        ret, _, _ = run_proc(GPG, ['--batch', '--passphrase', PASSWORD, '--homedir',
+        ret, _, _ = run_proc(GPG, ['--batch', '--passphrase', PASSWORD,
+                                   GPG_LOOPBACK,
+                                   '--homedir',
                                        GPGHOME, '--import',
                                        path_for_gpg(os.path.join(RNPDIR, PUBRING)),
                                        path_for_gpg(os.path.join(RNPDIR, SECRING))])
@@ -1154,7 +1157,9 @@ class Keystore(unittest.TestCase):
         '''
         # Generate key in GnuPG
         statusfile = os.path.join(WORKDIR, "gpg-status")
-        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--passphrase',
+        ret, _, _ = run_proc(GPG, ['--batch',
+                                   GPG_LOOPBACK,
+                                   '--homedir', GPGHOME, '--passphrase',
                                        '', '--status-file', statusfile,
                                        '--quick-generate-key', 'rsakey@gpg', 'rsa'])
         self.assertEqual(ret, 0, 'gpg key generation failed')
@@ -2162,7 +2167,9 @@ class Misc(unittest.TestCase):
         random_text(src, 64000)
         # Encrypt cleartext file with GPG
         params = ['--homedir', GPGHOME, '-c', '-z', '0', '--disable-mdc', '--s2k-count',
-                  '65536', '--batch', '--passphrase', PASSWORD, '--output',
+                  '65536', '--batch',
+                  GPG_LOOPBACK,
+                  '--passphrase', PASSWORD, '--output',
                   path_for_gpg(dst), path_for_gpg(src)]
         ret, _, _ = run_proc(GPG, params)
         self.assertEqual(ret, 0, 'gpg symmetric encryption failed')
@@ -2183,7 +2190,9 @@ class Misc(unittest.TestCase):
 
         def rnp_encryption_s2k_gpg(cipher, hash_alg, s2k=None, iterations=None):
             params = ['--homedir', GPGHOME, '-c', '--s2k-cipher-algo', cipher,
-                      '--s2k-digest-algo', hash_alg, '--batch', '--passphrase', PASSWORD,
+                      '--s2k-digest-algo', hash_alg, '--batch',
+                      GPG_LOOPBACK,
+                      '--passphrase', PASSWORD,
                       '--output', dst, src]
 
             if s2k is not None:
