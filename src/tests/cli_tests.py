@@ -34,6 +34,7 @@ GPG_AEAD_EAX = False
 GPG_AEAD_OCB = False
 GPG_NO_OLD = False
 GPG_BRAINPOOL = False
+GPG_ELG = False
 TESTS_SUCCEEDED = []
 TESTS_FAILED = []
 TEST_WORKFILES = []
@@ -853,8 +854,10 @@ def rnp_cleartext_signing_gpg_to_rnp(filesize):
     clear_workfiles()
 
 def gpg_check_features():
-    global GPG_AEAD, GPG_AEAD_EAX, GPG_AEAD_OCB, GPG_NO_OLD, GPG_BRAINPOOL
+    global GPG_ELG, GPG_AEAD, GPG_AEAD_EAX, GPG_AEAD_OCB, GPG_NO_OLD, GPG_BRAINPOOL
     _, out, _ = run_proc(GPG, ["--version"])
+    # El Gamal
+    GPG_ELG = re.match(r'(?s)^.*ELG.*', out) is not None
     # AEAD
     GPG_AEAD_EAX = re.match(r'(?s)^.*AEAD:.*EAX.*', out) is not None
     GPG_AEAD_OCB = re.match(r'(?s)^.*AEAD:.*OCB.*', out) is not None
@@ -876,6 +879,7 @@ def gpg_check_features():
     # Check whether Brainpool curves are supported
     _, out, _ = run_proc(GPG, ["--with-colons", "--list-config", "curve"])
     GPG_BRAINPOOL = re.match(r'(?s)^.*brainpoolP256r1.*', out) is not None
+    print('GPG_ELG: ' + str(GPG_ELG))
     print('GPG_AEAD_EAX: ' + str(GPG_AEAD_EAX))
     print('GPG_AEAD_OCB: ' + str(GPG_AEAD_OCB))
     print('GPG_NO_OLD: ' + str(GPG_NO_OLD))
@@ -5285,6 +5289,13 @@ class EncryptElgamal(Encrypt):
 
     RNP_GENERATE_DSA_ELGAMAL_PATTERN = "16\n{0}\n"
 
+    @property
+    def elg_peer(self):
+        if GPG_ELG:
+            return self.gpg
+        else:
+            return self.rnp
+
     @staticmethod
     def key_pfx(sign_key_size, enc_key_size):
         return "GnuPG_dsa_elgamal_%d_%d" % (sign_key_size, enc_key_size)
@@ -5296,7 +5307,7 @@ class EncryptElgamal(Encrypt):
         # DSA 1024 key uses SHA-1 as hash but verification would succeed till 2024
         if sign_key_size == 1024:
             return
-        self._encrypt_decrypt(self.gpg, self.rnp)
+        self._encrypt_decrypt(self.elg_peer, self.rnp)
 
     def do_test_decrypt(self, sign_key_size, enc_key_size):
         pfx = EncryptElgamal.key_pfx(sign_key_size, enc_key_size)
@@ -5304,7 +5315,7 @@ class EncryptElgamal(Encrypt):
         self.rnp.userid = self.gpg.userid = pfx + AT_EXAMPLE
         if sign_key_size == 1024:
             return
-        self._encrypt_decrypt(self.rnp, self.gpg)
+        self._encrypt_decrypt(self.rnp, self.elg_peer)
 
     def test_encrypt_P1024_1024(self): self.do_test_encrypt(1024, 1024)
     def test_encrypt_P1024_2048(self): self.do_test_encrypt(1024, 2048)
@@ -5317,6 +5328,8 @@ class EncryptElgamal(Encrypt):
     # 1024-bit key generation test was removed since it uses SHA1, which is not allowed for key signatures since Jan 19, 2024.
 
     def test_generate_elgamal_key1536_in_gpg_and_encrypt(self):
+        if not GPG_ELG:
+            self.skipTest("gpg does not support El Gamal")
         cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATTERN.format(1536, 1536, self.gpg.userid)
         self.operation_key_gencmd = cmd
         self._encrypt_decrypt(self.gpg, self.rnp)
@@ -5324,7 +5337,7 @@ class EncryptElgamal(Encrypt):
     def test_generate_elgamal_key1024_in_rnp_and_decrypt(self):
         cmd = EncryptElgamal.RNP_GENERATE_DSA_ELGAMAL_PATTERN.format(1024)
         self.operation_key_gencmd = cmd
-        self._encrypt_decrypt(self.rnp, self.gpg)
+        self._encrypt_decrypt(self.rnp, self.elg_peer)
 
 
 class EncryptEcdh(Encrypt):
