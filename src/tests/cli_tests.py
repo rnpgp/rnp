@@ -221,7 +221,7 @@ RE_SIG_1_IMPORT = r'(?s)^.*Import finished: 1 new signature, 0 unchanged, 0 unkn
 RE_KEYSTORE_INFO = r'(?s)^.*fatal: cannot set keystore info'
 
 # These are mostly identical
-RNP_TO_GPG_CIPHERS = {'AES' : 'aes128', 'AES192' : 'aes192', 'AES256' : 'aes256',
+RNP_TO_GPG_CIPHERS = {'AES' : 'aes', 'AES192' : 'aes192', 'AES256' : 'aes256',
                       'TWOFISH' : 'twofish', 'CAMELLIA128' : 'camellia128',
                       'CAMELLIA192' : 'camellia192', 'CAMELLIA256' : 'camellia256',
                       'IDEA' : 'idea', '3DES' : '3des', 'CAST5' : 'cast5',
