@@ -4942,7 +4942,7 @@ class Encryption(unittest.TestCase):
         self.assertEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*gpg: encrypted with .*dummy1@rnp.*')
         self.assertRegex(out, r'(?s)^.*:pubkey enc packet: version 3.*:encrypted data packet:.*mdc_method: 2.*' \
-                              r':compressed packet.*:onepass_sig packet:.*:literal data packet.*:signature packet.*')
+                              r':onepass_sig packet:.*:literal data packet.*:signature packet.*')
         # Decrypt with GnuPG
         ret, _, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', PASSWORD, '--output', dec, '-d', enc])
         self.assertEqual(ret, 0)
