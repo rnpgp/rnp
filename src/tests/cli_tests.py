@@ -35,6 +35,9 @@ GPG_AEAD_OCB = False
 GPG_NO_OLD = False
 GPG_BRAINPOOL = False
 GPG_ELG = False
+GPG_3DES = False
+GPG_IDEA = False
+GPG_CAST5 = False
 TESTS_SUCCEEDED = []
 TESTS_FAILED = []
 TEST_WORKFILES = []
@@ -855,9 +858,14 @@ def rnp_cleartext_signing_gpg_to_rnp(filesize):
 
 def gpg_check_features():
     global GPG_ELG, GPG_AEAD, GPG_AEAD_EAX, GPG_AEAD_OCB, GPG_NO_OLD, GPG_BRAINPOOL
+    global GPG_3DES, GPG_IDEA, GPG_CAST5
     _, out, _ = run_proc(GPG, ["--version"])
     # El Gamal
     GPG_ELG = re.match(r'(?s)^.*ELG.*', out) is not None
+    # old symmetric ciphers
+    GPG_3DES = re.match(r'(?s)^.*3DES.*', out) is not None
+    GPG_IDEA = re.match(r'(?s)^.*IDEA.*', out) is not None
+    GPG_CAST5 = re.match(r'(?s)^.*CAST5.*', out) is not None
     # AEAD
     GPG_AEAD_EAX = re.match(r'(?s)^.*AEAD:.*EAX.*', out) is not None
     GPG_AEAD_OCB = re.match(r'(?s)^.*AEAD:.*OCB.*', out) is not None
@@ -4354,6 +4362,15 @@ class Encryption(unittest.TestCase):
         gpg_import_pubring()
         gpg_import_secring()
         Encryption.CIPHERS += rnp_supported_ciphers(False)
+        cipher_skip = []
+        if not GPG_3DES:
+            cipher_skip += ['3DES']
+        if not GPG_IDEA:
+            cipher_skip += ['IDEA']
+        if not GPG_CAST5:
+            cipher_skip += ['CAST5']
+        if cipher_skip:
+            Encryption.CIPHERS = list(filter(lambda x: x not in cipher_skip, Encryption.CIPHERS))
         Encryption.CIPHERS_R = list_upto(Encryption.CIPHERS, Encryption.RUNS)
         Encryption.SIZES_R = list_upto(Encryption.SIZES, Encryption.RUNS)
         Encryption.Z_R = list_upto(Encryption.Z, Encryption.RUNS)
