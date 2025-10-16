@@ -102,6 +102,7 @@ PUBRING = 'pubring.gpg'
 SECRING = 'secring.gpg'
 PUBRING_1 = 'keyrings/1/pubring.gpg'
 SECRING_1 = 'keyrings/1/secring.gpg'
+PUBRING_5 = 'keyrings/5/pubring.gpg'
 KEYRING_DIR_1 = 'keyrings/1'
 KEYRING_DIR_2 = 'keyrings/2'
 KEYRING_DIR_3 = 'keyrings/3'
@@ -2425,14 +2426,14 @@ class Misc(unittest.TestCase):
 
     def test_large_packet(self):
         # Verifying large packet file with GnuPG
-        kpath = path_for_gpg(data_path(PUBRING_1))
+        kpath = path_for_gpg(data_path(PUBRING_5))
         dpath = path_for_gpg(data_path('test_large_packet/4g.bzip2.gpg'))
         ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--no-default-keyring', '--keyring', kpath, '--verify', dpath])
         self.assertEqual(ret, 0, 'large packet verification failed')
 
     def test_partial_length_signature(self):
         # Verifying partial length signature with GnuPG
-        kpath = path_for_gpg(data_path(PUBRING_1))
+        kpath = path_for_gpg(data_path(PUBRING_5))
         mpath = path_for_gpg(data_path('test_partial_length/message.txt.partial-signed'))
         ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--no-default-keyring', '--keyring', kpath, '--verify', mpath])
         self.assertNotEqual(ret, 0, 'partial length signature packet should result in failure but did not')
@@ -2445,14 +2446,14 @@ class Misc(unittest.TestCase):
 
     def test_partial_length_zero_last_chunk(self):
         # Verifying message in partial packets having 0-size last chunk with GnuPG
-        kpath = path_for_gpg(data_path(PUBRING_1))
+        kpath = path_for_gpg(data_path(PUBRING_5))
         mpath = path_for_gpg(data_path('test_partial_length/message.txt.partial-zero-last'))
         ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--no-default-keyring', '--keyring', kpath, '--verify', mpath])
         self.assertEqual(ret, 0, 'message in partial packets having 0-size last chunk verification failed')
 
     def test_partial_length_largest(self):
         # Verifying message having largest possible partial packet with GnuPG
-        kpath = path_for_gpg(data_path(PUBRING_1))
+        kpath = path_for_gpg(data_path(PUBRING_5))
         mpath = path_for_gpg(data_path('test_partial_length/message.txt.partial-1g'))
         ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--no-default-keyring', '--keyring', kpath, '--verify', mpath])
         self.assertEqual(ret, 0, 'message having largest possible partial packet verification failed')
