@@ -36,7 +36,7 @@ TEST_F(rnp_tests, test_large_packet)
 
     /* init ffi and inputs */
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/5/pubring.gpg"));
     assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
     assert_rnp_success(rnp_input_destroy(input));
 

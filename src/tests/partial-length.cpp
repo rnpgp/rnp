@@ -69,12 +69,12 @@ test_partial_length_init(rnp_ffi_t *ffi, uint32_t key_flags)
     assert_rnp_success(
       rnp_ffi_set_pass_provider(*ffi, ffi_string_password_provider, (void *) "password"));
     if (key_flags & RNP_LOAD_SAVE_SECRET_KEYS) {
-        assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
+        assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/5/secring.gpg"));
         assert_rnp_success(rnp_load_keys(*ffi, "GPG", input, key_flags));
         assert_rnp_success(rnp_input_destroy(input));
     }
     if (key_flags & RNP_LOAD_SAVE_PUBLIC_KEYS) {
-        assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+        assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/5/pubring.gpg"));
         assert_rnp_success(rnp_load_keys(*ffi, "GPG", input, key_flags));
         assert_rnp_success(rnp_input_destroy(input));
     }
@@ -195,7 +195,7 @@ TEST_F(rnp_tests, test_partial_length_first_packet_length)
     assert_rnp_success(rnp_input_from_callback(&input, dummy_reader, NULL, &reader_ctx));
     assert_rnp_success(rnp_output_to_memory(&output, uncacheable_size + 1024));
     assert_rnp_success(rnp_op_sign_create(&sign, ffi, input, output));
-    assert_rnp_success(rnp_locate_key(ffi, "keyid", "7BC6709B15C23A4A", &key));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0E33FD46FF10F19C", &key));
     assert_rnp_success(rnp_op_sign_add_signature(sign, key, NULL));
     assert_rnp_success(rnp_key_handle_destroy(key));
     key = NULL;
