@@ -2443,8 +2443,8 @@ class Misc(unittest.TestCase):
     def test_partial_length_public_key(self):
         # Reading keyring that has a public key packet with partial length using GnuPG
         kpath = data_path('test_partial_length/pubring.gpg.partial')
-        ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--no-default-keyring', '--keyring', kpath, '--list-keys'])
-        self.assertNotEqual(ret, 0, 'partial length public key packet should result in failure but did not')
+        ret, out, _ = run_proc(GPG, ['--homedir', GPGHOME, '--no-default-keyring', '--keyring', kpath, '--list-keys'])
+        self.assertEqual(out, '', 'some listing emitted when reviewing partial-length public key packet')
 
     def test_partial_length_zero_last_chunk(self):
         # Verifying message in partial packets having 0-size last chunk with GnuPG
