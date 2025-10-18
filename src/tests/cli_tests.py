@@ -2080,7 +2080,7 @@ class Keystore(unittest.TestCase):
         # Expires in 60 seconds
         ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--edit-key', '--set-expire', '60', 'primary_with_empty_password@rnp'])
         self.assertEqual(ret, 0)
-        self.assertRegex(out, r'(?s)^.*\[EXPIRES .*')
+        self.assertRegex(out, r'(?s)^.*\[EXPIRE[SD] .*')
 
         ret, out, _ = run_proc(RNP, ['--list-packets', kpath])
         self.assertEqual(ret, 0)
