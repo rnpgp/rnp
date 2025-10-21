@@ -65,7 +65,7 @@ signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash, pgp_version_t pgpv
     case PGP_V3:
         FALLTHROUGH_STATEMENT;
     case PGP_V4: {
-        assert(key.pub_data.size() < ((size_t) 1 << 16));
+        assert(key.pub_data.size() <= ((size_t) 0xffffu));
         uint8_t hdr[3] = {0x99, 0x00, 0x00};
         write_uint16(hdr + 1, key.pub_data.size());
         hash.add(hdr, 3);
@@ -73,7 +73,7 @@ signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash, pgp_version_t pgpv
         break;
     }
     case PGP_V5: {
-        assert(key.pub_data.size() < ((size_t) 1 << 32));
+        assert(key.pub_data.size() <= (size_t) 0xffffffffu);
         uint8_t hdr[5] = {0x9A, 0x00, 0x00, 0x00, 0x00};
         write_uint32(hdr + 1, key.pub_data.size());
         hash.add(&hdr, 5);
@@ -82,7 +82,7 @@ signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash, pgp_version_t pgpv
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_V6: {
-        assert(key.pub_data.size() < ((size_t) 1 << 32));
+        assert(key.pub_data.size() <= (size_t) 0xffffffffu);
         uint8_t hdr[5] = {0x9b, 0x00, 0x00, 0x00, 0x00};
         write_uint32(hdr + 1, key.pub_data.size());
         hash.add(hdr, sizeof(hdr));
