@@ -52,13 +52,17 @@ jobs:
       fail-fast: false
       matrix:
         image:
+          - { container: 'debian-10-i386',  cpu: 'i386',   backend: 'botan'   }
           - { container: 'debian-11-i386',  cpu: 'i386',   backend: 'botan'   }
           - { container: 'debian-11-i386',  cpu: 'i386',   backend: 'openssl' }
           - { container: 'debian-11-amd64', cpu: 'x86_64', backend: 'botan'   }
           - { container: 'debian-11-amd64', cpu: 'x86_64', backend: 'openssl' }
           - { container: 'debian-12-amd64', cpu: 'x86_64', backend: 'botan'   }
           - { container: 'debian-12-amd64', cpu: 'x86_64', backend: 'openssl' }
-          - { container: 'debian-10-i386',  cpu: 'i386',   backend: 'botan'   }
+          - { container: 'debian-13-amd64', cpu: 'x86_64', backend: 'botan3'  }
+          - { container: 'debian-13-amd64', cpu: 'x86_64', backend: 'openssl' }
+          - { container: 'debian-13-amd64', cpu: 'x86_64', backend: 'botan3', pqc: 'On' }
+          - { container: 'debian-13-i386',  cpu: 'i386',   backend: 'botan3', pqc: 'On' }
         env:
           - { CC: 'gcc',   CXX: 'g++'     }
           - { CC: 'clang', CXX: 'clang++' }
@@ -76,19 +80,26 @@ jobs:
         shell: bash
         # rnpuser is only needed for rnpkeys_generatekey_verifykeyHomeDirNoPermission test
         run: |
+          echo "ENABLE_PQC=${{ matrix.image.pqc }}" >> $GITHUB_ENV
+
           useradd rnpuser
           printf "\nrnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
           printf "\nrnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
 
       - name: Configure
+        shell: bash      
         run: |
+          set -eux
+          [ -n "$ENABLE_PQC" ] && pqc_opt=(-DENABLE_PQC="$ENABLE_PQC" -DENABLE_CRYPTO_REFRESH="$ENABLE_PQC")
+
           cmake -B build                                           \
                 -DBUILD_SHARED_LIBS=ON                             \
                 -DCRYPTO_BACKEND=${{ matrix.image.backend }}       \
                 -DDOWNLOAD_GTEST=ON                                \
                 -DCMAKE_BUILD_TYPE=Release                         \
                 -DCMAKE_CXX_FLAGS_RELEASE="-UNDEBUG"               \
-                -DCMAKE_C_FLAGS_RELEASE="-UNDEBUG"                 .
+                -DCMAKE_C_FLAGS_RELEASE="-UNDEBUG"                 \
+                ${pqc_opt[@]:-}
 
       - name: Build
         run: cmake --build build --parallel ${{ env.CORES }} -- VERBOSE=1
