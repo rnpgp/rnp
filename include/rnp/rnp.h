@@ -2736,7 +2736,7 @@ RNP_API rnp_result_t rnp_key_get_protection_type(rnp_key_handle_t key, char **ty
  *             - "CFB" : secret key data is encrypted in CFB mode, using the password
  *             - "CBC" : secret key data is encrypted in CBC mode, using the password
  *                       (only for G10 keys)
- *             - "OCB" : secert key data is encrypted in OCB mode, using the password
+ *             - "OCB" : secret key data is encrypted in OCB mode, using the password
  *                       (only for G10 keys)
  * @return RNP_SUCCESS on success, or any other value on error.
  */
