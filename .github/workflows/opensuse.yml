@@ -53,7 +53,8 @@ jobs:
       matrix:
         image:
           - { container: 'opensuse-leap',  backend: 'botan' }
-          - { container: 'opensuse-tumbleweed',  backend: 'openssl' }
+          - { container: 'opensuse-tumbleweed',  backend: 'openssl', cxx_std: '17' }
+          - { container: 'opensuse-tumbleweed',  backend: 'botan', cxx_std: '17' }
         env:
           - { CC: 'gcc',   CXX: 'g++'     }
           - { CC: 'clang', CXX: 'clang++' }
@@ -71,6 +72,8 @@ jobs:
         shell: bash
         # rnpuser is only needed for rnpkeys_generatekey_verifykeyHomeDirNoPermission test
         run: |
+          echo "CXX_STD=${{ matrix.image.cxx_std }}" >> $GITHUB_ENV
+
           groupadd rnpuser
           useradd -g rnpuser -m rnpuser
           printf "\nrnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
@@ -79,11 +82,18 @@ jobs:
           fi
 
       - name: Configure
+        shell: bash
         run: |
+          set -eux
+          [ -n "$CXX_STD" ] && cxx_opt=(-DCMAKE_CXX_STANDARD=${CXX_STD})
+
           cmake -B build                                           \
                 -DBUILD_SHARED_LIBS=ON                             \
                 -DCRYPTO_BACKEND=${{ matrix.image.backend }}       \
                 -DDOWNLOAD_GTEST=Off                               \
+                -DCMAKE_CXX_FLAGS_RELEASE="-UNDEBUG"               \
+                -DCMAKE_C_FLAGS_RELEASE="-UNDEBUG"                 \
+                ${cxx_opt[@]:-}                                    \
                 -DCMAKE_BUILD_TYPE=Release                         .
 
       - name: Build
