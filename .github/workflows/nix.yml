@@ -39,7 +39,17 @@ jobs:
         with:
           fetch-depth: 1
           submodules: true
-      - uses: cachix/install-nix-action@v22
+
+      - name: Install Nix (Linux)
+        if: runner.os == 'Linux'
+        uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Install Nix (macOS)
+        if: runner.os == 'macOS'
+        uses: cachix/install-nix-action@v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
       - run: nix build .?submodules=1
