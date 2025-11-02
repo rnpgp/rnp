@@ -179,7 +179,7 @@ load_raw_key(const mpi &keyp, const mpi *keyx, int nid)
     if (!keyx) {
         /* as per RFC, EdDSA & 25519 keys must use 0x40 byte for encoding */
         if ((keyp.size() != 33) || (keyp[0] != 0x40)) {
-            RNP_LOG("Invalid 25519 public key.");
+            RNP_LOG("Invalid 25519 public key. Size %zu, byte 0x%02x", keyp.size(), keyp[0]);
             return nullptr;
         }
         rnp::ossl::evp::PKey evpkey(
