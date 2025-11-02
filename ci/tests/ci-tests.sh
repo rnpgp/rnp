@@ -75,6 +75,9 @@ test_supported_features() {
     # Old versions say ${unsupported[@]} is unbound if empty
     unsupported=( NOOP )
 
+    # Features to ignore in testing
+    ignored=( NOOP )
+
     botan_only=( TWOFISH EAX )
     brainpool=( brainpoolP256r1 brainpoolP384r1 brainpoolP512r1 )
     sm2=( SM2 SM4 SM3 "SM2 P-256" )
@@ -89,16 +92,20 @@ test_supported_features() {
     fi
 
     # IDEA
-    if [[ "$ENABLE_IDEA" == "Off" ]] ;then
+    if [[ "$ENABLE_IDEA" == "Off" ]]; then
         unsupported+=(IDEA)
     else
         supported+=(IDEA)
     fi
 
     case "$OSTYPE" in
-      msys)
+      msys|cygwin)
         so_folder="bin"
         support+=("${brainpool[@]}")
+        # OpenSSL on msys doesn't seem to have legacy provider anymore
+        if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
+            ignored+=( CAST5 BLOWFISH IDEA )
+        fi
         ;;
       darwin*)
         so_folder="lib"
@@ -126,11 +133,17 @@ test_supported_features() {
 
     for feature in "${supported[@]}"
     do
+        if [[ "${ignored[*]}" == *${feature}* ]]; then
+            continue
+        fi
         fea="$(grep -ci "$feature" rnp-version)"
         assertTrue "Unexpected unsupported feature: '$feature'" "[[ $fea -ge 1 ]]"
     done
     for feature in "${unsupported[@]}"
     do
+        if [[ "${ignored[*]}" == *${feature}* ]]; then
+            continue
+        fi
         fea="$(grep -ci "$feature" rnp-version)"
         assertTrue "Unexpected supported feature: '$feature'" "[[ $fea == 0 ]]"
     done
