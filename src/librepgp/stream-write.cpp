@@ -1878,6 +1878,10 @@ build_literal_hdr(const rnp_ctx_t &ctx, pgp_literal_hdr_t &hdr)
 {
     /* content type - forcing binary now */
     hdr.format = 'b';
+#if defined(ENABLE_CRYPTO_REFRESH)
+    // filename and timestamp SHOULD NOT be set (struct is zero-initialized)
+    return;
+#endif
     /* filename */
     size_t flen = ctx.filename.size();
     if (flen > 255) {

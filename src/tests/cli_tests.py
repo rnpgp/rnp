@@ -2928,8 +2928,14 @@ class Misc(unittest.TestCase):
         self.assertEqual(ret, 0)
         ret, out, _ = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
         self.assertEqual(ret, 0)
-        self.assertRegex(out, r'(?s)^.*literal data packet.*mode b.*created \d+.*name="source.txt".*$')
+        if RNP_CRYPTO_REFRESH:
+            self.assertRegex(out, r'(?s)^.*literal data packet.*mode b.*created \d+.*name="".*$')
+        else:
+            self.assertRegex(out, r'(?s)^.*literal data packet.*mode b.*created \d+.*name="source.txt".*$')
         remove_files(enc)
+        if RNP_CRYPTO_REFRESH:
+            # skip following tests
+            return
         # Encrypt file, overriding it's name
         ret, out, _ = run_proc(RNP, ['--set-filename', 'hello', '-c', src, '--password', 'password'])
         self.assertEqual(ret, 0)
@@ -3430,7 +3436,11 @@ class Misc(unittest.TestCase):
                 ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-z', '0', '-r', 'alice', '--aead=eax',
                                            '--set-filename', 'cleartext-z0.txt', '--aead-chunk-bits=1', '-e', srctxt, '--output', enc])
                 self.assertEqual(ret, 0)
-                self.assertEqual(os.path.getsize(enc), eax_size)
+                if RNP_CRYPTO_REFRESH:
+                    # with crypto refresh code we set the empty filename
+                    self.assertEqual(os.path.getsize(enc), eax_size - len('cleartext-z0.txt'))
+                else:
+                    self.assertEqual(os.path.getsize(enc), eax_size)
                 # Decrypt with RNP again
                 ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-d', enc, '--output', dec])
                 self.assertEqual(file_text(srctxt), file_text(dec))
@@ -3445,7 +3455,11 @@ class Misc(unittest.TestCase):
                 ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-z', '0', '-r', 'alice', '--aead=ocb',
                                            '--set-filename', 'cleartext-z0.txt', '--aead-chunk-bits=1', '-e', srctxt, '--output', enc])
                 self.assertEqual(ret, 0)
-                self.assertEqual(os.path.getsize(enc), ocb_size)
+                if RNP_CRYPTO_REFRESH:
+                    # with crypto refresh code we set the empty filename
+                    self.assertEqual(os.path.getsize(enc), ocb_size - len('cleartext-z0.txt'))
+                else:
+                    self.assertEqual(os.path.getsize(enc), ocb_size)
                 # Decrypt with RNP again
                 ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-d', enc, '--output', dec])
                 self.assertEqual(file_text(srctxt), file_text(dec))

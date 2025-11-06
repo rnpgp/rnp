@@ -3457,8 +3457,10 @@ TEST_F(rnp_tests, test_ffi_literal_filename)
     assert_non_null(json);
 
     std::string jstr = json;
+#if !defined(ENABLE_CRYPTO_REFRESH)
     assert_true(jstr.find("\"filename\":\"testfile.dat\"") != std::string::npos);
     assert_true(jstr.find("\"timestamp\":12345678") != std::string::npos);
+#endif
 
     assert_rnp_success(rnp_input_destroy(input));
     rnp_buffer_destroy(signed_buf);
