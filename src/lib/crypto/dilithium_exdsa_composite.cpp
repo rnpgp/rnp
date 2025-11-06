@@ -76,14 +76,14 @@ pgp_dilithium_exdsa_composite_key_t::exdsa_curve_privkey_size(pgp_curve_t curve)
         return 32;
     case PGP_CURVE_ED448:
         return 57;
-    case PGP_CURVE_NIST_P_256:
-        return 32;
     case PGP_CURVE_NIST_P_384:
         return 48;
-    case PGP_CURVE_BP256:
-        return 32;
+    case PGP_CURVE_NIST_P_521:
+        return 66;
     case PGP_CURVE_BP384:
         return 48;
+    case PGP_CURVE_BP512:
+        return 64;
     default:
         RNP_LOG("invalid curve given");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -98,14 +98,14 @@ pgp_dilithium_exdsa_composite_key_t::exdsa_curve_pubkey_size(pgp_curve_t curve)
         return 32;
     case PGP_CURVE_ED448:
         return 57;
-    case PGP_CURVE_NIST_P_256:
-        return 65;
     case PGP_CURVE_NIST_P_384:
         return 97;
-    case PGP_CURVE_BP256:
-        return 65;
+    case PGP_CURVE_NIST_P_521:
+        return 133;
     case PGP_CURVE_BP384:
         return 97;
+    case PGP_CURVE_BP512:
+        return 129;
     default:
         RNP_LOG("invalid curve given");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -120,14 +120,14 @@ pgp_dilithium_exdsa_composite_key_t::exdsa_curve_signature_size(pgp_curve_t curv
         return 64;
     case PGP_CURVE_ED448:
         return 114;
-    case PGP_CURVE_NIST_P_256:
-        return 64;
     case PGP_CURVE_NIST_P_384:
         return 96;
-    case PGP_CURVE_BP256:
-        return 64;
+    case PGP_CURVE_NIST_P_521:
+        return 132;
     case PGP_CURVE_BP384:
         return 96;
+    case PGP_CURVE_BP512:
+        return 128;
     default:
         RNP_LOG("invalid curve given");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -140,13 +140,13 @@ pgp_dilithium_exdsa_composite_key_t::pk_alg_to_dilithium_id(pgp_pubkey_alg_t pk_
     switch (pk_alg) {
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
+    case PGP_PKA_DILITHIUM3_P384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
+    case PGP_PKA_DILITHIUM3_BP384:
         return dilithium_L3;
-    case PGP_PKA_DILITHIUM5_BP384:
+    case PGP_PKA_DILITHIUM5_BP512:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
+    case PGP_PKA_DILITHIUM5_P521:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_ED448:
         return dilithium_L5;
@@ -162,14 +162,14 @@ pgp_dilithium_exdsa_composite_key_t::pk_alg_to_curve_id(pgp_pubkey_alg_t pk_alg)
     switch (pk_alg) {
     case PGP_PKA_DILITHIUM3_ED25519:
         return PGP_CURVE_ED25519;
-    case PGP_PKA_DILITHIUM3_P256:
-        return PGP_CURVE_NIST_P_256;
-    case PGP_PKA_DILITHIUM3_BP256:
-        return PGP_CURVE_BP256;
-    case PGP_PKA_DILITHIUM5_BP384:
-        return PGP_CURVE_BP384;
-    case PGP_PKA_DILITHIUM5_P384:
+    case PGP_PKA_DILITHIUM3_P384:
         return PGP_CURVE_NIST_P_384;
+    case PGP_PKA_DILITHIUM3_BP384:
+        return PGP_CURVE_BP384;
+    case PGP_PKA_DILITHIUM5_BP512:
+        return PGP_CURVE_BP512;
+    case PGP_PKA_DILITHIUM5_P521:
+        return PGP_CURVE_NIST_P_521;
     case PGP_PKA_DILITHIUM5_ED448:
         return PGP_CURVE_ED448;
     default:

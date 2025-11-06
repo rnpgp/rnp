@@ -54,13 +54,13 @@ EncMaterial::create(pgp_pubkey_alg_t alg)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_P256:
+    case PGP_PKA_KYBER768_P384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P384:
+    case PGP_PKA_KYBER1024_P521:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_BP256:
+    case PGP_PKA_KYBER768_BP384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384:
+    case PGP_PKA_KYBER1024_BP512:
 #endif
         return std::unique_ptr<EncMaterial>(new MlkemEcdhEncMaterial(alg));
 #endif

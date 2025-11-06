@@ -638,6 +638,7 @@ encrypted_add_recipient(rnp_ctx_t &              ctx,
     }
 
 #if defined(ENABLE_PQC_DBG_LOG)
+    RNP_LOG_U8VEC("Key: %s", std::vector<uint8_t>(key.begin(), key.end()));
     RNP_LOG_U8VEC("Session Key: %s", std::vector<uint8_t>(enckey.begin(), enckey.end()));
 #endif
 
