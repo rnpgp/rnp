@@ -631,9 +631,9 @@ TEST_F(rnp_tests, kyber_ecdh_roundtrip)
         PGP_PKA_KYBER768_X25519,
 #if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         PGP_PKA_KYBER1024_X448,
-        PGP_PKA_KYBER1024_P384,
-        PGP_PKA_KYBER768_BP256,
-        PGP_PKA_KYBER1024_BP384
+        PGP_PKA_KYBER1024_P521,
+        PGP_PKA_KYBER768_BP384,
+        PGP_PKA_KYBER1024_BP512
 #endif
     };
 
@@ -669,10 +669,10 @@ TEST_F(rnp_tests, dilithium_exdsa_signverify_success)
 
     pgp_pubkey_alg_t algs[] = {PGP_PKA_DILITHIUM3_ED25519,
                                PGP_PKA_DILITHIUM5_ED448,
-                               PGP_PKA_DILITHIUM3_P256,
-                               PGP_PKA_DILITHIUM5_P384,
-                               PGP_PKA_DILITHIUM3_BP256,
-                               PGP_PKA_DILITHIUM5_BP384};
+                               PGP_PKA_DILITHIUM3_P384,
+                               PGP_PKA_DILITHIUM5_P521,
+                               PGP_PKA_DILITHIUM3_BP384,
+                               PGP_PKA_DILITHIUM5_BP512};
 
     for (size_t i = 0; i < ARRAY_SIZE(algs); i++) {
         // Generate test data. Mainly to make valgrind not to complain about uninitialized data

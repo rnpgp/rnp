@@ -164,13 +164,13 @@ KeyParams::create(pgp_pubkey_alg_t alg)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_P256:
+    case PGP_PKA_KYBER768_P384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P384:
+    case PGP_PKA_KYBER1024_P521:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_BP256:
+    case PGP_PKA_KYBER768_BP384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384:
+    case PGP_PKA_KYBER1024_BP512:
 #endif
         return std::unique_ptr<KeyParams>(new MlkemEcdhKeyParams(alg));
 #endif
@@ -179,13 +179,13 @@ KeyParams::create(pgp_pubkey_alg_t alg)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_ED448:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
+    case PGP_PKA_DILITHIUM3_P384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
+    case PGP_PKA_DILITHIUM5_P521:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
+    case PGP_PKA_DILITHIUM3_BP384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
+    case PGP_PKA_DILITHIUM5_BP512:
         return std::unique_ptr<KeyParams>(new DilithiumEccKeyParams(alg));
     case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
@@ -422,13 +422,13 @@ KeyMaterial::create(pgp_pubkey_alg_t alg)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_P256:
+    case PGP_PKA_KYBER768_P384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P384:
+    case PGP_PKA_KYBER1024_P521:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_BP256:
+    case PGP_PKA_KYBER768_BP384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384:
+    case PGP_PKA_KYBER1024_BP512:
 #endif
         return std::unique_ptr<KeyMaterial>(new MlkemEcdhKeyMaterial(alg));
 #endif
@@ -437,13 +437,13 @@ KeyMaterial::create(pgp_pubkey_alg_t alg)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_ED448:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
+    case PGP_PKA_DILITHIUM3_P384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
+    case PGP_PKA_DILITHIUM5_P521:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
+    case PGP_PKA_DILITHIUM3_BP384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
+    case PGP_PKA_DILITHIUM5_BP512:
         return std::unique_ptr<KeyMaterial>(new DilithiumEccKeyMaterial(alg));
     case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
