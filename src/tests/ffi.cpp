@@ -2848,16 +2848,16 @@ TEST_F(rnp_tests, test_ffi_stdout_output)
 static std::vector<uint8_t>
 shrink_len_2_to_1(const std::vector<uint8_t> &src)
 {
-    std::vector<uint8_t> dst = std::vector<uint8_t>();
-    dst.reserve(src.size() - 1);
-    dst.insert(dst.end(),
-               PGP_PTAG_ALWAYS_SET | (PGP_PKT_PUBLIC_KEY << PGP_PTAG_OF_CONTENT_TAG_SHIFT) |
-                 PGP_PTAG_OLD_LEN_1);
     // make sure the most significant octet of 2-octet length is actually zero
-    if (src[1] != 0) {
+    if ((src.size() < 3) || (src[1] != 0)) {
         throw std::invalid_argument("src");
     }
-    dst.insert(dst.end(), src[2]);
+
+    std::vector<uint8_t> dst;
+    dst.reserve(src.size() - 1);
+    dst.push_back(PGP_PTAG_ALWAYS_SET | (PGP_PKT_PUBLIC_KEY << PGP_PTAG_OF_CONTENT_TAG_SHIFT) |
+                  PGP_PTAG_OLD_LEN_1);
+    dst.push_back(src[2]);
     dst.insert(dst.end(), src.begin() + 3, src.end());
     return dst;
 }
