@@ -27,6 +27,7 @@
 #ifndef RNP_LOGGING_H_
 #define RNP_LOGGING_H_
 
+#include "config.h"
 #include <stdlib.h>
 #include <stdint.h>
 

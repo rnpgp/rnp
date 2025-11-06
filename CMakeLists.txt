@@ -83,9 +83,7 @@ option(ENABLE_CRYPTO_REFRESH "Enable crypto-refresh support (v6)")
 option(ENABLE_PQC "Enable PQC support")
 
 # Note: The following flag is only temporary and will be removed once POC is in a stable state
-if (DEFINED ENABLE_PQC_DBG_LOG)
-  add_definitions(-DENABLE_PQC_DBG_LOG)
-endif()
+option(ENABLE_PQC_DBG_LOG "Enable debug logging for PQC")
 
 set(ENABLE_DOC Auto CACHE STRING "Enable building documentation.")
 set_property(CACHE ENABLE_DOC PROPERTY STRINGS ${TRISTATE_VALUES})
