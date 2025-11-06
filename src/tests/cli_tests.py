@@ -4712,17 +4712,16 @@ class Encryption(unittest.TestCase):
         ALGO_PARAM = []
         if RNP_CRYPTO_REFRESH:
             RNPDIR_PQC += 'PQC_CR'
-            algo_ui_exp_strs = [ "(24) Ed25519 + X25519 + (ML-KEM-768 + X25519)",
+            algo_ui_exp_strs = ["(24) Ed25519 + X25519 + (ML-KEM-768 + X25519)",
                                 "(25) (ML-DSA-65 + Ed25519) + (ML-KEM-768 + X25519)",
                                 "(26) (ML-DSA-87 + Ed448) + (ML-KEM-1024 + X448)",
-                                "(27) (ML-DSA-65 + ECDSA-NIST-P-256) + (ML-KEM-768 + ECDH-NIST-P-256)",
-                                "(28) (ML-DSA-87 + ECDSA-NIST-P-384) + (ML-KEM-1024 + ECDH-NIST-P-384)",
-                                "(29) (ML-DSA-65 + ECDSA-brainpoolP256r1) + (ML-KEM-768 + ECDH-brainpoolP256r1)",
-                                "(30) (ML-DSA-87 + ECDSA-brainpoolP384r1) + (ML-KEM-1024 + ECDH-brainpoolP384r1)",
+                                "(27) (ML-DSA-65 + ECDSA-NIST-P-384) + (ML-KEM-768 + ECDH-NIST-P-384)",
+                                "(28) (ML-DSA-87 + ECDSA-NIST-P-521) + (ML-KEM-1024 + ECDH-NIST-P-521)",
+                                "(29) (ML-DSA-65 + ECDSA-brainpoolP384r1) + (ML-KEM-768 + ECDH-brainpoolP384r1)",
+                                "(30) (ML-DSA-87 + ECDSA-brainpoolP512r1) + (ML-KEM-1024 + ECDH-brainpoolP512r1)",
                                 "(31) SLH-DSA-SHAKE-128f + (ML-KEM-768 + X25519)",
                                 "(32) SLH-DSA-SHAKE-128s + (ML-KEM-768 + X25519)",
-                                "(33) SLH-DSA-SHAKE-256s + (ML-KEM-1024 + ECDH-NIST-P-384)",
-                                ]
+                                "(33) SLH-DSA-SHAKE-256s + (ML-KEM-1024 + ECDH-NIST-P-521)"]
 
             USERIDS = ['enc-sign24@rnp', 'enc-sign25@rnp', 'enc-sign26@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign31@rnp','enc-sign32@rnp','enc-sign33@rnp','enc-sign34@rnp']
             ALGO = [24, 25, 26,  27,   28,   29,   30,   31, 32, 33, 34]

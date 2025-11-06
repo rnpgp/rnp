@@ -1008,11 +1008,11 @@ TEST_F(rnp_tests, test_ffi_pqc_gen_enc_sign)
 {
     std::vector<std::pair<std::string, std::string>> primary_sub = {
       {"ML-DSA-65+ED25519", "ML-KEM-768+X25519"},
-      {"ML-DSA-65+ECDSA-P256", "ML-KEM-768+ECDH-P256"},
       {"ML-DSA-87+ED448", "ML-KEM-1024+X448"},
-      {"ML-DSA-87+ECDSA-P384", "ML-KEM-1024+ECDH-P384"},
-      {"ML-DSA-65+ECDSA-BP256", "ML-KEM-768+ECDH-BP256"},
-      {"ML-DSA-87+ECDSA-BP384", "ML-KEM-1024+ECDH-BP384"},
+      {"ML-DSA-65+ECDSA-P384", "ML-KEM-768+ECDH-P384"},
+      {"ML-DSA-87+ECDSA-P521", "ML-KEM-1024+ECDH-P521"},
+      {"ML-DSA-65+ECDSA-BP384", "ML-KEM-768+ECDH-BP384"},
+      {"ML-DSA-87+ECDSA-BP512", "ML-KEM-1024+ECDH-BP512"},
       {"SLH-DSA-SHAKE-128f", "ML-KEM-768+X25519"},
       {"SLH-DSA-SHAKE-128s", "ML-KEM-768+X25519"},
       {"SLH-DSA-SHAKE-256s", "ML-KEM-1024+X448"}};
