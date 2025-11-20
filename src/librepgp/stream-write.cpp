@@ -756,12 +756,13 @@ encrypted_add_password_v5(pgp_dest_encrypted_param_t &     param,
 }
 
 static bool
-encrypted_build_skesk(pgp_dest_encrypted_param_t &param,
-                      rnp::secure_bytes &         key,
-                      const size_t                keylen)
+encrypted_build_cek(pgp_dest_encrypted_param_t &param,
+                    rnp::secure_bytes &         key,
+                    const size_t                keylen)
 {
     auto &ctx = param.ctx;
     if (ctx.passwords.empty()) {
+        ctx.sec_ctx.rng.get(key.data(), keylen);
         return true;
     }
 
@@ -1036,7 +1037,7 @@ init_encrypted_dst(rnp_ctx_t &ctx, pgp_dest_t &dst, pgp_dest_t &writedst)
 
     /* Build SKESK and generate CEK */
     rnp_result_t ret = RNP_ERROR_BAD_PARAMETERS;
-    if (!encrypted_build_skesk(*param, enckey, keylen)) {
+    if (!encrypted_build_cek(*param, enckey, keylen)) {
         goto finish;
     }
 
