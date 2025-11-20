@@ -5000,6 +5000,37 @@ class Encryption(unittest.TestCase):
         self.assertNotEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*failed to obtain decrypting key or password.*')
 
+    def test_encryption_cek(self):
+        RNPDIR2 = RNPDIR + '2'
+        os.mkdir(RNPDIR2, 0o700)
+        GPGHOME2 = GPGHOME + '2'
+        GPGDIR2 = GPGDIR + '2'
+        os.mkdir(GPGDIR2, 0o700)
+        # Generate default key
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR2, '--generate', '--userid', 'test_cek', '--password', PASSWORD])
+        self.assertEqual(ret, 0)
+        # Import key by GnuPG
+        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME2, GPG_LOOPBACK, '--passphrase', PASSWORD, '--import', RNPDIR2 + '/secring.gpg'])
+        # Encrypt some data
+        src, enc = reg_workfiles('cleartext', '.txt', '.enc')
+        random_text(src, 2000)
+        pattern = re.compile(r'(?s)gpg: encrypted with.*test_cek.*session key: \'[\d]+:([0-9A-F]{64})\'.*')
+        keys = set()
+
+        for _ in range(10):
+            ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR2, '-r', 'test_cek', '-e', src, '--overwrite', '--output', enc])
+            self.assertEqual(ret, 0)
+            ret, _, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME2, '--show-session-key', GPG_LOOPBACK, '--passphrase', PASSWORD, '--output', '/dev/null', '-d', enc])
+            self.assertEqual(ret, 0)
+            m = pattern.match(err)
+            self.assertTrue(m)
+            key = m.group(1)
+            self.assertNotIn(key, keys)
+            keys.add(key)
+        
+        shutil.rmtree(RNPDIR2, ignore_errors=True)
+        shutil.rmtree(GPGDIR2, ignore_errors=True)
+
 class Compression(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
