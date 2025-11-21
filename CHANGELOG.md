@@ -4,16 +4,18 @@
 
 #### Security
 
-* Fixed critical issue where PKESK (public-key encrypted) session keys were
-  generated as all-zero, allowing trivial decryption of messages encrypted with
-  public keys only (CVE-PENDING,
-  https://bugzilla.redhat.com/show_bug.cgi?id=2415863).
+* Fixed a vulnerability in session key generation for PKESK (Public Key Encrypted Session Key) packets.
+Session keys were generated without cryptographically random values.
 
+* CVE: [CVE-2025-13470](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2025-13470)
+* Ribose CNA Advisory: https://cve.ribose.com/advisories/ra-2025-11-20/
+* Red Hat CVE: https://access.redhat.com/security/cve/cve-2025-13402  
 
 ### 0.18.0 [2025-05-24] -- RETRACTED, DON'T USE
 
-**SECURITY WARNING:** This version contains a critical vulnerability where
-public-key encrypted messages use all-zero session keys. All users must upgrade
+**SECURITY WARNING:** This version contains a vulnerability in session key generation for
+PKESK (Public Key Encrypted Session Key) packets. Session keys are generated
+without cryptographically random values. All users must upgrade
 to 0.18.1 or later immediately.
 
 #### General
