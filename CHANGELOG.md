@@ -1,6 +1,22 @@
 ## Changelog
 
-### 0.18.0 [2025-05-24]
+### 0.18.1 [2025-11-21]
+
+#### Security
+
+* Fixed a vulnerability in session key generation for PKESK (Public Key Encrypted Session Key) packets.
+Session keys were generated without cryptographically random values.
+
+* CVE: [CVE-2025-13470](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2025-13470)
+* Ribose CNA Advisory: https://cve.ribose.com/advisories/ra-2025-11-20/
+* Red Hat CVE: https://access.redhat.com/security/cve/cve-2025-13402  
+
+### 0.18.0 [2025-05-24] -- RETRACTED, DON'T USE
+
+**SECURITY WARNING:** This version contains a vulnerability in session key generation for
+PKESK (Public Key Encrypted Session Key) packets. Session keys are generated
+without cryptographically random values. All users must upgrade
+to 0.18.1 or later immediately.
 
 #### General
 
@@ -464,7 +480,7 @@
 
 #### FFI
 
-* Fixed key search by fingerprint. 
+* Fixed key search by fingerprint.
 
 
 ### 0.9.0 [2018-06-27]

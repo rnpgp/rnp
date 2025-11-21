@@ -54,7 +54,7 @@ Prerequisites: please ensure `git` is installed on the system
 [source,console]
 ----
 # Clone the repository by version tag (or omit it to get the latest sources)
-git clone https://github.com/rnpgp/rnp.git -b v0.18.0
+git clone https://github.com/rnpgp/rnp.git -b v0.18.1
 
 Please ensure that you clone with submodules if you use a version higher then 0.16.2
 git clone https://github.com/rnpgp/rnp.git --recurse-submodules --shallow-submodules
@@ -63,8 +63,8 @@ git clone https://github.com/rnpgp/rnp.git --recurse-submodules --shallow-submod
 sudo apt install g++-8 cmake libbz2-dev zlib1g-dev libjson-c-dev build-essential python-minimal
 
 # Download, build and install Botan2
-wget -qO- https://botan.randombit.net/releases/Botan-2.19.4.tar.xz | tar xvJ
-cd Botan-2.19.4
+wget -qO- https://botan.randombit.net/releases/Botan-3.10.0.tar.xz | tar xvJ
+cd Botan-3.10.0
 ./configure.py --prefix=/usr
 make
 sudo make install
@@ -91,7 +91,7 @@ Prerequisite: please ensure `git` is installed on the system.
 [source,console]
 ----
 # Clone the repository by version tag (or omit it to get the latest sources)
-git clone https://github.com/rnpgp/rnp.git -b v0.18.0
+git clone https://github.com/rnpgp/rnp.git -b v0.18.1
 
 Please ensure that you clone with submodules if you use a version higher then 0.16.2
 git clone https://github.com/rnpgp/rnp.git --recurse-submodules --shallow-submodules
