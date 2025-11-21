@@ -1,6 +1,20 @@
 ## Changelog
 
-### 0.18.0 [2025-05-24]
+### 0.18.1 [2025-11-21]
+
+#### Security
+
+* Fixed critical issue where PKESK (public-key encrypted) session keys were
+  generated as all-zero, allowing trivial decryption of messages encrypted with
+  public keys only (CVE-PENDING,
+  https://bugzilla.redhat.com/show_bug.cgi?id=2415863).
+
+
+### 0.18.0 [2025-05-24] -- RETRACTED, DON'T USE
+
+**SECURITY WARNING:** This version contains a critical vulnerability where
+public-key encrypted messages use all-zero session keys. All users must upgrade
+to 0.18.1 or later immediately.
 
 #### General
 
@@ -464,7 +478,7 @@
 
 #### FFI
 
-* Fixed key search by fingerprint. 
+* Fixed key search by fingerprint.
 
 
 ### 0.9.0 [2018-06-27]
