@@ -1002,7 +1002,69 @@ TEST_F(rnp_tests, test_ffi_decrypt_pk_unlocked)
     rnp_ffi_destroy(ffi);
 }
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
+/* generate keys and make sure they are usable */
+TEST_F(rnp_tests, test_ffi_pqc_gen_enc_sign)
+{
+    std::vector<std::pair<std::string, std::string>> primary_sub = {
+      {"ML-DSA-65+ED25519", "ML-KEM-768+X25519"},
+      {"ML-DSA-87+ED448", "ML-KEM-1024+X448"},
+      {"ML-DSA-65+ECDSA-P384", "ML-KEM-768+ECDH-P384"},
+      {"ML-DSA-87+ECDSA-P521", "ML-KEM-1024+ECDH-P521"},
+      {"ML-DSA-65+ECDSA-BP384", "ML-KEM-768+ECDH-BP384"},
+      {"ML-DSA-87+ECDSA-BP512", "ML-KEM-1024+ECDH-BP512"},
+      {"SLH-DSA-SHAKE-128f", "ML-KEM-768+X25519"},
+      {"SLH-DSA-SHAKE-128s", "ML-KEM-768+X25519"},
+      {"SLH-DSA-SHAKE-256s", "ML-KEM-1024+X448"}};
+    for (auto pk_algs : primary_sub) {
+        rnp_ffi_t        ffi = NULL;
+        rnp_key_handle_t key = NULL;
+        rnp_input_t      input = NULL;
+        rnp_output_t     output = NULL;
+        rnp_op_encrypt_t op = NULL;
+        const char *     plaintext = "data1";
+        assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+        assert_rnp_success(rnp_generate_key_ex(ffi,
+                                               pk_algs.first.c_str(),
+                                               pk_algs.second.c_str(),
+                                               0,
+                                               0,
+                                               NULL,
+                                               NULL,
+                                               "Test UID",
+                                               NULL,
+                                               &key));
+        // encrypt+sign
+        str_to_file("plaintext", plaintext);
+        assert_rnp_success(rnp_input_from_path(&input, "plaintext"));
+        assert_non_null(input);
+        assert_rnp_success(rnp_output_to_path(&output, "encrypted"));
+        assert_non_null(output);
+        assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
+        assert_rnp_success(rnp_op_encrypt_add_recipient(op, key));
+        assert_rnp_success(rnp_op_encrypt_set_cipher(op, "AES256"));
+        assert_rnp_success(rnp_op_encrypt_add_signature(op, key, NULL));
+        assert_rnp_success(rnp_op_encrypt_execute(op));
+        assert_true(rnp_file_exists("encrypted"));
+        assert_rnp_success(rnp_input_destroy(input));
+        input = NULL;
+        assert_rnp_success(rnp_output_destroy(output));
+        output = NULL;
+        /* decrypt */
+        assert_rnp_success(rnp_input_from_path(&input, "encrypted"));
+        assert_non_null(input);
+        assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+        assert_non_null(output);
+        assert_rnp_success(rnp_decrypt(ffi, input, output));
+        // cleanup
+        assert_rnp_success(rnp_op_encrypt_destroy(op));
+        assert_rnp_success(rnp_input_destroy(input));
+        assert_rnp_success(rnp_output_destroy(output));
+        assert_rnp_success(rnp_key_handle_destroy(key));
+        assert_rnp_success(rnp_ffi_destroy(ffi));
+    }
+}
+
 TEST_F(rnp_tests, test_ffi_decrypt_v6_pkesk_test_vector)
 {
     rnp_ffi_t    ffi = NULL;
@@ -1010,9 +1072,9 @@ TEST_F(rnp_tests, test_ffi_decrypt_v6_pkesk_test_vector)
     rnp_output_t output = NULL;
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_true(import_all_keys(ffi, "data/test_v6_valid_data/transferable_seckey_v6.asc"));
+    assert_true(import_all_keys(ffi, "data/RFC9580/A.4.transferable-seckey-v6.asc"));
 
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_v6_valid_data/v6pkesk.asc"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/RFC9580/A.8.5-v6pkesk-v2seipd"));
     assert_non_null(input);
     assert_rnp_success(rnp_output_to_null(&output));
     assert_rnp_success(rnp_decrypt(ffi, input, output));
@@ -1023,68 +1085,102 @@ TEST_F(rnp_tests, test_ffi_decrypt_v6_pkesk_test_vector)
     rnp_ffi_destroy(ffi);
 }
 
-#if defined(ENABLE_PQC)
-// NOTE: this tests ML-KEM-ipd test vectors
-// The final implementation of the PQC draft implementation will use the final NIST standard.
-TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
+TEST_F(rnp_tests, test_ffi_verify_v2_seipd_test_vector)
 {
-    bool expect_success = true;
-#if !(defined(BOTAN_HAS_ML_KEM_INITIAL_PUBLIC_DRAFT) && defined(ENABLE_PQC_MLKEM_IPD))
-    // we can only verify the test vectors with ML-KEM-ipd
-    expect_success = false;
-#endif
-
-    rnp_ffi_t    ffi = NULL;
-    rnp_input_t  input = NULL;
-    rnp_output_t output = NULL;
+    rnp_ffi_t       ffi = NULL;
+    rnp_input_t     input = NULL;
+    rnp_output_t    output = NULL;
+    rnp_op_verify_t verify = NULL;
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_true(import_all_keys(ffi, "data/draft-ietf-openpgp-pqc/v6-eddsa-mlkem.sec.asc"));
-    assert_true(import_all_keys(ffi, "data/draft-ietf-openpgp-pqc/v4-eddsa-mlkem.sec.asc"));
+    assert_true(import_all_keys(ffi, "data/RFC9580/A.4.transferable-seckey-v6.asc"));
 
-    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
     assert_rnp_success(
-      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v6-seipdv2.asc"));
+      rnp_input_from_path(&input, "data/RFC9580/A.7.-sample-inline-signed-message.asc"));
     assert_non_null(input);
-    if (expect_success) {
-        assert_rnp_success(rnp_decrypt(ffi, input, output));
-        assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
-    } else {
-        assert_rnp_failure(rnp_decrypt(ffi, input, output));
-    }
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+
+    /* dash-escaped */
+    assert_string_equal(
+      file_to_str("decrypted").c_str(),
+      "What we need from the grocery store:\n\n- tofu\n- vegetables\n- noodles\n");
     assert_int_equal(unlink("decrypted"), 0);
+
+    // cleanup
     rnp_input_destroy(input);
     rnp_output_destroy(output);
-
-    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v4-seipdv1.asc"));
-    assert_non_null(input);
-    if (expect_success) {
-        assert_rnp_success(rnp_decrypt(ffi, input, output));
-        assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
-    } else {
-        assert_rnp_failure(rnp_decrypt(ffi, input, output));
-    }
-    assert_int_equal(unlink("decrypted"), 0);
-    rnp_input_destroy(input);
-    rnp_output_destroy(output);
-
-    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/draft-ietf-openpgp-pqc/v4-seipdv1.asc"));
-    assert_non_null(input);
-    if (expect_success) {
-        assert_rnp_success(rnp_decrypt(ffi, input, output));
-        assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
-    } else {
-        assert_rnp_failure(rnp_decrypt(ffi, input, output));
-    }
-    assert_int_equal(unlink("decrypted"), 0);
-    rnp_input_destroy(input);
-    rnp_output_destroy(output);
-
+    rnp_op_verify_destroy(verify);
     rnp_ffi_destroy(ffi);
+}
+
+/* RNP currently skips v6 signatures on cleartext signatures.
+This test expects the failure. Eventually, if v6 signatures are supported, the test should be
+adapted */
+TEST_F(rnp_tests, test_ffi_verify_v2_seipd_cleartext_test_vector)
+{
+    rnp_ffi_t       ffi = NULL;
+    rnp_input_t     input = NULL;
+    rnp_output_t    output = NULL;
+    rnp_op_verify_t verify = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_all_keys(ffi, "data/RFC9580/A.4.transferable-seckey-v6.asc"));
+
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/RFC9580/A.6.-sample-cleartext-signed-message.asc"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_int_equal(RNP_ERROR_SIGNATURE_INVALID, rnp_op_verify_execute(verify));
+
+    // /* dash-escaped */
+    // assert_string_equal(
+    //   file_to_str("decrypted").c_str(),
+    //   "What we need from the grocery store:\n\n- tofu\n- vegetables\n- noodles\n");
+    // assert_int_equal(unlink("decrypted"), 0);
+
+    // cleanup
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    rnp_op_verify_destroy(verify);
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
+{
+    std::vector<std::pair<std::string, std::string>> key_msg_pairs = {
+      {"data/draft-ietf-openpgp-pqc/v6-eddsa-sample-sk.asc",
+       "data/draft-ietf-openpgp-pqc/v6-eddsa-sample-message.asc"},
+      {"data/draft-ietf-openpgp-pqc/v4-eddsa-sample-sk.asc",
+       "data/draft-ietf-openpgp-pqc/v4-eddsa-sample-message-v1.asc"},
+      {"data/draft-ietf-openpgp-pqc/v4-eddsa-sample-sk.asc",
+       "data/draft-ietf-openpgp-pqc/v4-eddsa-sample-message-v2.asc"},
+      {"data/draft-ietf-openpgp-pqc/v6-mldsa-65-sample-sk.asc",
+       "data/draft-ietf-openpgp-pqc/v6-mldsa-65-sample-message.asc"},
+      {"data/draft-ietf-openpgp-pqc/v6-mldsa-87-sample-sk.asc",
+       "data/draft-ietf-openpgp-pqc/v6-mldsa-87-sample-message.asc"},
+      {"data/draft-ietf-openpgp-pqc/v6-slhdsa-128s-sample-sk.asc",
+       "data/draft-ietf-openpgp-pqc/v6-slhdsa-128s-sample-message.asc"}};
+
+    for (auto key_msg_pair : key_msg_pairs) {
+        rnp_ffi_t    ffi = NULL;
+        rnp_input_t  input = NULL;
+        rnp_output_t output = NULL;
+        assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+        assert_true(import_all_keys(ffi, key_msg_pair.first.c_str()));
+
+        assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+        assert_rnp_success(rnp_input_from_path(&input, key_msg_pair.second.c_str()));
+        assert_non_null(input);
+        assert_rnp_success(rnp_decrypt(ffi, input, output));
+        assert_string_equal(file_to_str("decrypted").c_str(), "Testing\n");
+        assert_int_equal(unlink("decrypted"), 0);
+        rnp_input_destroy(input);
+        rnp_output_destroy(output);
+    }
 }
 
 TEST_F(rnp_tests, test_ffi_pqc_default_enc_subkey)
@@ -1151,7 +1247,6 @@ TEST_F(rnp_tests, test_ffi_pqc_default_enc_subkey)
     rnp_key_handle_destroy(defkey2);
     rnp_ffi_destroy(ffi);
 }
-#endif
 
 TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
 {
@@ -1164,15 +1259,32 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
     // setup FFI
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
 
-    assert_true(import_all_keys(ffi, "data/test_v6_valid_data/transferable_seckey_v6.asc"));
+    assert_true(import_all_keys(ffi, "data/RFC9580/A.4.transferable-seckey-v6.asc"));
 
+    // No other cipher can be used here: the only 128-bit block ciphers in OpenPGP aside from
+    // AES are Camellia and TwoFish.
     std::vector<std::string> ciphers = {"AES128", "AES192", "AES256"};
+#ifdef ENABLE_TWOFISH
+    ciphers.push_back("TwoFish");
+#endif
+#if (defined BOTAN_HAS_CAMELLIA || !defined CRYPTO_BACKEND_BOTAN3)
+    // ENABLE_CAMELLIA does not exist, yet BOTAN might not support this algorithm.
+    std::vector<std::string> camellia({"Camellia128", "Camellia192", "Camellia256"});
+    ciphers.insert(ciphers.end(), camellia.begin(), camellia.end());
+#endif
     std::vector<std::string> aead_modes = {"None", "EAX", "OCB"};
     std::vector<bool>        enable_pkeskv6_modes = {true, false};
 
     for (auto enable_pkeskv6 : enable_pkeskv6_modes)
         for (auto aead : aead_modes)
             for (auto cipher : ciphers) {
+                bool expect_success = true;
+                if (!enable_pkeskv6 && (cipher == "TwoFish" || cipher.find("Camellia") == 0)) {
+                    // This combination is not supported, since the algorithm ID is fixed to
+                    // AES for v3 PKESK for the public key algorithm featured by the key used
+                    // here.
+                    expect_success = false;
+                }
                 // write out some data
                 FILE *fp = fopen("plaintext", "wb");
                 assert_non_null(fp);
@@ -1210,7 +1322,12 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
                 assert_rnp_success(rnp_op_encrypt_set_cipher(op, cipher.c_str()));
 
                 // execute the operation
-                assert_rnp_success(rnp_op_encrypt_execute(op));
+                if (expect_success) {
+                    assert_rnp_success(rnp_op_encrypt_execute(op));
+                } else {
+                    assert_rnp_failure(rnp_op_encrypt_execute(op));
+                    continue;
+                }
 
                 // make sure the output file was created
                 assert_true(rnp_file_exists("encrypted"));
@@ -1222,8 +1339,6 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
                 output = NULL;
                 assert_rnp_success(rnp_op_encrypt_destroy(op));
                 op = NULL;
-
-                /* decrypt */
 
                 // decrypt
                 assert_rnp_success(rnp_input_from_path(&input, "encrypted"));

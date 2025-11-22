@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, [MTG AG](https://www.mtg.de).
+ * Copyright (c) 2024, [MTG AG](https://www.mtg.de).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -24,29 +24,41 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef CRYPTO_KMAC_BOTAN_HPP_
-#define CRYPTO_KMAC_BOTAN_HPP_
+#ifndef CRYPTO_KEM_COMBINER_H_
+#define CRYPTO_KEM_COMBINER_H_
 
-#include "kmac.hpp"
+#include <repgp/repgp_def.h>
+#include "types.h"
+#include "config.h"
 
 namespace rnp {
+class PqcKemCombiner {
+    /* KDF for PQC key combiner according to
+     * https://datatracker.ietf.org/doc/html/draft-ietf-openpgp-pqc */
 
-class KMAC256_Botan : public KMAC256 {
   private:
+    /* The value domSep is a constant set to the UTF-8 encoding of the
+       string "OpenPGPCompositeKDFv1", i.e.
+       domSep := 4F 70 65 6E 50 47 50 43 6F 6D 70 6F 73 69 74 65 4B 44 46 76 31
+       len(domSep) = 0x15
+
+       We also concatenate len(domSep) here
+    */
+    static std::vector<uint8_t>
+    domSeparation()
+    {
+        return std::vector<uint8_t>({0x4F, 0x70, 0x65, 0x6E, 0x50, 0x47, 0x50, 0x43,
+                                     0x6F, 0x6D, 0x70, 0x6F, 0x73, 0x69, 0x74, 0x65,
+                                     0x4B, 0x44, 0x46, 0x76, 0x31, 0x15});
+    }
+
   public:
-    KMAC256_Botan();
-    KMAC256_Botan(const KMAC256_Botan &src);
-
-    virtual ~KMAC256_Botan();
-
-    static std::unique_ptr<KMAC256_Botan> create();
-
-    void compute(const std::vector<uint8_t> &ecc_key_share,
-                 const std::vector<uint8_t> &ecc_ciphertext,
-                 const std::vector<uint8_t> &kyber_key_share,
-                 const std::vector<uint8_t> &kyber_ciphertext,
-                 const pgp_pubkey_alg_t      alg_id,
-                 std::vector<uint8_t> &      out) override;
+    /* PQC KEM Combiner interface for OpenPGP PQC composite algorithms */
+    static std::vector<uint8_t> compute(const std::vector<uint8_t> &mlkem_key_share,
+                                        const std::vector<uint8_t> &ecc_key_share,
+                                        const std::vector<uint8_t> &ecc_ciphertext,
+                                        const std::vector<uint8_t> &ecc_pub_key,
+                                        const pgp_pubkey_alg_t      alg_id);
 };
 
 } // namespace rnp

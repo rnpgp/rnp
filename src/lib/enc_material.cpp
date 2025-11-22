@@ -50,15 +50,18 @@ EncMaterial::create(pgp_pubkey_alg_t alg)
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         FALLTHROUGH_STATEMENT;
-    // TODO: Add case for PGP_PKA_KYBER1024_X448 with FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_P256:
+    case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P384:
+    case PGP_PKA_KYBER768_P384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_BP256:
+    case PGP_PKA_KYBER1024_P521:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384:
+    case PGP_PKA_KYBER768_BP384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_BP512:
+#endif
         return std::unique_ptr<EncMaterial>(new MlkemEcdhEncMaterial(alg));
 #endif
     default:
@@ -151,7 +154,7 @@ X25519EncMaterial::parse(pgp_packet_body_t &pkt) noexcept
         uint8_t bt = 0;
         if (!pkt.get(bt)) {
             RNP_LOG("failed to get salg");
-            return RNP_ERROR_BAD_FORMAT;
+            return false;
         }
         sess_len--;
         salg = (pgp_symm_alg_t) bt;
@@ -175,6 +178,51 @@ X25519EncMaterial::write(pgp_packet_body_t &pkt) const
     }
     pkt.add(enc.enc_sess_key);
 }
+
+bool
+X448EncMaterial::parse(pgp_packet_body_t &pkt) noexcept
+{
+    auto ec_desc = ec::Curve::get(PGP_CURVE_448);
+    enc.eph_key.resize(BITS_TO_BYTES(ec_desc->bitlen));
+    if (!pkt.get(enc.eph_key.data(), enc.eph_key.size())) {
+        RNP_LOG("failed to parse X448 PKESK (eph. pubkey)");
+        return false;
+    }
+    uint8_t sess_len;
+    if (!pkt.get(sess_len)) {
+        RNP_LOG("failed to parse X448 PKESK (enc sesskey length)");
+        return false;
+    }
+    /* get plaintext salg if PKESKv3 */
+    if (version == PGP_PKSK_V3) {
+        uint8_t bt = 0;
+        if (!pkt.get(bt)) {
+            RNP_LOG("failed to get salg");
+            return false;
+        }
+        sess_len--;
+        salg = (pgp_symm_alg_t) bt;
+    }
+    enc.enc_sess_key.resize(sess_len);
+    if (!pkt.get(enc.enc_sess_key.data(), sess_len)) {
+        RNP_LOG("failed to parse X448 PKESK (enc sesskey)");
+        return false;
+    }
+    return true;
+}
+
+void
+X448EncMaterial::write(pgp_packet_body_t &pkt) const
+{
+    uint8_t inc = ((version == PGP_PKSK_V3) ? 1 : 0);
+    pkt.add(enc.eph_key);
+    pkt.add_byte(static_cast<uint8_t>(enc.enc_sess_key.size() + inc));
+    if (version == PGP_PKSK_V3) {
+        pkt.add_byte(salg); /* added as plaintext */
+    }
+    pkt.add(enc.enc_sess_key);
+}
+
 #endif
 
 #if defined(ENABLE_PQC)
@@ -202,7 +250,7 @@ MlkemEcdhEncMaterial::parse(pgp_packet_body_t &pkt) noexcept
         uint8_t balg = 0;
         if (!pkt.get(balg)) {
             RNP_LOG("failed to get salg");
-            return RNP_ERROR_BAD_FORMAT;
+            return false;
         }
         salg = (pgp_symm_alg_t) balg;
         wrapped_key_len--;

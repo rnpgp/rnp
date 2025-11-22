@@ -26,7 +26,7 @@
 
 #include "config.h"
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 
 #include "hkdf.hpp"
 

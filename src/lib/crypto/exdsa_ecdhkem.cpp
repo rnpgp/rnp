@@ -26,7 +26,7 @@
 
 #include "exdsa_ecdhkem.h"
 #include "ecdh.h"
-#include "ed25519.h"
+#include "ed25519_ed448.h"
 #include "ecdsa.h"
 #include "ec.h"
 #include "types.h"
@@ -71,7 +71,7 @@ ecdh_kem_private_key_t::botan_key_ecdh(rnp::RNG *rng) const
     assert(curve_ >= PGP_CURVE_NIST_P_256 && curve_ <= PGP_CURVE_P256K1);
     auto ec_desc = pgp::ec::Curve::get(curve_);
     return Botan::ECDH_PrivateKey(
-      *(rng->obj()), Botan::EC_Group(ec_desc->botan_name), Botan::BigInt(key_));
+      *(rng->obj()), Botan::EC_Group::from_name(ec_desc->botan_name), Botan::BigInt(key_));
 }
 
 Botan::ECDH_PublicKey
@@ -80,61 +80,97 @@ ecdh_kem_public_key_t::botan_key_ecdh(rnp::RNG *rng) const
     assert(curve_ >= PGP_CURVE_NIST_P_256 && curve_ <= PGP_CURVE_P256K1);
 
     auto            ec_desc = pgp::ec::Curve::get(curve_);
-    Botan::EC_Group group(ec_desc->botan_name);
-    const size_t    curve_order = ec_desc->bytes();
-    Botan::BigInt   x(key_.data() + 1, curve_order);
-    Botan::BigInt   y(key_.data() + 1 + curve_order, curve_order);
-    return Botan::ECDH_PublicKey(group, group.point(x, y));
+    Botan::EC_Group group = Botan::EC_Group::from_name(ec_desc->botan_name);
+    return Botan::ECDH_PublicKey(group, Botan::EC_AffinePoint(group, key_).to_legacy_point());
 }
 
-Botan::Curve25519_PrivateKey
+Botan::X25519_PrivateKey
 ecdh_kem_private_key_t::botan_key_x25519() const
 {
     assert(curve_ == PGP_CURVE_25519);
-    return Botan::Curve25519_PrivateKey(key_);
+    return Botan::X25519_PrivateKey(key_);
 }
 
-Botan::Curve25519_PublicKey
+Botan::X25519_PublicKey
 ecdh_kem_public_key_t::botan_key_x25519() const
 {
     assert(curve_ == PGP_CURVE_25519);
-    return Botan::Curve25519_PublicKey(key_);
+    return Botan::X25519_PublicKey(key_);
 }
 
 std::vector<uint8_t>
 ecdh_kem_private_key_t::get_pubkey_encoded(rnp::RNG *rng) const
 {
-    if (curve_ == PGP_CURVE_25519) {
+    switch (curve_) {
+    case PGP_CURVE_25519: {
         Botan::X25519_PrivateKey botan_key = botan_key_x25519();
         return botan_key.public_value();
-    } else {
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_CURVE_448: {
+        Botan::X448_PrivateKey botan_key = botan_key_x448();
+        return botan_key.public_value();
+    }
+#endif
+    default: {
         Botan::ECDH_PrivateKey botan_key = botan_key_ecdh(rng);
         return botan_key.public_value();
     }
+    }
 }
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+Botan::X448_PrivateKey
+ecdh_kem_private_key_t::botan_key_x448() const
+{
+    assert(curve_ == PGP_CURVE_448);
+    return Botan::X448_PrivateKey(key_);
+}
+
+Botan::X448_PublicKey
+ecdh_kem_public_key_t::botan_key_x448() const
+{
+    assert(curve_ == PGP_CURVE_448);
+    return Botan::X448_PublicKey(key_);
+}
+#endif
 
 rnp_result_t
 ecdh_kem_public_key_t::encapsulate(rnp::RNG *            rng,
                                    std::vector<uint8_t> &ciphertext,
                                    std::vector<uint8_t> &symmetric_key) const
 {
-    if (curve_ == PGP_CURVE_25519) {
-        Botan::Curve25519_PrivateKey eph_prv_key(*(rng->obj()));
+    switch (curve_) {
+    case PGP_CURVE_25519: {
+        Botan::X25519_PrivateKey eph_prv_key(*(rng->obj()));
         ciphertext = eph_prv_key.public_value();
         Botan::PK_Key_Agreement key_agreement(eph_prv_key, *(rng->obj()), "Raw");
         symmetric_key = Botan::unlock(key_agreement.derive_key(0, key_).bits_of());
-    } else {
+        break;
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_CURVE_448: {
+        Botan::X448_PrivateKey eph_prv_key(*(rng->obj()));
+        ciphertext = eph_prv_key.public_value();
+        Botan::PK_Key_Agreement key_agreement(eph_prv_key, *(rng->obj()), "Raw");
+        symmetric_key = Botan::unlock(key_agreement.derive_key(0, key_).bits_of());
+        break;
+    }
+#endif
+    default: {
         auto curve_desc = pgp::ec::Curve::get(curve_);
         if (!curve_desc) {
             RNP_LOG("unknown curve");
             return RNP_ERROR_NOT_SUPPORTED;
         }
 
-        Botan::EC_Group         domain(curve_desc->botan_name);
+        Botan::EC_Group         domain = Botan::EC_Group::from_name(curve_desc->botan_name);
         Botan::ECDH_PrivateKey  eph_prv_key(*(rng->obj()), domain);
         Botan::PK_Key_Agreement key_agreement(eph_prv_key, *(rng->obj()), "Raw");
         ciphertext = eph_prv_key.public_value();
         symmetric_key = Botan::unlock(key_agreement.derive_key(0, key_).bits_of());
+        break;
+    }
     }
     return RNP_SUCCESS;
 }
@@ -144,14 +180,27 @@ ecdh_kem_private_key_t::decapsulate(rnp::RNG *                  rng,
                                     const std::vector<uint8_t> &ciphertext,
                                     std::vector<uint8_t> &      plaintext)
 {
-    if (curve_ == PGP_CURVE_25519) {
-        Botan::Curve25519_PrivateKey priv_key = botan_key_x25519();
-        Botan::PK_Key_Agreement      key_agreement(priv_key, *(rng->obj()), "Raw");
+    switch (curve_) {
+    case PGP_CURVE_25519: {
+        Botan::X25519_PrivateKey priv_key = botan_key_x25519();
+        Botan::PK_Key_Agreement  key_agreement(priv_key, *(rng->obj()), "Raw");
         plaintext = Botan::unlock(key_agreement.derive_key(0, ciphertext).bits_of());
-    } else {
+        break;
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_CURVE_448: {
+        Botan::X448_PrivateKey  priv_key = botan_key_x448();
+        Botan::PK_Key_Agreement key_agreement(priv_key, *(rng->obj()), "Raw");
+        plaintext = Botan::unlock(key_agreement.derive_key(0, ciphertext).bits_of());
+        break;
+    }
+#endif
+    default: {
         Botan::ECDH_PrivateKey  priv_key = botan_key_ecdh(rng);
         Botan::PK_Key_Agreement key_agreement(priv_key, *(rng->obj()), "Raw");
         plaintext = Botan::unlock(key_agreement.derive_key(0, ciphertext).bits_of());
+        break;
+    }
     }
     return RNP_SUCCESS;
 }
@@ -160,7 +209,7 @@ rnp_result_t
 ec_key_t::generate_ecdh_kem_key_pair(rnp::RNG *rng, ecdh_kem_key_t *out, pgp_curve_t curve)
 {
     std::vector<uint8_t> pub, priv;
-    rnp_result_t         result = ecdh_kem_gen_keypair_native(rng, priv, pub, curve);
+    rnp_result_t         result = ec_generate_native(rng, priv, pub, curve);
     if (result != RNP_SUCCESS) {
         RNP_LOG("error when generating EC key pair");
         return result;
@@ -172,6 +221,7 @@ ec_key_t::generate_ecdh_kem_key_pair(rnp::RNG *rng, ecdh_kem_key_t *out, pgp_cur
     return RNP_SUCCESS;
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
 exdsa_public_key_t::exdsa_public_key_t(uint8_t *key_buf, size_t key_buf_len, pgp_curve_t curve)
     : ec_key_t(curve), key_(key_buf, key_buf + key_buf_len)
 {
@@ -196,7 +246,7 @@ rnp_result_t
 ec_key_t::generate_exdsa_key_pair(rnp::RNG *rng, exdsa_key_t *out, pgp_curve_t curve)
 {
     std::vector<uint8_t> pub, priv;
-    rnp_result_t         result = exdsa_gen_keypair_native(rng, priv, pub, curve);
+    rnp_result_t         result = ec_generate_native(rng, priv, pub, curve);
     if (result != RNP_SUCCESS) {
         RNP_LOG("error when generating EC key pair");
         return result;
@@ -213,7 +263,7 @@ exdsa_private_key_t::botan_key(rnp::RNG *rng) const
 {
     auto                    ec_desc = pgp::ec::Curve::get(curve_);
     Botan::ECDSA_PrivateKey priv_key(
-      *(rng->obj()), Botan::EC_Group(ec_desc->botan_name), Botan::BigInt(key_));
+      *(rng->obj()), Botan::EC_Group::from_name(ec_desc->botan_name), Botan::BigInt(key_));
     return priv_key;
 }
 
@@ -222,14 +272,11 @@ exdsa_public_key_t::botan_key() const
 {
     // format: 04 | X | Y
     auto            ec_desc = pgp::ec::Curve::get(curve_);
-    Botan::EC_Group group(ec_desc->botan_name);
-    const size_t    curve_order = ec_desc->bytes();
-    Botan::BigInt   x(key_.data() + 1, curve_order);
-    Botan::BigInt   y(key_.data() + 1 + curve_order, curve_order);
-    return Botan::ECDSA_PublicKey(group, group.point(x, y));
+    Botan::EC_Group group = Botan::EC_Group::from_name(ec_desc->botan_name);
+    return Botan::ECDSA_PublicKey(group, Botan::EC_AffinePoint(group, key_).to_legacy_point());
 }
 
-/* NOTE hash_alg unused for ed25519/x25519 curves */
+/* NOTE hash_alg unused for Ed/X curves */
 rnp_result_t
 exdsa_private_key_t::sign(rnp::RNG *            rng,
                           std::vector<uint8_t> &sig_out,
@@ -237,15 +284,21 @@ exdsa_private_key_t::sign(rnp::RNG *            rng,
                           size_t                hash_len,
                           pgp_hash_alg_t        hash_alg) const
 {
-    if (curve_ == PGP_CURVE_ED25519) {
+    switch (curve_) {
+    case PGP_CURVE_ED25519: {
         return ed25519_sign_native(rng, sig_out, Botan::unlock(key_), hash, hash_len);
-    } else {
+    }
+    case PGP_CURVE_ED448: {
+        return ed448_sign_native(rng, sig_out, Botan::unlock(key_), hash, hash_len);
+    }
+    default: {
         Botan::ECDSA_PrivateKey priv_key = botan_key(rng);
         auto                    signer =
           Botan::PK_Signer(priv_key, *(rng->obj()), pgp::ecdsa::padding_str_for(hash_alg));
         sig_out = signer.sign_message(hash, hash_len, *(rng->obj()));
+        return RNP_SUCCESS;
     }
-    return RNP_SUCCESS;
+    }
 }
 
 rnp_result_t
@@ -254,14 +307,20 @@ exdsa_public_key_t::verify(const std::vector<uint8_t> &sig,
                            size_t                      hash_len,
                            pgp_hash_alg_t              hash_alg) const
 {
-    if (curve_ == PGP_CURVE_ED25519) {
+    switch (curve_) {
+    case PGP_CURVE_ED25519: {
         return ed25519_verify_native(sig, key_, hash, hash_len);
-    } else {
+    }
+    case PGP_CURVE_ED448: {
+        return ed448_verify_native(sig, key_, hash, hash_len);
+    }
+    default: {
         Botan::ECDSA_PublicKey pub_key = botan_key();
         auto verifier = Botan::PK_Verifier(pub_key, pgp::ecdsa::padding_str_for(hash_alg));
         if (verifier.verify_message(hash, hash_len, sig.data(), sig.size())) {
             return RNP_SUCCESS;
         }
+    }
     }
     return RNP_ERROR_VERIFICATION_FAILED;
 }
@@ -269,47 +328,80 @@ exdsa_public_key_t::verify(const std::vector<uint8_t> &sig,
 bool
 exdsa_public_key_t::is_valid(rnp::RNG *rng) const
 {
-    if (curve_ == PGP_CURVE_ED25519) {
+    switch (curve_) {
+    case PGP_CURVE_ED25519: {
         Botan::Ed25519_PublicKey pub_key(key_);
         return pub_key.check_key(*(rng->obj()), false);
-    } else {
+    }
+    case PGP_CURVE_ED448: {
+        Botan::Ed448_PublicKey pub_key(key_);
+        return pub_key.check_key(*(rng->obj()), false);
+    }
+    default: {
         Botan::ECDSA_PublicKey pub_key = botan_key();
         return pub_key.check_key(*(rng->obj()), false);
+    }
     }
 }
 
 bool
 exdsa_private_key_t::is_valid(rnp::RNG *rng) const
 {
-    if (curve_ == PGP_CURVE_ED25519) {
+    switch (curve_) {
+    case PGP_CURVE_ED25519: {
         Botan::Ed25519_PrivateKey priv_key(key_);
         return priv_key.check_key(*(rng->obj()), false);
-    } else {
+    }
+    case PGP_CURVE_ED448: {
+        Botan::Ed448_PrivateKey priv_key(key_);
+        return priv_key.check_key(*(rng->obj()), false);
+    }
+    default: {
         auto priv_key = botan_key(rng);
         return priv_key.check_key(*(rng->obj()), false);
     }
+    }
 }
+#endif
 
 bool
 ecdh_kem_public_key_t::is_valid(rnp::RNG *rng) const
 {
-    if (curve_ == PGP_CURVE_25519) {
+    switch (curve_) {
+    case PGP_CURVE_25519: {
         auto pub_key = botan_key_x25519();
         return pub_key.check_key(*(rng->obj()), false);
-    } else {
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_CURVE_448: {
+        auto pub_key = botan_key_x448();
+        return pub_key.check_key(*(rng->obj()), false);
+    }
+#endif
+    default: {
         auto pub_key = botan_key_ecdh(rng);
         return pub_key.check_key(*(rng->obj()), false);
+    }
     }
 }
 
 bool
 ecdh_kem_private_key_t::is_valid(rnp::RNG *rng) const
 {
-    if (curve_ == PGP_CURVE_25519) {
+    switch (curve_) {
+    case PGP_CURVE_25519: {
         auto priv_key = botan_key_x25519();
         return priv_key.check_key(*(rng->obj()), false);
-    } else {
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_CURVE_448: {
+        auto priv_key = botan_key_x448();
+        return priv_key.check_key(*(rng->obj()), false);
+    }
+#endif
+    default: {
         auto priv_key = botan_key_ecdh(rng);
         return priv_key.check_key(*(rng->obj()), false);
+    }
     }
 }

@@ -28,7 +28,7 @@
 #include "logging.h"
 #include "types.h"
 #include "ecdh_utils.h"
-#include "kmac.hpp"
+#include "kem_combiner.hpp"
 #include <botan/rfc3394.h>
 #include <botan/symkey.h>
 #include <cassert>
@@ -79,17 +79,18 @@ pgp_kyber_ecdh_composite_key_t::ecdh_curve_privkey_size(pgp_curve_t curve)
     switch (curve) {
     case PGP_CURVE_25519:
         return 32;
-    /* TODO */
-    // case PGP_CURVE_X448:
-    //   return 56;
-    case PGP_CURVE_NIST_P_256:
-        return 32;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_CURVE_448:
+        return 56;
+#endif
     case PGP_CURVE_NIST_P_384:
         return 48;
-    case PGP_CURVE_BP256:
-        return 32;
+    case PGP_CURVE_NIST_P_521:
+        return 66;
     case PGP_CURVE_BP384:
         return 48;
+    case PGP_CURVE_BP512:
+        return 64;
     default:
         RNP_LOG("invalid curve given");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -102,17 +103,18 @@ pgp_kyber_ecdh_composite_key_t::ecdh_curve_pubkey_size(pgp_curve_t curve)
     switch (curve) {
     case PGP_CURVE_25519:
         return 32;
-    /* TODO */
-    //  case PGP_CURVE_X448:
-    //    return 56;
-    case PGP_CURVE_NIST_P_256:
-        return 65;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_CURVE_448:
+        return 56;
+#endif
     case PGP_CURVE_NIST_P_384:
         return 97;
-    case PGP_CURVE_BP256:
-        return 65;
+    case PGP_CURVE_NIST_P_521:
+        return 133;
     case PGP_CURVE_BP384:
         return 97;
+    case PGP_CURVE_BP512:
+        return 129;
     default:
         RNP_LOG("invalid curve given");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -125,17 +127,18 @@ pgp_kyber_ecdh_composite_key_t::ecdh_curve_ephemeral_size(pgp_curve_t curve)
     switch (curve) {
     case PGP_CURVE_25519:
         return 32;
-    /* TODO */
-    //  case PGP_CURVE_X448:
-    //    return 56;
-    case PGP_CURVE_NIST_P_256:
-        return 65;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_CURVE_448:
+        return 56;
+#endif
     case PGP_CURVE_NIST_P_384:
         return 97;
-    case PGP_CURVE_BP256:
-        return 65;
+    case PGP_CURVE_NIST_P_521:
+        return 133;
     case PGP_CURVE_BP384:
         return 97;
+    case PGP_CURVE_BP512:
+        return 129;
     default:
         RNP_LOG("invalid curve given");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -148,17 +151,18 @@ pgp_kyber_ecdh_composite_key_t::ecdh_curve_keyshare_size(pgp_curve_t curve)
     switch (curve) {
     case PGP_CURVE_25519:
         return 32;
-    /* TODO */
-    //  case PGP_CURVE_X448:
-    //    return 56;
-    case PGP_CURVE_NIST_P_256:
-        return 32;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_CURVE_448:
+        return 56;
+#endif
     case PGP_CURVE_NIST_P_384:
         return 48;
-    case PGP_CURVE_BP256:
-        return 32;
+    case PGP_CURVE_NIST_P_521:
+        return 66;
     case PGP_CURVE_BP384:
         return 48;
+    case PGP_CURVE_BP512:
+        return 64;
     default:
         RNP_LOG("invalid curve given");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -170,15 +174,21 @@ pgp_kyber_ecdh_composite_key_t::pk_alg_to_kyber_id(pgp_pubkey_alg_t pk_alg)
 {
     switch (pk_alg) {
     case PGP_PKA_KYBER768_X25519:
+#if defined(ENABLE_CRYPTO_REFRESH)
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_P256:
+    case PGP_PKA_KYBER768_P384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_BP256:
+    case PGP_PKA_KYBER768_BP384:
+#endif
         return kyber_768;
-    case PGP_PKA_KYBER1024_BP384:
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P384:
+    case PGP_PKA_KYBER1024_BP512:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_P521:
         return kyber_1024;
+#endif
     default:
         RNP_LOG("invalid PK alg given");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -191,16 +201,18 @@ pgp_kyber_ecdh_composite_key_t::pk_alg_to_curve_id(pgp_pubkey_alg_t pk_alg)
     switch (pk_alg) {
     case PGP_PKA_KYBER768_X25519:
         return PGP_CURVE_25519;
-    case PGP_PKA_KYBER768_P256:
-        return PGP_CURVE_NIST_P_256;
-    case PGP_PKA_KYBER768_BP256:
-        return PGP_CURVE_BP256;
-    case PGP_PKA_KYBER1024_BP384:
-        return PGP_CURVE_BP384;
-    case PGP_PKA_KYBER1024_P384:
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_KYBER768_P384:
         return PGP_CURVE_NIST_P_384;
-    /*case PGP_PKA_KYBER1024_X448:
-      return ... NOT_IMPLEMENTED*/
+    case PGP_PKA_KYBER768_BP384:
+        return PGP_CURVE_BP384;
+    case PGP_PKA_KYBER1024_BP512:
+        return PGP_CURVE_BP512;
+    case PGP_PKA_KYBER1024_P521:
+        return PGP_CURVE_NIST_P_521;
+    case PGP_PKA_KYBER1024_X448:
+        return PGP_CURVE_448;
+#endif
     default:
         RNP_LOG("invalid PK alg given");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -228,7 +240,7 @@ pgp_kyber_ecdh_composite_private_key_t::pgp_kyber_ecdh_composite_private_key_t(
     : pk_alg_(pk_alg)
 {
     if (ecdh_curve_privkey_size(pk_alg_to_curve_id(pk_alg)) != ecdh_key_encoded.size() ||
-        kyber_privkey_size(pk_alg_to_kyber_id(pk_alg)) != kyber_key_encoded.size()) {
+        kyber_privkey_size() != kyber_key_encoded.size()) {
         RNP_LOG("ecdh or kyber key length mismatch");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
@@ -270,9 +282,8 @@ pgp_kyber_ecdh_composite_private_key_t::pgp_kyber_ecdh_composite_private_key_t(
 size_t
 pgp_kyber_ecdh_composite_private_key_t::encoded_size(pgp_pubkey_alg_t pk_alg)
 {
-    kyber_parameter_e kyber_param = pk_alg_to_kyber_id(pk_alg);
-    pgp_curve_t       curve = pk_alg_to_curve_id(pk_alg);
-    return ecdh_curve_privkey_size(curve) + kyber_privkey_size(kyber_param);
+    pgp_curve_t curve = pk_alg_to_curve_id(pk_alg);
+    return ecdh_curve_privkey_size(curve) + kyber_privkey_size();
 }
 
 void
@@ -295,56 +306,17 @@ pgp_kyber_ecdh_composite_private_key_t::parse_component_keys(std::vector<uint8_t
     is_initialized_ = true;
 }
 
-namespace {
-std::vector<uint8_t>
-hashed_ecc_keyshare(const std::vector<uint8_t> &key_share,
-                    const std::vector<uint8_t> &ciphertext,
-                    const std::vector<uint8_t> &ecc_pubkey,
-                    pgp_pubkey_alg_t            alg_id)
-{
-    /* SHA3-256(X || eccCipherText) or SHA3-512(X || eccCipherText) depending on algorithm */
-
-    std::vector<uint8_t> digest;
-    pgp_hash_alg_t       hash_alg;
-
-    switch (alg_id) {
-    case PGP_PKA_KYBER768_X25519:
-    case PGP_PKA_KYBER768_BP256:
-    case PGP_PKA_KYBER768_P256:
-        hash_alg = PGP_HASH_SHA3_256;
-        break;
-    // case PGP_PKA_KYBER1024_X448:
-    case PGP_PKA_KYBER1024_P384:
-    case PGP_PKA_KYBER1024_BP384:
-        hash_alg = PGP_HASH_SHA3_512;
-        break;
-    default:
-        RNP_LOG("key combiner does not support this algorithm");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-
-    auto hash = rnp::Hash::create(hash_alg);
-    hash->add(key_share);
-    hash->add(ciphertext);
-    hash->add(ecc_pubkey);
-
-    digest.resize(rnp::Hash::size(hash_alg));
-    hash->finish(digest.data());
-
-    return digest;
-}
-} // namespace
-
 rnp_result_t
-pgp_kyber_ecdh_composite_private_key_t::decrypt(rnp::RNG *                        rng,
-                                                uint8_t *                         out,
-                                                size_t *                          out_len,
-                                                const pgp_kyber_ecdh_encrypted_t *enc) const
+pgp_kyber_ecdh_composite_private_key_t::decrypt(
+  rnp::RNG *                                   rng,
+  uint8_t *                                    out,
+  size_t *                                     out_len,
+  const pgp_kyber_ecdh_encrypted_t *           enc,
+  const pgp_kyber_ecdh_composite_public_key_t &ecdh_kyber_pub_key) const
 {
     initialized_or_throw();
     rnp_result_t         res;
     std::vector<uint8_t> ecdh_keyshare;
-    std::vector<uint8_t> hashed_ecdh_keyshare;
     std::vector<uint8_t> kyber_keyshare;
 
     if (((enc->wrapped_sesskey.size() % 8) != 0) || (enc->wrapped_sesskey.size() < 16)) {
@@ -363,8 +335,6 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(rnp::RNG *                      
         RNP_LOG("error when decrypting kyber-ecdh encrypted session key");
         return res;
     }
-    hashed_ecdh_keyshare = hashed_ecc_keyshare(
-      ecdh_keyshare, ecdh_encapsulated_keyshare, ecdh_key_->get_pubkey_encoded(rng), pk_alg_);
 
     // Compute (kyberKeyShare) := kyberKem.decap(kyberCipherText, kyberPrivateKey)
     std::vector<uint8_t> kyber_encapsulated_keyshare = std::vector<uint8_t>(
@@ -377,16 +347,13 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(rnp::RNG *                      
         return res;
     }
 
-    // Compute KEK := multiKeyCombine(eccKeyShare, kyberKeyShare, fixedInfo) as defined in
-    // Section 4.2.2
-    std::vector<uint8_t> kek_vec;
-    auto                 kmac = rnp::KMAC256::create();
-    kmac->compute(hashed_ecdh_keyshare,
-                  ecdh_encapsulated_keyshare,
-                  kyber_keyshare,
-                  kyber_encapsulated_keyshare,
-                  pk_alg(),
-                  kek_vec);
+    // Compute KEK
+    std::vector<uint8_t> kek_vec =
+      rnp::PqcKemCombiner::compute(kyber_keyshare,
+                                   ecdh_keyshare,
+                                   ecdh_encapsulated_keyshare,
+                                   ecdh_kyber_pub_key.get_ecdh_encoded(),
+                                   pk_alg());
     Botan::SymmetricKey kek(kek_vec);
 
     // Compute sessionKey := AESKeyUnwrap(KEK, C) with AES-256 as per [RFC3394], aborting if
@@ -501,8 +468,7 @@ pgp_kyber_ecdh_composite_public_key_t::encrypt(rnp::RNG *                  rng,
 
     rnp_result_t         res;
     std::vector<uint8_t> ecdh_ciphertext;
-    std::vector<uint8_t> ecdh_symmetric_key;
-    std::vector<uint8_t> ecdh_hashed_symmetric_key;
+    std::vector<uint8_t> ecdh_keyshare;
 
     if ((session_key_len % 8) != 0) {
         RNP_LOG("AES key wrap requires a multiple of 8 octets as input key");
@@ -510,28 +476,22 @@ pgp_kyber_ecdh_composite_public_key_t::encrypt(rnp::RNG *                  rng,
     }
 
     // Compute (eccCipherText, eccKeyShare) := eccKem.encap(eccPublicKey)
-    res = ecdh_key_.encapsulate(rng, ecdh_ciphertext, ecdh_symmetric_key);
+    res = ecdh_key_.encapsulate(rng, ecdh_ciphertext, ecdh_keyshare);
     if (res) {
         RNP_LOG("error when encapsulating with ECDH");
         return res;
     }
-    ecdh_hashed_symmetric_key = hashed_ecc_keyshare(
-      ecdh_symmetric_key, ecdh_ciphertext, ecdh_key_.get_encoded(), pk_alg_);
 
     // Compute (kyberCipherText, kyberKeyShare) := kyberKem.encap(kyberPublicKey)
     kyber_encap_result_t kyber_encap = kyber_key_.encapsulate(rng);
 
-    // Compute KEK := multiKeyCombine(eccKeyShare, kyberKeyShare, fixedInfo) as defined in
-    // Section 4.2.2
-    std::vector<uint8_t> kek_vec;
-    auto                 kmac = rnp::KMAC256::create();
-    kmac->compute(ecdh_hashed_symmetric_key,
-                  ecdh_ciphertext,
-                  kyber_encap.symmetric_key,
-                  kyber_encap.ciphertext,
-                  pk_alg(),
-                  kek_vec);
-    Botan::SymmetricKey kek(kek_vec);
+    // Compute KEK
+    std::vector<uint8_t> kek_vec = rnp::PqcKemCombiner::compute(kyber_encap.symmetric_key,
+                                                                ecdh_keyshare,
+                                                                ecdh_ciphertext,
+                                                                ecdh_key_.get_encoded(),
+                                                                pk_alg());
+    Botan::SymmetricKey  kek(kek_vec);
 
     // Compute C := AESKeyWrap(KEK, sessionKey) with AES-256 as per [RFC3394] that includes a
     // 64 bit integrity check
@@ -561,6 +521,22 @@ pgp_kyber_ecdh_composite_public_key_t::get_encoded() const
     result.insert(result.end(), std::begin(ecdh_key_encoded), std::end(ecdh_key_encoded));
     result.insert(result.end(), std::begin(kyber_key_encoded), std::end(kyber_key_encoded));
     return result;
+};
+
+std::vector<uint8_t>
+pgp_kyber_ecdh_composite_public_key_t::get_kyber_encoded() const
+{
+    initialized_or_throw();
+
+    return kyber_key_.get_encoded();
+};
+
+std::vector<uint8_t>
+pgp_kyber_ecdh_composite_public_key_t::get_ecdh_encoded() const
+{
+    initialized_or_throw();
+
+    return ecdh_key_.get_encoded();
 };
 
 bool

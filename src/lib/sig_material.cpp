@@ -51,23 +51,29 @@ SigMaterial::create(pgp_pubkey_alg_t palg, pgp_hash_alg_t halg)
     case PGP_PKA_ED25519: {
         return std::unique_ptr<SigMaterial>(new Ed25519SigMaterial(halg));
     }
+    case PGP_PKA_ED448: {
+        return std::unique_ptr<SigMaterial>(new Ed448SigMaterial(halg));
+    }
 #endif
-#if defined(ENABLE_PQC)
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: Add case for PGP_PKA_DILITHIUM5_ED448 with FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
+    case PGP_PKA_DILITHIUM5_ED448:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
+    case PGP_PKA_DILITHIUM3_P384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
+    case PGP_PKA_DILITHIUM5_P521:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
+    case PGP_PKA_DILITHIUM3_BP384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_BP512:
         return std::unique_ptr<SigMaterial>(new DilithiumSigMaterial(palg, halg));
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
-        return std::unique_ptr<SigMaterial>(new SlhdsaSigMaterial(halg));
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
+        return std::unique_ptr<SigMaterial>(new SlhdsaSigMaterial(palg, halg));
 #endif
     default:
         RNP_LOG("Unknown pk algorithm : %d", (int) palg);
@@ -144,9 +150,26 @@ Ed25519SigMaterial::write(pgp_packet_body_t &pkt) const
 {
     pkt.add(sig.sig);
 }
+
+bool
+Ed448SigMaterial::parse(pgp_packet_body_t &pkt) noexcept
+{
+    auto ec_desc = pgp::ec::Curve::get(PGP_CURVE_448);
+    if (!pkt.get(sig.sig, 2 * ec_desc->bytes())) {
+        RNP_LOG("failed to parse ED448 signature data");
+        return false;
+    }
+    return true;
+}
+
+void
+Ed448SigMaterial::write(pgp_packet_body_t &pkt) const
+{
+    pkt.add(sig.sig);
+}
 #endif
 
-#if defined(ENABLE_PQC)
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
 bool
 DilithiumSigMaterial::parse(pgp_packet_body_t &pkt) noexcept
 {
@@ -166,17 +189,11 @@ DilithiumSigMaterial::write(pgp_packet_body_t &pkt) const
 bool
 SlhdsaSigMaterial::parse(pgp_packet_body_t &pkt) noexcept
 {
-    uint8_t param = 0;
-    if (!pkt.get(param)) {
-        RNP_LOG("failed to parse SLH-DSA signature data");
-        return false;
-    }
-    auto sig_size = sphincsplus_signature_size((sphincsplus_parameter_t) param);
+    auto sig_size = sphincsplus_signature_size(palg);
     if (!sig_size) {
-        RNP_LOG("invalid SLH-DSA param value");
+        RNP_LOG("invalid SLH-DSA algorithm value");
         return false;
     }
-    sig.param = (sphincsplus_parameter_t) param;
     if (!pkt.get(sig.sig, sig_size)) {
         RNP_LOG("failed to parse SLH-DSA signature data");
         return false;
@@ -187,7 +204,6 @@ SlhdsaSigMaterial::parse(pgp_packet_body_t &pkt) noexcept
 void
 SlhdsaSigMaterial::write(pgp_packet_body_t &pkt) const
 {
-    pkt.add_byte((uint8_t) sig.param);
     pkt.add(sig.sig);
 }
 #endif

@@ -25,6 +25,8 @@
  */
 
 #include "dilithium.h"
+#include "logging.h"
+#include "types.h"
 #include <cassert>
 
 namespace {
@@ -32,9 +34,9 @@ namespace {
 Botan::DilithiumMode
 rnp_dilithium_param_to_botan_dimension(dilithium_parameter_e mode)
 {
-    Botan::DilithiumMode result = Botan::DilithiumMode::Dilithium8x7;
+    Botan::DilithiumMode result = Botan::DilithiumMode::ML_DSA_8x7;
     if (mode == dilithium_parameter_e::dilithium_L3) {
-        result = Botan::DilithiumMode::Dilithium6x5;
+        result = Botan::DilithiumMode::ML_DSA_6x5;
     }
     return result;
 }
@@ -116,22 +118,4 @@ pgp_dilithium_private_key_t::is_valid(rnp::RNG *rng) const
 
     auto key = botan_key();
     return key.check_key(*(rng->obj()), false);
-}
-
-bool
-dilithium_hash_allowed(pgp_hash_alg_t hash_alg)
-{
-    switch (hash_alg) {
-    case PGP_HASH_SHA3_256:
-    case PGP_HASH_SHA3_512:
-        return true;
-    default:
-        return false;
-    }
-}
-
-pgp_hash_alg_t
-dilithium_default_hash_alg()
-{
-    return PGP_HASH_SHA3_256;
 }

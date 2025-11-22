@@ -149,7 +149,8 @@ class UserPrefs {
 #if defined(ENABLE_CRYPTO_REFRESH)
     void add_aead_prefs(pgp_symm_alg_t sym_alg, pgp_aead_alg_t aead_alg);
 #endif
-    void check_defaults(pgp_version_t version = PGP_V4);
+    void check_defaults(pgp_version_t    version = PGP_V4,
+                        pgp_pubkey_alg_t pk_alg = PGP_PKA_NOTHING);
 };
 
 class CertParams {

@@ -203,6 +203,11 @@ SecurityContext::SecurityContext() : time_(0), prov_state_(NULL), rng(RNG::Type:
     profile.add_rule({FeatureType::Cipher, PGP_SA_IDEA, SecurityLevel::Insecure, 1727730000});
     profile.add_rule(
       {FeatureType::Cipher, PGP_SA_BLOWFISH, SecurityLevel::Insecure, 1727730000});
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* Mark RIPEMD insecure since 2024-01-19 by default */
+    profile.add_rule(
+      {FeatureType::Hash, PGP_HASH_RIPEMD, SecurityLevel::Insecure, 1705629600});
+#endif
 }
 
 SecurityContext::~SecurityContext()

@@ -734,8 +734,35 @@ Signature::matches_onepass(const pgp_one_pass_sig_t &onepass) const
     if (!has_keyid()) {
         return false;
     }
-    return (halg == onepass.halg) && (palg == onepass.palg) && (type_ == onepass.type) &&
-           (onepass.keyid == keyid());
+    /* check sig and OPS packet version binding (V3) */
+    if (onepass.version == PGP_OPS_V3) {
+        if (version != PGP_V3 && version != PGP_V4 && version != PGP_V5) {
+            return false;
+        }
+    }
+    /* check keyid (V3) */
+    if (onepass.version == PGP_OPS_V3 && (onepass.keyid != keyid())) {
+        return false;
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* checks for V6 */
+    if (onepass.version == PGP_OPS_V6) {
+        /* check version binding) */
+        if (onepass.version == PGP_OPS_V6 && version != PGP_V6) {
+            return false;
+        }
+        /* check fp */
+        if (onepass.fp != keyfp()) {
+            return false;
+        }
+        /* check salt */
+        if (onepass.salt != salt) {
+            return false;
+        }
+    }
+#endif
+    /* check the remaining common attributes */
+    return (halg == onepass.halg) && (palg == onepass.palg) && (type_ == onepass.type);
 }
 
 bool
@@ -1003,11 +1030,17 @@ Signature::parse(pgp_packet_body_t &pkt)
             RNP_LOG("not enough data for v6 salt size octet");
             return RNP_ERROR_BAD_FORMAT;
         }
-        if (salt_size != rnp::Hash::size(halg) / 2) {
+        size_t expect_salt_size;
+        if (!pgp::pkt::Signature::v6_salt_size(halg, &expect_salt_size)) {
+            RNP_LOG("invalid halg");
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        if (salt_size != expect_salt_size) {
             RNP_LOG("invalid salt size");
             return RNP_ERROR_BAD_FORMAT;
         }
-        if (!pkt.get(salt, salt_size)) {
+        salt.resize(salt_size);
+        if (!pkt.get(salt.data(), salt_size)) {
             RNP_LOG("not enough data for v6 signature salt");
             return RNP_ERROR_BAD_FORMAT;
         }
@@ -1125,6 +1158,37 @@ Signature::fill_hashed_data()
     }
     hashed_data.assign(hbody.data(), hbody.data() + hbody.size());
 }
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+bool
+Signature::v6_salt_size(pgp_hash_alg_t halg, size_t *salt_size)
+{
+    switch (halg) {
+    case PGP_HASH_SHA256:
+        *salt_size = 16;
+        break;
+    case PGP_HASH_SHA224:
+        *salt_size = 16;
+        break;
+    case PGP_HASH_SHA384:
+        *salt_size = 24;
+        break;
+    case PGP_HASH_SHA512:
+        *salt_size = 32;
+        break;
+    case PGP_HASH_SHA3_256:
+        *salt_size = 16;
+        break;
+    case PGP_HASH_SHA3_512:
+        *salt_size = 32;
+        break;
+    default:
+        RNP_LOG("no V6 salt size for algorithm");
+        return false;
+    }
+    return true;
+}
+#endif
 
 } // namespace pkt
 } // namespace pgp

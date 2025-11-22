@@ -891,10 +891,6 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         return RNP_ERROR_BAD_FORMAT;
     }
 
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
-    std::vector<uint8_t> tmpbuf;
-#endif
-
     pgp_packet_body_t pkt((pgp_pkt_type_t) atag);
     /* Read the packet into memory */
     rnp_result_t res = pkt.read(src);
@@ -971,6 +967,14 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         break;
     default:;
     }
+
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
+    /* PQC only for v6 keys aside from MLKEM768+X25519 */
+    if (rnp::Key::is_pqc_alg(alg) && version < PGP_V6 && alg != PGP_PKA_KYBER768_X25519) {
+        RNP_LOG("Invalid algorithm for key version");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+#endif
 
     /* algorithm specific fields */
     if (!material->parse(pkt)) {

@@ -171,18 +171,15 @@ signature_validate(const pgp::pkt::Signature & sig,
         res.add_error(RNP_ERROR_SIG_WEAK_HASH);
     }
 
-#if defined(ENABLE_PQC)
-    /* check that hash matches key requirements */
+    /* check that hash matches minimum requirements */
     if (!key.sig_hash_allowed(hash.alg())) {
-        RNP_LOG("Signature invalid since hash algorithm requirements are not met for the "
-                "given key.");
+        RNP_LOG("The signature's digest size is below the minimum digest size required for "
+                "that key.");
         res.add_error(RNP_ERROR_SIG_HASH_ALG_MISMATCH);
     }
-#endif
 
     /* Finalize hash */
     auto hval = signature_hash_finish(sig, hash, hdr);
-
     /* compare lbits */
     if (memcmp(hval.data(), sig.lbits.data(), 2)) {
         RNP_LOG("wrong lbits");

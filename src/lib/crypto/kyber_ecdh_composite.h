@@ -38,7 +38,8 @@
 #include "crypto/exdsa_ecdhkem.h"
 #include <memory>
 
-struct pgp_kyber_ecdh_key_t; /* forward declaration */
+struct pgp_kyber_ecdh_key_t;                  /* forward declaration */
+struct pgp_kyber_ecdh_composite_public_key_t; /* forward declaration */
 
 class pgp_kyber_ecdh_composite_key_t {
   public:
@@ -96,10 +97,12 @@ class pgp_kyber_ecdh_composite_private_key_t : public pgp_kyber_ecdh_composite_k
       const pgp_kyber_ecdh_composite_private_key_t &other);
     pgp_kyber_ecdh_composite_private_key_t() = default;
 
-    rnp_result_t decrypt(rnp::RNG *                        rng,
-                         uint8_t *                         out,
-                         size_t *                          out_len,
-                         const pgp_kyber_ecdh_encrypted_t *enc) const;
+    rnp_result_t decrypt(
+      rnp::RNG *                                   rng,
+      uint8_t *                                    out,
+      size_t *                                     out_len,
+      const pgp_kyber_ecdh_encrypted_t *           enc,
+      const pgp_kyber_ecdh_composite_public_key_t &ecdh_kyber_pub_key) const;
 
     bool                 is_valid(rnp::RNG *rng) const;
     std::vector<uint8_t> get_encoded() const;
@@ -152,6 +155,8 @@ class pgp_kyber_ecdh_composite_public_key_t : public pgp_kyber_ecdh_composite_ke
 
     bool                 is_valid(rnp::RNG *rng) const;
     std::vector<uint8_t> get_encoded() const;
+    std::vector<uint8_t> get_kyber_encoded() const;
+    std::vector<uint8_t> get_ecdh_encoded() const;
 
     pgp_pubkey_alg_t
     pk_alg() const

@@ -71,6 +71,9 @@ class Signature {
 #if defined(ENABLE_CRYPTO_REFRESH)
     /* v6 - only fields */
     std::vector<uint8_t> salt;
+
+    /* maps halg to V6 salt size. Returns false if no mapping exists. */
+    static bool v6_salt_size(pgp_hash_alg_t halg, size_t *salt_size);
 #endif
 
     Signature()

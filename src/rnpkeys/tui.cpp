@@ -151,46 +151,6 @@ ask_curve_name(FILE *input_fp)
     return result;
 }
 
-#if defined(ENABLE_PQC)
-static std::string
-ask_sphincsplus_param_name(FILE *input_fp)
-{
-    std::vector<std::string> params = {"128f", "128s", "192f", "192s", "256f", "256s"};
-    std::vector<std::string> add_info = {"ML-KEM-768 + X25519",
-                                         "ML-KEM-768 + X25519",
-                                         "ML-KEM-1024 + ECDH-NIST-P-384",
-                                         "ML-KEM-1024 + ECDH-NIST-P-384",
-                                         "ML-KEM-1024 + ECDH-NIST-P-384",
-                                         "ML-KEM-1024 + ECDH-NIST-P-384"};
-
-    const size_t pcount = params.size();
-    if (!pcount) {
-        return NULL;
-    }
-    bool        ok = false;
-    std::string result = "";
-    int         attempts = 0;
-    do {
-        if (!check_attempts(attempts)) {
-            return NULL;
-        }
-        printf("Please select which SLH-DSA parameter set you want. In parenthesis, the "
-               "correspondingly chosen encryption subkey is shown:\n");
-        for (size_t i = 0; i < pcount; i++) {
-            printf("\t(%zu) %s (%s)\n", i + 1, params[i].c_str(), add_info[i].c_str());
-        }
-        printf("(default %s)> ", params[0].c_str());
-        long val = 0;
-        ok = rnp_secure_get_long_from_fd(input_fp, val) && (val > 0) && (val <= (long) pcount);
-        if (ok) {
-            result = params[val - 1];
-        }
-    } while (!ok);
-
-    return result;
-}
-#endif
-
 static long
 ask_rsa_bitlen(FILE *input_fp)
 {
@@ -287,17 +247,20 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
 #if defined(ENABLE_CRYPTO_REFRESH)
           "\t(23) ED25519 + X25519 (v6 key) \n"
 #endif
-#if defined(ENABLE_PQC)
-          "\t(24) Ed25519Legacy + Curve25519Legacy + (ML-KEM-768 + X25519)\n"
-#if defined(ENABLE_CRYPTO_REFRESH) // PQC primary keys only for v6
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
+          "\t(24) Ed25519 + X25519 + (ML-KEM-768 + X25519)\n"
           "\t(25) (ML-DSA-65 + Ed25519) + (ML-KEM-768 + X25519)\n"
-          "\t(27) (ML-DSA-65 + ECDSA-NIST-P-256) + (ML-KEM-768 + ECDH-NIST-P-256)\n"
-          "\t(28) (ML-DSA-87 + ECDSA-NIST-P-384) + (ML-KEM-1024 + ECDH-NIST-P-384)\n"
-          "\t(29) (ML-DSA-65 + ECDSA-brainpoolP256r1) + (ML-KEM-768 + ECDH-brainpoolP256r1)\n"
-          "\t(30) (ML-DSA-87 + ECDSA-brainpoolP384r1) + (ML-KEM-1024 + ECDH-brainpoolP384r1)\n"
-          "\t(31) SLH-DSA-SHA2 + MLKEM-ECDH Composite\n"
-          "\t(32) SLH-DSA-SHAKE + MLKEM-ECDH Composite\n"
+          "\t(26) (ML-DSA-87 + Ed448) + (ML-KEM-1024 + X448)\n"
+          "\t(27) (ML-DSA-65 + ECDSA-NIST-P-384) + (ML-KEM-768 + ECDH-NIST-P-384)\n"
+          "\t(28) (ML-DSA-87 + ECDSA-NIST-P-521) + (ML-KEM-1024 + ECDH-NIST-P-521)\n"
+          "\t(29) (ML-DSA-65 + ECDSA-brainpoolP384r1) + (ML-KEM-768 + ECDH-brainpoolP384r1)\n"
+          "\t(30) (ML-DSA-87 + ECDSA-brainpoolP512r1) + (ML-KEM-1024 + ECDH-brainpoolP512r1)\n"
+          "\t(31) SLH-DSA-SHAKE-128f + (ML-KEM-768 + X25519)\n"
+          "\t(32) SLH-DSA-SHAKE-128s + (ML-KEM-768 + X25519)\n"
+          "\t(33) SLH-DSA-SHAKE-256s + (ML-KEM-1024 + ECDH-NIST-P-521)\n"
 #endif
+#if defined(ENABLE_PQC)
+          "\t(34) EDDSA + ECDH + (ML-KEM-768 + X25519)\n"
 #endif
           "\t(99) SM2\n"
           "> ");
@@ -370,79 +333,79 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
             break;
         }
 #endif
-#if defined(ENABLE_PQC)
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         case 24:
-            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_EDDSA);
-            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_ECDH);
-            cfg.set_str(CFG_KG_SUBKEY_CURVE, "Curve25519");
+            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_ED25519);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_X25519);
             cfg.set_str(CFG_KG_SUBKEY_2_ALG, RNP_ALGNAME_KYBER768_X25519);
+            cfg.set_str(CFG_KG_V6_KEY, "true");
             break;
-#if defined(ENABLE_CRYPTO_REFRESH) // PQC primary keys only for v6
         case 25:
             cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DILITHIUM3_ED25519);
             cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_X25519);
             cfg.set_str(CFG_KG_V6_KEY, "true");
             break;
+        case 26:
+            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DILITHIUM5_ED448);
+            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_512);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_X448);
+            cfg.set_str(CFG_KG_V6_KEY, "true");
+            break;
         case 27:
-            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DILITHIUM3_P256);
+            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DILITHIUM3_P384);
             cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
-            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_P256);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_P384);
             cfg.set_str(CFG_KG_V6_KEY, "true");
             break;
         case 28:
-            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DILITHIUM5_P384);
-            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
-            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_P384);
+            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DILITHIUM5_P521);
+            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_512);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_P521);
             cfg.set_str(CFG_KG_V6_KEY, "true");
             break;
         case 29:
-            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DILITHIUM3_BP256);
+            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DILITHIUM3_BP384);
             cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
-            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_BP256);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_BP384);
             cfg.set_str(CFG_KG_V6_KEY, "true");
             break;
         case 30:
-            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DILITHIUM5_BP384);
-            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
-            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_BP384);
+            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DILITHIUM5_BP512);
+            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_512);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_BP512);
             cfg.set_str(CFG_KG_V6_KEY, "true");
             break;
         case 31: {
-            std::string param = ask_sphincsplus_param_name(input_fp);
-            if (param == "") {
-                return false;
-            }
-            if (param == "128f" || param == "128s") {
-                cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_X25519);
-                cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA256);
-            } else {
-                cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_P384);
-                cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA512);
-            }
-            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_SPHINCSPLUS_SHA2);
-            cfg.set_str(CFG_KG_PRIMARY_SPHINCSPLUS_PARAM, param);
+            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_SPHINCSPLUS_SHAKE_128f);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_X25519);
+            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
             cfg.set_str(CFG_KG_V6_KEY, "true");
             break;
         }
         case 32: {
-            std::string param = ask_sphincsplus_param_name(input_fp);
-            if (param == "") {
-                return false;
-            }
-            if (param == "128f" || param == "128s") {
-                cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_X25519);
-                cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
-            } else {
-                cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_P384);
-                cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_512);
-            }
-            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_SPHINCSPLUS_SHAKE);
-            cfg.set_str(CFG_KG_PRIMARY_SPHINCSPLUS_PARAM, param);
+            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_SPHINCSPLUS_SHAKE_128s);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_X25519);
+            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
+            cfg.set_str(CFG_KG_V6_KEY, "true");
+            break;
+        }
+        case 33: {
+            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_SPHINCSPLUS_SHAKE_256s);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_P521);
+            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_512);
             cfg.set_str(CFG_KG_V6_KEY, "true");
             break;
         }
 #endif
+#if defined(ENABLE_PQC)
+        case 34: {
+            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_EDDSA);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_ECDH);
+            cfg.set_str(CFG_KG_SUBKEY_CURVE, "Curve25519");
+            cfg.set_str(CFG_KG_SUBKEY_2_ALG, RNP_ALGNAME_KYBER768_X25519);
+            break;
+        }
 #endif
         case 99: {
             cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_SM2);
@@ -479,11 +442,13 @@ rnpkeys_ask_generate_params_subkey(rnp_cfg &cfg, FILE *input_fp)
                "\t(22) EDDSA\n"
 #if defined(ENABLE_PQC)
                "\t(25) ML-KEN-768 + X25519\n"
+#endif
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
                "\t(26) ML-KEM-1024 + X448\n"
-               "\t(27) ML-KEM-768 + ECDH-NIST-P-256\n"
-               "\t(28) ML-KEM-1024 + ECDH-NIST-P-384\n"
-               "\t(29) ML-KEM-768 + ECDH-brainpoolP256r1\n"
-               "\t(30) ML-KEM-1024 + ECDH-brainpoolP384r1\n"
+               "\t(27) ML-KEM-768 + ECDH-NIST-P-384\n"
+               "\t(28) ML-KEM-1024 + ECDH-NIST-P-521\n"
+               "\t(29) ML-KEM-768 + ECDH-brainpoolP384r1\n"
+               "\t(30) ML-KEM-1024 + ECDH-brainpoolP512r1\n"
 #endif
                "\t(99) SM2"
                "> ");
@@ -545,20 +510,22 @@ rnpkeys_ask_generate_params_subkey(rnp_cfg &cfg, FILE *input_fp)
         case 25:
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_X25519);
             break;
+#endif
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         case 26:
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_X448);
             break;
         case 27:
-            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_P256);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_P384);
             break;
         case 28:
-            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_P384);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_P521);
             break;
         case 29:
-            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_BP256);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_BP384);
             break;
         case 30:
-            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_BP384);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_BP512);
             break;
 #endif
         case 99: {

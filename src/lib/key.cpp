@@ -395,11 +395,11 @@ find_suitable_key(
         if (pref_pqc_sub && op == PGP_OP_ENCRYPT) {
             /* prefer PQC encryption over non-PQC encryption. Assume non-PQC key is only there
              * for backwards compatibility. */
-            if (subkey && subkey->is_pqc_alg() && !cur->is_pqc_alg()) {
+            if (subkey && subkey->is_pqc() && !cur->is_pqc()) {
                 /* do not override already found PQC key with non-PQC key */
                 continue;
             }
-            if (subkey && cur->is_pqc_alg() && !subkey->is_pqc_alg()) {
+            if (subkey && cur->is_pqc() && !subkey->is_pqc()) {
                 /* override non-PQC key with PQC key */
                 subkey = cur;
                 continue;
@@ -930,36 +930,50 @@ Key::has_secret() const noexcept
 
 #if defined(ENABLE_PQC)
 bool
-Key::is_pqc_alg() const
+Key::is_pqc_alg(pgp_pubkey_alg_t alg)
 {
-    switch (alg()) {
+    switch (alg) {
     case PGP_PKA_KYBER768_X25519:
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_P256:
+    case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P384:
+    case PGP_PKA_KYBER768_P384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_BP256:
+    case PGP_PKA_KYBER1024_P521:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384:
+    case PGP_PKA_KYBER768_BP384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_BP512:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
+    case PGP_PKA_DILITHIUM5_ED448:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
+    case PGP_PKA_DILITHIUM3_P384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
+    case PGP_PKA_DILITHIUM5_P521:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
+    case PGP_PKA_DILITHIUM3_BP384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_DILITHIUM5_BP512:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
+#endif
         return true;
     default:
         return false;
     }
+}
+
+bool
+Key::is_pqc() const noexcept
+{
+    return Key::is_pqc_alg(alg());
 }
 #endif
 
@@ -2104,9 +2118,15 @@ Key::sign_init(RNG &                rng,
         sig.set_keyid(keyid());
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if (version == PGP_V6) {
-        sig.salt.resize(Hash::size(sig.halg) / 2);
-        rng.get(sig.salt.data(), sig.salt.size());
+    if (version == PGP_V6 && sig.salt.empty()) {
+        /* salt is either set (OPS, etc) or empty (key sigs) and needs to be set here */
+        size_t salt_size;
+        if (!pgp::pkt::Signature::v6_salt_size(sig.halg, &salt_size)) {
+            // should not happen
+            throw rnp_exception(RNP_ERROR_BAD_STATE);
+        }
+        sig.salt.resize(salt_size);
+        rng.get(sig.salt.data(), salt_size);
     }
 #endif
 }
@@ -2577,8 +2597,10 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
 
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
+    case PGP_PKA_ED448:
         return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
     case PGP_PKA_X25519:
+    case PGP_PKA_X448:
         return PGP_KF_ENCRYPT;
 #endif
 
@@ -2591,31 +2613,39 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
 
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
         FALLTHROUGH_STATEMENT;
-    // TODO: Add case for PGP_PKA_KYBER1024_X448 with FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_P256:
+    case PGP_PKA_KYBER1024_X448:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P384:
+    case PGP_PKA_KYBER768_P384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_BP256:
+    case PGP_PKA_KYBER1024_P521:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP384:
+    case PGP_PKA_KYBER768_BP384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_BP512:
+#endif
         return PGP_KF_ENCRYPT;
+#endif
 
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
-    // TODO: Add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
+    case PGP_PKA_DILITHIUM5_ED448:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
+    case PGP_PKA_DILITHIUM3_P384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
+    case PGP_PKA_DILITHIUM5_P521:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
+    case PGP_PKA_DILITHIUM3_BP384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_DILITHIUM5_BP512:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE:
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
         return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
 #endif
 

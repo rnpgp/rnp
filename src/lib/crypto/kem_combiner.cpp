@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, [MTG AG](https://www.mtg.de).
+ * Copyright (c) 2024, [MTG AG](https://www.mtg.de).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -23,61 +23,47 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include "kmac_botan.hpp"
-#include "hash_botan.hpp"
-#include "botan/mac.h"
-
+#include "config.h"
+#include "kem_combiner.hpp"
 #if defined(ENABLE_PQC_DBG_LOG)
 #include "crypto/mem.h"
 #endif
-
 namespace rnp {
 
-KMAC256_Botan::KMAC256_Botan() : KMAC256()
+std::vector<uint8_t>
+PqcKemCombiner::compute(const std::vector<uint8_t> &mlkem_key_share,
+                        const std::vector<uint8_t> &ecc_key_share,
+                        const std::vector<uint8_t> &ecc_ciphertext,
+                        const std::vector<uint8_t> &ecc_pub_key,
+                        const pgp_pubkey_alg_t      alg_id)
 {
-}
-
-std::unique_ptr<KMAC256_Botan>
-KMAC256_Botan::create()
-{
-    return std::unique_ptr<KMAC256_Botan>(new KMAC256_Botan());
-}
-
-void
-KMAC256_Botan::compute(const std::vector<uint8_t> &ecc_key_share,
-                       const std::vector<uint8_t> &ecc_ciphertext,
-                       const std::vector<uint8_t> &kyber_key_share,
-                       const std::vector<uint8_t> &kyber_ciphertext,
-                       const pgp_pubkey_alg_t      alg_id,
-                       std::vector<uint8_t> &      out)
-{
-    auto kmac = Botan::MessageAuthenticationCode::create_or_throw("KMAC-256(256)");
-
-    /* the mapping between the KEM Combiner and the MAC interface is:
-     * key     <> domSeparation
-     * nonce   <> customizationString
-     * message <> encData
-     */
-
+    std::vector<uint8_t> out;
 #if defined(ENABLE_PQC_DBG_LOG)
-    RNP_LOG_U8VEC("KMAC256 domSeparation: %s", domSeparation());
-    RNP_LOG_U8VEC("KMAC256 customizationString: %s", customizationString());
+    RNP_LOG_NO_POS_INFO("Key Combiner Input: ");
+    RNP_LOG_U8VEC(" - mlkemKeyShare: %s", mlkem_key_share);
+    RNP_LOG_U8VEC(" - eccKeyShare: %s", ecc_key_share);
+    RNP_LOG_U8VEC(" - eccCipherText: %s", ecc_ciphertext);
+    RNP_LOG_U8VEC(" - eccPublicKey: %s", ecc_pub_key);
+    RNP_LOG_NO_POS_INFO(" - algID: %d", (uint8_t) alg_id);
+    RNP_LOG_NO_POS_INFO("Key Combiner Constants: ");
+    RNP_LOG_U8VEC(" - DomSep %s", domSeparation());
 #endif
 
-    kmac->set_key(domSeparation());
-    kmac->start(customizationString()); // set nonce
-    kmac->update(
-      encData(ecc_key_share, ecc_ciphertext, kyber_key_share, kyber_ciphertext, alg_id));
-    out = kmac->final_stdvec();
+    pgp_hash_alg_t hash_alg = PGP_HASH_SHA3_256;
+    auto           hash = rnp::Hash::create(hash_alg);
+    hash->add(mlkem_key_share);
+    hash->add(ecc_key_share);
+    hash->add(ecc_ciphertext);
+    hash->add(ecc_pub_key);
+    hash->add(&alg_id, 1);
+    hash->add(domSeparation());
 
+    out.resize(rnp::Hash::size(hash_alg));
+    hash->finish(out.data());
 #if defined(ENABLE_PQC_DBG_LOG)
-    RNP_LOG_U8VEC("KMAC256 Output: %s", out);
+    RNP_LOG_U8VEC("PQC KEM Combiner SHA-3 Output: %s", out);
 #endif
-}
 
-KMAC256_Botan::~KMAC256_Botan()
-{
+    return out;
 }
-
 } // namespace rnp
