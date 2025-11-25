@@ -34,6 +34,10 @@ GPG_AEAD_EAX = False
 GPG_AEAD_OCB = False
 GPG_NO_OLD = False
 GPG_BRAINPOOL = False
+GPG_ELG = False
+GPG_3DES = False
+GPG_IDEA = False
+GPG_CAST5 = False
 TESTS_SUCCEEDED = []
 TESTS_FAILED = []
 TEST_WORKFILES = []
@@ -102,9 +106,11 @@ PUBRING = 'pubring.gpg'
 SECRING = 'secring.gpg'
 PUBRING_1 = 'keyrings/1/pubring.gpg'
 SECRING_1 = 'keyrings/1/secring.gpg'
+PUBRING_5 = 'keyrings/5/pubring.gpg'
 KEYRING_DIR_1 = 'keyrings/1'
 KEYRING_DIR_2 = 'keyrings/2'
 KEYRING_DIR_3 = 'keyrings/3'
+KEYRING_DIR_5 = 'keyrings/5'
 PUBRING_7 = 'keyrings/7/pubring.gpg'
 SECRING_G10 = 'test_stream_key_load/g10'
 KEY_ALICE_PUB = 'test_key_validity/alice-pub.asc'
@@ -169,11 +175,7 @@ r'3 keys found.*$'
 RE_MULTIPLE_SUBKEY_8 = r'(?s)^\s*' \
 r'8 keys found.*$'
 
-RE_GPG_SINGLE_RSA_KEY = r'(?s)^\s*' \
-r'.+-+\s*' \
-r'pub\s+rsa.+' \
-r'\s+([0-9A-F]{40})\s*' \
-r'uid\s+.+rsakey@gpg.*'
+RE_GPG_GENERATED_KEY_FPR = r'^\[GNUPG:\] KEY_CREATED P ([0-9A-F]{40})\s*'
 
 RE_GPG_GOOD_SIGNATURE = r'(?s)^.*' \
 r'gpg: Signature made .*' \
@@ -224,9 +226,8 @@ RE_SIG_1_IMPORT = r'(?s)^.*Import finished: 1 new signature, 0 unchanged, 0 unkn
 
 RE_KEYSTORE_INFO = r'(?s)^.*fatal: cannot set keystore info'
 
-RNP_TO_GPG_ZALGS = { 'zip' : '1', 'zlib' : '2', 'bzip2' : '3' }
 # These are mostly identical
-RNP_TO_GPG_CIPHERS = {'AES' : 'aes128', 'AES192' : 'aes192', 'AES256' : 'aes256',
+RNP_TO_GPG_CIPHERS = {'AES' : 'aes', 'AES192' : 'aes192', 'AES256' : 'aes256',
                       'TWOFISH' : 'twofish', 'CAMELLIA128' : 'camellia128',
                       'CAMELLIA192' : 'camellia192', 'CAMELLIA256' : 'camellia256',
                       'IDEA' : 'idea', '3DES' : '3des', 'CAST5' : 'cast5',
@@ -323,7 +324,7 @@ def clear_workfiles():
     remove_files(*TEST_WORKFILES)
     TEST_WORKFILES = []
 
-def rnp_genkey_rsa(userid, bits=2048, pswd=PASSWORD):
+def rnp_genkey_rsa(userid, bits=3072, pswd=PASSWORD):
     pipe = pswd_pipe(pswd)
     ret, _, err = run_proc(RNPK, ['--numbits', str(bits), '--homedir', RNPDIR, '--pass-fd', str(pipe),
                                   '--notty', '--s2k-iterations', '50000', '--userid', userid, '--generate-key'])
@@ -527,7 +528,7 @@ def gpg_export_secret_key(userid, password, keyfile):
 def gpg_params_insert_z(params, pos, z):
     if z:
         if len(z) > 0 and z[0] != None:
-            params[pos:pos] = ['--compress-algo', RNP_TO_GPG_ZALGS[z[0]]]
+            params[pos:pos] = ['--compress-algo', z[0]]
         if len(z) > 1 and z[1] != None:
             params[pos:pos] = ['-z', str(z[1])]
 
@@ -543,12 +544,14 @@ def gpg_encrypt_file(src, dst, cipher=None, z=None, armor=False):
 
     ret, _, err = run_proc(GPG, params)
     if ret != 0:
-        raise_err('gpg encryption failed for cipher ' + cipher, err)
+        raise_err('gpg encryption failed for cipher ' +
+                  (cipher or 'unspecified'), err)
 
 def gpg_symencrypt_file(src, dst, cipher=None, z=None, armor=False, aead=None):
     src = path_for_gpg(src)
     dst = path_for_gpg(dst)
     params = ['--homedir', GPGHOME, '-c', '--s2k-count', '65536', '--batch',
+              GPG_LOOPBACK,
               '--passphrase', PASSWORD, '--output', dst, src]
     if z: gpg_params_insert_z(params, 3, z)
     if cipher: params[3:3] = ['--cipher-algo', RNP_TO_GPG_CIPHERS[cipher]]
@@ -854,13 +857,20 @@ def rnp_cleartext_signing_gpg_to_rnp(filesize):
     clear_workfiles()
 
 def gpg_check_features():
-    global GPG_AEAD, GPG_AEAD_EAX, GPG_AEAD_OCB, GPG_NO_OLD, GPG_BRAINPOOL
+    global GPG_ELG, GPG_AEAD, GPG_AEAD_EAX, GPG_AEAD_OCB, GPG_NO_OLD, GPG_BRAINPOOL
+    global GPG_3DES, GPG_IDEA, GPG_CAST5
     _, out, _ = run_proc(GPG, ["--version"])
+    # El Gamal
+    GPG_ELG = re.match(r'(?s)^.*ELG.*', out) is not None
+    # old symmetric ciphers
+    GPG_3DES = re.match(r'(?s)^.*3DES.*', out) is not None
+    GPG_IDEA = re.match(r'(?s)^.*IDEA.*', out) is not None
+    GPG_CAST5 = re.match(r'(?s)^.*CAST5.*', out) is not None
     # AEAD
     GPG_AEAD_EAX = re.match(r'(?s)^.*AEAD:.*EAX.*', out) is not None
     GPG_AEAD_OCB = re.match(r'(?s)^.*AEAD:.*OCB.*', out) is not None
     # Version 2.3.0-beta1598 and up drops support of 64-bit block algos
-    match = re.match(r'(?s)^.*gpg \(GnuPG\) (\d+)\.(\d+)\.(\d+)(-beta(\d+))?.*$', out)
+    match = re.match(r'(?s)^.*gpg \(GnuPG[^\)]*\) (\d+)\.(\d+)\.(\d+)(-beta(\d+))?.*$', out)
     if not match:
         raise_err('Failed to parse GnuPG version.')
     ver = [int(match.group(1)), int(match.group(2)), int(match.group(3))]
@@ -877,6 +887,7 @@ def gpg_check_features():
     # Check whether Brainpool curves are supported
     _, out, _ = run_proc(GPG, ["--with-colons", "--list-config", "curve"])
     GPG_BRAINPOOL = re.match(r'(?s)^.*brainpoolP256r1.*', out) is not None
+    print('GPG_ELG: ' + str(GPG_ELG))
     print('GPG_AEAD_EAX: ' + str(GPG_AEAD_EAX))
     print('GPG_AEAD_OCB: ' + str(GPG_AEAD_OCB))
     print('GPG_NO_OLD: ' + str(GPG_NO_OLD))
@@ -1078,7 +1089,9 @@ class Keystore(unittest.TestCase):
         self.assertEqual(match.group(2), keyid.lower(), 'wrong keyid')
         self.assertEqual(match.group(1), str(bits), 'wrong key bits in list')
         # Import key to the gnupg
-        ret, _, _ = run_proc(GPG, ['--batch', '--passphrase', PASSWORD, '--homedir',
+        ret, _, _ = run_proc(GPG, ['--batch', '--passphrase', PASSWORD,
+                                   GPG_LOOPBACK,
+                                   '--homedir',
                                        GPGHOME, '--import',
                                        path_for_gpg(os.path.join(RNPDIR, PUBRING)),
                                        path_for_gpg(os.path.join(RNPDIR, SECRING))])
@@ -1157,13 +1170,17 @@ class Keystore(unittest.TestCase):
         Generate key with GnuPG and import it to rnp
         '''
         # Generate key in GnuPG
-        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--passphrase',
-                                       '', '--quick-generate-key', 'rsakey@gpg', 'rsa'])
+        statusfile = os.path.join(WORKDIR, "gpg-status")
+        ret, _, _ = run_proc(GPG, ['--batch',
+                                   GPG_LOOPBACK,
+                                   '--homedir', GPGHOME, '--passphrase',
+                                       '', '--status-file', statusfile,
+                                       '--quick-generate-key', 'rsakey@gpg', 'rsa'])
         self.assertEqual(ret, 0, 'gpg key generation failed')
         # Getting fingerprint of the generated key
-        ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--list-keys'])
-        match = re.match(RE_GPG_SINGLE_RSA_KEY, out)
-        self.assertTrue(match, 'wrong gpg key list output')
+        with open(statusfile, 'r') as status:
+            match = re.search(RE_GPG_GENERATED_KEY_FPR, status.read(), re.MULTILINE)
+        self.assertTrue(match, 'wrong gpg status output')
         keyfp = match.group(1)
         # Exporting generated public key
         ret, out, err = run_proc(
@@ -1633,19 +1650,21 @@ class Keystore(unittest.TestCase):
         tracker_1 = tracker_beginning + ''.join(map(chr, range(1,0x10))) + tracker_end
         tracker_2 = tracker_beginning + ''.join(map(chr, range(0x10,0x20))) + tracker_end
         #Run key generation
-        rnp_genkey_rsa(tracker_1, 1024)
-        rnp_genkey_rsa(tracker_2, 1024)
+        rnp_genkey_rsa(tracker_1)
+        rnp_genkey_rsa(tracker_2)
         #Read with rnpkeys
         ret, out_rnp, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
         self.assertEqual(ret, 0, 'rnpkeys : failed to read keystore')
         #Read with GPG
-        ret, out_gpg, _ = run_proc(GPG, ['--homedir', path_for_gpg(RNPDIR), '--list-keys'])
+        ret, out_gpg, _ = run_proc(GPG, ['--homedir', path_for_gpg(RNPDIR), '--with-colons', '--list-keys'])
         self.assertEqual(ret, 0, 'gpg : failed to read keystore')
         tracker_rnp = re.findall(r'' + tracker_beginning + '.*' + tracker_end + '', out_rnp)
         tracker_gpg = re.findall(r'' + tracker_beginning + '.*' + tracker_end + '', out_gpg)
         self.assertEqual(len(tracker_rnp), 2, 'failed to find expected rnp userids')
         self.assertEqual(len(tracker_gpg), 2, 'failed to find expected gpg userids')
-        self.assertEqual(tracker_rnp, tracker_gpg, 'userids from rnpkeys and gpg don\'t match')
+        self.assertEqual(set(map(decode_string_escape, tracker_rnp)),
+                         set(map(decode_string_escape, tracker_gpg)),
+                         'userids from rnpkeys and gpg don\'t match')
         clear_keyrings()
 
     def test_key_revoke(self):
@@ -1733,19 +1752,19 @@ class Keystore(unittest.TestCase):
             USERS.append(userid_beginning + weird_part2 + userid_end)
         # Run key generation
         for userid in USERS:
-            rnp_genkey_rsa(userid, 1024)
+            rnp_genkey_rsa(userid)
         # Read with GPG
-        ret, out, _ = run_proc(GPG, ['--homedir', path_for_gpg(RNPDIR), '--list-keys', '--charset', CONSOLE_ENCODING])
+        ret, out, _ = run_proc(GPG, ['--homedir', path_for_gpg(RNPDIR), '--with-colons', '--list-keys', '--charset', CONSOLE_ENCODING])
         self.assertEqual(ret, 0, 'gpg : failed to read keystore')
         tracker_escaped = re.findall(r'' + userid_beginning + '.*' + userid_end + '', out)
-        tracker_gpg = list(map(decode_string_escape, tracker_escaped))
-        self.assertEqual(tracker_gpg, USERS, 'gpg : failed to find expected userids from keystore')
+        tracker_gpg = set(map(decode_string_escape, tracker_escaped))
+        self.assertEqual(tracker_gpg, set(USERS), 'gpg : failed to find expected userids from keystore')
         # Read with rnpkeys
         ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
         self.assertEqual(ret, 0, 'rnpkeys : failed to read keystore')
         tracker_escaped = re.findall(r'' + userid_beginning + '.*' + userid_end + '', out)
-        tracker_rnp = list(map(decode_string_escape, tracker_escaped))
-        self.assertEqual(tracker_rnp, USERS, 'rnpkeys : failed to find expected userids from keystore')
+        tracker_rnp = set(map(decode_string_escape, tracker_escaped))
+        self.assertEqual(tracker_rnp, set(USERS), 'rnpkeys : failed to find expected userids from keystore')
         clear_keyrings()
 
     def test_userid_unicode_genkeys(self):
@@ -2164,7 +2183,9 @@ class Misc(unittest.TestCase):
         random_text(src, 64000)
         # Encrypt cleartext file with GPG
         params = ['--homedir', GPGHOME, '-c', '-z', '0', '--disable-mdc', '--s2k-count',
-                  '65536', '--batch', '--passphrase', PASSWORD, '--output',
+                  '65536', '--batch',
+                  GPG_LOOPBACK,
+                  '--passphrase', PASSWORD, '--output',
                   path_for_gpg(dst), path_for_gpg(src)]
         ret, _, _ = run_proc(GPG, params)
         self.assertEqual(ret, 0, 'gpg symmetric encryption failed')
@@ -2185,7 +2206,9 @@ class Misc(unittest.TestCase):
 
         def rnp_encryption_s2k_gpg(cipher, hash_alg, s2k=None, iterations=None):
             params = ['--homedir', GPGHOME, '-c', '--s2k-cipher-algo', cipher,
-                      '--s2k-digest-algo', hash_alg, '--batch', '--passphrase', PASSWORD,
+                      '--s2k-digest-algo', hash_alg, '--batch',
+                      GPG_LOOPBACK,
+                      '--passphrase', PASSWORD,
                       '--output', dst, src]
 
             if s2k is not None:
@@ -2417,14 +2440,14 @@ class Misc(unittest.TestCase):
 
     def test_large_packet(self):
         # Verifying large packet file with GnuPG
-        kpath = path_for_gpg(data_path(PUBRING_1))
+        kpath = path_for_gpg(data_path(PUBRING_5))
         dpath = path_for_gpg(data_path('test_large_packet/4g.bzip2.gpg'))
         ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--no-default-keyring', '--keyring', kpath, '--verify', dpath])
         self.assertEqual(ret, 0, 'large packet verification failed')
 
     def test_partial_length_signature(self):
         # Verifying partial length signature with GnuPG
-        kpath = path_for_gpg(data_path(PUBRING_1))
+        kpath = path_for_gpg(data_path(PUBRING_5))
         mpath = path_for_gpg(data_path('test_partial_length/message.txt.partial-signed'))
         ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--no-default-keyring', '--keyring', kpath, '--verify', mpath])
         self.assertNotEqual(ret, 0, 'partial length signature packet should result in failure but did not')
@@ -2432,19 +2455,19 @@ class Misc(unittest.TestCase):
     def test_partial_length_public_key(self):
         # Reading keyring that has a public key packet with partial length using GnuPG
         kpath = data_path('test_partial_length/pubring.gpg.partial')
-        ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--no-default-keyring', '--keyring', kpath, '--list-keys'])
-        self.assertNotEqual(ret, 0, 'partial length public key packet should result in failure but did not')
+        ret, out, _ = run_proc(GPG, ['--homedir', GPGHOME, '--no-default-keyring', '--keyring', kpath, '--list-keys'])
+        self.assertEqual(out, '', 'some listing emitted when reviewing partial-length public key packet')
 
     def test_partial_length_zero_last_chunk(self):
         # Verifying message in partial packets having 0-size last chunk with GnuPG
-        kpath = path_for_gpg(data_path(PUBRING_1))
+        kpath = path_for_gpg(data_path(PUBRING_5))
         mpath = path_for_gpg(data_path('test_partial_length/message.txt.partial-zero-last'))
         ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--no-default-keyring', '--keyring', kpath, '--verify', mpath])
         self.assertEqual(ret, 0, 'message in partial packets having 0-size last chunk verification failed')
 
     def test_partial_length_largest(self):
         # Verifying message having largest possible partial packet with GnuPG
-        kpath = path_for_gpg(data_path(PUBRING_1))
+        kpath = path_for_gpg(data_path(PUBRING_5))
         mpath = path_for_gpg(data_path('test_partial_length/message.txt.partial-1g'))
         ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--no-default-keyring', '--keyring', kpath, '--verify', mpath])
         self.assertEqual(ret, 0, 'message having largest possible partial packet verification failed')
@@ -3762,7 +3785,7 @@ class Misc(unittest.TestCase):
     def test_set_current_time(self):
         # Too old date
         is64bit = sys.maxsize > 2 ** 32
-        gparam = ['--homedir', RNPDIR2, '--notty', '--password', PASSWORD, '--generate-key', '--numbits', '1024', '--current-time']
+        gparam = ['--homedir', RNPDIR2, '--notty', '--password', PASSWORD, '--generate-key', '--numbits', '2048', '--current-time']
         rparam = ['--homedir', RNPDIR2, '--notty', '--remove-key']
         ret, out, err = run_proc(RNPK, gparam + ['1950-01-02', '--userid', 'key-1950'])
         self.assertEqual(ret, 0)
@@ -4334,11 +4357,20 @@ class Encryption(unittest.TestCase):
         # Generate keypair in RNP
         rnp_genkey_rsa(KEY_ENCRYPT)
         # Add some other keys to the keyring
-        rnp_genkey_rsa('dummy1@rnp', 1024)
-        rnp_genkey_rsa('dummy2@rnp', 1024)
+        rnp_genkey_rsa('dummy1@rnp')
+        rnp_genkey_rsa('dummy2@rnp')
         gpg_import_pubring()
         gpg_import_secring()
         Encryption.CIPHERS += rnp_supported_ciphers(False)
+        cipher_skip = []
+        if not GPG_3DES:
+            cipher_skip += ['3DES']
+        if not GPG_IDEA:
+            cipher_skip += ['IDEA']
+        if not GPG_CAST5:
+            cipher_skip += ['CAST5']
+        if cipher_skip:
+            Encryption.CIPHERS = list(filter(lambda x: x not in cipher_skip, Encryption.CIPHERS))
         Encryption.CIPHERS_R = list_upto(Encryption.CIPHERS, Encryption.RUNS)
         Encryption.SIZES_R = list_upto(Encryption.SIZES, Encryption.RUNS)
         Encryption.Z_R = list_upto(Encryption.Z, Encryption.RUNS)
@@ -4561,7 +4593,7 @@ class Encryption(unittest.TestCase):
         PASSWORDS = ['password1', 'password2', 'password3']
         # Generate multiple keys and import to GnuPG
         for uid, pswd in zip(USERIDS, KEYPASS):
-            rnp_genkey_rsa(uid, 1024, pswd)
+            rnp_genkey_rsa(uid, 3072, pswd)
 
         gpg_import_pubring()
         gpg_import_secring()
@@ -4622,7 +4654,7 @@ class Encryption(unittest.TestCase):
         AEAD_C = list_upto(rnp_supported_ciphers(True), Encryption.RUNS)
         # Generate multiple keys and import to GnuPG
         for uid, pswd in zip(USERIDS, KEYPASS):
-            rnp_genkey_rsa(uid, 1024, pswd)
+            rnp_genkey_rsa(uid, 3072, pswd)
 
         gpg_import_pubring()
         gpg_import_secring()
@@ -4754,7 +4786,7 @@ class Encryption(unittest.TestCase):
     def test_encryption_weird_userids_special_1(self):
         uid = WEIRD_USERID_SPECIAL_CHARS
         pswd = 'encSpecial1Pass'
-        rnp_genkey_rsa(uid, 1024, pswd)
+        rnp_genkey_rsa(uid, 3072, pswd)
         # Encrypt
         src = data_path(MSG_TXT)
         dst, dec = reg_workfiles('weird_userids_special_1', '.rnp', '.dec')
@@ -4769,7 +4801,7 @@ class Encryption(unittest.TestCase):
         KEYPASS = ['encSpecial2Pass1', 'encSpecial2Pass2', 'encSpecial2Pass3', 'encSpecial2Pass4']
         # Generate multiple keys
         for uid, pswd in zip(USERIDS, KEYPASS):
-            rnp_genkey_rsa(uid, 1024, pswd)
+            rnp_genkey_rsa(uid, 2048, pswd)
         # Encrypt to all recipients
         src = data_path(MSG_TXT)
         dst, dec = reg_workfiles('weird_userids_special_2', '.rnp', '.dec')
@@ -4795,7 +4827,7 @@ class Encryption(unittest.TestCase):
         KEYPASS = ['encUnicodePass1', 'encUnicodePass2']
         # Generate multiple keys
         for uid, pswd in zip(USERIDS_1, KEYPASS):
-            rnp_genkey_rsa(uid, 1024, pswd)
+            rnp_genkey_rsa(uid, 3072, pswd)
         # Encrypt to all recipients
         src = data_path('test_messages') + '/message.txt'
         dst, dec = reg_workfiles('weird_unicode', '.rnp', '.dec')
@@ -4931,7 +4963,7 @@ class Encryption(unittest.TestCase):
         self.assertEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*gpg: encrypted with .*dummy1@rnp.*')
         self.assertRegex(out, r'(?s)^.*:pubkey enc packet: version 3.*:encrypted data packet:.*mdc_method: 2.*' \
-                              r':compressed packet.*:onepass_sig packet:.*:literal data packet.*:signature packet.*')
+                              r':onepass_sig packet:.*:literal data packet.*:signature packet.*')
         # Decrypt with GnuPG
         ret, _, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', PASSWORD, '--output', dec, '-d', enc])
         self.assertEqual(ret, 0)
@@ -5061,7 +5093,7 @@ class Compression(unittest.TestCase):
 
     def test_rnp_compression_corner_cases(self):
         shutil.rmtree(RNPDIR)
-        kring = shutil.copytree(data_path(KEYRING_DIR_1), RNPDIR)
+        kring = shutil.copytree(data_path(KEYRING_DIR_5), RNPDIR)
         gpg_import_pubring()
         gpg_import_secring()
 
@@ -5135,7 +5167,7 @@ class SignDefault(unittest.TestCase):
 
         # Generate multiple keys and import to GnuPG
         for uid, pswd in zip(USERIDS, KEYPASS):
-            rnp_genkey_rsa(uid, 1024, pswd)
+            rnp_genkey_rsa(uid, 3072, pswd)
 
         gpg_import_pubring()
         gpg_import_secring()
@@ -5175,7 +5207,7 @@ class SignDefault(unittest.TestCase):
 
         # Generate multiple keys
         for uid, pswd in zip(USERIDS, KEYPASS):
-            rnp_genkey_rsa(uid, 1024, pswd)
+            rnp_genkey_rsa(uid, 3072, pswd)
 
         gpg_import_pubring()
         gpg_import_secring()
@@ -5305,6 +5337,13 @@ class EncryptElgamal(Encrypt):
 
     RNP_GENERATE_DSA_ELGAMAL_PATTERN = "16\n{0}\n"
 
+    @property
+    def elg_peer(self):
+        if GPG_ELG:
+            return self.gpg
+        else:
+            return self.rnp
+
     @staticmethod
     def key_pfx(sign_key_size, enc_key_size):
         return "GnuPG_dsa_elgamal_%d_%d" % (sign_key_size, enc_key_size)
@@ -5316,7 +5355,7 @@ class EncryptElgamal(Encrypt):
         # DSA 1024 key uses SHA-1 as hash but verification would succeed till 2024
         if sign_key_size == 1024:
             return
-        self._encrypt_decrypt(self.gpg, self.rnp)
+        self._encrypt_decrypt(self.elg_peer, self.rnp)
 
     def do_test_decrypt(self, sign_key_size, enc_key_size):
         pfx = EncryptElgamal.key_pfx(sign_key_size, enc_key_size)
@@ -5324,7 +5363,7 @@ class EncryptElgamal(Encrypt):
         self.rnp.userid = self.gpg.userid = pfx + AT_EXAMPLE
         if sign_key_size == 1024:
             return
-        self._encrypt_decrypt(self.rnp, self.gpg)
+        self._encrypt_decrypt(self.rnp, self.elg_peer)
 
     def test_encrypt_P1024_1024(self): self.do_test_encrypt(1024, 1024)
     def test_encrypt_P1024_2048(self): self.do_test_encrypt(1024, 2048)
@@ -5337,6 +5376,8 @@ class EncryptElgamal(Encrypt):
     # 1024-bit key generation test was removed since it uses SHA1, which is not allowed for key signatures since Jan 19, 2024.
 
     def test_generate_elgamal_key1536_in_gpg_and_encrypt(self):
+        if not GPG_ELG:
+            self.skipTest("gpg does not support El Gamal")
         cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATTERN.format(1536, 1536, self.gpg.userid)
         self.operation_key_gencmd = cmd
         self._encrypt_decrypt(self.gpg, self.rnp)
@@ -5344,7 +5385,7 @@ class EncryptElgamal(Encrypt):
     def test_generate_elgamal_key1024_in_rnp_and_decrypt(self):
         cmd = EncryptElgamal.RNP_GENERATE_DSA_ELGAMAL_PATTERN.format(1024)
         self.operation_key_gencmd = cmd
-        self._encrypt_decrypt(self.rnp, self.gpg)
+        self._encrypt_decrypt(self.rnp, self.elg_peer)
 
 
 class EncryptEcdh(Encrypt):
@@ -5582,12 +5623,12 @@ class EncryptSignRSA(Encrypt, Sign):
         self._encrypt_decrypt(self.rnp, self.gpg)
         self._sign_verify(self.rnp, self.gpg)
 
-    def test_rnp_encrypt_verify_1024(self): self.do_encrypt_verify(1024)
     def test_rnp_encrypt_verify_2048(self): self.do_encrypt_verify(2048)
+    def test_rnp_encrypt_verify_3072(self): self.do_encrypt_verify(3072)
     def test_rnp_encrypt_verify_4096(self): self.do_encrypt_verify(4096)
 
-    def test_rnp_decrypt_sign_1024(self): self.do_rnp_decrypt_sign(1024)
     def test_rnp_decrypt_sign_2048(self): self.do_rnp_decrypt_sign(2048)
+    def test_rnp_decrypt_sign_3072(self): self.do_rnp_decrypt_sign(3072)
     def test_rnp_decrypt_sign_4096(self): self.do_rnp_decrypt_sign(4096)
 
     def setUp(self):
