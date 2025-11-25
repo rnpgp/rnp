@@ -72,6 +72,9 @@ static const char *usage =
   "    --no-wrap             Do not wrap the output in a literal data packet.\n"
   "  -c, --symmetric         Encrypt data using the password(s).\n"
   "    --passwords num       Encrypt to the specified number of passwords.\n"
+#if defined(ENABLE_CRYPTO_REFRESH)
+  "    --enable-v6-skesk     Enable creation of v6 SKESK if AEAD is used.\n"
+#endif
   "  -s, --sign              Sign data. May be combined with encryption.\n"
   "    --detach              Produce detached signature.\n"
   "    -u, --userid          Specify signing key(s) via uid/keyid/fingerprint.\n"
@@ -132,6 +135,7 @@ enum optdefs {
     OPT_RECIPIENT,
 #if defined(ENABLE_CRYPTO_REFRESH)
     OPT_V3_PKESK_ONLY,
+    OPT_ENABLE_V6_SKESK,
 #endif
     OPT_ARMOR,
     OPT_HOMEDIR,
@@ -201,6 +205,7 @@ static struct option options[] = {
   {"recipient", required_argument, NULL, OPT_RECIPIENT},
 #if defined(ENABLE_CRYPTO_REFRESH)
   {"v3-pkesk-only", optional_argument, NULL, OPT_V3_PKESK_ONLY},
+  {"enable-v6-skesk", optional_argument, NULL, OPT_ENABLE_V6_SKESK},
 #endif
   {"home", required_argument, NULL, OPT_HOMEDIR},
   {"homedir", required_argument, NULL, OPT_HOMEDIR},
@@ -415,6 +420,9 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
 #if defined(ENABLE_CRYPTO_REFRESH)
     case OPT_V3_PKESK_ONLY:
         cfg.set_bool(CFG_V3_PKESK_ONLY, true);
+        return true;
+    case OPT_ENABLE_V6_SKESK:
+        cfg.set_bool(CFG_ENABLE_V6_SKESK, true);
         return true;
 #endif
     case OPT_ARMOR:
