@@ -2712,6 +2712,9 @@ RNP_API rnp_result_t rnp_key_is_locked(rnp_key_handle_t key, bool *result);
  *                 protection.
  *             - "Encrypted-Hashed" : secret key data is encrypted, using the SHA1 hash as
  *                 an integrity protection.
+ *             - "AEAD-Encrypted" : secret key data is encrypted using an AEAD algorithm
+ *                 with built-in integrity protection. (only available in experimental build
+ *                 that enables ENABLE_CRYPTO_REFRESH)
  *             - "GPG-None" : secret key data is not available at all (this would happen if
  *                 secret key is exported from GnuPG via --export-secret-subkeys)
  *             - "GPG-Smartcard" : secret key data is stored on smartcard by GnuPG, so is not

@@ -154,7 +154,7 @@ typedef struct pgp_packet_body_t {
     /** @brief add ec curve description to the packet body */
     void add(const pgp_curve_t curve);
     /** @brief add s2k description to the packet body */
-    void add(const pgp_s2k_t &s2k);
+    void add(const pgp_s2k_t &s2k, pgp_version_t version);
     /** @brief read 'short-length' packet body (including tag and length bytes) from the source
      *  @param src source to read from
      *  @return RNP_SUCCESS or error code if operation failed

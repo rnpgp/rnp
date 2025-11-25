@@ -490,14 +490,26 @@ dst_print_s2k(pgp_dest_t &dst, pgp_s2k_t &s2k)
                       true);
         return;
     }
-    dst_print_halg(dst, "s2k hash algorithm", s2k.hash_alg);
-    if ((s2k.specifier == PGP_S2KS_SALTED) ||
-        (s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED)) {
-        dst_print_hex(dst, "s2k salt", s2k.salt, PGP_SALT_SIZE, false);
-    }
-    if (s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
-        size_t real_iter = pgp_s2k_decode_iterations(s2k.iterations);
-        dst_printf(dst, "s2k iterations: %zu (encoded as %u)\n", real_iter, s2k.iterations);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (s2k.specifier == PGP_S2KS_ARGON2) {
+        dst_print_hex(dst, "s2k salt", s2k.salt, s2k.salt_size(s2k.specifier), false);
+        dst_print_hex(dst, "s2k salt", s2k.salt, 16, false);
+        dst_printf(dst, "argon2 t: %d\n", s2k.argon2_t);
+        dst_printf(dst, "argon2 p: %d\n", s2k.argon2_p);
+        dst_printf(dst, "argon2 encoded_m: %d\n", s2k.argon2_encoded_m);
+    } else
+#endif
+    {
+        dst_print_halg(dst, "s2k hash algorithm", s2k.hash_alg);
+        if ((s2k.specifier == PGP_S2KS_SALTED) ||
+            (s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED)) {
+            dst_print_hex(dst, "s2k salt", s2k.salt, PGP_SALT_SIZE, false);
+        }
+        if (s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
+            size_t real_iter = pgp_s2k_decode_iterations(s2k.iterations);
+            dst_printf(
+              dst, "s2k iterations: %zu (encoded as %u)\n", real_iter, s2k.iterations);
+        }
     }
 }
 

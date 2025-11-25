@@ -922,6 +922,9 @@ Key::has_secret() const noexcept
     case PGP_S2KS_SIMPLE:
     case PGP_S2KS_SALTED:
     case PGP_S2KS_ITERATED_AND_SALTED:
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_S2KS_ARGON2:
+#endif
         return true;
     default:
         return false;
@@ -1300,21 +1303,42 @@ Key::protect(pgp_key_pkt_t &                    decrypted,
         return false;
     }
 
-    /* force encrypted-and-hashed and iterated-and-salted as it's the only method we support*/
-    pkt_.sec_protection.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
-    pkt_.sec_protection.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
-    /* use default values where needed */
-    pkt_.sec_protection.symm_alg =
-      protection.symm_alg ? protection.symm_alg : DEFAULT_PGP_SYMM_ALG;
-    pkt_.sec_protection.cipher_mode =
-      protection.cipher_mode ? protection.cipher_mode : DEFAULT_PGP_CIPHER_MODE;
-    pkt_.sec_protection.s2k.hash_alg =
-      protection.hash_alg ? protection.hash_alg : DEFAULT_PGP_HASH_ALG;
-    auto iter = protection.iterations;
-    if (!iter) {
-        iter = ctx.s2k_iterations(pkt_.sec_protection.s2k.hash_alg);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* force AEAD-encrypted and Argon2 at least for v6 keys */
+    if (decrypted.version == PGP_V6) {
+        pkt_.sec_protection.s2k.usage = PGP_S2KU_AEAD;
+        pkt_.sec_protection.s2k.specifier = PGP_S2KS_ARGON2;
+        /* use default values where needed */
+        pkt_.sec_protection.symm_alg = PGP_SA_AES_256;
+        pkt_.sec_protection.aead_alg = PGP_AEAD_OCB;
+        pkt_.sec_protection.cipher_mode = PGP_CIPHER_MODE_NONE;
+        pkt_.sec_protection.s2k.hash_alg = PGP_HASH_UNKNOWN;
+        // use reasonable default for argon2
+        pkt_.sec_protection.s2k.argon2_encoded_m = 21;
+        pkt_.sec_protection.s2k.argon2_p = 4;
+        pkt_.sec_protection.s2k.argon2_t = 1;
+        auto iter = protection.iterations;
+        pkt_.sec_protection.s2k.iterations = 0;
+    } else
+#endif
+    {
+        /* force encrypted-and-hashed and iterated-and-salted as it's the only method we
+         * support*/
+        pkt_.sec_protection.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
+        pkt_.sec_protection.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
+        /* use default values where needed */
+        pkt_.sec_protection.symm_alg =
+          protection.symm_alg ? protection.symm_alg : DEFAULT_PGP_SYMM_ALG;
+        pkt_.sec_protection.cipher_mode =
+          protection.cipher_mode ? protection.cipher_mode : DEFAULT_PGP_CIPHER_MODE;
+        pkt_.sec_protection.s2k.hash_alg =
+          protection.hash_alg ? protection.hash_alg : DEFAULT_PGP_HASH_ALG;
+        auto iter = protection.iterations;
+        if (!iter) {
+            iter = ctx.s2k_iterations(pkt_.sec_protection.s2k.hash_alg);
+        }
+        pkt_.sec_protection.s2k.iterations = pgp_s2k_round_iterations(iter);
     }
-    pkt_.sec_protection.s2k.iterations = pgp_s2k_round_iterations(iter);
     if (!ownpkt) {
         /* decrypted is assumed to be temporary variable so we may modify it */
         decrypted.sec_protection = pkt_.sec_protection;
