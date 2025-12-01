@@ -231,7 +231,7 @@ if (SYSTEM_LIBSEXPP)
       IMPORTED_LOCATION "${SEXPP_LIBRARY}"
   )
 else (SYSTEM_LIBSEXPP)
-# If we use system libsexpp is not used we build sexpp static library
+# If system libsexpp is not used, we build sexpp static library
 # If librnp is shared, libsexpp.a is a transient artifact which is hidden from
 # the end user.
 # If librnp is static we install libsexpp.a aside
