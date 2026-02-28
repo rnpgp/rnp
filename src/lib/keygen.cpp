@@ -42,6 +42,7 @@ KeygenParams::check_defaults() noexcept
     if (hash_ == PGP_HASH_UNKNOWN) {
         hash_ = alg_ == PGP_PKA_SM2 ? PGP_HASH_SM3 : DEFAULT_PGP_HASH_ALG;
     }
+
     pgp_hash_alg_t min_hash = key_params_->min_hash();
     if (Hash::size(hash_) < Hash::size(min_hash)) {
         hash_ = min_hash;
@@ -52,37 +53,6 @@ KeygenParams::check_defaults() noexcept
 bool
 KeygenParams::validate() const noexcept
 {
-#if defined(ENABLE_PQC)
-    switch (alg()) {
-    case PGP_PKA_SPHINCSPLUS_SHA2:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE: {
-        auto &slhdsa = dynamic_cast<const pgp::SlhdsaKeyParams &>(key_params());
-        if (!sphincsplus_hash_allowed(alg(), slhdsa.param(), hash())) {
-            RNP_LOG("invalid hash algorithm for the slhdsa key");
-            return false;
-        }
-        break;
-    }
-    case PGP_PKA_DILITHIUM3_ED25519:
-        FALLTHROUGH_STATEMENT;
-    // TODO: Add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP256:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP384:
-        if (!dilithium_hash_allowed(hash())) {
-            RNP_LOG("invalid hash algorithm for the dilithium key");
-            return false;
-        }
-        break;
-    default:
-        break;
-    }
-#endif
     return true;
 }
 
@@ -132,36 +102,40 @@ KeygenParams::validate(const BindingParams &binding) const noexcept
     return validate();
 }
 
-static const id_str_pair pubkey_alg_map[] = {{PGP_PKA_RSA, "RSA (Encrypt or Sign)"},
-                                             {PGP_PKA_RSA_ENCRYPT_ONLY, "RSA Encrypt-Only"},
-                                             {PGP_PKA_RSA_SIGN_ONLY, "RSA Sign-Only"},
-                                             {PGP_PKA_ELGAMAL, "Elgamal (Encrypt-Only)"},
-                                             {PGP_PKA_DSA, "DSA"},
-                                             {PGP_PKA_ECDH, "ECDH"},
-                                             {PGP_PKA_ECDSA, "ECDSA"},
-                                             {PGP_PKA_EDDSA, "EdDSA"},
-                                             {PGP_PKA_SM2, "SM2"},
+static const id_str_pair pubkey_alg_map[] = {
+  {PGP_PKA_RSA, "RSA (Encrypt or Sign)"},
+  {PGP_PKA_RSA_ENCRYPT_ONLY, "RSA Encrypt-Only"},
+  {PGP_PKA_RSA_SIGN_ONLY, "RSA Sign-Only"},
+  {PGP_PKA_ELGAMAL, "Elgamal (Encrypt-Only)"},
+  {PGP_PKA_DSA, "DSA"},
+  {PGP_PKA_ECDH, "ECDH"},
+  {PGP_PKA_ECDSA, "ECDSA"},
+  {PGP_PKA_EDDSA, "EdDSA"},
+  {PGP_PKA_SM2, "SM2"},
 #if defined(ENABLE_CRYPTO_REFRESH)
-                                             {PGP_PKA_ED25519, "ED25519"},
-                                             {PGP_PKA_X25519, "X25519"},
+  {PGP_PKA_ED25519, "ED25519"},
+  {PGP_PKA_X25519, "X25519"},
 #endif
 #if defined(ENABLE_PQC)
-                                             {PGP_PKA_KYBER768_X25519, "ML-KEM-768_X25519"},
-                                             //{PGP_PKA_KYBER1024_X448, "Kyber-X448"},
-                                             {PGP_PKA_KYBER768_P256, "ML-KEM-768_P256"},
-                                             {PGP_PKA_KYBER1024_P384, "ML-KEM-1024_P384"},
-                                             {PGP_PKA_KYBER768_BP256, "ML-KEM-768_BP256"},
-                                             {PGP_PKA_KYBER1024_BP384, "ML-KEM-1024_BP384"},
-                                             {PGP_PKA_DILITHIUM3_ED25519, "ML-DSA-65_ED25519"},
-                                             //{PGP_PKA_DILITHIUM5_ED448, "Dilithium-ED448"},
-                                             {PGP_PKA_DILITHIUM3_P256, "ML-DSA-65_P256"},
-                                             {PGP_PKA_DILITHIUM5_P384, "ML-DSA-87_P384"},
-                                             {PGP_PKA_DILITHIUM3_BP256, "ML-DSA-65_BP256"},
-                                             {PGP_PKA_DILITHIUM5_BP384, "ML-DSA-87_BP384"},
-                                             {PGP_PKA_SPHINCSPLUS_SHA2, "SLH-DSA-SHA2"},
-                                             {PGP_PKA_SPHINCSPLUS_SHAKE, "SLH-DSA-SHAKE"},
+  {PGP_PKA_KYBER768_X25519, "ML-KEM-768_X25519"},
 #endif
-                                             {0, NULL}};
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
+  {PGP_PKA_KYBER1024_X448, "Kyber-X448"},
+  {PGP_PKA_KYBER768_P384, "ML-KEM-768_P384"},
+  {PGP_PKA_KYBER1024_P521, "ML-KEM-1024_P521"},
+  {PGP_PKA_KYBER768_BP384, "ML-KEM-768_BP384"},
+  {PGP_PKA_KYBER1024_BP512, "ML-KEM-1024_BP512"},
+  {PGP_PKA_DILITHIUM3_ED25519, "ML-DSA-65_ED25519"},
+  {PGP_PKA_DILITHIUM5_ED448, "Dilithium-ED448"},
+  {PGP_PKA_DILITHIUM3_P384, "ML-DSA-65_P384"},
+  {PGP_PKA_DILITHIUM5_P521, "ML-DSA-87_P521"},
+  {PGP_PKA_DILITHIUM3_BP384, "ML-DSA-65_BP384"},
+  {PGP_PKA_DILITHIUM5_BP512, "ML-DSA-87_BP512"},
+  {PGP_PKA_SPHINCSPLUS_SHAKE_128f, "SLH-DSA-SHAKE-128f"},
+  {PGP_PKA_SPHINCSPLUS_SHAKE_128s, "SLH-DSA-SHAKE-128s"},
+  {PGP_PKA_SPHINCSPLUS_SHAKE_256s, "SLH-DSA-SHAKE-256s"},
+#endif
+  {0, NULL}};
 
 bool
 KeygenParams::generate(pgp_key_pkt_t &seckey, bool primary)
@@ -425,16 +399,31 @@ UserPrefs::add_aead_prefs(pgp_symm_alg_t sym_alg, pgp_aead_alg_t aead_alg)
 #endif
 
 void
-UserPrefs::check_defaults(pgp_version_t version)
+UserPrefs::check_defaults(pgp_version_t version, pgp_pubkey_alg_t pk_alg)
 {
     if (symm_algs.empty()) {
         symm_algs = {PGP_SA_AES_256, PGP_SA_AES_192, PGP_SA_AES_128};
     }
     if (hash_algs.empty()) {
-        hash_algs = {PGP_HASH_SHA256, PGP_HASH_SHA384, PGP_HASH_SHA512, PGP_HASH_SHA224};
+#if defined(ENABLE_PQC)
+        if (Key::is_pqc_alg(pk_alg)) {
+            hash_algs = {PGP_HASH_SHA256,
+                         PGP_HASH_SHA384,
+                         PGP_HASH_SHA512,
+                         PGP_HASH_SHA3_256,
+                         PGP_HASH_SHA3_512};
+        } else
+#endif
+        {
+            hash_algs = {PGP_HASH_SHA256, PGP_HASH_SHA384, PGP_HASH_SHA512, PGP_HASH_SHA224};
+        }
     }
     if (z_algs.empty()) {
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+        z_algs = {PGP_C_NONE};
+#else
         z_algs = {PGP_C_ZLIB, PGP_C_BZIP2, PGP_C_ZIP, PGP_C_NONE};
+#endif
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     if (aead_prefs.empty() && (version == PGP_V6)) {
@@ -449,7 +438,7 @@ UserPrefs::check_defaults(pgp_version_t version)
 void
 CertParams::check_defaults(const KeygenParams &params)
 {
-    prefs.check_defaults(params.version());
+    prefs.check_defaults(params.version(), params.alg());
 
     if (!flags) {
         // set some default key flags if none are provided

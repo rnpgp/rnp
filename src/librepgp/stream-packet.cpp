@@ -1231,7 +1231,20 @@ pgp_one_pass_sig_t::write(pgp_dest_t &dst) const
     pktbody.add_byte(type);
     pktbody.add_byte(halg);
     pktbody.add_byte(palg);
-    pktbody.add(keyid);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (version == PGP_OPS_V6) {
+        pktbody.add_byte(salt.size());
+        pktbody.add(salt);
+    }
+#endif
+    if (version == PGP_OPS_V3) {
+        pktbody.add(keyid);
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (version == PGP_OPS_V6) {
+        pktbody.add(fp.vec());
+    }
+#endif
     pktbody.add_byte(nested);
     pktbody.write(dst);
 }
@@ -1246,27 +1259,106 @@ pgp_one_pass_sig_t::parse(pgp_source_t &src)
         return res;
     }
 
-    uint8_t buf[13] = {0};
-    if ((pkt.size() != 13) || !pkt.get(buf, 13)) {
+    /* version */
+    if ((pkt.size() < 1) || !pkt.get(version)) {
         return RNP_ERROR_BAD_FORMAT;
     }
-    /* version */
-    if (buf[0] != 3) {
+    switch ((pgp_ops_version_t) version) {
+    case PGP_OPS_V3:
+        return parse_v3(pkt);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_OPS_V6:
+        return parse_v6(pkt);
+#endif
+    default:
         RNP_LOG("wrong packet version");
         return RNP_ERROR_BAD_FORMAT;
     }
-    version = buf[0];
+}
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+rnp_result_t
+pgp_one_pass_sig_t::parse_v6(pgp_packet_body_t &pkt)
+{
+    uint8_t buf[4];
+    uint8_t salt_size;
+
+    /* packet can't be smaller for v6 */
+    const size_t min_size = 54;
+    if ((pkt.size() < min_size)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    /* version */
+    version = PGP_OPS_V6;
+    if (!pkt.get(buf, 4)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
     /* signature type */
-    type = (pgp_sig_type_t) buf[1];
+    type = (pgp_sig_type_t) buf[0];
     /* hash algorithm */
-    halg = (pgp_hash_alg_t) buf[2];
+    halg = (pgp_hash_alg_t) buf[1];
     /* pk algorithm */
-    palg = (pgp_pubkey_alg_t) buf[3];
+    palg = (pgp_pubkey_alg_t) buf[2];
+
+    /* salt */
+    salt_size = buf[3];
+    size_t expect_salt_size;
+    if (!pgp::pkt::Signature::v6_salt_size(halg, &expect_salt_size)) {
+        RNP_LOG("invalid halg");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    if (salt_size != expect_salt_size) {
+        RNP_LOG("invalid salt size");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    salt.resize(salt_size);
+    if (!pkt.get(salt.data(), salt.size())) {
+        RNP_LOG("failed to get salt");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    /* fingerprint */
+    std::vector<uint8_t> fp_vec;
+    fp_vec.resize(PGP_FINGERPRINT_V6_SIZE);
+    if (!pkt.get(fp_vec.data(), fp_vec.size())) {
+        RNP_LOG("failed to get fingerprint");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    fp = pgp::Fingerprint(fp_vec.data(), fp_vec.size());
+
+    /* nested flag */
+    if (!pkt.get(buf, 1)) {
+        RNP_LOG("failed to get nested flag");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    nested = buf[0];
+
+    if (pkt.left()) {
+        RNP_LOG("trailing bytes in V6 OPS packet.");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    return RNP_SUCCESS;
+}
+#endif
+
+rnp_result_t
+pgp_one_pass_sig_t::parse_v3(pgp_packet_body_t &pkt)
+{
+    uint8_t buf[12] = {0};
+    if ((pkt.size() != 13) || !pkt.get(buf, 12)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    /* signature type */
+    type = (pgp_sig_type_t) buf[0];
+    /* hash algorithm */
+    halg = (pgp_hash_alg_t) buf[1];
+    /* pk algorithm */
+    palg = (pgp_pubkey_alg_t) buf[2];
     /* key id */
     static_assert(std::tuple_size<decltype(keyid)>::value == PGP_KEY_ID_SIZE,
                   "pgp_one_pass_sig_t.keyid size mismatch");
-    memcpy(keyid.data(), &buf[4], PGP_KEY_ID_SIZE);
+    memcpy(keyid.data(), &buf[3], PGP_KEY_ID_SIZE);
     /* nested flag */
-    nested = buf[12];
+    nested = buf[11];
     return RNP_SUCCESS;
 }

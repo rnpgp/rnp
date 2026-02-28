@@ -3106,10 +3106,13 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     size_t pqc_opt = 0;
     size_t crypto_refresh_opt = 0;
 #if defined(ENABLE_CRYPTO_REFRESH)
-    crypto_refresh_opt = 2; // X25519 + ED25519
+    crypto_refresh_opt = 4; // Ed25519/X25519/Ed448/X448
 #endif
 #if defined(ENABLE_PQC)
-    pqc_opt = 12; // kyber+ecc and dilithium+ecc and sphincs+ variants
+    pqc_opt = 1;
+#endif
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
+    pqc_opt = 6 + 6 + 3; // kyber+ecc + dilithium+ecc + sphincs+ variants
 #endif
     assert_true(check_features(
       RNP_FEATURE_PK_ALG, features, 6 + has_sm2 + pqc_opt + crypto_refresh_opt));
@@ -3212,7 +3215,12 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     /* elliptic curve */
     assert_rnp_success(rnp_supported_features(RNP_FEATURE_CURVE, &features));
     assert_non_null(features);
-    assert_true(check_features(RNP_FEATURE_CURVE, features, 6 + has_sm2 + 3 * has_brainpool));
+    size_t opt_has_ed448_x448 = 0;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    opt_has_ed448_x448 = 2;
+#endif
+    assert_true(check_features(
+      RNP_FEATURE_CURVE, features, 6 + has_sm2 + 3 * has_brainpool + opt_has_ed448_x448));
     rnp_buffer_destroy(features);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_CURVE, "NIST P-256", &supported));
     assert_true(supported);
@@ -3449,8 +3457,10 @@ TEST_F(rnp_tests, test_ffi_literal_filename)
     assert_non_null(json);
 
     std::string jstr = json;
+#if !defined(ENABLE_CRYPTO_REFRESH)
     assert_true(jstr.find("\"filename\":\"testfile.dat\"") != std::string::npos);
     assert_true(jstr.find("\"timestamp\":12345678") != std::string::npos);
+#endif
 
     assert_rnp_success(rnp_input_destroy(input));
     rnp_buffer_destroy(signed_buf);
@@ -5989,7 +5999,12 @@ TEST_F(rnp_tests, test_ffi_security_profile)
     removed = 0;
     assert_rnp_failure(rnp_remove_security_rule(ffi, NULL, NULL, 0, 0x17, 0, &removed));
     assert_rnp_success(rnp_remove_security_rule(ffi, NULL, NULL, 0, 0, 0, &removed));
-    assert_int_equal(removed, 3 /*HASH*/ + 4 /*SYMM*/);
+
+    size_t add_removed_hash = 0;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    add_removed_hash = 1; // RIPEMD
+#endif
+    assert_int_equal(removed, 3 /*HASH*/ + add_removed_hash + 4 /*SYMM*/);
     rnp_ffi_destroy(ffi);
     rnp_ffi_create(&ffi, "GPG", "GPG");
     /* Remove all rules for hash */
@@ -6000,7 +6015,7 @@ TEST_F(rnp_tests, test_ffi_security_profile)
     removed = 0;
     assert_rnp_success(
       rnp_remove_security_rule(ffi, RNP_FEATURE_HASH_ALG, NULL, 0, 0, 0, &removed));
-    assert_int_equal(removed, 3);
+    assert_int_equal(removed, 3 + add_removed_hash);
     rnp_ffi_destroy(ffi);
     rnp_ffi_create(&ffi, "GPG", "GPG");
     /* Remove all rules for specific hash */

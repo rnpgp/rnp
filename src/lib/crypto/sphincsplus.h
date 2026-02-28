@@ -32,59 +32,31 @@
 #include <vector>
 #include <repgp/repgp_def.h>
 #include "crypto/rng.h"
-#include <botan/sphincsplus.h>
+#include <botan/slh_dsa.h>
 #include <botan/pubkey.h>
 
 struct pgp_sphincsplus_key_t;
 struct pgp_sphincsplus_signature_t;
 
-typedef enum { sphincsplus_sha256, sphinscplus_shake256 } sphincsplus_hash_func_t;
-typedef enum : uint8_t {
-    sphincsplus_simple_128s = 1,
-    sphincsplus_simple_128f = 2,
-    sphincsplus_simple_192s = 3,
-    sphincsplus_simple_192f = 4,
-    sphincsplus_simple_256s = 5,
-    sphincsplus_simple_256f = 6
-} sphincsplus_parameter_t;
-
 typedef struct pgp_sphincsplus_signature_t {
-    std::vector<uint8_t>    sig;
-    sphincsplus_parameter_t param;
+    std::vector<uint8_t> sig;
 } pgp_sphincsplus_signature_t;
 
 class pgp_sphincsplus_private_key_t {
   public:
-    pgp_sphincsplus_private_key_t(const uint8_t *         key_encoded,
-                                  size_t                  key_encoded_len,
-                                  sphincsplus_parameter_t sphincs_param,
-                                  sphincsplus_hash_func_t sphincs_hash_func);
+    pgp_sphincsplus_private_key_t(const uint8_t *  key_encoded,
+                                  size_t           key_encoded_len,
+                                  pgp_pubkey_alg_t alg);
     pgp_sphincsplus_private_key_t(std::vector<uint8_t> const &key_encoded,
-                                  sphincsplus_parameter_t     sphincs_param,
-                                  sphincsplus_hash_func_t     sphincs_hash_func);
-    pgp_sphincsplus_private_key_t(std::vector<uint8_t> const &key_encoded,
-                                  sphincsplus_parameter_t     param,
                                   pgp_pubkey_alg_t            alg);
     pgp_sphincsplus_private_key_t() = default;
 
     bool is_valid(rnp::RNG *rng) const;
 
-    sphincsplus_parameter_t
-    param() const
-    {
-        return sphincsplus_param_;
-    }
-
     pgp_pubkey_alg_t
     alg() const
     {
         return pk_alg_;
-    }
-
-    sphincsplus_hash_func_t
-    hash_func() const
-    {
-        return sphincsplus_hash_func_;
     }
 
     rnp_result_t sign(rnp::RNG *                   rng,
@@ -105,35 +77,26 @@ class pgp_sphincsplus_private_key_t {
     };
 
   private:
-    Botan::SphincsPlus_PrivateKey botan_key() const;
+    Botan::SLH_DSA_PrivateKey botan_key() const;
 
     Botan::secure_vector<uint8_t> key_encoded_;
     pgp_pubkey_alg_t              pk_alg_;
-    sphincsplus_parameter_t       sphincsplus_param_;
-    sphincsplus_hash_func_t       sphincsplus_hash_func_;
     bool                          is_initialized_ = false;
 };
 
 class pgp_sphincsplus_public_key_t {
   public:
-    pgp_sphincsplus_public_key_t(const uint8_t *         key_encoded,
-                                 size_t                  key_encoded_len,
-                                 sphincsplus_parameter_t sphincs_param,
-                                 sphincsplus_hash_func_t sphincs_hash_func);
+    pgp_sphincsplus_public_key_t(const uint8_t *  key_encoded,
+                                 size_t           key_encoded_len,
+                                 pgp_pubkey_alg_t alg);
     pgp_sphincsplus_public_key_t(std::vector<uint8_t> const &key_encoded,
-                                 sphincsplus_parameter_t     sphincs_param,
-                                 sphincsplus_hash_func_t     sphincs_hash_func);
-    pgp_sphincsplus_public_key_t(std::vector<uint8_t> const &key_encoded,
-                                 sphincsplus_parameter_t     param,
                                  pgp_pubkey_alg_t            alg);
     pgp_sphincsplus_public_key_t() = default;
 
     bool
     operator==(const pgp_sphincsplus_public_key_t &rhs) const
     {
-        return (sphincsplus_param_ == rhs.sphincsplus_param_) &&
-               (sphincsplus_hash_func_ == rhs.sphincsplus_hash_func_) &&
-               (key_encoded_ == rhs.key_encoded_);
+        return (pk_alg_ == rhs.pk_alg_) && (key_encoded_ == rhs.key_encoded_);
     }
 
     rnp_result_t verify(const pgp_sphincsplus_signature_t *sig,
@@ -141,14 +104,6 @@ class pgp_sphincsplus_public_key_t {
                         size_t                             msg_len) const;
 
     bool is_valid(rnp::RNG *rng) const;
-
-    bool validate_signature_hash_requirements(pgp_hash_alg_t hash_alg) const;
-
-    sphincsplus_parameter_t
-    param() const
-    {
-        return sphincsplus_param_;
-    }
 
     pgp_pubkey_alg_t
     alg() const
@@ -163,24 +118,19 @@ class pgp_sphincsplus_public_key_t {
     };
 
   private:
-    Botan::SphincsPlus_PublicKey botan_key() const;
+    Botan::SLH_DSA_PublicKey botan_key() const;
 
-    std::vector<uint8_t>    key_encoded_;
-    pgp_pubkey_alg_t        pk_alg_;
-    sphincsplus_parameter_t sphincsplus_param_;
-    sphincsplus_hash_func_t sphincsplus_hash_func_;
-    bool                    is_initialized_ = false;
+    std::vector<uint8_t> key_encoded_;
+    pgp_pubkey_alg_t     pk_alg_;
+    bool                 is_initialized_ = false;
 };
 
 std::pair<pgp_sphincsplus_public_key_t, pgp_sphincsplus_private_key_t>
-sphincsplus_generate_keypair(rnp::RNG *              rng,
-                             sphincsplus_parameter_t sphincs_param,
-                             sphincsplus_hash_func_t sphincs_hash_func);
+sphincsplus_generate_keypair(rnp::RNG *rng, pgp_pubkey_alg_t alg);
 
-rnp_result_t pgp_sphincsplus_generate(rnp::RNG *              rng,
-                                      pgp_sphincsplus_key_t * material,
-                                      sphincsplus_parameter_t param,
-                                      pgp_pubkey_alg_t        alg);
+rnp_result_t pgp_sphincsplus_generate(rnp::RNG *             rng,
+                                      pgp_sphincsplus_key_t *material,
+                                      pgp_pubkey_alg_t       alg);
 
 rnp_result_t sphincsplus_validate_key(rnp::RNG *                   rng,
                                       const pgp_sphincsplus_key_t *key,
@@ -191,15 +141,8 @@ typedef struct pgp_sphincsplus_key_t {
     pgp_sphincsplus_private_key_t priv;
 } pgp_sphincsplus_key_t;
 
-size_t sphincsplus_privkey_size(sphincsplus_parameter_t param);
-size_t sphincsplus_pubkey_size(sphincsplus_parameter_t param);
-size_t sphincsplus_signature_size(sphincsplus_parameter_t param);
-
-bool sphincsplus_hash_allowed(pgp_pubkey_alg_t        pk_alg,
-                              sphincsplus_parameter_t sphincsplus_param,
-                              pgp_hash_alg_t          hash_alg);
-
-pgp_hash_alg_t sphincsplus_default_hash_alg(pgp_pubkey_alg_t        pk_alg,
-                                            sphincsplus_parameter_t sphincsplus_param);
+size_t sphincsplus_privkey_size(pgp_pubkey_alg_t alg);
+size_t sphincsplus_pubkey_size(pgp_pubkey_alg_t alg);
+size_t sphincsplus_signature_size(pgp_pubkey_alg_t alg);
 
 #endif

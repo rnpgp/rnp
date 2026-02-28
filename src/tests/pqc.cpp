@@ -29,8 +29,10 @@
 
 #include "rnp_tests.h"
 #include <array>
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
 #include "crypto/dilithium.h"
 #include "crypto/sphincsplus.h"
+#endif
 #include "crypto/kyber.h"
 
 TEST_F(rnp_tests, test_kyber_key_function)
@@ -50,6 +52,7 @@ TEST_F(rnp_tests, test_kyber_key_function)
     }
 }
 
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
 TEST_F(rnp_tests, test_dilithium_key_function)
 {
     dilithium_parameter_e params[2] = {dilithium_L3, dilithium_L5};
@@ -68,38 +71,31 @@ TEST_F(rnp_tests, test_dilithium_key_function)
 
 TEST_F(rnp_tests, test_sphincsplus_key_function)
 {
-    sphincsplus_parameter_t params[] = {sphincsplus_simple_128s,
-                                        sphincsplus_simple_128f,
-                                        sphincsplus_simple_192s,
-                                        sphincsplus_simple_192f,
-                                        sphincsplus_simple_256s,
-                                        sphincsplus_simple_256f};
-    sphincsplus_hash_func_t hash_funcs[] = {sphincsplus_sha256, sphinscplus_shake256};
+    pgp_pubkey_alg_t algs[] = {PGP_PKA_SPHINCSPLUS_SHAKE_128f,
+                               PGP_PKA_SPHINCSPLUS_SHAKE_128s,
+                               PGP_PKA_SPHINCSPLUS_SHAKE_256s};
 
-    for (sphincsplus_parameter_t param : params) {
-        for (sphincsplus_hash_func_t hash_func : hash_funcs) {
-            auto public_and_private_key =
-              sphincsplus_generate_keypair(&global_ctx.rng, param, hash_func);
+    for (pgp_pubkey_alg_t alg : algs) {
+        auto public_and_private_key = sphincsplus_generate_keypair(&global_ctx.rng, alg);
 
-            std::array<uint8_t, 5> msg{'H', 'e', 'l', 'l', 'o'};
+        std::array<uint8_t, 5> msg{'H', 'e', 'l', 'l', 'o'};
 
-            pgp_sphincsplus_signature_t sig;
-            assert_rnp_success(public_and_private_key.second.sign(
-              &global_ctx.rng, &sig, msg.data(), msg.size()));
+        pgp_sphincsplus_signature_t sig;
+        assert_rnp_success(
+          public_and_private_key.second.sign(&global_ctx.rng, &sig, msg.data(), msg.size()));
 
-            assert_rnp_success(
-              public_and_private_key.first.verify(&sig, msg.data(), msg.size()));
-        }
+        assert_rnp_success(public_and_private_key.first.verify(&sig, msg.data(), msg.size()));
     }
 }
 
 TEST_F(rnp_tests, test_dilithium_exdsa_direct)
 {
     pgp_pubkey_alg_t algs[] = {PGP_PKA_DILITHIUM3_ED25519,
-                               /* PGP_PKA_DILITHIUM5_ED448,*/ PGP_PKA_DILITHIUM3_P256,
-                               PGP_PKA_DILITHIUM5_P384,
-                               PGP_PKA_DILITHIUM3_BP256,
-                               PGP_PKA_DILITHIUM5_BP384};
+                               PGP_PKA_DILITHIUM5_ED448,
+                               PGP_PKA_DILITHIUM3_P384,
+                               PGP_PKA_DILITHIUM5_P521,
+                               PGP_PKA_DILITHIUM3_BP384,
+                               PGP_PKA_DILITHIUM5_BP512};
 
     for (size_t i = 0; i < ARRAY_SIZE(algs); i++) {
         uint8_t              message[64];
@@ -133,5 +129,6 @@ TEST_F(rnp_tests, test_dilithium_exdsa_direct)
         sig.sig.data()[sig.sig.size() - 1] = ~sig.sig.data()[sig.sig.size() - 1];
     }
 }
+#endif
 
 #endif

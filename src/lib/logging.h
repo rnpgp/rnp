@@ -27,6 +27,7 @@
 #ifndef RNP_LOGGING_H_
 #define RNP_LOGGING_H_
 
+#include "config.h"
 #include <stdlib.h>
 #include <stdint.h>
 
@@ -99,14 +100,19 @@ class LogStop {
 
 #define RNP_LOG_NO_POS_INFO(...) RNP_LOG_FD_NO_POS_INFO(stderr, __VA_ARGS__)
 
-#define RNP_LOG_U8VEC(msg, vec)                                             \
-    do {                                                                    \
-        if (vec.empty() {                                   \
+#define RNP_LOG_U8VEC(msg, vec)                             \
+    do {                                                    \
+        if (vec.empty()) {                                  \
             RNP_LOG(msg, "(empty)");                        \
             break;                                          \
         }                                                   \
-        auto _tmp_hex_vec = rnp::hex_to_bin(vec, rnp::HexFormat::Lowercase) \
-        RNP_LOG_NO_POS_INFO(msg, _tmp_hex_vec.c_str());                     \
+        std::vector<char> _tmp_hex_vec(vec.size() * 2 + 1); \
+        rnp::hex_encode(vec.data(),                         \
+                        vec.size(),                         \
+                        _tmp_hex_vec.data(),                \
+                        _tmp_hex_vec.size(),                \
+                        rnp::HexFormat::Lowercase);         \
+        RNP_LOG_NO_POS_INFO(msg, _tmp_hex_vec.data());      \
     } while (0)
 #endif
 

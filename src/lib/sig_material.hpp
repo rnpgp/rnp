@@ -91,9 +91,18 @@ class Ed25519SigMaterial : public SigMaterial {
     bool parse(pgp_packet_body_t &pkt) noexcept override;
     void write(pgp_packet_body_t &pkt) const override;
 };
+
+class Ed448SigMaterial : public SigMaterial {
+  public:
+    pgp_ed448_signature_t sig;
+    Ed448SigMaterial(pgp_hash_alg_t ahalg) : SigMaterial(ahalg){};
+
+    bool parse(pgp_packet_body_t &pkt) noexcept override;
+    void write(pgp_packet_body_t &pkt) const override;
+};
 #endif
 
-#if defined(ENABLE_PQC)
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
 class DilithiumSigMaterial : public SigMaterial {
   public:
     pgp_pubkey_alg_t                palg;
@@ -109,7 +118,9 @@ class DilithiumSigMaterial : public SigMaterial {
 class SlhdsaSigMaterial : public SigMaterial {
   public:
     pgp_sphincsplus_signature_t sig;
-    SlhdsaSigMaterial(pgp_hash_alg_t ahalg) : SigMaterial(ahalg){};
+    pgp_pubkey_alg_t            palg;
+    SlhdsaSigMaterial(pgp_pubkey_alg_t apalg, pgp_hash_alg_t ahalg)
+        : SigMaterial(ahalg), palg(apalg){};
 
     bool parse(pgp_packet_body_t &pkt) noexcept override;
     void write(pgp_packet_body_t &pkt) const override;

@@ -883,7 +883,7 @@ def gpg_check_features():
     print('GPG_BRAINPOOL: ' + str(GPG_BRAINPOOL))
 
 def rnp_check_features():
-    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_AEAD_EAX, RNP_AEAD_OCB, RNP_AEAD_OCB_AES, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160, RNP_PQC, RNP_SM2
+    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_AEAD_EAX, RNP_AEAD_OCB, RNP_AEAD_OCB_AES, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160, RNP_PQC, RNP_SM2, RNP_CRYPTO_REFRESH
     global RNP_BOTAN_OCB_AV
     global RNP_BACKEND
     ret, out, _ = run_proc(RNP, ['--version'])
@@ -919,9 +919,11 @@ def rnp_check_features():
     RNP_RIPEMD160 = re.match(r'(?s)^.*Hash:.*RIPEMD160.*', out) is not None
     # SM2
     RNP_SM2 = re.match(r'(?s)^.*Public key:.*SM2.*', out) is not None
-    # Determine PQC support in general. If present, assume that all PQC schemes are supported.
+    # Determine PQC support.
     pqc_strs = ['ML-KEM', 'ML-DSA']
     RNP_PQC = any([re.match('(?s)^.*Public key:.*' + scheme + '.*', out) is not None for scheme in pqc_strs])
+    crypto_refresh_strs = ['ED25519', 'ED448', 'X448']
+    RNP_CRYPTO_REFRESH = any([re.match('(?s)^.*Public key:.*' + scheme + '.*', out) is not None for scheme in crypto_refresh_strs])
     print('RNP_TWOFISH: ' + str(RNP_TWOFISH))
     print('RNP_BLOWFISH: ' + str(RNP_BLOWFISH))
     print('RNP_IDEA: ' + str(RNP_IDEA))
@@ -2926,8 +2928,14 @@ class Misc(unittest.TestCase):
         self.assertEqual(ret, 0)
         ret, out, _ = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
         self.assertEqual(ret, 0)
-        self.assertRegex(out, r'(?s)^.*literal data packet.*mode b.*created \d+.*name="source.txt".*$')
+        if RNP_CRYPTO_REFRESH:
+            self.assertRegex(out, r'(?s)^.*literal data packet.*mode b.*created \d+.*name="".*$')
+        else:
+            self.assertRegex(out, r'(?s)^.*literal data packet.*mode b.*created \d+.*name="source.txt".*$')
         remove_files(enc)
+        if RNP_CRYPTO_REFRESH:
+            # skip following tests
+            return
         # Encrypt file, overriding it's name
         ret, out, _ = run_proc(RNP, ['--set-filename', 'hello', '-c', src, '--password', 'password'])
         self.assertEqual(ret, 0)
@@ -3144,6 +3152,9 @@ class Misc(unittest.TestCase):
         self.assertRegex(out,r'(?s)^.*Symmetric-key encrypted session key packet.*symmetric algorithm: 2 \(TripleDES\).*$')
         remove_files(enc)
         if RNP_RIPEMD160:
+            if RNP_CRYPTO_REFRESH:
+                # For RFC9580 RIPEMD160 is disallowed.
+                return
             # Use ripemd-160 hash instead of RIPEMD160
             ret, _, err = run_proc(RNP, ['-c', src, '--hash', 'ripemd-160', '--password', 'password'])
             self.assertEqual(ret, 0)
@@ -3425,7 +3436,11 @@ class Misc(unittest.TestCase):
                 ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-z', '0', '-r', 'alice', '--aead=eax',
                                            '--set-filename', 'cleartext-z0.txt', '--aead-chunk-bits=1', '-e', srctxt, '--output', enc])
                 self.assertEqual(ret, 0)
-                self.assertEqual(os.path.getsize(enc), eax_size)
+                if RNP_CRYPTO_REFRESH:
+                    # with crypto refresh code we set the empty filename
+                    self.assertEqual(os.path.getsize(enc), eax_size - len('cleartext-z0.txt'))
+                else:
+                    self.assertEqual(os.path.getsize(enc), eax_size)
                 # Decrypt with RNP again
                 ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-d', enc, '--output', dec])
                 self.assertEqual(file_text(srctxt), file_text(dec))
@@ -3440,7 +3455,11 @@ class Misc(unittest.TestCase):
                 ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-z', '0', '-r', 'alice', '--aead=ocb',
                                            '--set-filename', 'cleartext-z0.txt', '--aead-chunk-bits=1', '-e', srctxt, '--output', enc])
                 self.assertEqual(ret, 0)
-                self.assertEqual(os.path.getsize(enc), ocb_size)
+                if RNP_CRYPTO_REFRESH:
+                    # with crypto refresh code we set the empty filename
+                    self.assertEqual(os.path.getsize(enc), ocb_size - len('cleartext-z0.txt'))
+                else:
+                    self.assertEqual(os.path.getsize(enc), ocb_size)
                 # Decrypt with RNP again
                 ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-d', enc, '--output', dec])
                 self.assertEqual(file_text(srctxt), file_text(dec))
@@ -4698,25 +4717,40 @@ class Encryption(unittest.TestCase):
     def test_encryption_and_signing_pqc(self):
         if not RNP_PQC:
             return
-        RNPDIR_PQC = RNPDIR + 'PQC'
-        os.mkdir(RNPDIR_PQC, 0o700)
-        algo_ui_exp_strs = [ "(24) Ed25519Legacy + Curve25519Legacy + (ML-KEM-768 + X25519)",
-                             "(25) (ML-DSA-65 + Ed25519) + (ML-KEM-768 + X25519)",
-                             "(27) (ML-DSA-65 + ECDSA-NIST-P-256) + (ML-KEM-768 + ECDH-NIST-P-256)",
-                             "(28) (ML-DSA-87 + ECDSA-NIST-P-384) + (ML-KEM-1024 + ECDH-NIST-P-384)",
-                             "(29) (ML-DSA-65 + ECDSA-brainpoolP256r1) + (ML-KEM-768 + ECDH-brainpoolP256r1)",
-                             "(30) (ML-DSA-87 + ECDSA-brainpoolP384r1) + (ML-KEM-1024 + ECDH-brainpoolP384r1)",
-                             "(31) SLH-DSA-SHA2 + MLKEM-ECDH Composite",
-                             "(32) SLH-DSA-SHAKE + MLKEM-ECDH Composite",
-                               ]
-        USERIDS = ['enc-sign25@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign32a@rnp','enc-sign32b@rnp','enc-sign32c@rnp','enc-sign24-v4-key@rnp']
 
-        # '24' in the below array creates a v4 primary signature key with a v4 pqc subkey without a Features Subpacket. This way we test PQC encryption to a v4 subkey. RNP prefers the PQC subkey in case of a certificate having a PQC and a
-        # non-PQC subkey.
-        ALGO       = [25,   27,   28,   29,   30,   32, 32, 32, 24, ]
-        ALGO_PARAM = [None, None, None, None, None, 1,  2,  6,  None,  ]
+        # we distinguish between PQC-only (no Crypto Refresh) and PQC with Crypto Refresh
+        RNPDIR_PQC = RNPDIR
+        algo_ui_exp_strs = []
+        USERIDS = []
+        ALGO = []
+        ALGO_PARAM = []
+        if RNP_CRYPTO_REFRESH:
+            RNPDIR_PQC += 'PQC_CR'
+            algo_ui_exp_strs = ["(24) Ed25519 + X25519 + (ML-KEM-768 + X25519)",
+                                "(25) (ML-DSA-65 + Ed25519) + (ML-KEM-768 + X25519)",
+                                "(26) (ML-DSA-87 + Ed448) + (ML-KEM-1024 + X448)",
+                                "(27) (ML-DSA-65 + ECDSA-NIST-P-384) + (ML-KEM-768 + ECDH-NIST-P-384)",
+                                "(28) (ML-DSA-87 + ECDSA-NIST-P-521) + (ML-KEM-1024 + ECDH-NIST-P-521)",
+                                "(29) (ML-DSA-65 + ECDSA-brainpoolP384r1) + (ML-KEM-768 + ECDH-brainpoolP384r1)",
+                                "(30) (ML-DSA-87 + ECDSA-brainpoolP512r1) + (ML-KEM-1024 + ECDH-brainpoolP512r1)",
+                                "(31) SLH-DSA-SHAKE-128f + (ML-KEM-768 + X25519)",
+                                "(32) SLH-DSA-SHAKE-128s + (ML-KEM-768 + X25519)",
+                                "(33) SLH-DSA-SHAKE-256s + (ML-KEM-1024 + ECDH-NIST-P-521)"]
+
+            USERIDS = ['enc-sign24@rnp', 'enc-sign25@rnp', 'enc-sign26@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign31@rnp','enc-sign32@rnp','enc-sign33@rnp','enc-sign34@rnp']
+            ALGO = [24, 25, 26,  27,   28,   29,   30,   31, 32, 33, 34]
+            ALGO_PARAM = [None, None, None, None, None, None,  None,  None,  None,  None, None]
+        else:
+            RNPDIR_PQC += 'PQC_ONLY'
+            algo_ui_exp_strs = ["(34) EDDSA + ECDH + (ML-KEM-768 + X25519)"]
+
+            USERIDS = ['enc-sign34@rnp']
+            ALGO = [34]
+            ALGO_PARAM = [None]
+
+        os.mkdir(RNPDIR_PQC, 0o700)
         aead_list = []
-        passwds = [ ]
+        passwds = []
         for x in range(len(ALGO)): passwds.append('testpw' if x % 1 == 0 else '')
         for x in range(len(ALGO)): aead_list.append(None if x % 3 == 0 else ('ocb' if x % 3 == 1 else 'eax' ))
         if any(len(USERIDS) != len(x) for x in [ALGO, ALGO_PARAM]):
