@@ -41,7 +41,7 @@ rnp_ctx_t::add_encryption_password(const std::string &password,
     info.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
     info.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
     info.s2k.hash_alg = halg;
-    sec_ctx.rng.get(info.s2k.salt, sizeof(info.s2k.salt));
+    sec_ctx.rng.get(info.s2k.salt, info.s2k.salt_size(info.s2k.specifier));
     if (!iterations) {
         iterations = sec_ctx.s2k_iterations(halg);
     }

@@ -91,6 +91,11 @@
 /* Salt size for hashing */
 #define PGP_SALT_SIZE 8
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+/* Max salt size for s2k */
+#define PGP_MAX_S2K_SALT_SIZE 16
+#endif
+
 /* SEIPDv2 salt length */
 #ifdef ENABLE_CRYPTO_REFRESH
 #define PGP_SEIPDV2_SALT_LEN 32
@@ -326,6 +331,9 @@ typedef enum {
  */
 typedef enum {
     PGP_S2KU_NONE = 0,
+#if defined(ENABLE_CRYPTO_REFRESH)
+    PGP_S2KU_AEAD = 253,
+#endif
     PGP_S2KU_ENCRYPTED_AND_HASHED = 254,
     PGP_S2KU_ENCRYPTED = 255
 } pgp_s2k_usage_t;
@@ -336,6 +344,9 @@ typedef enum : uint8_t {
     PGP_S2KS_SIMPLE = 0,
     PGP_S2KS_SALTED = 1,
     PGP_S2KS_ITERATED_AND_SALTED = 3,
+#if defined(ENABLE_CRYPTO_REFRESH)
+    PGP_S2KS_ARGON2 = 4,
+#endif
     PGP_S2KS_EXPERIMENTAL = 101
 } pgp_s2k_specifier_t;
 
