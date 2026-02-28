@@ -2620,6 +2620,18 @@ try {
     return RNP_SUCCESS;
 }
 FFI_GUARD
+
+rnp_result_t
+rnp_op_encrypt_enable_skesk_v6(rnp_op_encrypt_t op)
+try {
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    op->rnpctx.enable_skesk_v6 = true;
+    return RNP_SUCCESS;
+}
+FFI_GUARD
 #endif
 
 #if defined(RNP_EXPERIMENTAL_PQC)
