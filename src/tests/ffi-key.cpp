@@ -3194,17 +3194,16 @@ TEST_F(rnp_tests, test_ffi_experimental_packet_import)
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     /* without permissive flag the import must fail */
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_stream_key_load/pubkey-with-experimental-pkt.asc"));
-    assert_rnp_failure(
-      rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_from_path(
+      &input, "data/test_stream_key_load/pubkey-with-experimental-pkt.asc"));
+    assert_rnp_failure(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
     rnp_input_destroy(input);
     size_t keycount = 255;
     assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
     assert_int_equal(keycount, 0);
     /* with permissive flag the experimental packet is skipped and key is imported */
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_stream_key_load/pubkey-with-experimental-pkt.asc"));
+    assert_rnp_success(rnp_input_from_path(
+      &input, "data/test_stream_key_load/pubkey-with-experimental-pkt.asc"));
     assert_rnp_success(
       rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_PERMISSIVE, NULL));
     rnp_input_destroy(input);
