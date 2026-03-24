@@ -1773,6 +1773,12 @@ try {
             if (expub && !ffi->secring->import_key(*expub, true)) {
                 return RNP_ERROR_BAD_PARAMETERS;
             }
+        } else if (pub_status != PGP_KEY_IMPORT_STATUS_UNCHANGED) {
+            // public key was new or updated: sync into secring if a secret key exists there
+            auto *expub = ffi->pubring->get_key(key.fp());
+            if (expub && ffi->secring->get_key(key.fp())) {
+                ffi->secring->import_key(*expub, true);
+            }
         }
         // now add key fingerprint to json based on statuses
         rnp_result_t tmpret = add_key_status(jsokeys, &key, pub_status, sec_status);

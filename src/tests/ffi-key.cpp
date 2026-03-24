@@ -3774,6 +3774,67 @@ TEST_F(rnp_tests, test_ffi_key_import_edge_cases)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_sec_key_expiry_update_via_pub_import)
+{
+    /* Regression test for https://github.com/rnpgp/rnp/issues/2383:
+     * importing an updated public key (with extended expiration) must also update the
+     * expiration stored in the secret keyring so that signing succeeds. */
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* import secret key with short (already-expired) expiration */
+    assert_true(import_sec_keys(ffi, "data/test_key_edge_cases/renee-old-expiration-sec.asc"));
+
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "89dbb82dc8c6e5ef", &key));
+    assert_non_null(key);
+    bool expired = false;
+    assert_rnp_success(rnp_key_is_expired(key, &expired));
+    assert_true(expired);
+    rnp_key_handle_destroy(key);
+
+    /* adding expired key as signer must fail with no suitable key */
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_input_from_memory(&input, (const uint8_t *) "payload", 7, false));
+    assert_rnp_success(rnp_output_to_null(&output));
+    rnp_op_sign_t op = NULL;
+    assert_rnp_success(rnp_op_sign_create(&op, ffi, input, output));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "89dbb82dc8c6e5ef", &key));
+    assert_int_equal(rnp_op_sign_add_signature(op, key, NULL), RNP_ERROR_NO_SUITABLE_KEY);
+    rnp_key_handle_destroy(key);
+    rnp_op_sign_destroy(op);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* import updated public key with extended expiration */
+    assert_true(import_pub_keys(ffi, "data/test_key_edge_cases/renee-new-expiration-pub.asc"));
+
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "89dbb82dc8c6e5ef", &key));
+    assert_non_null(key);
+    expired = true;
+    assert_rnp_success(rnp_key_is_expired(key, &expired));
+    assert_false(expired);
+    bool valid = false;
+    assert_rnp_success(rnp_key_is_valid(key, &valid));
+    assert_true(valid);
+    rnp_key_handle_destroy(key);
+
+    /* signing must now succeed */
+    assert_rnp_success(rnp_input_from_memory(&input, (const uint8_t *) "payload", 7, false));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_sign_create(&op, ffi, input, output));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "89dbb82dc8c6e5ef", &key));
+    assert_rnp_success(rnp_op_sign_add_signature(op, key, NULL));
+    rnp_key_handle_destroy(key);
+    assert_rnp_success(rnp_op_sign_execute(op));
+    rnp_op_sign_destroy(op);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_key_import_gpg_s2k)
 {
     rnp_ffi_t ffi = NULL;
