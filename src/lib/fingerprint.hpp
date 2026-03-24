@@ -88,8 +88,8 @@ template <> struct hash<pgp::Fingerprint> {
     {
         /* since fingerprint value is hash itself, we may use its low bytes */
         size_t res = 0;
-        size_t cpy = std::min(sizeof(res), fp.size());
-        std::memcpy(&res, fp.data(), cpy);
+        size_t copy = std::min(sizeof(res), fp.size());
+        std::memcpy(&res, fp.data(), copy);
         return res;
     }
 };

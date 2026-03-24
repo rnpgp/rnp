@@ -76,10 +76,10 @@ pgp_s2k_iterated(pgp_hash_alg_t alg,
                 }
             }
             auto   dgst = hash->sec_finish();
-            size_t out_cpy = std::min(dgst.size(), output_len);
-            memcpy(out, dgst.data(), out_cpy);
-            output_len -= out_cpy;
-            out += out_cpy;
+            size_t out_copy = std::min(dgst.size(), output_len);
+            memcpy(out, dgst.data(), out_copy);
+            output_len -= out_copy;
+            out += out_copy;
             zeroes++;
         }
         return 0;
