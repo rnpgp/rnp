@@ -183,6 +183,16 @@ process_pgp_key_auto(pgp_source_t &          src,
         return ret;
     }
 
+    /* In permissive mode, skip private/experimental packets (tags 60-63, RFC 4880 §4.3)
+     * instead of aborting the import. */
+    if (skiperrors && (ptag >= 60) && (ptag <= 63)) {
+        RNP_LOG("skipping experimental packet tag %d at pos %" PRIu64, ptag, src.readb);
+        if (stream_skip_packet(&src)) {
+            return RNP_ERROR_READ;
+        }
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
     rnp_result_t ret = RNP_ERROR_BAD_FORMAT;
     if (!is_primary_key_pkt(ptag)) {
         RNP_LOG("wrong key tag: %d at pos %" PRIu64, ptag, src.readb);
