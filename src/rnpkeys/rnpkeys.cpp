@@ -65,6 +65,8 @@ const char *usage =
   "    --permissive          Skip erroring keys/sigs instead of failing.\n"
   "  --export-key            Export a key.\n"
   "    --secret              Export a secret key instead of a public.\n"
+  "  --export-autocrypt-key  Export a key in Autocrypt format.\n"
+  "    --userid              Override which UID to embed in the Autocrypt export.\n"
   "  --export-rev            Export a key's revocation.\n"
   "    --rev-type            Set revocation type.\n"
   "    --rev-reason          Human-readable reason for revocation.\n"
@@ -96,6 +98,7 @@ struct option options[] = {
   {"list-keys", no_argument, NULL, CMD_LIST_KEYS},
   {"export", no_argument, NULL, CMD_EXPORT_KEY},
   {"export-key", optional_argument, NULL, CMD_EXPORT_KEY},
+  {"export-autocrypt-key", optional_argument, NULL, CMD_EXPORT_AUTOCRYPT_KEY},
   {"import", no_argument, NULL, CMD_IMPORT},
   {"import-key", no_argument, NULL, CMD_IMPORT_KEYS},
   {"import-keys", no_argument, NULL, CMD_IMPORT_KEYS},
@@ -413,6 +416,13 @@ rnp_cmd(cli_rnp_t *rnp, optdefs_t cmd, const char *f)
         }
         return cli_rnp_export_keys(rnp, f);
     }
+    case CMD_EXPORT_AUTOCRYPT_KEY: {
+        if (!f && rnp->cfg().get_count(CFG_USERID)) {
+            fs = rnp->cfg().get_str(CFG_USERID, 0);
+            f = fs.c_str();
+        }
+        return cli_rnp_export_autocrypt_key(rnp, f);
+    }
     case CMD_IMPORT:
     case CMD_IMPORT_KEYS:
     case CMD_IMPORT_SIGS:
@@ -488,6 +498,7 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         return true;
     case CMD_LIST_KEYS:
     case CMD_EXPORT_KEY:
+    case CMD_EXPORT_AUTOCRYPT_KEY:
     case CMD_EXPORT_REV:
     case CMD_REVOKE_KEY:
     case CMD_REMOVE_KEY:
