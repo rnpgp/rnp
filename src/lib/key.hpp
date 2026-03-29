@@ -258,15 +258,17 @@ class Key {
      */
     void write_xfer(pgp_dest_t &dst, const KeyStore *keyring = NULL) const;
     /**
-     * @brief Export key with subkey as it is required by Autocrypt (5-packet sequence: key,
-     * uid, sig, subkey, sig).
+     * @brief Export key with subkey(s) as required by Autocrypt. Produces a 5-packet sequence
+     * (key, uid, sig, subkey, sig) or a 7-packet sequence when pqc_sub is also provided
+     * (key, uid, sig, subkey, sig, pqc_subkey, sig).
      *
      * @param dst stream to write packets
-     * @param sub subkey
+     * @param sub traditional (non-PQC) encryption subkey
      * @param uid index of uid to export
+     * @param pqc_sub optional PQC encryption subkey (ML-KEM-768+X25519 for v4 keys)
      * @return true on success or false otherwise
      */
-    bool write_autocrypt(pgp_dest_t &dst, Key &sub, uint32_t uid);
+    bool write_autocrypt(pgp_dest_t &dst, Key &sub, uint32_t uid, Key *pqc_sub = nullptr);
     /**
      * @brief Write key to vector.
      */

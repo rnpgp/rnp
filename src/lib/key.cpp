@@ -1461,7 +1461,7 @@ Key::write_xfer(pgp_dest_t &dst, const KeyStore *keyring) const
 }
 
 bool
-Key::write_autocrypt(pgp_dest_t &dst, Key &sub, uint32_t uid)
+Key::write_autocrypt(pgp_dest_t &dst, Key &sub, uint32_t uid, Key *pqc_sub)
 {
     auto cert = latest_uid_selfcert(uid);
     if (!cert) {
@@ -1477,6 +1477,18 @@ Key::write_autocrypt(pgp_dest_t &dst, Key &sub, uint32_t uid)
         RNP_LOG("Public key required");
         return false;
     }
+    Signature *pqc_binding = nullptr;
+    if (pqc_sub) {
+        if (pqc_sub->is_secret()) {
+            RNP_LOG("Public key required for PQC subkey");
+            return false;
+        }
+        pqc_binding = pqc_sub->latest_binding();
+        if (!pqc_binding) {
+            RNP_LOG("No valid binding for PQC subkey");
+            return false;
+        }
+    }
 
     try {
         /* write all or nothing */
@@ -1486,6 +1498,10 @@ Key::write_autocrypt(pgp_dest_t &dst, Key &sub, uint32_t uid)
         cert->sig.write(memdst.dst());
         sub.pkt().write(memdst.dst());
         binding->sig.write(memdst.dst());
+        if (pqc_sub) {
+            pqc_sub->pkt().write(memdst.dst());
+            pqc_binding->sig.write(memdst.dst());
+        }
         dst_write(&dst, memdst.memory(), memdst.writeb());
         return !dst.werr;
     } catch (const std::exception &e) {
