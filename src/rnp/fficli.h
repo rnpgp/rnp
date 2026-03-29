@@ -225,6 +225,7 @@ void cli_rnp_print_key_info(
 bool        cli_rnp_set_generate_params(rnp_cfg &cfg, bool subkey = false);
 bool        cli_rnp_generate_key(cli_rnp_t *rnp, const char *username);
 bool        cli_rnp_export_keys(cli_rnp_t *rnp, const char *filter);
+bool        cli_rnp_export_autocrypt_key(cli_rnp_t *rnp, const char *filter);
 bool        cli_rnp_export_revocation(cli_rnp_t *rnp, const char *key);
 bool        cli_rnp_revoke_key(cli_rnp_t *rnp, const char *key);
 bool        cli_rnp_remove_key(cli_rnp_t *rnp, const char *key);

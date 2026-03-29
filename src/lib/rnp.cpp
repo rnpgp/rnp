@@ -3993,6 +3993,9 @@ try {
     } else {
         res = primary->write_autocrypt(output->dst, *sub, uididx);
     }
+    if (res) {
+        output->keep = true;
+    }
     return res ? RNP_SUCCESS : RNP_ERROR_BAD_PARAMETERS;
 }
 FFI_GUARD
