@@ -2785,7 +2785,7 @@ class Misc(unittest.TestCase):
         self.assertRegex(err, RE_KEYSTORE_INFO)
         os.mkdir(os.path.join(RNPDIR, 'existing'), 0o700)
         ret, _, err = run_proc(RNPK, ['--homedir', os.path.join(RNPDIR, 'existing'), '--generate', '--password=none'])
-        self.assertEqual(ret, 0, 'failed to use writeable and existing homedir')
+        self.assertEqual(ret, 0, 'failed to use writable and existing homedir')
         self.assertNotRegex(err, r'(?s)^.*Home directory .* does not exist or is not writable!')
         self.assertNotRegex(err, RE_KEYSTORE_INFO)
 
