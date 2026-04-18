@@ -64,7 +64,7 @@ TEST_F(rnp_tests, test_rnp_access)
     /* Should fail, but unfortunately _waccess() works this way */
     assert_int_equal(0, rnp_access("C:\\Windows\\System32\\User32.dll", W_OK));
 #else
-    /* Assume we are running as non-root and root directory is non-writeable for us */
+    /* Assume we are running as non-root and root directory is non-writable for us */
     assert_int_equal(0, rnp_access("/", F_OK));
     assert_int_equal(0, rnp_access("/", R_OK));
     assert_int_equal(-1, rnp_access("/", W_OK));
