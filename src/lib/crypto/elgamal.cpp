@@ -30,7 +30,6 @@
 #include <botan/ffi.h>
 #include <botan/bigint.h>
 #include <botan/numthry.h>
-#include <botan/reducer.h>
 #include "botan_utils.hpp"
 #include <rnp/rnp_def.h>
 #include "elgamal.h"
@@ -101,10 +100,13 @@ Key::validate(bool secret) const noexcept
             return false;
         }
         /* check for small order subgroups */
-        Botan::Modular_Reducer reducer(bp);
+        /* Note: we use (v * bg) % bp instead of Modular_Reducer::multiply() because
+         * Botan >= 3.8.0 changed Modular_Reducer::reduce() to use constant-time
+         * ct_modulo(), causing a ~190x slowdown.
+         * BigInt::operator% uses variable-time division. */
         Botan::BigInt          v = bg;
         for (size_t i = 2; i < (1 << 17); i++) {
-            v = reducer.multiply(v, bg);
+            v = (v * bg) % bp;
             if (!v.cmp_word(1)) {
                 RNP_LOG("Small subgroup detected. Order %zu", i);
                 return false;
