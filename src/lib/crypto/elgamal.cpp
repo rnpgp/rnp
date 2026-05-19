@@ -104,7 +104,7 @@ Key::validate(bool secret) const noexcept
          * Botan >= 3.8.0 changed Modular_Reducer::reduce() to use constant-time
          * ct_modulo(), causing a ~190x slowdown.
          * BigInt::operator% uses variable-time division. */
-        Botan::BigInt          v = bg;
+        Botan::BigInt v = bg;
         for (size_t i = 2; i < (1 << 17); i++) {
             v = (v * bg) % bp;
             if (!v.cmp_word(1)) {
