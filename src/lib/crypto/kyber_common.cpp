@@ -87,7 +87,6 @@ pgp_kyber_private_key_t::pgp_kyber_private_key_t(const uint8_t *   key_encoded,
 
 pgp_kyber_private_key_t::pgp_kyber_private_key_t(std::vector<uint8_t> const &key_encoded,
                                                  kyber_parameter_e           mode)
-    : key_encoded_(Botan::secure_vector<uint8_t>(key_encoded.begin(), key_encoded.end())),
-      kyber_mode_(mode), is_initialized_(true)
+    : key_encoded_(key_encoded), kyber_mode_(mode), is_initialized_(true)
 {
 }

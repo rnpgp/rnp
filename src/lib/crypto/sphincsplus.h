@@ -32,8 +32,7 @@
 #include <vector>
 #include <repgp/repgp_def.h>
 #include "crypto/rng.h"
-#include <botan/slh_dsa.h>
-#include <botan/pubkey.h>
+#include "crypto/secure_bytes.h"
 
 struct pgp_sphincsplus_key_t;
 struct pgp_sphincsplus_signature_t;
@@ -63,25 +62,22 @@ class pgp_sphincsplus_private_key_t {
                       pgp_sphincsplus_signature_t *sig,
                       const uint8_t *              msg,
                       size_t                       msg_len) const;
-    std::vector<uint8_t>
-    get_encoded() const
-    {
-        return Botan::unlock(key_encoded_);
-    };
-
     void
     secure_clear()
     {
+        key_encoded_ = rnp::SecureBytes();
         is_initialized_ = false;
-        Botan::zap(key_encoded_);
+    }
+    std::vector<uint8_t>
+    get_encoded() const
+    {
+        return key_encoded_.unlock();
     };
 
   private:
-    Botan::SLH_DSA_PrivateKey botan_key() const;
-
-    Botan::secure_vector<uint8_t> key_encoded_;
-    pgp_pubkey_alg_t              pk_alg_;
-    bool                          is_initialized_ = false;
+    rnp::SecureBytes key_encoded_;
+    pgp_pubkey_alg_t pk_alg_;
+    bool                 is_initialized_ = false;
 };
 
 class pgp_sphincsplus_public_key_t {
@@ -118,8 +114,6 @@ class pgp_sphincsplus_public_key_t {
     };
 
   private:
-    Botan::SLH_DSA_PublicKey botan_key() const;
-
     std::vector<uint8_t> key_encoded_;
     pgp_pubkey_alg_t     pk_alg_;
     bool                 is_initialized_ = false;
