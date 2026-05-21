@@ -32,8 +32,7 @@
 #include <vector>
 #include <repgp/repgp_def.h>
 #include "crypto/rng.h"
-#include <botan/dilithium.h>
-#include <botan/pubkey.h>
+#include "crypto/secure_bytes.h"
 
 enum dilithium_parameter_e { dilithium_L3, dilithium_L5 };
 
@@ -58,15 +57,13 @@ class pgp_dilithium_private_key_t {
     std::vector<uint8_t>
     get_encoded() const
     {
-        return Botan::unlock(key_encoded_);
+        return key_encoded_.unlock();
     };
 
   private:
-    Botan::Dilithium_PrivateKey botan_key() const;
-
-    Botan::secure_vector<uint8_t> key_encoded_;
-    dilithium_parameter_e         dilithium_param_;
-    bool                          is_initialized_ = false;
+    rnp::SecureBytes      key_encoded_;
+    dilithium_parameter_e dilithium_param_;
+    bool                  is_initialized_ = false;
 };
 
 class pgp_dilithium_public_key_t {
@@ -99,8 +96,6 @@ class pgp_dilithium_public_key_t {
     };
 
   private:
-    Botan::Dilithium_PublicKey botan_key() const;
-
     std::vector<uint8_t>  key_encoded_;
     dilithium_parameter_e dilithium_param_;
     bool                  is_initialized_ = false;

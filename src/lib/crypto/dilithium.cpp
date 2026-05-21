@@ -25,6 +25,8 @@
  */
 
 #include "dilithium.h"
+#include <botan/dilithium.h>
+#include <botan/pubkey.h>
 #include "logging.h"
 #include "types.h"
 #include <cassert>
@@ -41,35 +43,36 @@ rnp_dilithium_param_to_botan_dimension(dilithium_parameter_e mode)
     return result;
 }
 
+Botan::Dilithium_PublicKey
+dilithium_pubkey_from_bytes(const std::vector<uint8_t> &key_encoded,
+                            dilithium_parameter_e        param)
+{
+    return Botan::Dilithium_PublicKey(key_encoded,
+                                      rnp_dilithium_param_to_botan_dimension(param));
+}
+
+Botan::Dilithium_PrivateKey
+dilithium_privkey_from_bytes(const uint8_t *       key_data,
+                              size_t                key_size,
+                              dilithium_parameter_e param)
+{
+    Botan::secure_vector<uint8_t> priv_sv(key_data, key_data + key_size);
+    return Botan::Dilithium_PrivateKey(priv_sv,
+                                       rnp_dilithium_param_to_botan_dimension(param));
+}
+
 } // namespace
 
 std::vector<uint8_t>
 pgp_dilithium_private_key_t::sign(rnp::RNG *rng, const uint8_t *msg, size_t msg_len) const
 {
     assert(is_initialized_);
-    auto priv_key = botan_key();
+    auto priv_key = dilithium_privkey_from_bytes(key_encoded_.data(), key_encoded_.size(), dilithium_param_);
 
     auto                 signer = Botan::PK_Signer(priv_key, *rng->obj(), "");
     std::vector<uint8_t> signature = signer.sign_message(msg, msg_len, *rng->obj());
-    // std::vector<uint8_t> signature;
 
     return signature;
-}
-
-Botan::Dilithium_PublicKey
-pgp_dilithium_public_key_t::botan_key() const
-{
-    return Botan::Dilithium_PublicKey(
-      key_encoded_, rnp_dilithium_param_to_botan_dimension(dilithium_param_));
-}
-
-Botan::Dilithium_PrivateKey
-pgp_dilithium_private_key_t::botan_key() const
-{
-    Botan::secure_vector<uint8_t> priv_sv(key_encoded_.data(),
-                                          key_encoded_.data() + key_encoded_.size());
-    return Botan::Dilithium_PrivateKey(
-      priv_sv, rnp_dilithium_param_to_botan_dimension(this->dilithium_param_));
 }
 
 bool
@@ -79,7 +82,7 @@ pgp_dilithium_public_key_t::verify_signature(const uint8_t *msg,
                                              size_t         signature_len) const
 {
     assert(is_initialized_);
-    auto pub_key = botan_key();
+    auto pub_key = dilithium_pubkey_from_bytes(key_encoded_, dilithium_param_);
 
     auto verificator = Botan::PK_Verifier(pub_key, "");
     return verificator.verify_message(msg, msg_len, signature, signature_len);
@@ -105,7 +108,7 @@ pgp_dilithium_public_key_t::is_valid(rnp::RNG *rng) const
         return false;
     }
 
-    auto key = botan_key();
+    auto key = dilithium_pubkey_from_bytes(key_encoded_, dilithium_param_);
     return key.check_key(*(rng->obj()), false);
 }
 
@@ -116,6 +119,6 @@ pgp_dilithium_private_key_t::is_valid(rnp::RNG *rng) const
         return false;
     }
 
-    auto key = botan_key();
+    auto key = dilithium_privkey_from_bytes(key_encoded_.data(), key_encoded_.size(), dilithium_param_);
     return key.check_key(*(rng->obj()), false);
 }

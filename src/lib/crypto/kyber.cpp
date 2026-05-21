@@ -25,6 +25,8 @@
  */
 
 #include "kyber.h"
+#include <botan/kyber.h>
+#include <botan/pubkey.h>
 #include <utility>
 #include <vector>
 #include <cassert>
@@ -45,6 +47,20 @@ kyber_key_share_size()
 {
     return 32;
 }
+
+Botan::Kyber_PublicKey
+kyber_pubkey_from_bytes(const std::vector<uint8_t> &key_encoded, kyber_parameter_e kyber_mode)
+{
+    return Botan::Kyber_PublicKey(key_encoded,
+                                  rnp_kyber_param_to_botan_kyber_mode(kyber_mode));
+}
+
+Botan::Kyber_PrivateKey
+kyber_privkey_from_bytes(const uint8_t *key_data, size_t key_size, kyber_parameter_e kyber_mode)
+{
+    Botan::secure_vector<uint8_t> key_sv(key_data, key_data + key_size);
+    return Botan::Kyber_PrivateKey(key_sv, rnp_kyber_param_to_botan_kyber_mode(kyber_mode));
+}
 } // namespace
 
 std::pair<pgp_kyber_public_key_t, pgp_kyber_private_key_t>
@@ -64,26 +80,11 @@ kyber_generate_keypair(rnp::RNG *rng, kyber_parameter_e kyber_param)
                                                   kyber_param));
 }
 
-Botan::Kyber_PublicKey
-pgp_kyber_public_key_t::botan_key() const
-{
-    return Botan::Kyber_PublicKey(key_encoded_,
-                                  rnp_kyber_param_to_botan_kyber_mode(kyber_mode_));
-}
-
-Botan::Kyber_PrivateKey
-pgp_kyber_private_key_t::botan_key() const
-{
-    Botan::secure_vector<uint8_t> key_sv(key_encoded_.data(),
-                                         key_encoded_.data() + key_encoded_.size());
-    return Botan::Kyber_PrivateKey(key_sv, rnp_kyber_param_to_botan_kyber_mode(kyber_mode_));
-}
-
 kyber_encap_result_t
 pgp_kyber_public_key_t::encapsulate(rnp::RNG *rng) const
 {
     assert(is_initialized_);
-    auto decoded_kyber_pub = botan_key();
+    auto decoded_kyber_pub = kyber_pubkey_from_bytes(key_encoded_, kyber_mode_);
 
     Botan::PK_KEM_Encryptor       kem_enc(decoded_kyber_pub, "Raw", "base");
     Botan::secure_vector<uint8_t> encap_key;           // this has to go over the wire
@@ -105,7 +106,7 @@ pgp_kyber_private_key_t::decapsulate(rnp::RNG *     rng,
                                      size_t         ciphertext_len)
 {
     assert(is_initialized_);
-    auto                          decoded_kyber_priv = botan_key();
+    auto decoded_kyber_priv = kyber_privkey_from_bytes(key_encoded_.data(), key_encoded_.size(), kyber_mode_);
     Botan::PK_KEM_Decryptor       kem_dec(decoded_kyber_priv, *rng->obj(), "Raw", "base");
     Botan::secure_vector<uint8_t> dec_shared_key =
       kem_dec.decrypt(ciphertext, ciphertext_len, kyber_key_share_size());
@@ -120,7 +121,7 @@ pgp_kyber_public_key_t::is_valid(rnp::RNG *rng) const
         return false;
     }
 
-    auto key = botan_key();
+    auto key = kyber_pubkey_from_bytes(key_encoded_, kyber_mode_);
     return key.check_key(*(rng->obj()), false);
 }
 
@@ -131,6 +132,6 @@ pgp_kyber_private_key_t::is_valid(rnp::RNG *rng) const
         return false;
     }
 
-    auto key = botan_key();
+    auto key = kyber_privkey_from_bytes(key_encoded_.data(), key_encoded_.size(), kyber_mode_);
     return key.check_key(*(rng->obj()), false);
 }
