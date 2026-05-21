@@ -31,14 +31,14 @@ find_package(ZLIB REQUIRED)
 
 # required packages
 find_package(JSON-C 0.11 REQUIRED)
-if(ENABLE_CRYPTO_REFRESH)
+if(ENABLE_CRYPTO_REFRESH AND CRYPTO_BACKEND_BOTAN)
   find_package(Botan 3.6.0 REQUIRED)
   set(CRYPTO_BACKEND_BOTAN3 1)
 else()
   if (CRYPTO_BACKEND_BOTAN3)
     find_package(Botan 3.0.0 REQUIRED)
   elseif (CRYPTO_BACKEND_BOTAN)
-  # botan-config.cmake from Botan distribution doesn't support version 2.x, 
+  # botan-config.cmake from Botan distribution doesn't support version 2.x,
   # so use -DCRYPTO_BACKEND=botan3 to configure
   find_package(Botan 2.14.0 REQUIRED)
     if(Botan_VERSION VERSION_GREATER_EQUAL 3.0.0)
@@ -65,9 +65,9 @@ if(CRYPTO_BACKEND_BOTAN3)
   set(CMAKE_CXX_STANDARD 20)
 endif()
 
-if(ENABLE_CRYPTO_REFRESH)
+if(ENABLE_CRYPTO_REFRESH AND CRYPTO_BACKEND_BOTAN)
   if (NOT CRYPTO_BACKEND_BOTAN3)
-    message(FATAL_ERROR "ENABLE_PQC requires Botan 3 as crypto backend")
+    message(FATAL_ERROR "ENABLE_CRYPTO_REFRESH requires Botan 3 as crypto backend")
   endif()
 endif()
 
@@ -273,8 +273,16 @@ if(CRYPTO_BACKEND_OPENSSL)
   openssl_nope(ENABLE_SM2 "it's on our roadmap, see https://github.com/rnpgp/rnp/issues/1877")
   #resolve_feature_state(ENABLE_SM2 "SM2;SM3;SM4-ECB")
   openssl_nope(ENABLE_TWOFISH "Twofish isn't and won't be supported by OpenSSL, see https://github.com/openssl/openssl/issues/2046")
-  openssl_nope(ENABLE_CRYPTO_REFRESH, "not yet implemented")
-  openssl_nope(ENABLE_PQC, "not yet implemented")
+  if(CRYPTO_BACKEND_OPENSSL3)
+    resolve_feature_state(ENABLE_CRYPTO_REFRESH "ED448;X448")
+  else()
+    openssl_nope(ENABLE_CRYPTO_REFRESH "requires OpenSSL 3.0+")
+  endif()
+  if(CRYPTO_BACKEND_OPENSSL3)
+    resolve_feature_state(ENABLE_PQC "ML-KEM-768;ML-KEM-1024;ML-DSA-65;ML-DSA-87;SLH-DSA-SHAKE-128f;SLH-DSA-SHAKE-128s;SLH-DSA-SHAKE-256s")
+  else()
+    openssl_nope(ENABLE_PQC "requires OpenSSL 3.0+")
+  endif()
   set(ENABLE_AEAD_EAX "Off")
   set(ENABLE_AEAD_OCB "${ENABLE_AEAD}")
 endif()
@@ -326,6 +334,32 @@ if(CRYPTO_BACKEND_OPENSSL)
   if(ENABLE_SM2)
     list(APPEND CRYPTO_SOURCES crypto/sm2_ossl.cpp)
   endif()
+  if(ENABLE_CRYPTO_REFRESH OR ENABLE_PQC)
+    list(APPEND CRYPTO_SOURCES
+        crypto/secure_bytes.cpp
+        crypto/hkdf.cpp
+        crypto/hkdf_ossl.cpp
+        crypto/ed25519_ed448_ossl.cpp
+        crypto/x25519_x448_ossl.cpp
+        crypto/exdsa_ecdhkem_ossl.cpp
+    )
+  endif()
+  if(ENABLE_PQC)
+    list(APPEND CRYPTO_SOURCES
+        crypto/kyber_common.cpp
+        crypto/kyber_ossl.cpp
+        crypto/kyber_ecdh_composite.cpp
+        crypto/kem_combiner.cpp
+    )
+  endif()
+  if(ENABLE_PQC AND ENABLE_CRYPTO_REFRESH)
+    list(APPEND CRYPTO_SOURCES
+        crypto/dilithium_common.cpp
+        crypto/dilithium_ossl.cpp
+        crypto/sphincsplus_ossl.cpp
+        crypto/dilithium_exdsa_composite.cpp
+    )
+  endif()
 elseif(CRYPTO_BACKEND_BOTAN)
   set(CRYPTO_SOURCES
     crypto/dsa_common.cpp
@@ -355,7 +389,6 @@ elseif(CRYPTO_BACKEND_BOTAN)
   endif()
   if(ENABLE_CRYPTO_REFRESH OR ENABLE_PQC)
     list(APPEND CRYPTO_SOURCES
-        crypto/secure_bytes.cpp
         crypto/exdsa_ecdhkem.cpp
         crypto/x25519_x448.cpp
         crypto/ed25519_ed448.cpp

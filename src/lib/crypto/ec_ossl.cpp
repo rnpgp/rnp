@@ -459,3 +459,88 @@ write_pubkey(const rnp::ossl::evp::PKey &pkey, mpi &mpi, pgp_curve_t curve)
 
 } // namespace ec
 } // namespace pgp
+
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+
+#include "ed25519_ed448.h"
+#include "x25519_x448.h"
+#include <cstring>
+
+static rnp_result_t
+ec_generate_generic_native(rnp::RNG *            rng,
+                           std::vector<uint8_t> &privkey,
+                           std::vector<uint8_t> &pubkey,
+                           pgp_curve_t           curve)
+{
+    auto pkey = pgp::ec::generate_pkey(PGP_PKA_ECDH, curve);
+    if (!pkey) {
+        RNP_LOG("Failed to generate EC key pair");
+        return RNP_ERROR_KEY_GENERATION;
+    }
+    pgp::mpi pub_mpi;
+    if (!pgp::ec::write_pubkey(pkey, pub_mpi, curve)) {
+        RNP_LOG("Failed to extract EC public key");
+        return RNP_ERROR_KEY_GENERATION;
+    }
+    pubkey.assign(pub_mpi.data(), pub_mpi.data() + pub_mpi.size());
+    pgp::mpi priv_mpi;
+#if defined(CRYPTO_BACKEND_OPENSSL3)
+    rnp::bn x;
+    if (!EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_PRIV_KEY, x.ptr()) ||
+        !x.mpi(priv_mpi)) {
+        RNP_LOG("Failed to get EC private key");
+        return RNP_ERROR_KEY_GENERATION;
+    }
+#else
+    {
+        auto ec = EVP_PKEY_get0_EC_KEY(pkey.get());
+        if (!ec) {
+            RNP_LOG("Failed to get EC key: %lu", ERR_peek_last_error());
+            return RNP_ERROR_KEY_GENERATION;
+        }
+        rnp::bn x(EC_KEY_get0_private_key(ec));
+        if (!x.mpi(priv_mpi)) {
+            RNP_LOG("Failed to extract EC private key");
+            return RNP_ERROR_KEY_GENERATION;
+        }
+    }
+#endif
+    auto curv_desc = pgp::ec::Curve::get(curve);
+    if (!curv_desc) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    size_t curve_order = curv_desc->bytes();
+    privkey.assign(curve_order, 0);
+    size_t priv_size = priv_mpi.size();
+    if (priv_size > curve_order) {
+        RNP_LOG("EC private key larger than curve order");
+        return RNP_ERROR_KEY_GENERATION;
+    }
+    memcpy(privkey.data() + curve_order - priv_size, priv_mpi.data(), priv_size);
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+ec_generate_native(rnp::RNG *            rng,
+                   std::vector<uint8_t> &privkey,
+                   std::vector<uint8_t> &pubkey,
+                   pgp_curve_t           curve)
+{
+    switch (curve) {
+    case PGP_CURVE_25519:
+        return generate_x25519_native(rng, privkey, pubkey);
+    case PGP_CURVE_ED25519:
+        return generate_ed25519_native(rng, privkey, pubkey);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_CURVE_448:
+        return generate_x448_native(rng, privkey, pubkey);
+    case PGP_CURVE_ED448:
+        return generate_ed448_native(rng, privkey, pubkey);
+#endif
+    default:
+        break;
+    }
+    return ec_generate_generic_native(rng, privkey, pubkey, curve);
+}
+
+#endif /* ENABLE_CRYPTO_REFRESH || ENABLE_PQC */
