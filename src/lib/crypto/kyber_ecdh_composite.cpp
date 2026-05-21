@@ -29,8 +29,12 @@
 #include "types.h"
 #include "ecdh_utils.h"
 #include "kem_combiner.hpp"
+#if defined(CRYPTO_BACKEND_BOTAN)
 #include <botan/rfc3394.h>
 #include <botan/symkey.h>
+#elif defined(CRYPTO_BACKEND_OPENSSL)
+#include <openssl/evp.h>
+#endif
 #include <cassert>
 
 pgp_kyber_ecdh_composite_key_t::~pgp_kyber_ecdh_composite_key_t()
@@ -206,12 +210,12 @@ pgp_kyber_ecdh_composite_key_t::pk_alg_to_curve_id(pgp_pubkey_alg_t pk_alg)
         return PGP_CURVE_NIST_P_384;
     case PGP_PKA_KYBER768_BP384:
         return PGP_CURVE_BP384;
+    case PGP_PKA_KYBER1024_X448:
+        return PGP_CURVE_448;
     case PGP_PKA_KYBER1024_BP512:
         return PGP_CURVE_BP512;
     case PGP_PKA_KYBER1024_P521:
         return PGP_CURVE_NIST_P_521;
-    case PGP_PKA_KYBER1024_X448:
-        return PGP_CURVE_448;
 #endif
     default:
         RNP_LOG("invalid PK alg given");
@@ -245,10 +249,10 @@ pgp_kyber_ecdh_composite_private_key_t::pgp_kyber_ecdh_composite_private_key_t(
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
-    kyber_key_ = std::make_unique<pgp_kyber_private_key_t>(
-      pgp_kyber_private_key_t(kyber_key_encoded, pk_alg_to_kyber_id(pk_alg)));
-    ecdh_key_ = std::make_unique<ecdh_kem_private_key_t>(
-      ecdh_kem_private_key_t(ecdh_key_encoded, pk_alg_to_curve_id(pk_alg)));
+    kyber_key_ = std::unique_ptr<pgp_kyber_private_key_t>(
+      new pgp_kyber_private_key_t(kyber_key_encoded, pk_alg_to_kyber_id(pk_alg)));
+    ecdh_key_ = std::unique_ptr<ecdh_kem_private_key_t>(
+      new ecdh_kem_private_key_t(ecdh_key_encoded, pk_alg_to_curve_id(pk_alg)));
 
     is_initialized_ = true;
 }
@@ -262,11 +266,11 @@ pgp_kyber_ecdh_composite_private_key_t::operator=(
     pgp_kyber_ecdh_composite_key_t::operator=(other);
     pk_alg_ = other.pk_alg_;
     if (other.is_initialized() && other.kyber_key_) {
-        kyber_key_ = std::make_unique<pgp_kyber_private_key_t>(
-          pgp_kyber_private_key_t(other.kyber_key_->get_encoded(), other.kyber_key_->param()));
+        kyber_key_ = std::unique_ptr<pgp_kyber_private_key_t>(new pgp_kyber_private_key_t(
+          other.kyber_key_->get_encoded(), other.kyber_key_->param()));
     }
     if (other.is_initialized() && other.ecdh_key_) {
-        ecdh_key_ = std::make_unique<ecdh_kem_private_key_t>(ecdh_kem_private_key_t(
+        ecdh_key_ = std::unique_ptr<ecdh_kem_private_key_t>(new ecdh_kem_private_key_t(
           other.ecdh_key_->get_encoded(), other.ecdh_key_->get_curve()));
     }
 
@@ -298,10 +302,10 @@ pgp_kyber_ecdh_composite_private_key_t::parse_component_keys(std::vector<uint8_t
     pgp_curve_t       ecdh_curve = pk_alg_to_curve_id(pk_alg_);
     size_t            split_at = ecdh_curve_privkey_size(pk_alg_to_curve_id(pk_alg_));
 
-    kyber_key_ = std::make_unique<pgp_kyber_private_key_t>(pgp_kyber_private_key_t(
+    kyber_key_ = std::unique_ptr<pgp_kyber_private_key_t>(new pgp_kyber_private_key_t(
       key_encoded.data() + split_at, key_encoded.size() - split_at, kyber_param));
-    ecdh_key_ = std::make_unique<ecdh_kem_private_key_t>(
-      ecdh_kem_private_key_t(key_encoded.data(), split_at, ecdh_curve));
+    ecdh_key_ = std::unique_ptr<ecdh_kem_private_key_t>(
+      new ecdh_kem_private_key_t(key_encoded.data(), split_at, ecdh_curve));
 
     is_initialized_ = true;
 }
@@ -354,8 +358,8 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(
                                    ecdh_encapsulated_keyshare,
                                    ecdh_kyber_pub_key.get_ecdh_encoded(),
                                    pk_alg());
+#if defined(CRYPTO_BACKEND_BOTAN)
     Botan::SymmetricKey kek(kek_vec);
-
     // Compute sessionKey := AESKeyUnwrap(KEK, C) with AES-256 as per [RFC3394], aborting if
     // the 64 bit integrity check fails
     Botan::secure_vector<uint8_t> tmp_out;
@@ -375,6 +379,40 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(
     }
     *out_len = tmp_out.size();
     memcpy(out, tmp_out.data(), *out_len);
+#elif defined(CRYPTO_BACKEND_OPENSSL)
+    // Compute sessionKey := AESKeyUnwrap(KEK, C) with AES-256 as per [RFC3394], aborting if
+    // the 64 bit integrity check fails
+    {
+        EVP_CIPHER_CTX *wctx = EVP_CIPHER_CTX_new();
+        if (!wctx) {
+            return RNP_ERROR_DECRYPT_FAILED;
+        }
+        EVP_CIPHER_CTX_set_flags(wctx, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+        if (EVP_DecryptInit_ex(wctx, EVP_aes_256_wrap(), NULL, kek_vec.data(), NULL) <= 0) {
+            EVP_CIPHER_CTX_free(wctx);
+            return RNP_ERROR_DECRYPT_FAILED;
+        }
+        size_t unwrapped_size = enc->wrapped_sesskey.size() - 8;
+        std::vector<uint8_t> tmp_out(unwrapped_size);
+        int unwrap_len = 0, unwrap_final = 0;
+        if (EVP_DecryptUpdate(wctx, tmp_out.data(), &unwrap_len,
+                              enc->wrapped_sesskey.data(),
+                              (int) enc->wrapped_sesskey.size()) <= 0 ||
+            EVP_DecryptFinal_ex(wctx, tmp_out.data() + unwrap_len, &unwrap_final) <= 0) {
+            EVP_CIPHER_CTX_free(wctx);
+            RNP_LOG("Keyunwrap failed");
+            return RNP_ERROR_DECRYPT_FAILED;
+        }
+        EVP_CIPHER_CTX_free(wctx);
+        size_t result_size = (size_t)(unwrap_len + unwrap_final);
+        if (*out_len < result_size) {
+            RNP_LOG("buffer for decryption result too small");
+            return RNP_ERROR_DECRYPT_FAILED;
+        }
+        *out_len = result_size;
+        memcpy(out, tmp_out.data(), *out_len);
+    }
+#endif
 
     return RNP_SUCCESS;
 }
@@ -491,8 +529,8 @@ pgp_kyber_ecdh_composite_public_key_t::encrypt(rnp::RNG *                  rng,
                                                                 ecdh_ciphertext,
                                                                 ecdh_key_.get_encoded(),
                                                                 pk_alg());
-    Botan::SymmetricKey  kek(kek_vec);
-
+#if defined(CRYPTO_BACKEND_BOTAN)
+    Botan::SymmetricKey kek(kek_vec);
     // Compute C := AESKeyWrap(KEK, sessionKey) with AES-256 as per [RFC3394] that includes a
     // 64 bit integrity check
     try {
@@ -502,6 +540,32 @@ pgp_kyber_ecdh_composite_public_key_t::encrypt(rnp::RNG *                  rng,
         RNP_LOG("Keywrap failed: %s", e.what());
         return RNP_ERROR_ENCRYPT_FAILED;
     }
+#elif defined(CRYPTO_BACKEND_OPENSSL)
+    // Compute C := AESKeyWrap(KEK, sessionKey) with AES-256 as per [RFC3394]
+    {
+        EVP_CIPHER_CTX *wctx = EVP_CIPHER_CTX_new();
+        if (!wctx) {
+            return RNP_ERROR_ENCRYPT_FAILED;
+        }
+        EVP_CIPHER_CTX_set_flags(wctx, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+        if (EVP_EncryptInit_ex(wctx, EVP_aes_256_wrap(), NULL, kek_vec.data(), NULL) <= 0) {
+            EVP_CIPHER_CTX_free(wctx);
+            return RNP_ERROR_ENCRYPT_FAILED;
+        }
+        out->wrapped_sesskey.resize(session_key_len + 8);
+        int wrap_len = 0, wrap_final = 0;
+        if (EVP_EncryptUpdate(wctx, out->wrapped_sesskey.data(), &wrap_len, session_key,
+                              (int) session_key_len) <= 0 ||
+            EVP_EncryptFinal_ex(wctx, out->wrapped_sesskey.data() + wrap_len, &wrap_final) <=
+              0) {
+            EVP_CIPHER_CTX_free(wctx);
+            RNP_LOG("Keywrap failed");
+            return RNP_ERROR_ENCRYPT_FAILED;
+        }
+        out->wrapped_sesskey.resize((size_t)(wrap_len + wrap_final));
+        EVP_CIPHER_CTX_free(wctx);
+    }
+#endif
 
     out->composite_ciphertext.assign(ecdh_ciphertext.begin(), ecdh_ciphertext.end());
     out->composite_ciphertext.insert(out->composite_ciphertext.end(),

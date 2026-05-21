@@ -1464,8 +1464,11 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
     std::vector<std::string> camellia({"Camellia128", "Camellia192", "Camellia256"});
     ciphers.insert(ciphers.end(), camellia.begin(), camellia.end());
 #endif
-    std::vector<std::string> aead_modes = {"None", "EAX", "OCB"};
-    std::vector<bool>        enable_pkeskv6_modes = {true, false};
+    std::vector<std::string> aead_modes = {"None", "OCB"};
+    if (aead_eax_enabled()) {
+        aead_modes.push_back("EAX");
+    }
+    std::vector<bool> enable_pkeskv6_modes = {true, false};
 
     for (auto enable_pkeskv6 : enable_pkeskv6_modes)
         for (auto aead : aead_modes)
@@ -1477,6 +1480,13 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
                     // here.
                     expect_success = false;
                 }
+#if defined(CRYPTO_BACKEND_OPENSSL)
+                // OpenSSL backend only supports AES with OCB/EAX; non-AES AEAD combinations fail.
+                // When PKESKv6 is enabled, AEAD=None is rejected and OCB is used, so non-AES fails too.
+                if (cipher.find("AES") != 0 && (aead != "None" || enable_pkeskv6)) {
+                    expect_success = false;
+                }
+#endif
                 // write out some data
                 FILE *fp = fopen("plaintext", "wb");
                 assert_non_null(fp);

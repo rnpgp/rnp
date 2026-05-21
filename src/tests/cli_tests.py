@@ -4793,7 +4793,7 @@ class Encryption(unittest.TestCase):
         aead_list = []
         passwds = []
         for x in range(len(ALGO)): passwds.append('testpw' if x % 1 == 0 else '')
-        for x in range(len(ALGO)): aead_list.append(None if x % 3 == 0 else ('ocb' if x % 3 == 1 else 'eax' ))
+        for x in range(len(ALGO)): aead_list.append(None if x % 3 == 0 else ('ocb' if x % 3 == 1 else ('eax' if RNP_AEAD_EAX else 'ocb')))
         if any(len(USERIDS) != len(x) for x in [ALGO, ALGO_PARAM]):
             raise  RuntimeError("test_encryption_and_signing_pqc: internal error: lengths of test data arrays matching")
         # Generate multiple keys and import to GnuPG

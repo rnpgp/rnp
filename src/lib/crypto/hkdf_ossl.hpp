@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, [MTG AG](https://www.mtg.de).
+ * Copyright (c) 2026 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -24,48 +25,36 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef CRYPTO_HKDF_OSSL_HPP_
+#define CRYPTO_HKDF_OSSL_HPP_
+
 #include "config.h"
 
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 
 #include "hkdf.hpp"
 
-#if defined(CRYPTO_BACKEND_BOTAN)
-#include "hkdf_botan.hpp"
-#endif
-#if defined(CRYPTO_BACKEND_OPENSSL)
-#include "hkdf_ossl.hpp"
-#endif
-
 namespace rnp {
-std::unique_ptr<Hkdf>
-Hkdf::create(pgp_hash_alg_t alg)
-{
-#if defined(CRYPTO_BACKEND_OPENSSL)
-    return Hkdf_OpenSSL::create(alg);
-#elif defined(CRYPTO_BACKEND_BOTAN)
-    return Hkdf_Botan::create(alg);
-#else
-#error "Crypto backend not specified"
-#endif
-}
 
-size_t
-Hkdf::size() const
-{
-    return size_;
-}
+class Hkdf_OpenSSL : public Hkdf {
+  public:
+    Hkdf_OpenSSL(pgp_hash_alg_t alg);
+    virtual ~Hkdf_OpenSSL();
 
-pgp_hash_alg_t
-Hkdf::alg() const
-{
-    return hash_alg_;
-}
+    static std::unique_ptr<Hkdf_OpenSSL> create(pgp_hash_alg_t alg);
 
-Hkdf::~Hkdf()
-{
-}
+    void extract_expand(const uint8_t *salt,
+                        size_t         salt_len,
+                        const uint8_t *ikm,
+                        size_t         ikm_len,
+                        const uint8_t *info,
+                        size_t         info_len,
+                        uint8_t *      output_buf,
+                        size_t         output_length);
+};
 
 } // namespace rnp
+
+#endif
 
 #endif
