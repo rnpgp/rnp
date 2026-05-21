@@ -231,13 +231,14 @@ pgp_dilithium_exdsa_composite_private_key_t::operator=(
     pgp_dilithium_exdsa_composite_key_t::operator=(other);
     pk_alg_ = other.pk_alg_;
     if (other.is_initialized() && other.dilithium_key_) {
-        dilithium_key_ =
-          std::make_unique<pgp_dilithium_private_key_t>(pgp_dilithium_private_key_t(
-            other.dilithium_key_->get_encoded(), other.dilithium_key_->param()));
+        dilithium_key_ = std::unique_ptr<pgp_dilithium_private_key_t>(
+          new pgp_dilithium_private_key_t(other.dilithium_key_->get_encoded(),
+                                          other.dilithium_key_->param()));
     }
     if (other.is_initialized() && other.exdsa_key_) {
-        exdsa_key_ = std::make_unique<exdsa_private_key_t>(
-          exdsa_private_key_t(other.exdsa_key_->get_encoded(), other.exdsa_key_->get_curve()));
+        exdsa_key_ = std::unique_ptr<exdsa_private_key_t>(
+          new exdsa_private_key_t(other.exdsa_key_->get_encoded(),
+                                  other.exdsa_key_->get_curve()));
     }
 
     return *this;
@@ -261,10 +262,10 @@ pgp_dilithium_exdsa_composite_private_key_t::pgp_dilithium_exdsa_composite_priva
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
-    dilithium_key_ = std::make_unique<pgp_dilithium_private_key_t>(
-      pgp_dilithium_private_key_t(dilithium_key_encoded, pk_alg_to_dilithium_id(pk_alg)));
-    exdsa_key_ = std::make_unique<exdsa_private_key_t>(
-      exdsa_private_key_t(exdsa_key_encoded, pk_alg_to_curve_id(pk_alg)));
+    dilithium_key_ = std::unique_ptr<pgp_dilithium_private_key_t>(
+      new pgp_dilithium_private_key_t(dilithium_key_encoded, pk_alg_to_dilithium_id(pk_alg)));
+    exdsa_key_ = std::unique_ptr<exdsa_private_key_t>(
+      new exdsa_private_key_t(exdsa_key_encoded, pk_alg_to_curve_id(pk_alg)));
     is_initialized_ = true;
 }
 
@@ -288,10 +289,11 @@ pgp_dilithium_exdsa_composite_private_key_t::parse_component_keys(
     pgp_curve_t           curve = pk_alg_to_curve_id(pk_alg_);
     size_t                split_at = exdsa_curve_privkey_size(pk_alg_to_curve_id(pk_alg_));
 
-    dilithium_key_ = std::make_unique<pgp_dilithium_private_key_t>(pgp_dilithium_private_key_t(
-      key_encoded.data() + split_at, key_encoded.size() - split_at, dilithium_param));
-    exdsa_key_ = std::make_unique<exdsa_private_key_t>(
-      exdsa_private_key_t(key_encoded.data(), split_at, curve));
+    dilithium_key_ = std::unique_ptr<pgp_dilithium_private_key_t>(
+      new pgp_dilithium_private_key_t(key_encoded.data() + split_at,
+                                      key_encoded.size() - split_at, dilithium_param));
+    exdsa_key_ = std::unique_ptr<exdsa_private_key_t>(
+      new exdsa_private_key_t(key_encoded.data(), split_at, curve));
 
     is_initialized_ = true;
 }
