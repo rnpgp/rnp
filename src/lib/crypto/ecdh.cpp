@@ -99,8 +99,12 @@ load_public_key(rnp::botan::Pubkey &pubkey, const ec::Key &key)
     }
 
     const size_t curve_order = curve->bytes();
-    rnp::bn      px(&key.p[1], curve_order);
-    rnp::bn      py(&key.p[1 + curve_order], curve_order);
+    if (key.p.size() != 2 * curve_order + 1) {
+        RNP_LOG("Invalid ECDH public key length");
+        return false;
+    }
+    rnp::bn px(&key.p[1], curve_order);
+    rnp::bn py(&key.p[1 + curve_order], curve_order);
 
     if (!px || !py) {
         return false;
