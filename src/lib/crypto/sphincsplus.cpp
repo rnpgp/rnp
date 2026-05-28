@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, [MTG AG](https://www.mtg.de).
+ * Copyright (c) 2026 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,

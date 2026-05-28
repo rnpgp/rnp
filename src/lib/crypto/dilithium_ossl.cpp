@@ -1,5 +1,4 @@
 /*
- * Copyright (c) 2025, [MTG AG](https://www.mtg.de).
  * Copyright (c) 2026 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
