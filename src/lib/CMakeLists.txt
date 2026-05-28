@@ -389,6 +389,7 @@ elseif(CRYPTO_BACKEND_BOTAN)
   endif()
   if(ENABLE_CRYPTO_REFRESH OR ENABLE_PQC)
     list(APPEND CRYPTO_SOURCES
+        crypto/secure_bytes.cpp
         crypto/exdsa_ecdhkem.cpp
         crypto/x25519_x448.cpp
         crypto/ed25519_ed448.cpp
