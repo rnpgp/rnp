@@ -134,8 +134,10 @@ kyber_generate_keypair(rnp::RNG *rng, kyber_parameter_e kyber_param)
     }
     size_t seed_len = sparams[0].return_size;
 
-    return std::make_pair(pgp_kyber_public_key_t(pub, kyber_param),
-                          pgp_kyber_private_key_t(seed_buf, seed_len, kyber_param));
+    auto result = std::make_pair(pgp_kyber_public_key_t(pub, kyber_param),
+                                 pgp_kyber_private_key_t(seed_buf, seed_len, kyber_param));
+    rnp::secure_wipe(seed_buf, sizeof(seed_buf));
+    return result;
 }
 
 kyber_encap_result_t

@@ -34,6 +34,7 @@
 #include <botan/symkey.h>
 #elif defined(CRYPTO_BACKEND_OPENSSL)
 #include <openssl/evp.h>
+#include "ossl_utils.hpp"
 #endif
 #include <cassert>
 
@@ -383,27 +384,24 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(
     // Compute sessionKey := AESKeyUnwrap(KEK, C) with AES-256 as per [RFC3394], aborting if
     // the 64 bit integrity check fails
     {
-        EVP_CIPHER_CTX *wctx = EVP_CIPHER_CTX_new();
+        rnp::ossl::evp::CipherCtx wctx(EVP_CIPHER_CTX_new());
         if (!wctx) {
             return RNP_ERROR_DECRYPT_FAILED;
         }
-        EVP_CIPHER_CTX_set_flags(wctx, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
-        if (EVP_DecryptInit_ex(wctx, EVP_aes_256_wrap(), NULL, kek_vec.data(), NULL) <= 0) {
-            EVP_CIPHER_CTX_free(wctx);
+        EVP_CIPHER_CTX_set_flags(wctx.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+        if (EVP_DecryptInit_ex(wctx.get(), EVP_aes_256_wrap(), NULL, kek_vec.data(), NULL) <= 0) {
             return RNP_ERROR_DECRYPT_FAILED;
         }
         size_t unwrapped_size = enc->wrapped_sesskey.size() - 8;
         std::vector<uint8_t> tmp_out(unwrapped_size);
         int unwrap_len = 0, unwrap_final = 0;
-        if (EVP_DecryptUpdate(wctx, tmp_out.data(), &unwrap_len,
+        if (EVP_DecryptUpdate(wctx.get(), tmp_out.data(), &unwrap_len,
                               enc->wrapped_sesskey.data(),
                               (int) enc->wrapped_sesskey.size()) <= 0 ||
-            EVP_DecryptFinal_ex(wctx, tmp_out.data() + unwrap_len, &unwrap_final) <= 0) {
-            EVP_CIPHER_CTX_free(wctx);
+            EVP_DecryptFinal_ex(wctx.get(), tmp_out.data() + unwrap_len, &unwrap_final) <= 0) {
             RNP_LOG("Keyunwrap failed");
             return RNP_ERROR_DECRYPT_FAILED;
         }
-        EVP_CIPHER_CTX_free(wctx);
         size_t result_size = (size_t)(unwrap_len + unwrap_final);
         if (*out_len < result_size) {
             RNP_LOG("buffer for decryption result too small");
@@ -543,27 +541,24 @@ pgp_kyber_ecdh_composite_public_key_t::encrypt(rnp::RNG *                  rng,
 #elif defined(CRYPTO_BACKEND_OPENSSL)
     // Compute C := AESKeyWrap(KEK, sessionKey) with AES-256 as per [RFC3394]
     {
-        EVP_CIPHER_CTX *wctx = EVP_CIPHER_CTX_new();
+        rnp::ossl::evp::CipherCtx wctx(EVP_CIPHER_CTX_new());
         if (!wctx) {
             return RNP_ERROR_ENCRYPT_FAILED;
         }
-        EVP_CIPHER_CTX_set_flags(wctx, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
-        if (EVP_EncryptInit_ex(wctx, EVP_aes_256_wrap(), NULL, kek_vec.data(), NULL) <= 0) {
-            EVP_CIPHER_CTX_free(wctx);
+        EVP_CIPHER_CTX_set_flags(wctx.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+        if (EVP_EncryptInit_ex(wctx.get(), EVP_aes_256_wrap(), NULL, kek_vec.data(), NULL) <= 0) {
             return RNP_ERROR_ENCRYPT_FAILED;
         }
         out->wrapped_sesskey.resize(session_key_len + 8);
         int wrap_len = 0, wrap_final = 0;
-        if (EVP_EncryptUpdate(wctx, out->wrapped_sesskey.data(), &wrap_len, session_key,
+        if (EVP_EncryptUpdate(wctx.get(), out->wrapped_sesskey.data(), &wrap_len, session_key,
                               (int) session_key_len) <= 0 ||
-            EVP_EncryptFinal_ex(wctx, out->wrapped_sesskey.data() + wrap_len, &wrap_final) <=
-              0) {
-            EVP_CIPHER_CTX_free(wctx);
+            EVP_EncryptFinal_ex(wctx.get(), out->wrapped_sesskey.data() + wrap_len,
+                                &wrap_final) <= 0) {
             RNP_LOG("Keywrap failed");
             return RNP_ERROR_ENCRYPT_FAILED;
         }
         out->wrapped_sesskey.resize((size_t)(wrap_len + wrap_final));
-        EVP_CIPHER_CTX_free(wctx);
     }
 #endif
 

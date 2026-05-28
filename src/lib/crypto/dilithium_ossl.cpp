@@ -135,8 +135,10 @@ dilithium_generate_keypair(rnp::RNG *rng, dilithium_parameter_e dilithium_param)
     }
     size_t seed_len = sparams[0].return_size;
 
-    return std::make_pair(pgp_dilithium_public_key_t(pub, dilithium_param),
-                          pgp_dilithium_private_key_t(seed_buf, seed_len, dilithium_param));
+    auto result = std::make_pair(pgp_dilithium_public_key_t(pub, dilithium_param),
+                                 pgp_dilithium_private_key_t(seed_buf, seed_len, dilithium_param));
+    rnp::secure_wipe(seed_buf, sizeof(seed_buf));
+    return result;
 }
 
 std::vector<uint8_t>
