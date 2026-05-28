@@ -130,8 +130,10 @@ sphincsplus_generate_keypair(rnp::RNG *rng, pgp_pubkey_alg_t alg)
         throw rnp::rnp_exception(RNP_ERROR_GENERIC);
     }
 
-    return std::make_pair(pgp_sphincsplus_public_key_t(pub, alg),
-                          pgp_sphincsplus_private_key_t(priv, alg));
+    auto result = std::make_pair(pgp_sphincsplus_public_key_t(pub, alg),
+                                 pgp_sphincsplus_private_key_t(priv, alg));
+    rnp::secure_wipe(priv.data(), priv.size());
+    return result;
 }
 
 rnp_result_t

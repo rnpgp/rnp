@@ -585,16 +585,20 @@ exdsa_public_key_t::verify(const std::vector<uint8_t> &sig,
             RNP_LOG("Failed to decode P1363 signature");
             return RNP_ERROR_VERIFICATION_FAILED;
         }
-        ECDSA_SIG *ecdsa_sig = ECDSA_SIG_new();
+        rnp::ossl::ECDSASig ecdsa_sig(ECDSA_SIG_new());
         if (!ecdsa_sig) {
             return RNP_ERROR_VERIFICATION_FAILED;
         }
-        ECDSA_SIG_set0(ecdsa_sig, r.own(), s.own());
-        int                  der_len = i2d_ECDSA_SIG(ecdsa_sig, NULL);
+        ECDSA_SIG_set0(ecdsa_sig.get(), r.own(), s.own());
+        int der_len = i2d_ECDSA_SIG(ecdsa_sig.get(), NULL);
+        if (der_len <= 0) {
+            return RNP_ERROR_VERIFICATION_FAILED;
+        }
         std::vector<uint8_t> der_buf(der_len);
         uint8_t *            der_ptr = der_buf.data();
-        i2d_ECDSA_SIG(ecdsa_sig, &der_ptr);
-        ECDSA_SIG_free(ecdsa_sig);
+        if (i2d_ECDSA_SIG(ecdsa_sig.get(), &der_ptr) <= 0) {
+            return RNP_ERROR_VERIFICATION_FAILED;
+        }
 
         rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new(pkey.get(), NULL));
         if (!ctx || EVP_PKEY_verify_init(ctx.get()) <= 0) {
