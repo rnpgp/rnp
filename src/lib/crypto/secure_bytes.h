@@ -45,18 +45,31 @@ class SecureBytes {
   public:
     SecureBytes() = default;
 
-    SecureBytes(const uint8_t *first, const uint8_t *last) : data_(first, last) {}
-    SecureBytes(const uint8_t *data, size_t size) : data_(data, data + size) {}
+    SecureBytes(const uint8_t *first, const uint8_t *last) : data_(first, last)
+    {
+    }
+    SecureBytes(const uint8_t *data, size_t size) : data_(data, data + size)
+    {
+    }
 
-    SecureBytes(const std::vector<uint8_t> &v) : data_(v) {}
-    SecureBytes(std::vector<uint8_t> &&v) noexcept : data_(std::move(v)) {}
+    SecureBytes(const std::vector<uint8_t> &v) : data_(v)
+    {
+    }
+    SecureBytes(std::vector<uint8_t> &&v) noexcept : data_(std::move(v))
+    {
+    }
 
-    ~SecureBytes() { secure_wipe(data_.data(), data_.size()); }
+    ~SecureBytes()
+    {
+        secure_wipe(data_.data(), data_.size());
+    }
 
     SecureBytes(const SecureBytes &) = default;
     SecureBytes &operator=(const SecureBytes &) = default;
 
-    SecureBytes(SecureBytes &&o) noexcept : data_(std::move(o.data_)) {}
+    SecureBytes(SecureBytes &&o) noexcept : data_(std::move(o.data_))
+    {
+    }
     SecureBytes &
     operator=(SecureBytes &&o) noexcept
     {

@@ -33,11 +33,11 @@
 #include <cassert>
 
 static rnp_result_t
-ed_generate_native(rnp::RNG *             rng,
-                   std::vector<uint8_t> & privkey,
-                   std::vector<uint8_t> & pubkey,
-                   int                    nid,
-                   size_t                 keylen)
+ed_generate_native(rnp::RNG *            rng,
+                   std::vector<uint8_t> &privkey,
+                   std::vector<uint8_t> &pubkey,
+                   int                   nid,
+                   size_t                keylen)
 {
     rnp::ossl::evp::PKeyCtx ctx(EVP_PKEY_CTX_new_id(nid, NULL));
     if (!ctx || EVP_PKEY_keygen_init(ctx.get()) <= 0) {
@@ -73,8 +73,7 @@ ed_sign_native(std::vector<uint8_t> &      sig_out,
                int                         nid,
                size_t                      siglen)
 {
-    rnp::ossl::evp::PKey pkey(
-      EVP_PKEY_new_raw_private_key(nid, NULL, key.data(), key.size()));
+    rnp::ossl::evp::PKey pkey(EVP_PKEY_new_raw_private_key(nid, NULL, key.data(), key.size()));
     if (!pkey) {
         RNP_LOG("Failed to load private key: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
@@ -101,8 +100,7 @@ ed_verify_native(const std::vector<uint8_t> &sig,
                  size_t                      hash_len,
                  int                         nid)
 {
-    rnp::ossl::evp::PKey pkey(
-      EVP_PKEY_new_raw_public_key(nid, NULL, key.data(), key.size()));
+    rnp::ossl::evp::PKey pkey(EVP_PKEY_new_raw_public_key(nid, NULL, key.data(), key.size()));
     if (!pkey) {
         RNP_LOG("Failed to load public key: %lu", ERR_peek_last_error());
         return RNP_ERROR_VERIFICATION_FAILED;

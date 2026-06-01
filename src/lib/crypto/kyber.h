@@ -70,7 +70,7 @@ class pgp_kyber_private_key_t {
   private:
     rnp::SecureBytes  key_encoded_;
     kyber_parameter_e kyber_mode_;
-    bool                 is_initialized_ = false;
+    bool              is_initialized_ = false;
 };
 
 class pgp_kyber_public_key_t {

@@ -54,9 +54,8 @@ load_dilithium_pubkey(const std::vector<uint8_t> &pub, dilithium_parameter_e par
         return nullptr;
     }
     rnp::ossl::ParamBld bld(OSSL_PARAM_BLD_new());
-    if (!bld ||
-        !OSSL_PARAM_BLD_push_octet_string(bld.get(), OSSL_PKEY_PARAM_PUB_KEY, pub.data(),
-                                          pub.size())) {
+    if (!bld || !OSSL_PARAM_BLD_push_octet_string(
+                  bld.get(), OSSL_PKEY_PARAM_PUB_KEY, pub.data(), pub.size())) {
         return nullptr;
     }
     rnp::ossl::Param params(OSSL_PARAM_BLD_to_param(bld.get()));
@@ -80,9 +79,8 @@ load_dilithium_privkey(const rnp::SecureBytes &seed, dilithium_parameter_e param
         return nullptr;
     }
     rnp::ossl::ParamBld bld(OSSL_PARAM_BLD_new());
-    if (!bld ||
-        !OSSL_PARAM_BLD_push_octet_string(bld.get(), OSSL_PKEY_PARAM_ML_DSA_SEED, seed.data(),
-                                          seed.size())) {
+    if (!bld || !OSSL_PARAM_BLD_push_octet_string(
+                  bld.get(), OSSL_PKEY_PARAM_ML_DSA_SEED, seed.data(), seed.size())) {
         return nullptr;
     }
     rnp::ossl::Param params(OSSL_PARAM_BLD_to_param(bld.get()));
@@ -124,18 +122,18 @@ dilithium_generate_keypair(rnp::RNG *rng, dilithium_parameter_e dilithium_param)
     }
 
     uint8_t    seed_buf[32];
-    OSSL_PARAM sparams[] = {
-        OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_ML_DSA_SEED, seed_buf,
-                                          sizeof(seed_buf)),
-        OSSL_PARAM_END};
+    OSSL_PARAM sparams[] = {OSSL_PARAM_construct_octet_string(
+                              OSSL_PKEY_PARAM_ML_DSA_SEED, seed_buf, sizeof(seed_buf)),
+                            OSSL_PARAM_END};
     if (EVP_PKEY_get_params(pkey.get(), sparams) <= 0) {
         RNP_LOG("failed to get ML-DSA seed: %s", rnp::ossl::latest_err());
         throw rnp::rnp_exception(RNP_ERROR_GENERIC);
     }
     size_t seed_len = sparams[0].return_size;
 
-    auto result = std::make_pair(pgp_dilithium_public_key_t(pub, dilithium_param),
-                                 pgp_dilithium_private_key_t(seed_buf, seed_len, dilithium_param));
+    auto result =
+      std::make_pair(pgp_dilithium_public_key_t(pub, dilithium_param),
+                     pgp_dilithium_private_key_t(seed_buf, seed_len, dilithium_param));
     rnp::secure_wipe(seed_buf, sizeof(seed_buf));
     return result;
 }

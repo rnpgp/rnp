@@ -56,18 +56,16 @@ sphincsplus_alg_name(pgp_pubkey_alg_t alg)
 rnp::ossl::evp::PKey
 load_slhdsa_pubkey(const std::vector<uint8_t> &pub, pgp_pubkey_alg_t alg)
 {
-    EVP_PKEY *pkey =
-      EVP_PKEY_new_raw_public_key_ex(NULL, sphincsplus_alg_name(alg), NULL, pub.data(),
-                                     pub.size());
+    EVP_PKEY *pkey = EVP_PKEY_new_raw_public_key_ex(
+      NULL, sphincsplus_alg_name(alg), NULL, pub.data(), pub.size());
     return rnp::ossl::evp::PKey(pkey);
 }
 
 rnp::ossl::evp::PKey
 load_slhdsa_privkey(const rnp::SecureBytes &priv, pgp_pubkey_alg_t alg)
 {
-    EVP_PKEY *pkey =
-      EVP_PKEY_new_raw_private_key_ex(NULL, sphincsplus_alg_name(alg), NULL, priv.data(),
-                                      priv.size());
+    EVP_PKEY *pkey = EVP_PKEY_new_raw_private_key_ex(
+      NULL, sphincsplus_alg_name(alg), NULL, priv.data(), priv.size());
     return rnp::ossl::evp::PKey(pkey);
 }
 

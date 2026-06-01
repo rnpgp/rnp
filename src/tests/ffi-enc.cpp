@@ -1481,8 +1481,9 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
                     expect_success = false;
                 }
 #if defined(CRYPTO_BACKEND_OPENSSL)
-                // OpenSSL backend only supports AES with OCB/EAX; non-AES AEAD combinations fail.
-                // When PKESKv6 is enabled, AEAD=None is rejected and OCB is used, so non-AES fails too.
+                // OpenSSL backend only supports AES with OCB/EAX; non-AES AEAD combinations
+                // fail. When PKESKv6 is enabled, AEAD=None is rejected and OCB is used, so
+                // non-AES fails too.
                 if (cipher.find("AES") != 0 && (aead != "None" || enable_pkeskv6)) {
                     expect_success = false;
                 }

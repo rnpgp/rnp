@@ -49,13 +49,13 @@ Hkdf_OpenSSL::create(pgp_hash_alg_t alg)
 
 void
 Hkdf_OpenSSL::extract_expand(const uint8_t *salt,
-                              size_t         salt_len,
-                              const uint8_t *ikm,
-                              size_t         ikm_len,
-                              const uint8_t *info,
-                              size_t         info_len,
-                              uint8_t *      output_buf,
-                              size_t         output_length)
+                             size_t         salt_len,
+                             const uint8_t *ikm,
+                             size_t         ikm_len,
+                             const uint8_t *info,
+                             size_t         info_len,
+                             uint8_t *      output_buf,
+                             size_t         output_length)
 {
     EVP_KDF *kdf = EVP_KDF_fetch(NULL, "HKDF", NULL);
     if (!kdf) {
