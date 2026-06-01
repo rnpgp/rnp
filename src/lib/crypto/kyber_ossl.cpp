@@ -54,9 +54,8 @@ load_mlkem_pubkey(const std::vector<uint8_t> &pub, kyber_parameter_e mode)
         return nullptr;
     }
     rnp::ossl::ParamBld bld(OSSL_PARAM_BLD_new());
-    if (!bld ||
-        !OSSL_PARAM_BLD_push_octet_string(bld.get(), OSSL_PKEY_PARAM_PUB_KEY, pub.data(),
-                                          pub.size())) {
+    if (!bld || !OSSL_PARAM_BLD_push_octet_string(
+                  bld.get(), OSSL_PKEY_PARAM_PUB_KEY, pub.data(), pub.size())) {
         return nullptr;
     }
     rnp::ossl::Param params(OSSL_PARAM_BLD_to_param(bld.get()));
@@ -79,9 +78,8 @@ load_mlkem_privkey(const rnp::SecureBytes &seed, kyber_parameter_e mode)
         return nullptr;
     }
     rnp::ossl::ParamBld bld(OSSL_PARAM_BLD_new());
-    if (!bld ||
-        !OSSL_PARAM_BLD_push_octet_string(bld.get(), OSSL_PKEY_PARAM_ML_KEM_SEED, seed.data(),
-                                          seed.size())) {
+    if (!bld || !OSSL_PARAM_BLD_push_octet_string(
+                  bld.get(), OSSL_PKEY_PARAM_ML_KEM_SEED, seed.data(), seed.size())) {
         return nullptr;
     }
     rnp::ossl::Param params(OSSL_PARAM_BLD_to_param(bld.get()));
@@ -122,11 +120,10 @@ kyber_generate_keypair(rnp::RNG *rng, kyber_parameter_e kyber_param)
         throw rnp::rnp_exception(RNP_ERROR_GENERIC);
     }
 
-    uint8_t   seed_buf[64];
-    OSSL_PARAM sparams[] = {
-        OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_ML_KEM_SEED, seed_buf,
-                                          sizeof(seed_buf)),
-        OSSL_PARAM_END};
+    uint8_t    seed_buf[64];
+    OSSL_PARAM sparams[] = {OSSL_PARAM_construct_octet_string(
+                              OSSL_PKEY_PARAM_ML_KEM_SEED, seed_buf, sizeof(seed_buf)),
+                            OSSL_PARAM_END};
     if (EVP_PKEY_get_params(pkey.get(), sparams) <= 0) {
         RNP_LOG("failed to get ML-KEM seed: %s", rnp::ossl::latest_err());
         throw rnp::rnp_exception(RNP_ERROR_GENERIC);
@@ -161,8 +158,11 @@ pgp_kyber_public_key_t::encapsulate(rnp::RNG *rng) const
     kyber_encap_result_t result;
     result.ciphertext.resize(ct_len);
     result.symmetric_key.resize(ss_len);
-    if (EVP_PKEY_encapsulate(ctx.get(), result.ciphertext.data(), &ct_len,
-                             result.symmetric_key.data(), &ss_len) <= 0) {
+    if (EVP_PKEY_encapsulate(ctx.get(),
+                             result.ciphertext.data(),
+                             &ct_len,
+                             result.symmetric_key.data(),
+                             &ss_len) <= 0) {
         RNP_LOG("ML-KEM encapsulate failed: %s", rnp::ossl::latest_err());
         throw rnp::rnp_exception(RNP_ERROR_GENERIC);
     }
@@ -191,8 +191,8 @@ pgp_kyber_private_key_t::decapsulate(rnp::RNG *     rng,
         throw rnp::rnp_exception(RNP_ERROR_GENERIC);
     }
     std::vector<uint8_t> result(ss_len);
-    if (EVP_PKEY_decapsulate(ctx.get(), result.data(), &ss_len, ciphertext,
-                             ciphertext_len) <= 0) {
+    if (EVP_PKEY_decapsulate(ctx.get(), result.data(), &ss_len, ciphertext, ciphertext_len) <=
+        0) {
         RNP_LOG("ML-KEM decapsulate failed: %s", rnp::ossl::latest_err());
         throw rnp::rnp_exception(RNP_ERROR_GENERIC);
     }

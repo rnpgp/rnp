@@ -390,13 +390,16 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(
             return RNP_ERROR_DECRYPT_FAILED;
         }
         EVP_CIPHER_CTX_set_flags(wctx.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
-        if (EVP_DecryptInit_ex(wctx.get(), EVP_aes_256_wrap(), NULL, kek_vec.data(), NULL) <= 0) {
+        if (EVP_DecryptInit_ex(wctx.get(), EVP_aes_256_wrap(), NULL, kek_vec.data(), NULL) <=
+            0) {
             return RNP_ERROR_DECRYPT_FAILED;
         }
-        size_t unwrapped_size = enc->wrapped_sesskey.size() - 8;
+        size_t               unwrapped_size = enc->wrapped_sesskey.size() - 8;
         std::vector<uint8_t> tmp_out(unwrapped_size);
-        int unwrap_len = 0, unwrap_final = 0;
-        if (EVP_DecryptUpdate(wctx.get(), tmp_out.data(), &unwrap_len,
+        int                  unwrap_len = 0, unwrap_final = 0;
+        if (EVP_DecryptUpdate(wctx.get(),
+                              tmp_out.data(),
+                              &unwrap_len,
                               enc->wrapped_sesskey.data(),
                               (int) enc->wrapped_sesskey.size()) <= 0 ||
             EVP_DecryptFinal_ex(wctx.get(), tmp_out.data() + unwrap_len, &unwrap_final) <= 0) {
@@ -547,15 +550,19 @@ pgp_kyber_ecdh_composite_public_key_t::encrypt(rnp::RNG *                  rng,
             return RNP_ERROR_ENCRYPT_FAILED;
         }
         EVP_CIPHER_CTX_set_flags(wctx.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
-        if (EVP_EncryptInit_ex(wctx.get(), EVP_aes_256_wrap(), NULL, kek_vec.data(), NULL) <= 0) {
+        if (EVP_EncryptInit_ex(wctx.get(), EVP_aes_256_wrap(), NULL, kek_vec.data(), NULL) <=
+            0) {
             return RNP_ERROR_ENCRYPT_FAILED;
         }
         out->wrapped_sesskey.resize(session_key_len + 8);
         int wrap_len = 0, wrap_final = 0;
-        if (EVP_EncryptUpdate(wctx.get(), out->wrapped_sesskey.data(), &wrap_len, session_key,
+        if (EVP_EncryptUpdate(wctx.get(),
+                              out->wrapped_sesskey.data(),
+                              &wrap_len,
+                              session_key,
                               (int) session_key_len) <= 0 ||
-            EVP_EncryptFinal_ex(wctx.get(), out->wrapped_sesskey.data() + wrap_len,
-                                &wrap_final) <= 0) {
+            EVP_EncryptFinal_ex(
+              wctx.get(), out->wrapped_sesskey.data() + wrap_len, &wrap_final) <= 0) {
             RNP_LOG("Keywrap failed");
             return RNP_ERROR_ENCRYPT_FAILED;
         }

@@ -77,7 +77,7 @@ ecdh_kem_private_key_t::ecdh_kem_private_key_t(std::vector<uint8_t> key, pgp_cur
 }
 
 static Botan::ECDH_PrivateKey
-ecdh_kem_privkey_from_bytes(rnp::RNG *  rng,
+ecdh_kem_privkey_from_bytes(rnp::RNG *     rng,
                             const uint8_t *key_data,
                             size_t         key_size,
                             pgp_curve_t    curve)
@@ -90,9 +90,7 @@ ecdh_kem_privkey_from_bytes(rnp::RNG *  rng,
 }
 
 static Botan::ECDH_PublicKey
-ecdh_kem_pubkey_from_bytes(rnp::RNG *                   rng,
-                           const std::vector<uint8_t> &key,
-                           pgp_curve_t                  curve)
+ecdh_kem_pubkey_from_bytes(rnp::RNG *rng, const std::vector<uint8_t> &key, pgp_curve_t curve)
 {
     assert(curve >= PGP_CURVE_NIST_P_256 && curve <= PGP_CURVE_P256K1);
     auto            ec_desc = pgp::ec::Curve::get(curve);
@@ -133,7 +131,8 @@ ecdh_kem_private_key_t::get_pubkey_encoded(rnp::RNG *rng) const
 {
     switch (curve_) {
     case PGP_CURVE_25519: {
-        Botan::X25519_PrivateKey botan_key = x25519_privkey_from_bytes(key_.data(), key_.size());
+        Botan::X25519_PrivateKey botan_key =
+          x25519_privkey_from_bytes(key_.data(), key_.size());
         return botan_key.public_value();
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
@@ -143,7 +142,8 @@ ecdh_kem_private_key_t::get_pubkey_encoded(rnp::RNG *rng) const
     }
 #endif
     default: {
-        Botan::ECDH_PrivateKey botan_key = ecdh_kem_privkey_from_bytes(rng, key_.data(), key_.size(), curve_);
+        Botan::ECDH_PrivateKey botan_key =
+          ecdh_kem_privkey_from_bytes(rng, key_.data(), key_.size(), curve_);
         return botan_key.public_value();
     }
     }
@@ -196,8 +196,9 @@ ecdh_kem_private_key_t::decapsulate(rnp::RNG *                  rng,
 {
     switch (curve_) {
     case PGP_CURVE_25519: {
-        Botan::X25519_PrivateKey priv_key = x25519_privkey_from_bytes(key_.data(), key_.size());
-        Botan::PK_Key_Agreement  key_agreement(priv_key, *(rng->obj()), "Raw");
+        Botan::X25519_PrivateKey priv_key =
+          x25519_privkey_from_bytes(key_.data(), key_.size());
+        Botan::PK_Key_Agreement key_agreement(priv_key, *(rng->obj()), "Raw");
         plaintext = Botan::unlock(key_agreement.derive_key(0, ciphertext).bits_of());
         break;
     }
@@ -210,7 +211,8 @@ ecdh_kem_private_key_t::decapsulate(rnp::RNG *                  rng,
     }
 #endif
     default: {
-        Botan::ECDH_PrivateKey  priv_key = ecdh_kem_privkey_from_bytes(rng, key_.data(), key_.size(), curve_);
+        Botan::ECDH_PrivateKey priv_key =
+          ecdh_kem_privkey_from_bytes(rng, key_.data(), key_.size(), curve_);
         Botan::PK_Key_Agreement key_agreement(priv_key, *(rng->obj()), "Raw");
         plaintext = Botan::unlock(key_agreement.derive_key(0, ciphertext).bits_of());
         break;
@@ -309,8 +311,9 @@ exdsa_private_key_t::sign(rnp::RNG *            rng,
         return ed448_sign_native(rng, sig_out, key_.unlock(), hash, hash_len);
     }
     default: {
-        Botan::ECDSA_PrivateKey priv_key = exdsa_privkey_from_bytes(rng, key_.data(), key_.size(), curve_);
-        auto                    signer =
+        Botan::ECDSA_PrivateKey priv_key =
+          exdsa_privkey_from_bytes(rng, key_.data(), key_.size(), curve_);
+        auto signer =
           Botan::PK_Signer(priv_key, *(rng->obj()), pgp::ecdsa::padding_str_for(hash_alg));
         sig_out = signer.sign_message(hash, hash_len, *(rng->obj()));
         return RNP_SUCCESS;

@@ -78,7 +78,7 @@ class pgp_sphincsplus_private_key_t {
   private:
     rnp::SecureBytes key_encoded_;
     pgp_pubkey_alg_t pk_alg_;
-    bool                 is_initialized_ = false;
+    bool             is_initialized_ = false;
 };
 
 class pgp_sphincsplus_public_key_t {

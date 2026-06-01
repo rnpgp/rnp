@@ -573,8 +573,8 @@ exdsa_public_key_t::verify(const std::vector<uint8_t> &sig,
         }
         size_t field_size = curve_desc->bytes();
         if (sig.size() != 2 * field_size) {
-            RNP_LOG("Invalid P1363 signature size: %zu (expected %zu)", sig.size(),
-                    2 * field_size);
+            RNP_LOG(
+              "Invalid P1363 signature size: %zu (expected %zu)", sig.size(), 2 * field_size);
             return RNP_ERROR_VERIFICATION_FAILED;
         }
         /* decode P1363 and encode as DER for EVP_PKEY_verify */
