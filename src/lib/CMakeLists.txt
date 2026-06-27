@@ -25,8 +25,10 @@
 include(GNUInstallDirs)
 include(GenerateExportHeader)
 
+# optional packages
+find_package(BZip2 OPTIONAL)
+
 # these could probably be optional but are currently not
-find_package(BZip2 REQUIRED)
 find_package(ZLIB REQUIRED)
 
 # required packages
