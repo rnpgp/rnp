@@ -1048,6 +1048,12 @@ TEST_F(rnp_tests, test_validate_key_material)
     ehkey.validate(global_ctx);
     assert_false(ehkey.valid());
     ehkey.ec().p[10] -= 2;
+    /* truncated point (single 0x04 prefix) must be rejected, not read past the buffer */
+    pgp::mpi ehp = ehkey.ec().p;
+    ehkey.ec().p.resize(1);
+    ehkey.validate(global_ctx);
+    assert_false(ehkey.valid());
+    ehkey.ec().p = ehp;
     assert_rnp_success(decrypt_secret_key(&key, NULL));
     assert_true(key.material->secret());
     key = pgp_key_pkt_t();
