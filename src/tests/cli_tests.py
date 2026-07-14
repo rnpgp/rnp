@@ -5022,7 +5022,7 @@ class Encryption(unittest.TestCase):
         for _ in range(10):
             ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR2, '-r', 'test_cek', '-e', src, '--overwrite', '--output', enc])
             self.assertEqual(ret, 0)
-            ret, _, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME2, '--show-session-key', GPG_LOOPBACK, '--passphrase', PASSWORD, '--output', '/dev/null', '-d', enc])
+            ret, _, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME2, '--show-session-key', GPG_LOOPBACK, '--passphrase', PASSWORD, '--output', '/dev/null', '--compatibility-flags=no-partial-file-guard', '-d', enc])
             self.assertEqual(ret, 0)
             m = pattern.match(err)
             self.assertTrue(m)
