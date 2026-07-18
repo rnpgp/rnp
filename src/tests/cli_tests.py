@@ -5056,8 +5056,11 @@ class Encryption(unittest.TestCase):
         for _ in range(10):
             ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR2, '-r', 'test_cek', '-e', src, '--overwrite', '--output', enc])
             self.assertEqual(ret, 0)
-            ret, _, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME2, '--show-session-key', GPG_LOOPBACK, '--passphrase', PASSWORD, '--output', '/dev/null', '-d', enc])
+            # Use a real file for output: newer GnuPG versions write to a temporary
+            # '<output>.part' file first, which fails for /dev/null.
+            ret, _, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME2, '--show-session-key', GPG_LOOPBACK, '--passphrase', PASSWORD, '--output', enc + '.dec', '-d', enc])
             self.assertEqual(ret, 0)
+            os.remove(enc + '.dec')
             m = pattern.match(err)
             self.assertTrue(m)
             key = m.group(1)

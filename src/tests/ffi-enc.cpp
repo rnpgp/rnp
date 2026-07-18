@@ -1267,6 +1267,7 @@ TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
         assert_int_equal(unlink("decrypted"), 0);
         rnp_input_destroy(input);
         rnp_output_destroy(output);
+        rnp_ffi_destroy(ffi);
     }
 }
 
@@ -1413,6 +1414,13 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
                     assert_rnp_success(rnp_op_encrypt_execute(op));
                 } else {
                     assert_rnp_failure(rnp_op_encrypt_execute(op));
+                    // cleanup
+                    rnp_op_encrypt_destroy(op);
+                    op = NULL;
+                    rnp_input_destroy(input);
+                    input = NULL;
+                    rnp_output_destroy(output);
+                    output = NULL;
                     continue;
                 }
 
