@@ -65,7 +65,7 @@ jobs:
           - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
           - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'Botan', botan_ver: '3.1.1',              gpg_ver: 'system' }
           - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'Botan', botan_ver: 'head',               gpg_ver: 'system' }
-          - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'Botan', botan_ver: '3.3.0',    pqc: On,  gpg_ver: 'system' }
+          - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'Botan', botan_ver: '3.6.0',    pqc: On,  gpg_ver: 'system' }
           - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'OpenSSL',           gpg_ver: 'lts'    }
           - { name: 'Fedora 39', container: 'fedora-39-amd64', backend: 'OpenSSL',           gpg_ver: 'system' }
           - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'OpenSSL',           gpg_ver: 'system' }
@@ -136,6 +136,17 @@ jobs:
         run: |
           /opt/tools/tools.sh build_and_install_botan head
 
+      - name: Build botan 3.6.0
+        if:   matrix.image.botan_ver == '3.6.0'
+        run: |
+          # full build is required: crypto-refresh needs ed448/x448/argon2,
+          # which are missing from the containers' minimized module lists
+          git clone --depth 1 --branch 3.6.0 https://github.com/randombit/botan botan-build
+          cd botan-build
+          ./configure.py --prefix=/opt/botan/3.6.0
+          make -j$(nproc)
+          make install
+
       - name: Configure
         run: |
           set -o errexit -o pipefail -o noclobber -o nounset
@@ -172,7 +183,7 @@ jobs:
       - name: Coverage
         if: env.BUILD_MODE == 'coverage'
         run: |
-          curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import # One-time step
+          curl 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x27034e7fdb850e0bbc2c62ff806bb28aed779869' | gpg --no-default-keyring --keyring trustedkeys.gpg --import # One-time step
           curl -Os https://uploader.codecov.io/latest/linux/codecov
           curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
           curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig

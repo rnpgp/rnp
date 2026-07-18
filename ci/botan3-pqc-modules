@@ -1,5 +1,6 @@
 aead
 aes
+argon2
 auto_rng
 bigint
 blowfish
@@ -8,7 +9,7 @@ cast128
 cbc
 cfb
 crc24
-curve25519
+x25519
 des
 dl_algo
 dl_group
@@ -17,6 +18,7 @@ eax
 ecc_key
 ecdh
 ecdsa
+ed448
 ed25519
 elgamal
 eme_pkcs1
@@ -44,6 +46,7 @@ sm3
 sm4
 sp800_56a
 twofish
+x448
 kyber
 dilithium
 sphincsplus_sha2
