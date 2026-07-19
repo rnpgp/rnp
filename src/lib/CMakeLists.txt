@@ -465,7 +465,7 @@ elseif (CRYPTO_BACKEND_OPENSSL)
   target_link_libraries(librnp-obj PRIVATE OpenSSL::Crypto)
 endif()
 
-target_link_libraries(librnp-obj PRIVATE sexpp)
+target_link_libraries(librnp-obj PRIVATE ${SEXPP_TARGET})
 
 set_target_properties(librnp-obj PROPERTIES CXX_VISIBILITY_PRESET hidden)
 if (TARGET BZip2::BZip2)
@@ -521,7 +521,7 @@ foreach (prop LINK_LIBRARIES INTERFACE_LINK_LIBRARIES INCLUDE_DIRECTORIES INTERF
   get_target_property(val librnp-obj ${prop})
   if (BUILD_SHARED_LIBS)
     set_property(TARGET librnp-static PROPERTY ${prop} ${val})
-    list(REMOVE_ITEM val "$<LINK_ONLY:sexpp>")
+    list(REMOVE_ITEM val "$<LINK_ONLY:${SEXPP_TARGET}>")
     set_property(TARGET librnp PROPERTY ${prop} ${val})
   else()
     set_property(TARGET librnp PROPERTY ${prop} ${val})
@@ -661,6 +661,37 @@ install(EXPORT rnp-targets
   COMPONENT development
 )
 
+# Find modules shipped with rnp: the exported rnp targets reference the
+# imported targets they define (Botan::Botan, JSON-C::JSON-C), and
+# rnp-config.cmake uses them to resolve those dependencies downstream.
+install(
+  FILES
+    "${PROJECT_SOURCE_DIR}/cmake/Modules/FindBotan.cmake"
+    "${PROJECT_SOURCE_DIR}/cmake/Modules/FindJSON-C.cmake"
+  DESTINATION "${INSTALL_CMAKEDIR}/modules"
+  COMPONENT development
+)
+
+# Dependencies that consumers resolve via find_package(rnp), emitted into
+# rnp-config.cmake (cmake/rnp-config.cmake.in).
+if (CRYPTO_BACKEND_BOTAN3)
+  set(RNP_CONFIG_CRYPTO_DEPENDENCY "find_dependency(Botan 3.0.0)")
+elseif (CRYPTO_BACKEND_BOTAN)
+  set(RNP_CONFIG_CRYPTO_DEPENDENCY "find_dependency(Botan 2.14.0)")
+elseif (CRYPTO_BACKEND_OPENSSL)
+  set(RNP_CONFIG_CRYPTO_DEPENDENCY "find_dependency(OpenSSL 1.1.1)")
+endif()
+
+# A shared librnp has sexpp linked in, and a static librnp built with the
+# bundled sexpp is exported together with it (rnp::sexpp), so sexpp is an
+# external dependency only for a static librnp built with SYSTEM_LIBSEXPP.
+if (NOT BUILD_SHARED_LIBS AND SYSTEM_LIBSEXPP)
+  set(RNP_CONFIG_SEXPP_DEPENDENCY "find_dependency(sexpp 0.8.7)")
+else ()
+  set(RNP_CONFIG_SEXPP_DEPENDENCY
+      "# sexpp is linked into the shared library or exported as rnp::sexpp")
+endif ()
+
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
   "${PROJECT_SOURCE_DIR}/cmake/rnp-config.cmake.in"
@@ -679,47 +710,43 @@ install (
   COMPONENT development
 )
 
-function(get_linked_libs libsvar dirsvar tgt)
-  get_target_property(imported ${tgt} IMPORTED)
-  list(APPEND visited_targets ${tgt})
-  if (imported)
-    get_target_property(linkedlibs ${tgt} INTERFACE_LINK_LIBRARIES)
-  endif()
-  set(libs)
-  foreach (lib ${linkedlibs})
-    if (TARGET ${lib})
-      list(FIND visited_targets ${lib} visited)
-      if ((${visited} EQUAL -1) AND (${CMAKE_SHARED_LIBRARY_PREFIX}))
-        # library
-        get_target_property(liblocation ${lib} LOCATION)
-        get_filename_component(linkedlib ${liblocation} NAME_WE)
-        string(REGEX REPLACE "^${CMAKE_SHARED_LIBRARY_PREFIX}" "" linkedlib ${linkedlib})
-        get_linked_libs(linkedlibs libdirs ${lib})
-        list(APPEND libs ${linkedlib} ${linkedlibs})
-        # directory
-        get_filename_component(libdir ${liblocation} DIRECTORY)
-        list(FIND ${dirsvar} ${libdir} seendir)
-        if (${seendir} EQUAL -1)
-          list(APPEND ${dirsvar} ${libdir} ${libdirs})
-        endif()
-      endif()
-    endif()
-  endforeach()
-  set(visited_targets ${visited_targets} PARENT_SCOPE)
-  set(${libsvar} ${libs} PARENT_SCOPE)
-  set(${dirsvar} ${${dirsvar}} PARENT_SCOPE)
-endfunction()
-
-get_linked_libs(libs dirs librnp)
-set(linkercmd)
-foreach (dir ${dirs})
-  string(APPEND linkercmd "-L${dir} ")
+# Compute Libs.private for the pkg-config file from the link interface of
+# librnp, so that `pkg-config --static --libs librnp` lists the transitive
+# dependencies (crypto backend, JSON-C, zlib, bzip2 and, for a static
+# librnp, sexpp).
+set(LIBRNP_PRIVATE_LIBS "")
+get_target_property(_librnp_interface_libs librnp INTERFACE_LINK_LIBRARIES)
+foreach (_lib ${_librnp_interface_libs})
+  string(REGEX REPLACE "^\\$<LINK_ONLY:(.*)>$" "\\1" _lib "${_lib}")
+  if (TARGET ${_lib})
+    get_target_property(_imported ${_lib} IMPORTED)
+    get_target_property(_location ${_lib} IMPORTED_LOCATION)
+    if (_imported AND NOT _location)
+      # some find modules only set a configuration-specific location
+      get_target_property(_configs ${_lib} IMPORTED_CONFIGURATIONS)
+      if (_configs)
+        list(GET _configs 0 _config)
+        get_target_property(_location ${_lib} IMPORTED_LOCATION_${_config})
+      endif ()
+    endif ()
+    if (_imported AND _location)
+      get_filename_component(_libname "${_location}" NAME_WE)
+      string(REGEX REPLACE "^${CMAKE_SHARED_LIBRARY_PREFIX}" "" _libname "${_libname}")
+      get_filename_component(_libdir "${_location}" DIRECTORY)
+      string(APPEND LIBRNP_PRIVATE_LIBS " -L${_libdir} -l${_libname}")
+    elseif (NOT _imported)
+      # built together with librnp (bundled sexpp) and installed next to it
+      get_target_property(_libname ${_lib} OUTPUT_NAME)
+      if (NOT _libname)
+        set(_libname "${_lib}")
+      endif ()
+      string(APPEND LIBRNP_PRIVATE_LIBS " -l${_libname}")
+    endif ()
+  else ()
+    string(APPEND LIBRNP_PRIVATE_LIBS " ${_lib}")
+  endif ()
 endforeach()
-foreach (lib ${libs})
-  string(APPEND linkercmd "-l${lib} ")
-endforeach()
-string(STRIP "${linkercmd}" linkercmd)
-set(LIBRNP_PRIVATE_LIBS ${linkercmd})
+string(STRIP "${LIBRNP_PRIVATE_LIBS}" LIBRNP_PRIVATE_LIBS)
 
 # create a pkgconfig .pc too
 find_package(PkgConfig)

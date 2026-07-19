@@ -92,6 +92,11 @@ and code coverage and quality checks via `Codecov` and `CodeQL`.
 For Github workflows sources see `.github/workflows/` folder and scripts from the `ci/` folder.
 Also there is a Cirrus CI runner, configuration for which is stored in `.cirrus.yml`.
 
+Downstream consumption of the installed library (CMake `find_package`, pkg-config, raw
+compiler flags, against both shared and static builds) is smoke-tested by
+`ci/tests/downstream-consumer.sh`; see link:packaging.adoc[Consuming librnp in downstream projects]
+for the corresponding consumer documentation.
+
 === Reproducing Locally
 
 If tests fail in CI, you may attempt to reproduce those locally via `ctest` command:

@@ -1,5 +1,9 @@
 = Packaging
 
+This document describes building distribution packages of rnp itself.
+For using librnp as a dependency in your own project, see
+link:../packaging.adoc[Consuming librnp in downstream projects].
+
 == CentOS 7
 
 === 1. Retrieve the source
