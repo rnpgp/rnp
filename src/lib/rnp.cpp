@@ -850,6 +850,63 @@ rnp_result_to_string(rnp_result_t result)
         return "No userid";
     case RNP_ERROR_EOF:
         return "EOF detected";
+
+    case RNP_ERROR_SIG_ERROR:
+        return "Signature error";
+    case RNP_ERROR_SIG_PARSE_ERROR:
+        return "Signature parse error";
+    case RNP_ERROR_SIG_SIGNER_UNTRUSTED:
+        return "Signer key is not trusted";
+    case RNP_ERROR_SIG_PUB_ALG_MISMATCH:
+        return "Public key algorithm mismatch";
+    case RNP_ERROR_SIG_WEAK_HASH:
+        return "Signature uses a weak hash algorithm";
+    case RNP_ERROR_SIG_HASH_ALG_MISMATCH:
+        return "Hash algorithm mismatch";
+    case RNP_ERROR_SIG_LBITS_MISMATCH:
+        return "Hash left 16 bits mismatch";
+    case RNP_ERROR_SIG_FROM_FUTURE:
+        return "Signature was created in the future";
+    case RNP_ERROR_SIG_EXPIRED:
+        return "Signature has expired";
+    case RNP_ERROR_SIG_OLDER_KEY:
+        return "Signature is older than the signing key";
+    case RNP_ERROR_SIG_EXPIRED_KEY:
+        return "Signature made after key expiration";
+    case RNP_ERROR_SIG_FP_MISMATCH:
+        return "Issuer fingerprint mismatch";
+    case RNP_ERROR_SIG_UNKNOWN_NOTATION:
+        return "Unknown critical notation";
+    case RNP_ERROR_SIG_NOT_DOCUMENT:
+        return "Not a document signature";
+    case RNP_ERROR_SIG_NO_SIGNER_ID:
+        return "Signature has no signer key id";
+    case RNP_ERROR_SIG_NO_SIGNER_KEY:
+        return "Signature refers to no signer key";
+    case RNP_ERROR_SIG_NO_HASH_CTX:
+        return "Failed to get hash context";
+    case RNP_ERROR_SIG_WRONG_KEY_SIG:
+        return "Wrong key signature type";
+    case RNP_ERROR_SIG_UID_MISSING:
+        return "Userid not found";
+    case RNP_ERROR_SIG_WRONG_BINDING:
+        return "Wrong binding signature";
+    case RNP_ERROR_SIG_WRONG_DIRECT:
+        return "Wrong direct key signature";
+    case RNP_ERROR_SIG_WRONG_REV:
+        return "Wrong revocation signature";
+    case RNP_ERROR_SIG_UNSUPPORTED:
+        return "Unsupported key signature type";
+    case RNP_ERROR_SIG_NO_PRIMARY_BINDING:
+        return "No primary key binding signature";
+    case RNP_ERROR_SIG_BINDING_PARSE:
+        return "Embedded binding signature parse error";
+    case RNP_ERROR_SIG_WRONG_BIND_TYPE:
+        return "Wrong primary key binding signature type";
+    case RNP_ERROR_SIG_INVALID_BINDING:
+        return "Invalid primary key binding signature";
+    case RNP_ERROR_SIG_UNUSABLE_KEY:
+        return "Signer key is not usable for verification";
     }
 
     return "Unsupported error code";
