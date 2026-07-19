@@ -1,0 +1,122 @@
+= Consuming librnp in downstream projects
+
+This document describes how to use `librnp` — the RNP OpenPGP library — as a
+dependency of your own project: via CMake `find_package`, via pkg-config, via
+a package manager, or by embedding the sources.
+
+The public C API is declared in `include/rnp/rnp.h`, which is installed as
+`<prefix>/include/rnp/rnp.h` together with `rnp_err.h`, `rnp_export.h` and
+`rnp_ver.h`. See link:c-usage.adoc[C API usage] for an introduction.
+
+== Choosing a crypto backend
+
+librnp is built against one crypto backend, selected at build time with
+`-DCRYPTO_BACKEND=`:
+
+* `botan` (default) — Botan 2.14 or later; use `botan3` to require Botan 3.x.
+  Supports all features.
+* `openssl` — OpenSSL 1.1.1 or later. Some features are unsupported with this
+  backend: SM2, Twofish, crypto-refresh (v6) support and PQC.
+
+The backend choice is recorded in the installed CMake and pkg-config files,
+so consumers automatically get the matching dependency (Botan or OpenSSL).
+
+== Shared vs static
+
+By default (`-DBUILD_SHARED_LIBS=ON`, the common case for packaged
+installations) librnp is installed as a shared library and linking
+`rnp::librnp` (CMake) or `-lrnp` (pkg-config/manual) is all a consumer needs.
+
+With `-DBUILD_SHARED_LIBS=OFF` a static `librnp.a` is installed, and
+consumers must also link the transitive dependencies (the crypto backend,
+JSON-C, zlib, bzip2 and sexpp). With CMake this happens automatically — see
+below. A static librnp built with the bundled sexpp sources installs
+`libsexpp.a` next to it and exports it as `rnp::sexpp`, so no separate sexpp
+installation is needed (unless rnp was built with `-DSYSTEM_LIBSEXPP=ON`, in
+which case the sexpp package is required at consume time).
+
+Note that librnp is written in C++. When linking the *static* library from a
+C project, the C++ runtime must be linked as well: with CMake enable the CXX
+language in your project, with manual flags link via the C++ compiler driver
+or add the C++ standard library explicitly (`-lc++` or `-lstdc++`).
+
+== CMake find_package
+
+The installed CMake package (`<prefix>/lib/cmake/rnp/rnp-config.cmake`)
+resolves all transitive dependencies via `find_dependency()` and provides
+the imported target `rnp::librnp`:
+
+[source,cmake]
+--
+cmake_minimum_required(VERSION 3.18)
+# CXX is only needed to link a static librnp (see above)
+project(example C CXX)
+
+find_package(rnp REQUIRED)
+
+add_executable(example main.c)
+target_link_libraries(example PRIVATE rnp::librnp)
+--
+
+If rnp or its dependencies are installed in non-standard prefixes, list them
+in `CMAKE_PREFIX_PATH`:
+
+[source,console]
+--
+cmake -B build -DCMAKE_PREFIX_PATH="/opt/rnp;/opt/botan;/opt/json-c"
+--
+
+== pkg-config
+
+A pkg-config file is installed as `<prefix>/lib/pkgconfig/librnp.pc`:
+
+[source,console]
+--
+export PKG_CONFIG_PATH=/opt/rnp/lib/pkgconfig
+cc $(pkg-config --cflags librnp) main.c $(pkg-config --libs librnp) -o example
+--
+
+For a static librnp, use `--static` to also get the private dependencies and
+link with the C++ driver:
+
+[source,console]
+--
+cc $(pkg-config --cflags librnp) -c main.c
+c++ main.o $(pkg-config --libs --static librnp) -o example
+--
+
+== vcpkg
+
+A vcpkg port for rnp is being prepared. Until it lands, install rnp from
+source and consume it via `find_package(rnp)` or pkg-config as described
+above — with vcpkg's CMake toolchain, adding the rnp installation prefix to
+`CMAKE_PREFIX_PATH` is enough for `find_package(rnp)` to work.
+
+== Embedding the sources
+
+rnp can also be built as part of your own CMake project with
+`add_subdirectory`:
+
+[source,cmake]
+--
+add_subdirectory(rnp)
+target_link_libraries(example PRIVATE librnp)
+--
+
+sexpp (a required dependency) can be provided in two ways:
+
+* bundled: clone rnp with `--recurse-submodules` or run
+  `git submodule update --init` — the `src/libsexpp` submodule is then built
+  together with librnp and nothing else is needed;
+* system-wide: configure rnp with `-DSYSTEM_LIBSEXPP=ON` to use an installed
+  sexpp (0.8.7 or later). The sexpp CMake package (target `sexpp::sexpp`,
+  available since sexpp 0.9.1) is preferred, with a pkg-config fallback for
+  older installations.
+
+== Smoke test
+
+The script `ci/tests/downstream-consumer.sh` builds and installs rnp (shared
+and static) and compiles a minimal consumer program against each
+installation in all three ways described above (CMake `find_package`,
+pkg-config and raw compiler flags). It can be used to verify a local
+installation end to end.

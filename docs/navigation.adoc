@@ -3,6 +3,7 @@ items:
 - { title: Installation, path: installation/ }
 - { title: Command-line usage, path: cli-usage/ }
 - { title: C API usage, path: c-usage/ }
+- { title: "Consuming librnp", path: packaging/ }
 - title: Developing RNP
   path: develop/
   items:

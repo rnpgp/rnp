@@ -26,6 +26,24 @@
 
 include(CMakeFindDependencyMacro)
 
+# The exported rnp targets reference imported targets (e.g. Botan::Botan,
+# JSON-C::JSON-C) which are defined by the find modules shipped alongside
+# this file, so make those available while resolving the dependencies below.
+set(_rnp_saved_cmake_module_path "${CMAKE_MODULE_PATH}")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/modules")
+
+# Crypto backend librnp was built against.
+@RNP_CONFIG_CRYPTO_DEPENDENCY@
+find_dependency(JSON-C 0.11)
+find_dependency(ZLIB)
+find_dependency(BZip2)
+@RNP_CONFIG_SEXPP_DEPENDENCY@
+
+set(CMAKE_MODULE_PATH "${_rnp_saved_cmake_module_path}")
+unset(_rnp_saved_cmake_module_path)
+
 if(NOT TARGET rnp::librnp)
   include("${CMAKE_CURRENT_LIST_DIR}/rnp-targets.cmake")
 endif()
+
+check_required_components(rnp)

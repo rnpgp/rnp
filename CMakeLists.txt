@@ -209,22 +209,29 @@ endif()
 add_subdirectory(src/common)
 
 if (SYSTEM_LIBSEXPP)
-  find_package(PkgConfig QUIET)
-  pkg_check_modules(SEXPP sexpp>=0.8.7 REQUIRED)
-  find_library(SEXPP_LIBRARY
-    NAMES
-      "libsexpp"
-      "sexpp"
-    HINTS
-      "${SEXPP_LIBRARY_DIRS}"
-  )
-  add_library(sexpp UNKNOWN IMPORTED)
-  set_target_properties(sexpp
-    PROPERTIES
-      INTERFACE_INCLUDE_DIRECTORIES "${SEXPP_INCLUDE_DIR}"
-      IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
-      IMPORTED_LOCATION "${SEXPP_LIBRARY}"
-  )
+  # sexpp exports the sexpp::sexpp target via its CMake package config since
+  # v0.9.1; fall back to pkg-config for older installations.
+  find_package(sexpp 0.8.7 QUIET)
+  if (NOT TARGET sexpp::sexpp)
+    find_package(PkgConfig QUIET)
+    pkg_check_modules(SEXPP sexpp>=0.8.7 REQUIRED)
+    find_library(SEXPP_LIBRARY
+      NAMES
+        "libsexpp"
+        "sexpp"
+      HINTS
+        "${SEXPP_LIBRARY_DIRS}"
+    )
+    add_library(sexpp::sexpp UNKNOWN IMPORTED)
+    set_target_properties(sexpp::sexpp
+      PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${SEXPP_INCLUDE_DIR}"
+        IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+        IMPORTED_LOCATION "${SEXPP_LIBRARY}"
+    )
+  endif ()
+  # The exported rnp targets reference this target name, see src/lib.
+  set(SEXPP_TARGET sexpp::sexpp)
 else (SYSTEM_LIBSEXPP)
 # If system libsexpp is not used, we build sexpp static library
 # If librnp is shared, libsexpp.a is a transient artifact which is hidden from
@@ -237,6 +244,7 @@ else (SYSTEM_LIBSEXPP)
   set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME development)
   add_subdirectory(src/libsexpp EXCLUDE_FROM_ALL)
   set(BUILD_SHARED_LIBS ${SAVED_BUILD_SHARED_LIBS})
+  set(SEXPP_TARGET sexpp)
 endif (SYSTEM_LIBSEXPP)
 
 add_subdirectory(src/lib)
