@@ -3236,7 +3236,7 @@ TEST_F(rnp_tests, test_ffi_v6_cert_import)
 
     /* check that fingerprint is correct by checking the fingerprint in the signature (coming
       from the correct input data) vs the computed fingerprint value of the primary key.
-      Issuer fingerprint is the priamry's key fingerprint for the primary and its subkeys */
+      Issuer fingerprint is the primary's key fingerprint for the primary and its subkeys */
     pgp::Fingerprint primary_fp;
     for (rnp::Key key : ffi->pubring->keys) {
         if (key.is_primary()) {
