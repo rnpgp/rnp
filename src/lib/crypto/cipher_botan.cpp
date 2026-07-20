@@ -142,7 +142,10 @@ bool
 Cipher_Botan::set_iv(const uint8_t *iv, size_t iv_length)
 {
     try {
-        m_cipher->start(iv, iv_length);
+        /* Cache the IV, delaying the start() call until first update()/finish() call.
+         * Botan requires associated data to be set before start(), while rnp's
+         * interface allows set_ad() to be called after set_iv(). */
+        m_iv.assign(iv, iv + iv_length);
         m_buf.reserve(this->update_granularity());
     } catch (const std::exception &e) {
         RNP_LOG("Failed to set IV: %s", e.what());
@@ -155,10 +158,34 @@ bool
 Cipher_Botan::set_ad(const uint8_t *ad, size_t ad_length)
 {
     assert(m_cipher->authenticated());
+    if (m_started) {
+        RNP_LOG("Failed to set AAD: cipher is already started.");
+        return false;
+    }
     try {
-        dynamic_cast<Botan::AEAD_Mode &>(*m_cipher).set_associated_data(ad, ad_length);
+        m_ad.assign(ad, ad + ad_length);
     } catch (const std::exception &e) {
         RNP_LOG("Failed to set AAD: %s", e.what());
+        return false;
+    }
+    return true;
+}
+
+bool
+Cipher_Botan::start()
+{
+    if (m_started) {
+        return true;
+    }
+    try {
+        if (m_cipher->authenticated() && !m_ad.empty()) {
+            dynamic_cast<Botan::AEAD_Mode &>(*m_cipher)
+              .set_associated_data(m_ad.data(), m_ad.size());
+        }
+        m_cipher->start(m_iv.data(), m_iv.size());
+        m_started = true;
+    } catch (const std::exception &e) {
+        RNP_LOG("Failed to start cipher: %s", e.what());
         return false;
     }
     return true;
@@ -172,6 +199,9 @@ Cipher_Botan::update(uint8_t *      output,
                      size_t         input_length,
                      size_t *       input_consumed)
 {
+    if (!start()) {
+        return false;
+    }
     try {
         size_t ud = this->update_granularity();
         m_buf.resize(ud);
@@ -205,6 +235,9 @@ Cipher_Botan::finish(uint8_t *      output,
                      size_t         input_length,
                      size_t *       input_consumed)
 {
+    if (!start()) {
+        return false;
+    }
     try {
         *input_consumed = 0;
         *output_written = 0;
