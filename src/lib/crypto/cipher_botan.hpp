@@ -66,6 +66,14 @@ class Cipher_Botan : public Cipher {
 
     std::unique_ptr<Botan::Cipher_Mode> m_cipher;
     std::vector<uint8_t>                m_buf;
+    std::vector<uint8_t>                m_iv;
+    std::vector<uint8_t>                m_ad;
+    bool                                m_started = false;
+
+    /* Actually start the cipher, setting associated data beforehand if needed. Botan
+     * requires associated data to be set after set_key() but before start(), so the
+     * start() call is delayed until the first update()/finish() call. */
+    bool start();
 
     static Cipher_Botan *create(pgp_symm_alg_t alg, const std::string &name, bool encrypt);
 };
