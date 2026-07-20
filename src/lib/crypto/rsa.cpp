@@ -125,8 +125,20 @@ Key::verify_pkcs1(const Signature &        sig,
 
     rnp::botan::op::Verify verify_op;
     if (botan_pk_op_verify_create(&verify_op.get(), rsa_key.get(), pad, 0) ||
-        botan_pk_op_verify_update(verify_op.get(), hash.data(), hash.size()) ||
-        botan_pk_op_verify_finish(verify_op.get(), sig.s.data(), sig.s.size())) {
+        botan_pk_op_verify_update(verify_op.get(), hash.data(), hash.size())) {
+        return RNP_ERROR_SIGNATURE_INVALID;
+    }
+    if (sig.s.size() < n.size()) {
+        /* Botan 3.13+ requires signature to be exactly the length of the modulus, while
+         * OpenPGP MPIs have leading zero bytes stripped. */
+        rnp::secure_bytes padded(n.size() - sig.s.size(), 0);
+        padded.insert(padded.end(), sig.s.data(), sig.s.data() + sig.s.size());
+        if (botan_pk_op_verify_finish(verify_op.get(), padded.data(), padded.size())) {
+            return RNP_ERROR_SIGNATURE_INVALID;
+        }
+        return RNP_SUCCESS;
+    }
+    if (botan_pk_op_verify_finish(verify_op.get(), sig.s.data(), sig.s.size())) {
         return RNP_ERROR_SIGNATURE_INVALID;
     }
     return RNP_SUCCESS;
@@ -184,15 +196,23 @@ Key::decrypt_pkcs1(rnp::RNG &rng, rnp::secure_bytes &out, const Encrypted &in) c
     if (botan_pk_op_decrypt_create(&decrypt_op.get(), rsa_key.get(), "PKCS1v15", 0)) {
         return RNP_ERROR_GENERIC;
     }
-    /* Skip trailing zeroes if any as Botan3 doesn't like m.len > n.len */
+    /* Skip leading zeroes if any as Botan3 doesn't like m.len > n.len */
     size_t skip = 0;
-    while ((in.m.size() - skip > e.size()) && !in.m[skip]) {
+    while ((in.m.size() - skip > n.size()) && !in.m[skip]) {
         skip++;
+    }
+    rnp::secure_bytes enc;
+    if (in.m.size() - skip < n.size()) {
+        /* Botan 3.13+ requires ciphertext to be exactly the length of the modulus, while
+         * OpenPGP MPIs have leading zero bytes stripped. */
+        enc.assign(n.size() - (in.m.size() - skip), 0);
+        enc.insert(enc.end(), in.m.data() + skip, in.m.data() + in.m.size());
+    } else {
+        enc.assign(in.m.data() + skip, in.m.data() + in.m.size());
     }
     out.resize(n.size());
     size_t out_len = out.size();
-    if (botan_pk_op_decrypt(
-          decrypt_op.get(), out.data(), &out_len, in.m.data() + skip, in.m.size() - skip)) {
+    if (botan_pk_op_decrypt(decrypt_op.get(), out.data(), &out_len, enc.data(), enc.size())) {
         out.resize(0);
         return RNP_ERROR_GENERIC;
     }
