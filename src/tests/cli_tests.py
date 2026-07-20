@@ -392,7 +392,7 @@ def rnp_encrypt_file_ex(src, dst, recipients=None, passwords=None, aead=None, ci
     ret, _, err = run_proc(RNP, params)
     if passwords: os.close(pipe)
     if ret != 0:
-        raise_err('rnp encryption failed with ' + cipher, err)
+        raise_err('rnp encryption failed with ' + str(cipher), err)
 
 def rnp_encrypt_and_sign_file(src, dst, recipients, encrpswd, signers, signpswd,
                               aead=None, cipher=None, z=None, armor=False, homedir=None):
