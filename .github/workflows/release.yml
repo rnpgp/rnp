@@ -1,0 +1,82 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v0.18.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.tag }}
+
+jobs:
+  tarball:
+    name: Build source tarball
+    runs-on: ubuntu-latest
+    container: ghcr.io/rnpgp/ci-rnp-fedora-40-amd64
+    steps:
+      - name: Checkout release scripts
+        uses: actions/checkout@v4
+
+      - name: Build source tarball
+        run: |
+          mkdir -p /opt/artifacts
+          bash ci/build_tarball.sh "${RELEASE_TAG}"
+        env:
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+
+      - name: Stage artifacts
+        run: |
+          mkdir -p "${GITHUB_WORKSPACE}/artifacts"
+          cp /opt/artifacts/rnp-* "${GITHUB_WORKSPACE}/artifacts/"
+          ls -la "${GITHUB_WORKSPACE}/artifacts/"
+
+      - name: Upload tarball artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-tarball
+          path: artifacts/
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub release
+    needs: tarball
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download tarball artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-tarball
+          path: artifacts/
+
+      - name: Prepare release notes
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+          awk "/^### ${VERSION}/{flag=1; next} /^### /{flag=0} flag" CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "Release ${RELEASE_TAG}" > release-notes.md
+          fi
+          cat release-notes.md
+        env:
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+        run: |
+          gh release create "${RELEASE_TAG}" \
+            artifacts/rnp-*.tar.gz artifacts/rnp-*.sha256 \
+            --title "${RELEASE_TAG}" \
+            --notes-file release-notes.md

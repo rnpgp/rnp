@@ -3,9 +3,13 @@
 == General notes
 
 * Avoid tagging commits in the `main` branch.
-* Release branches should have annotated tags and a CHANGELOG.md.
-* The steps below detail creation of a brand new 1.0.0 release.
-  Some steps would be omitted for minor releases.
+* Release branches should have annotated tags and a `CHANGELOG.md`.
+* Release branches have names of the form `release/N.x`, where N is the major
+  version (and `x` is a literal -- not a placeholder).
+* Pushing an annotated tag `vX.Y.Z` triggers the
+  link:.github/workflows/release.yml[`release` GitHub Actions workflow],
+  which builds the source tarball and publishes the GitHub release
+  automatically.
 
 == Creating an initial release
 
@@ -19,14 +23,11 @@ version you intend to release.
 git checkout main
 vim docs/installation.adoc
 git add docs/installation.adoc
-git commit
+git commit -m "docs: update version references for X.Y.Z"
 git push
 ----
 
 === Create branch
-
-Release branches have names of the form `release/N.x`, where N is the major
-version (and `x` is a literal -- not a placeholder).
 
 [source,console]
 ----
@@ -45,40 +46,41 @@ git add CHANGELOG.md
 echo 1.0.0 > version.txt
 git add -f version.txt
 
-git commit
+git commit -m "release: prepare v1.0.0"
 ----
 
-=== Create tag
+=== Tag and push
 
-An initial release would be tagged as follows:
+Create and push an annotated tag. The `release` workflow will build the
+source tarball (`rnp-vX.Y.Z.tar.gz` plus `rnp-vX.Y.Z.sha256`) and create the
+GitHub release using the matching `CHANGELOG.md` section.
 
 [source,console]
 ----
-git tag -a v1.0.0 -m ''
-----
+git tag -a v1.0.0 -m 'Release v1.0.0'
 
-=== Push branch and tag
-
-[source,console]
-----
 # push the branch
 git push origin release/1.x
 
-# push the tag
+# push the tag (triggers the release workflow)
 git push origin v1.0.0
 ----
 
-=== Edit tagged release description on GitHub
+=== Verify the GitHub release
 
-. Navigate to the link:#https://github.com/rnpgp/rnp/releases[Releases] page;
+Wait for the `release` workflow to finish, then check the release assets:
 
-. Edit the tag that was just pushed;
+[source,console]
+----
+gh run list --workflow=release --branch release/1.x
+gh release view v1.0.0
+----
 
-. Fill the tag's description with data from the corresponding `CHANGELOG`
-  entries of the same tag version;
+The release should contain:
 
-. Publish the release.
-
+* `rnp-v1.0.0.tar.gz`
+* `rnp-v1.0.0.sha256`
+* Release notes extracted from `CHANGELOG.md`
 
 == Creating a new release
 
@@ -86,7 +88,8 @@ Maintaining a release branch involves cherry-picking hotfixes and
 similar commits from the `main` branch, while following the rules for
 Semantic Versioning.
 
-The steps below will show the release of version 1.0.1.
+The steps below show the release of version `1.0.1` on the `release/1.x`
+branch.
 
 === Add desired changes
 
@@ -118,5 +121,30 @@ git cherry release/0.x main | grep '^+ ' | cut -c 3-9 | \
   while read commit; do git cherry-pick $commit; done
 ----
 
-From here, you can follow the steps for an initial release,
+From here, follow the steps for an initial release,
 starting with <<update-changelog-and-version>>.
+
+== Post-release: downstream channels
+
+After the GitHub release is published, update the distribution channels.
+The canonical source for all package recipes is the release tarball built by
+`ci/build_tarball.sh`.
+
+* **Source tarball** -- published automatically by the `release` workflow.
+* **Homebrew** -- open a bump PR, e.g.
+  `brew bump-formula-pr rnp --version=1.0.1`.
+* **Chocolatey** -- update `rnpgp/chocolatey-rnp` (bump the nuspec version
+  and merge; the package is built and pushed to chocolatey.org on `main`).
+* **vcpkg** -- open a version-bump PR in `microsoft/vcpkg` for
+  `ports/rnp`.
+* **Linux distros / Conan** -- coordinate with downstream maintainers.
+
+== Release checklist
+
+* [ ] Version numbers updated in docs.
+* [ ] `CHANGELOG.md` updated for the release.
+* [ ] `version.txt` updated on the release branch.
+* [ ] Annotated tag `vX.Y.Z` pushed.
+* [ ] `release` workflow completed successfully.
+* [ ] GitHub release contains the tarball and SHA256 checksum.
+* [ ] Downstream channels (Homebrew, Chocolatey, vcpkg, ...) updated.
