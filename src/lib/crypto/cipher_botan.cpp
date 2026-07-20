@@ -179,8 +179,8 @@ Cipher_Botan::start()
     }
     try {
         if (m_cipher->authenticated() && !m_ad.empty()) {
-            dynamic_cast<Botan::AEAD_Mode &>(*m_cipher)
-              .set_associated_data(m_ad.data(), m_ad.size());
+            dynamic_cast<Botan::AEAD_Mode &>(*m_cipher).set_associated_data(m_ad.data(),
+                                                                            m_ad.size());
         }
         m_cipher->start(m_iv.data(), m_iv.size());
         m_started = true;
