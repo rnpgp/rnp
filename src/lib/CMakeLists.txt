@@ -664,13 +664,22 @@ install(EXPORT rnp-targets
 # Find modules shipped with rnp: the exported rnp targets reference the
 # imported targets they define (Botan::Botan, JSON-C::JSON-C), and
 # rnp-config.cmake uses them to resolve those dependencies downstream.
-install(
-  FILES
-    "${PROJECT_SOURCE_DIR}/cmake/Modules/FindBotan.cmake"
-    "${PROJECT_SOURCE_DIR}/cmake/Modules/FindJSON-C.cmake"
-  DESTINATION "${INSTALL_CMAKEDIR}/modules"
-  COMPONENT development
-)
+# Some CI jobs delete the bundled modules to exercise the botan-config.cmake
+# path, so only install the ones that are actually present.
+set(_rnp_find_modules "")
+foreach(_module FindBotan.cmake FindJSON-C.cmake)
+  if(EXISTS "${PROJECT_SOURCE_DIR}/cmake/Modules/${_module}")
+    list(APPEND _rnp_find_modules "${PROJECT_SOURCE_DIR}/cmake/Modules/${_module}")
+  endif()
+endforeach()
+if(_rnp_find_modules)
+  install(
+    FILES ${_rnp_find_modules}
+    DESTINATION "${INSTALL_CMAKEDIR}/modules"
+    COMPONENT development
+  )
+endif()
+unset(_rnp_find_modules)
 
 # Dependencies that consumers resolve via find_package(rnp), emitted into
 # rnp-config.cmake (cmake/rnp-config.cmake.in).
