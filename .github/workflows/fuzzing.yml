@@ -22,17 +22,14 @@ jobs:
   fuzzing:
     runs-on: ubuntu-latest
     steps:
-    # HACK: temporarily use our oss-fuzz fork (rnp-botan-3.6) which updates the
-    # rnp build to Botan 3.6.0. Revert to google/oss-fuzz@master once
-    # google/oss-fuzz#15882 is merged.
     - name: Build Fuzzers
       id: build
-      uses: ronaldtse/oss-fuzz/infra/cifuzz/actions/build_fuzzers@rnp-botan-3.6
+      uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@master
       with:
         oss-fuzz-project-name: 'rnp'
         dry-run: false
     - name: Run Fuzzers
-      uses: ronaldtse/oss-fuzz/infra/cifuzz/actions/run_fuzzers@rnp-botan-3.6
+      uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@master
       with:
         oss-fuzz-project-name: 'rnp'
         fuzz-seconds: 300
