@@ -1,8 +1,10 @@
 aead
 aes
+argon2
 auto_rng
 bigint
 blowfish
+blake2
 camellia
 cast128
 cbc
@@ -17,6 +19,7 @@ eax
 ecc_key
 ecdh
 ecdsa
+ed448
 ed25519
 elgamal
 eme_pkcs1
@@ -39,11 +42,14 @@ sha1
 sha2_32
 sha2_64
 sha3
+keccak_perm
+shake_xof
 sm2
 sm3
 sm4
 sp800_56a
 twofish
+x448
 kyber
 dilithium
 sphincsplus_sha2
