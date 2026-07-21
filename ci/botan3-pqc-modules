@@ -4,6 +4,7 @@ argon2
 auto_rng
 bigint
 blowfish
+blake2
 camellia
 cast128
 cbc
@@ -41,6 +42,8 @@ sha1
 sha2_32
 sha2_64
 sha3
+keccak_perm
+shake_xof
 sm2
 sm3
 sm4
