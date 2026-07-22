@@ -432,7 +432,7 @@ TEST_F(rnp_tests, test_stream_signatures_revoked_key)
 TEST_F(rnp_tests, test_stream_key_load)
 {
     pgp_source_t               keysrc = {0};
-    pgp_dest_t                 keydst = {0};
+    pgp_dest_t                 keydst = {};
     pgp_key_sequence_t         keyseq;
     pgp::Fingerprint           keyfp;
     pgp_transferable_key_t *   key = NULL;
@@ -915,7 +915,7 @@ TEST_F(rnp_tests, test_stream_key_decrypt)
 TEST_F(rnp_tests, test_stream_key_encrypt)
 {
     pgp_source_t       keysrc = {0};
-    pgp_dest_t         keydst = {0};
+    pgp_dest_t         keydst = {};
     uint8_t            keybuf[16384];
     size_t             keylen;
     pgp_key_sequence_t keyseq;

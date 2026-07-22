@@ -988,7 +988,7 @@ rnp_result_t
 init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtype)
 {
     try {
-        *dst = pgp_dest_t(0);
+        *dst = pgp_dest_t();
     } catch (const std::exception &e) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -1112,7 +1112,7 @@ rnp_dearmor_source(pgp_source_t *src, pgp_dest_t *dst)
 rnp_result_t
 rnp_armor_source(pgp_source_t *src, pgp_dest_t *dst, pgp_armored_msg_t msgtype)
 {
-    pgp_dest_t   armordst = {0};
+    pgp_dest_t   armordst = {};
     rnp_result_t res = init_armored_dst(&armordst, dst, msgtype);
     if (res) {
         return res;

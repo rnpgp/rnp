@@ -256,8 +256,7 @@ typedef struct pgp_dest_t {
     unsigned             clen = 0;     /* number of bytes in cache */
     bool                 finished = 0; /* whether dst_finish was called on dest or not */
 
-    pgp_dest_t(size_t paramsize = 0);
-
+    pgp_dest_t() = default;
     pgp_dest_t &operator=(const pgp_dest_t &) = delete;
     pgp_dest_t(const pgp_dest_t &) = delete;
     pgp_dest_t &operator=(pgp_dest_t &&) = default;
@@ -496,7 +495,7 @@ class Dest {
     Dest(const Dest &) = delete;
     Dest(Dest &&) = delete;
 
-    Dest() : dst_({}), discard_(false)
+    Dest() : dst_(), discard_(false)
     {
     }
 
