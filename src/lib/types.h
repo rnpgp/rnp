@@ -144,9 +144,9 @@ typedef struct pgp_s2k_t {
 
 #if defined(ENABLE_CRYPTO_REFRESH)
     /* argon2 */
-    uint8_t argon2_t;
-    uint8_t argon2_p;
-    uint8_t argon2_encoded_m;
+    uint8_t argon2_t{};
+    uint8_t argon2_p{};
+    uint8_t argon2_encoded_m{};
 #endif
 
     static size_t  salt_size(pgp_s2k_specifier_t specifier);
