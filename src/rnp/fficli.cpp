@@ -2316,6 +2316,13 @@ cli_rnp_export_autocrypt_key(cli_rnp_t *rnp, const char *filter)
                 }
                 rnp_buffer_destroy(uid_str);
             }
+            if (auto_uid.empty() && uid_count) {
+                char *uid_str = NULL;
+                if (!rnp_key_get_uid_at(key, 0, &uid_str)) {
+                    auto_uid = uid_str;
+                    rnp_buffer_destroy(uid_str);
+                }
+            }
             if (!auto_uid.empty()) {
                 uid = auto_uid.c_str();
             }

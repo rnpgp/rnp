@@ -29,7 +29,6 @@
 #include <rekey/rnp_key_store.h>
 #include "rnp_tests.h"
 #include "support.h"
-#include "../rnp/fficli.h"
 
 TEST_F(rnp_tests, rnpkeys_exportkey_verifyUserId)
 {
@@ -106,6 +105,24 @@ TEST_F(rnp_tests, rnpkeys_exportkey_autocrypt)
     assert_string_equal(uid_str, "key0-uid0");
     rnp_buffer_destroy(uid_str);
     rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(ffi);
+
+    /* Without --userid and with a filter matching no UID (e.g. a keyid), the export
+     * should fall back to the key's first UID. */
+    rnp.cfg().unset(CFG_USERID);
+    rnp.cfg().set_str(CFG_OUTFILE, "ac-out-first-uid.pgp");
+    assert_true(cli_rnp_export_autocrypt_key(&rnp, "7bc6709b15c23a4a"));
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_all_keys(ffi, "ac-out-first-uid.pgp"));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "7bc6709b15c23a4a", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_get_uid_count(key, &count));
+    assert_int_equal(count, 1);
+    uid_str = NULL;
+    assert_rnp_success(rnp_key_get_uid_at(key, 0, &uid_str));
+    assert_string_equal(uid_str, "key0-uid0");
+    rnp_buffer_destroy(uid_str);
     rnp_key_handle_destroy(key);
     rnp_ffi_destroy(ffi);
 
