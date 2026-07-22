@@ -106,7 +106,10 @@ if(CMAKE_GENERATOR_TOOLSET)
 endif(CMAKE_GENERATOR_TOOLSET)
 
 if(CMAKE_CROSSCOMPILING_EMULATOR)
-  set(MKF ${MKF} "-DCMAKE_CROSSCOMPILING_EMULATOR=${CMAKE_CROSSCOMPILING_EMULATOR}")
+  # Escape semicolons so list-style emulators (e.g. "qemu;-L;/sysroot")
+  # are forwarded to the nested configure as a single -D argument.
+  string(REPLACE ";" "\\;" _fossl_emulator "${CMAKE_CROSSCOMPILING_EMULATOR}")
+  set(MKF ${MKF} "-DCMAKE_CROSSCOMPILING_EMULATOR=${_fossl_emulator}")
 endif(CMAKE_CROSSCOMPILING_EMULATOR)
 
 execute_process(
@@ -157,7 +160,6 @@ foreach(feature "hashes" "ciphers" "curves" "publickey" "providers" "kdfs")
     OUTPUT_VARIABLE feature_val
     ERROR_VARIABLE error
     RESULT_VARIABLE result
-    COMMAND_ECHO STDOUT
   )
 
   if(NOT ${result} EQUAL 0)
