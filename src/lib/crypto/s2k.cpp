@@ -269,9 +269,11 @@ size_t
 pgp_s2k_t::salt_size(pgp_s2k_specifier_t specifier)
 {
 #if defined(ENABLE_CRYPTO_REFRESH)
-    return (specifier == PGP_S2KS_ARGON2 ? 16 : 8);
+    return (specifier == PGP_S2KS_ARGON2 ? PGP_MAX_S2K_SALT_SIZE : PGP_SALT_SIZE);
+#else
+    (void) specifier;
+    return PGP_SALT_SIZE;
 #endif
-    return 8;
 }
 
 uint8_t
