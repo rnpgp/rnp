@@ -642,10 +642,13 @@ ask_expert_details(cli_rnp_t *ctx, rnp_cfg &ops, const char *rsp)
     if (!ret) {
         goto end;
     }
+#ifndef _WIN32
+    /* fcntl(), F_SETFD and FD_CLOEXEC are not available on Windows */
     if (fcntl(STDIN_FILENO, F_SETFD, FD_CLOEXEC) == -1) {
         ret = false;
         goto end;
     }
+#endif
     ops.copy(ctx->cfg());
     ret = true;
 end:
