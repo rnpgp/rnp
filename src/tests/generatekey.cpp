@@ -632,6 +632,10 @@ ask_expert_details(cli_rnp_t *ctx, rnp_cfg &ops, const char *rsp)
         ret = false;
         goto end;
     }
+    /* Reset the EOF/error flags: a previous call may have set stdin's EOF flag
+       (e.g. an expected-failure run which reads past the provided input), and
+       stdio would then refuse to read from the new pipe. */
+    clearerr(stdin);
 
     ret = rnp_cmd(ctx, CMD_GENERATE_KEY, NULL);
     /* always restore the original stdin */
