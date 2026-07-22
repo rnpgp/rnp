@@ -2239,10 +2239,7 @@ try {
     if (!output) {
         return RNP_ERROR_NULL_POINTER;
     }
-    rnp_output_t res = new (std::nothrow) rnp_output_st{};
-    if (!res) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
+    rnp_output_t res = new rnp_output_st{};
     rnp_result_t ret = init_stdout_dest(&res->dst);
     if (ret) {
         delete res;
@@ -2261,10 +2258,7 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *output = new (std::nothrow) rnp_output_st{};
-    if (!*output) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
+    *output = new rnp_output_st{};
     rnp_result_t ret = init_mem_dest(&(*output)->dst, NULL, max_alloc);
     if (ret) {
         /* LCOV_EXCL_START */
@@ -2362,10 +2356,7 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *output = new (std::nothrow) rnp_output_st{};
-    if (!*output) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
+    *output = new rnp_output_st{};
     rnp_result_t ret = init_null_dest(&(*output)->dst);
     if (ret) {
         /* LCOV_EXCL_START */
@@ -2410,10 +2401,7 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *output = new (std::nothrow) rnp_output_st{};
-    if (!*output) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
+    *output = new rnp_output_st{};
     (*output)->writer = writer;
     (*output)->closer = closer;
     (*output)->app_ctx = app_ctx;
