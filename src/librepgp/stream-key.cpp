@@ -618,8 +618,8 @@ decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
 #if defined(ENABLE_CRYPTO_REFRESH)
         /* AEAD case */
         if (key->sec_protection.s2k.usage == PGP_S2KU_AEAD) {
-            rnp::secure_vector<uint8_t> keybuf_vec(keybuf.data(),
-                                                   keybuf.data() + keybuf.size());
+            /* HKDF input keying material is exactly the s2k-derived key */
+            rnp::secure_vector<uint8_t> keybuf_vec(keybuf.data(), keybuf.data() + keysize);
             rnp::secure_vector<uint8_t> encr_vec(key->sec_data.data(),
                                                  key->sec_data.data() + key->sec_data.size());
 
