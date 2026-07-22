@@ -280,9 +280,7 @@ init_indent_dest(pgp_dest_t &dst, pgp_dest_t *origdst)
 {
     pgp_dest_indent_param_t *param;
 
-    try {
-        dst = pgp_dest_t(sizeof(*param));
-    } catch (const std::exception &e) {
+    if (!init_dst_common(&dst, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 

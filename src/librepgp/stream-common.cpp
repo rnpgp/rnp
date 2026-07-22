@@ -624,32 +624,25 @@ mem_src_get_memory(pgp_source_t *src, bool own)
     return param->memory;
 }
 
-pgp_dest_t::pgp_dest_t(size_t paramsize)
-{
-    werr = RNP_SUCCESS;
-    if (!paramsize) {
-        return;
-    }
-    /* allocate param */
-    param = calloc(1, paramsize);
-    if (!param) {
-        /* LCOV_EXCL_START */
-        RNP_LOG("allocation failed");
-        throw rnp::rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
-        /* LCOV_EXCL_END */
-    }
-}
-
-// pgp_dest_t constructor do the same job, but we keep this function to preserve api
 bool
 init_dst_common(pgp_dest_t *dst, size_t paramsize)
 {
     try {
-        *dst = pgp_dest_t(paramsize);
+        *dst = pgp_dest_t();
     } catch (const std::exception &e) {
         return false; // LCOV_EXCL_LINE
     }
-
+    if (!paramsize) {
+        return true;
+    }
+    /* allocate param */
+    dst->param = calloc(1, paramsize);
+    if (!dst->param) {
+        /* LCOV_EXCL_START */
+        RNP_LOG("allocation failed");
+        return false;
+        /* LCOV_EXCL_END */
+    }
     return true;
 }
 
@@ -799,7 +792,7 @@ static rnp_result_t
 init_fd_dest(pgp_dest_t *dst, int fd, const char *path)
 {
     try {
-        *dst = pgp_dest_t(0);
+        *dst = pgp_dest_t();
 
         std::unique_ptr<pgp_dest_file_param_t> param(new pgp_dest_file_param_t());
         param->path = path;
@@ -1046,10 +1039,8 @@ init_mem_dest(pgp_dest_t *dst, void *mem, unsigned len)
 {
     pgp_dest_mem_param_t *param;
 
-    try {
-        *dst = pgp_dest_t(sizeof(*param));
-    } catch (const std::exception &e) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+    if (!init_dst_common(dst, sizeof(*param))) {
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     param = (pgp_dest_mem_param_t *) dst->param;

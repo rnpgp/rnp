@@ -239,9 +239,7 @@ init_partial_pkt_dst(pgp_dest_t &dst, pgp_dest_t &writedst)
 {
     pgp_dest_partial_param_t *param = NULL;
 
-    try {
-        dst = pgp_dest_t(sizeof(*param));
-    } catch (const std::exception &e) {
+    if (!init_dst_common(&dst, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
@@ -1101,7 +1099,7 @@ init_encrypted_dst(rnp_ctx_t &ctx, pgp_dest_t &dst, pgp_dest_t &writedst)
     }
 
     try {
-        dst = pgp_dest_t(0);
+        dst = pgp_dest_t();
     } catch (const std::exception &e) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
@@ -1624,7 +1622,7 @@ init_signed_dst(rnp_ctx_t &ctx, pgp_dest_t &dst, pgp_dest_t &writedst)
     rnp_result_t             ret = RNP_ERROR_GENERIC;
 
     try {
-        dst = pgp_dest_t(0);
+        dst = pgp_dest_t();
     } catch (const std::exception &e) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
@@ -1863,9 +1861,7 @@ init_compressed_dst(rnp_ctx_t &ctx, pgp_dest_t &dst, pgp_dest_t &writedst)
     uint8_t                      buf = 0;
     int                          zret = 0;
 
-    try {
-        dst = pgp_dest_t(sizeof(*param));
-    } catch (const std::exception &e) {
+    if (!init_dst_common(&dst, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
@@ -1996,9 +1992,7 @@ init_literal_dst(pgp_literal_hdr_t &hdr, pgp_dest_t &dst, pgp_dest_t &writedst)
 {
     pgp_dest_packet_param_t *param = NULL;
 
-    try {
-        dst = pgp_dest_t(sizeof(*param));
-    } catch (const std::exception &e) {
+    if (!init_dst_common(&dst, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
