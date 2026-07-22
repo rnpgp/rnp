@@ -158,6 +158,10 @@ TEST_F(rnp_tests, test_partial_length_zero_last_chunk)
 
 TEST_F(rnp_tests, test_partial_length_largest)
 {
+    if (!bzip2_enabled()) {
+        GTEST_SKIP() << "BZip2 support is disabled, skipping.";
+    }
+
     rnp_ffi_t    ffi = NULL;
     rnp_input_t  input = NULL;
     rnp_output_t output = NULL;

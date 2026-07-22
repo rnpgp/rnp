@@ -79,6 +79,9 @@ tristate_feature_auto(ENABLE_BLOWFISH "Enable Blowfish cipher support.")
 tristate_feature_auto(ENABLE_CAST5 "Enable CAST5 cipher support.")
 tristate_feature_auto(ENABLE_RIPEMD160 "Enable RIPEMD-160 hash support.")
 
+# compression
+tristate_feature_auto(ENABLE_BZIP2 "Enable BZip2 compression support.")
+
 option(ENABLE_CRYPTO_REFRESH "Enable crypto-refresh support (v6)")
 option(ENABLE_PQC "Enable PQC support")
 

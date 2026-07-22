@@ -1410,23 +1410,25 @@ TEST_F(rnp_tests, test_stream_z)
     pgp_dest_t   dst;
 
     /* packet dumper will decompress source stream, making less code lines here */
-    assert_rnp_success(init_file_src(&src, "data/test_stream_z/4gb.bzip2"));
-    assert_rnp_success(init_null_dest(&dst));
-    rnp::DumpContextDst ctx(src, dst);
-    ctx.set_dump_mpi(true);
-    ctx.set_dump_packets(true);
-    assert_rnp_success(ctx.dump());
-    src.close();
-    dst_close(&dst, true);
+    if (bzip2_enabled()) {
+        assert_rnp_success(init_file_src(&src, "data/test_stream_z/4gb.bzip2"));
+        assert_rnp_success(init_null_dest(&dst));
+        rnp::DumpContextDst ctx(src, dst);
+        ctx.set_dump_mpi(true);
+        ctx.set_dump_packets(true);
+        assert_rnp_success(ctx.dump());
+        src.close();
+        dst_close(&dst, true);
 
-    assert_rnp_success(init_file_src(&src, "data/test_stream_z/4gb.bzip2.cut"));
-    assert_rnp_success(init_null_dest(&dst));
-    rnp::DumpContextDst ctx2(src, dst);
-    ctx2.set_dump_mpi(true);
-    ctx2.set_dump_packets(true);
-    assert_rnp_success(ctx2.dump());
-    src.close();
-    dst_close(&dst, true);
+        assert_rnp_success(init_file_src(&src, "data/test_stream_z/4gb.bzip2.cut"));
+        assert_rnp_success(init_null_dest(&dst));
+        rnp::DumpContextDst ctx2(src, dst);
+        ctx2.set_dump_mpi(true);
+        ctx2.set_dump_packets(true);
+        assert_rnp_success(ctx2.dump());
+        src.close();
+        dst_close(&dst, true);
+    }
 
     assert_rnp_success(init_file_src(&src, "data/test_stream_z/128mb.zlib"));
     assert_rnp_success(init_null_dest(&dst));
@@ -1628,8 +1630,9 @@ add_openpgp_layers(
     dst_close(&dst, false);
 
     /* add compression layers */
+    const int algs = bzip2_enabled() ? 3 : 2;
     for (int i = 0; i < compr; i++) {
-        pgp_compression_type_t alg = (pgp_compression_type_t)((i % 3) + 1);
+        pgp_compression_type_t alg = (pgp_compression_type_t)((i % algs) + 1);
         assert_rnp_success(init_mem_dest(&dst, NULL, 0));
         assert_rnp_success(rnp_compress_src(src, dst, alg, 9));
         src.close();

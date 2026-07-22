@@ -3198,9 +3198,10 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "CRC24", &supported));
     assert_false(supported);
     /* compression algorithm */
+    bool has_bzip2 = bzip2_enabled();
     assert_rnp_success(rnp_supported_features(RNP_FEATURE_COMP_ALG, &features));
     assert_non_null(features);
-    assert_true(check_features(RNP_FEATURE_COMP_ALG, features, 4));
+    assert_true(check_features(RNP_FEATURE_COMP_ALG, features, 3 + has_bzip2));
     rnp_buffer_destroy(features);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_COMP_ALG, "Uncompressed", &supported));
     assert_true(supported);
@@ -3209,7 +3210,7 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_COMP_ALG, "ZIP", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_COMP_ALG, "BZIP2", &supported));
-    assert_true(supported);
+    assert_true(supported == has_bzip2);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_COMP_ALG, "wrong", &supported));
     assert_false(supported);
     /* elliptic curve */
@@ -3350,11 +3351,13 @@ TEST_F(rnp_tests, test_ffi_rnp_guess_contents)
     rnp_buffer_destroy(msgt);
     rnp_input_destroy(input);
 
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_z/4gb.bzip2.asc"));
-    assert_rnp_success(rnp_guess_contents(input, &msgt));
-    assert_string_equal(msgt, "message");
-    rnp_buffer_destroy(msgt);
-    rnp_input_destroy(input);
+    if (bzip2_enabled()) {
+        assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_z/4gb.bzip2.asc"));
+        assert_rnp_success(rnp_guess_contents(input, &msgt));
+        assert_string_equal(msgt, "message");
+        rnp_buffer_destroy(msgt);
+        rnp_input_destroy(input);
+    }
 
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_stream_signatures/source.txt.sig"));
@@ -5357,19 +5360,21 @@ TEST_F(rnp_tests, test_ffi_decrypt_edge_cases)
     rnp_input_destroy(input);
 
     /* 31 levels of compression + encryption */
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_messages/message.compr-encr.31-rounds"));
-    assert_rnp_success(rnp_output_to_memory(&output, 0));
-    assert_rnp_success(rnp_op_verify_create(&op, ffi, input, output));
-    assert_rnp_success(rnp_op_verify_execute(op));
-    rnp_op_verify_destroy(op);
-    rnp_input_destroy(input);
-    uint8_t *buf = NULL;
-    size_t   len = 0;
-    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
-    assert_int_equal(len, 7);
-    assert_int_equal(memcmp(buf, "message", 7), 0);
-    rnp_output_destroy(output);
+    if (bzip2_enabled()) {
+        assert_rnp_success(
+          rnp_input_from_path(&input, "data/test_messages/message.compr-encr.31-rounds"));
+        assert_rnp_success(rnp_output_to_memory(&output, 0));
+        assert_rnp_success(rnp_op_verify_create(&op, ffi, input, output));
+        assert_rnp_success(rnp_op_verify_execute(op));
+        rnp_op_verify_destroy(op);
+        rnp_input_destroy(input);
+        uint8_t *buf = NULL;
+        size_t   len = 0;
+        assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+        assert_int_equal(len, 7);
+        assert_int_equal(memcmp(buf, "message", 7), 0);
+        rnp_output_destroy(output);
+    }
 
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.compr-encr.31-rounds"));

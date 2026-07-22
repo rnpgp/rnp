@@ -378,8 +378,11 @@ z_alg_supported(int alg)
     case PGP_C_NONE:
     case PGP_C_ZIP:
     case PGP_C_ZLIB:
+        return true;
+#if defined(HAVE_BZLIB_H)
     case PGP_C_BZIP2:
         return true;
+#endif
     default:
         return false;
     }

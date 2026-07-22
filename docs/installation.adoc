@@ -233,7 +233,7 @@ cmd /k "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxili
 Install dependencies and make them available either on PATH or using CMAKE_TARGET_PREFIX parameter:
 
 * Botan(2.14+) or Crypto (OpenSSL 1.1.1+) depending on target backend
-* BZip2
+* BZip2 (optional, may be disabled with `-DENABLE_BZIP2=Off`)
 * GetOpt
 * JSON-C (0.12.1+)
 * ZLIB
