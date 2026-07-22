@@ -478,7 +478,6 @@ crypt_secret_key_aead(pgp_key_pkt_t *                    key,
                       bool                               decrypt)
 {
     size_t      nonce_len = pgp_cipher_aead_nonce_len(key->sec_protection.aead_alg);
-    uint8_t     nonce[PGP_AEAD_MAX_NONCE_LEN];
     bool        success = true;
     pgp_crypt_t crypt;
     size_t      keysize = pgp_key_size(key->sec_protection.symm_alg);
@@ -515,11 +514,6 @@ crypt_secret_key_aead(pgp_key_pkt_t *                    key,
         return RNP_ERROR_ENCRYPT_FAILED;
     }
     secure_clear(kek.data(), kek.size());
-
-    // set up nonce
-    if (nonce_len != pgp_cipher_aead_nonce(
-                       key->sec_protection.aead_alg, key->sec_protection.iv, nonce, 0)) {
-    }
 
     /* set up ad (associated data) */
     std::vector<uint8_t> ad;
