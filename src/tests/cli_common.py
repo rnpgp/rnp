@@ -99,13 +99,17 @@ def rnp_file_path(relpath, check = True):
 
     return fpath
 
+def _redact_sensitive_args(cmdline):
+    # Mask password values so they are not logged as clear text
+    return re.sub(r'(--(?:password|passphrase)(?:\s+|=))\S+', r'\1***', cmdline)
+
 def run_proc_windows(proc, params, stdin=None):
     exe = os.path.basename(proc)
     # test special quote cases 
     params = list(map(lambda st: st.replace('"', '\\"'), params))
     # We need to escape empty parameters/ones with spaces with quotes
     params = tuple(map(lambda st: st if (st and not any(x in st for x in [' ','\r','\t'])) else '"%s"' % st, [exe] + params))
-    logging.debug((proc + ' ' + ' '.join(params)).strip())
+    logging.debug(_redact_sensitive_args((proc + ' ' + ' '.join(params)).strip()))
     logging.debug('Working directory: ' + os.getcwd())
     sys.stdout.flush()
 
@@ -201,7 +205,7 @@ def run_proc(proc, params, stdin=None):
     if is_windows():
         return run_proc_windows(proc, params, stdin)
     paramline = u' '.join(map(_decode, params))
-    logging.debug((proc + ' ' + paramline).strip())
+    logging.debug(_redact_sensitive_args((proc + ' ' + paramline).strip()))
     param_bytes = list(map(lambda x: x.encode(CONSOLE_ENCODING), params))
     process = Popen([proc] + param_bytes, stdout=PIPE, stderr=PIPE,
                     stdin=PIPE if stdin else None, close_fds=False,
