@@ -2265,6 +2265,81 @@ done:
 }
 
 bool
+cli_rnp_export_autocrypt_key(cli_rnp_t *rnp, const char *filter)
+{
+    std::vector<rnp_key_handle_t> keys;
+    if (!rnp->keys_matching(keys, filter ? filter : std::string(), 0)) {
+        ERR_MSG("Key(s) matching '%s' not found.", filter);
+        return false;
+    }
+
+    /* Explicit --userid takes priority for UID selection. */
+    std::string explicit_uid;
+    if (rnp->cfg().get_count(CFG_USERID) > 0) {
+        explicit_uid = rnp->cfg().get_str(CFG_USERID, 0);
+    }
+
+    rnp_output_t output = NULL;
+    bool         result = false;
+
+    output = cli_rnp_output_to_specifier(*rnp, rnp->cfg().get_str(CFG_OUTFILE));
+    if (!output) {
+        goto done;
+    }
+
+    for (auto key : keys) {
+        bool primary = false;
+        if (rnp_key_is_primary(key, &primary)) {
+            goto done;
+        }
+        if (!primary) {
+            continue;
+        }
+
+        /* Determine which UID to embed.  If --userid was given, pass it directly.
+         * Otherwise search the key's UIDs for one containing the filter string;
+         * fall back to the first UID if none match. */
+        const char *uid = NULL;
+        std::string auto_uid;
+        if (!explicit_uid.empty()) {
+            uid = explicit_uid.c_str();
+        } else {
+            size_t uid_count = 0;
+            rnp_key_get_uid_count(key, &uid_count);
+            for (size_t i = 0; i < uid_count && auto_uid.empty(); i++) {
+                char *uid_str = NULL;
+                if (rnp_key_get_uid_at(key, i, &uid_str)) {
+                    continue;
+                }
+                if (!filter || strstr(uid_str, filter)) {
+                    auto_uid = uid_str;
+                }
+                rnp_buffer_destroy(uid_str);
+            }
+            if (auto_uid.empty() && uid_count) {
+                char *uid_str = NULL;
+                if (!rnp_key_get_uid_at(key, 0, &uid_str)) {
+                    auto_uid = uid_str;
+                    rnp_buffer_destroy(uid_str);
+                }
+            }
+            if (!auto_uid.empty()) {
+                uid = auto_uid.c_str();
+            }
+        }
+
+        if (rnp_key_export_autocrypt(key, NULL, uid, output, 0)) {
+            goto done;
+        }
+    }
+    result = true;
+done:
+    rnp_output_destroy(output);
+    clear_key_handles(keys);
+    return result;
+}
+
+bool
 cli_rnp_export_revocation(cli_rnp_t *rnp, const char *key)
 {
     std::vector<rnp_key_handle_t> keys;
