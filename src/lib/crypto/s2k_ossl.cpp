@@ -85,15 +85,15 @@ pgp_s2k_argon2(uint8_t *      out,
     uint32_t lanes = p;
     /* Thread pool is not available in the default OpenSSL library context, so single-threaded
      * derivation is used. This doesn't affect the derived key, which depends on lanes only. */
-    uint32_t   threads = 1;
+    uint32_t threads = 1;
     /* Argon2 version 1.3 */
     uint32_t   version = 0x13;
     OSSL_PARAM params[8];
     int        n = 0;
     params[n++] = OSSL_PARAM_construct_octet_string(
       OSSL_KDF_PARAM_PASSWORD, (void *) password, std::strlen(password));
-    params[n++] = OSSL_PARAM_construct_octet_string(
-      OSSL_KDF_PARAM_SALT, (void *) salt, argon2_salt_size);
+    params[n++] =
+      OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT, (void *) salt, argon2_salt_size);
     params[n++] = OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ITER, &iter);
     params[n++] = OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST, &memcost);
     params[n++] = OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes);
