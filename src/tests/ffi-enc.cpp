@@ -1078,15 +1078,17 @@ TEST_F(rnp_tests, test_ffi_decrypt_v6_skesk_test_vectors)
     assert_rnp_success(
       rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
 
-    assert_rnp_success(rnp_input_from_path(&input, "data/RFC9580/A.9.5.v6_skesk_eax.asc"));
-    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
-    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
-    assert_rnp_success(rnp_op_verify_execute(verify));
-    assert_string_equal(file_to_str("decrypted").c_str(), "Hello, world!");
-    assert_int_equal(unlink("decrypted"), 0);
-    rnp_input_destroy(input);
-    rnp_output_destroy(output);
-    rnp_op_verify_destroy(verify);
+    if (aead_eax_enabled()) {
+        assert_rnp_success(rnp_input_from_path(&input, "data/RFC9580/A.9.5.v6_skesk_eax.asc"));
+        assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+        assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+        assert_rnp_success(rnp_op_verify_execute(verify));
+        assert_string_equal(file_to_str("decrypted").c_str(), "Hello, world!");
+        assert_int_equal(unlink("decrypted"), 0);
+        rnp_input_destroy(input);
+        rnp_output_destroy(output);
+        rnp_op_verify_destroy(verify);
+    }
 
     assert_rnp_success(rnp_input_from_path(&input, "data/RFC9580/A.10.5.v6_skesk_ocb.asc"));
     assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
@@ -1113,7 +1115,10 @@ TEST_F(rnp_tests, test_ffi_v6_skesk_enc_dec)
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
 
     std::vector<std::string> ciphers = {"AES128", "AES192", "AES256"};
-    std::vector<std::string> aead_modes = {"EAX", "OCB"};
+    std::vector<std::string> aead_modes = {"OCB"};
+    if (aead_eax_enabled()) {
+        aead_modes.push_back("EAX");
+    }
 
     for (auto aead : aead_modes)
         for (auto cipher : ciphers) {
@@ -1464,8 +1469,11 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
     std::vector<std::string> camellia({"Camellia128", "Camellia192", "Camellia256"});
     ciphers.insert(ciphers.end(), camellia.begin(), camellia.end());
 #endif
-    std::vector<std::string> aead_modes = {"None", "EAX", "OCB"};
-    std::vector<bool>        enable_pkeskv6_modes = {true, false};
+    std::vector<std::string> aead_modes = {"None", "OCB"};
+    if (aead_eax_enabled()) {
+        aead_modes.push_back("EAX");
+    }
+    std::vector<bool> enable_pkeskv6_modes = {true, false};
 
     for (auto enable_pkeskv6 : enable_pkeskv6_modes)
         for (auto aead : aead_modes)
@@ -1477,6 +1485,14 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
                     // here.
                     expect_success = false;
                 }
+#if defined(CRYPTO_BACKEND_OPENSSL)
+                // OpenSSL backend only supports AES with OCB/EAX; non-AES AEAD combinations
+                // fail. When PKESKv6 is enabled, AEAD=None is rejected and OCB is used, so
+                // non-AES fails too.
+                if (cipher.find("AES") != 0 && (aead != "None" || enable_pkeskv6)) {
+                    expect_success = false;
+                }
+#endif
                 // write out some data
                 FILE *fp = fopen("plaintext", "wb");
                 assert_non_null(fp);

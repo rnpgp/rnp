@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, [MTG AG](https://www.mtg.de).
+ * Copyright (c) 2026 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -32,17 +33,8 @@
 #include <vector>
 #include <repgp/repgp_def.h>
 #include "crypto/rng.h"
+#include "crypto/secure_bytes.h"
 #include <memory>
-#include "botan/secmem.h"
-#include <botan/pubkey.h>
-#include <botan/ecdsa.h>
-#include <botan/ecdh.h>
-#include <botan/ed25519.h>
-#include <botan/x25519.h>
-#if defined(ENABLE_CRYPTO_REFRESH)
-#include <botan/x448.h>
-#include <botan/ed448.h>
-#endif
 
 struct ecdh_kem_key_t; /* forward declaration */
 #if defined(ENABLE_CRYPTO_REFRESH)
@@ -99,12 +91,6 @@ class ecdh_kem_public_key_t : public ec_key_t {
                              std::vector<uint8_t> &symmetric_key) const;
 
   private:
-    Botan::ECDH_PublicKey   botan_key_ecdh(rnp::RNG *rng) const;
-    Botan::X25519_PublicKey botan_key_x25519() const;
-#if defined(ENABLE_CRYPTO_REFRESH)
-    Botan::X448_PublicKey botan_key_x448() const;
-#endif
-
     std::vector<uint8_t> key_;
 };
 
@@ -119,7 +105,7 @@ class ecdh_kem_private_key_t : public ec_key_t {
     std::vector<uint8_t>
     get_encoded() const
     {
-        return Botan::unlock(key_);
+        return key_.unlock();
     }
 
     std::vector<uint8_t> get_pubkey_encoded(rnp::RNG *rng) const;
@@ -129,13 +115,7 @@ class ecdh_kem_private_key_t : public ec_key_t {
                              std::vector<uint8_t> &      plaintext);
 
   private:
-    Botan::ECDH_PrivateKey   botan_key_ecdh(rnp::RNG *rng) const;
-    Botan::X25519_PrivateKey botan_key_x25519() const;
-#if defined(ENABLE_CRYPTO_REFRESH)
-    Botan::X448_PrivateKey botan_key_x448() const;
-#endif
-
-    Botan::secure_vector<uint8_t> key_;
+    rnp::SecureBytes key_;
 };
 
 typedef struct ecdh_kem_key_t {
@@ -169,8 +149,6 @@ class exdsa_public_key_t : public ec_key_t {
                         pgp_hash_alg_t              hash_alg) const;
 
   private:
-    Botan::ECDSA_PublicKey botan_key() const;
-
     std::vector<uint8_t> key_;
 };
 
@@ -186,7 +164,7 @@ class exdsa_private_key_t : public ec_key_t {
     std::vector<uint8_t>
     get_encoded() const
     {
-        return Botan::unlock(key_);
+        return key_.unlock();
     }
 
     rnp_result_t sign(rnp::RNG *            rng,
@@ -196,9 +174,7 @@ class exdsa_private_key_t : public ec_key_t {
                       pgp_hash_alg_t        hash_alg) const;
 
   private:
-    Botan::ECDSA_PrivateKey botan_key(rnp::RNG *rng) const;
-
-    Botan::secure_vector<uint8_t> key_;
+    rnp::SecureBytes key_;
 };
 
 typedef struct exdsa_key_t {

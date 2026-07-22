@@ -41,6 +41,7 @@
 #   OPENSSL_SUPPORTED_CIPHERS   - list of the supported ciphers
 #   OPENSSL_SUPPORTED_CURVES    - list of the supported elliptic curves
 #   OPENSSL_SUPPORTED_PUBLICKEY - list of the supported public-key algorithms
+#   OPENSSL_SUPPORTED_KDFS      - list of the supported KDFs
 #   OPENSSL_SUPPORTED_FEATURES  - all previous lists, glued together
 #
 # Functions
@@ -138,7 +139,7 @@ else(WIN32 AND NOT MINGW)
   set(FOF "build/findopensslfeatures")
 endif(WIN32 AND NOT MINGW)
 
-foreach(feature "hashes" "ciphers" "curves" "publickey" "providers")
+foreach(feature "hashes" "ciphers" "curves" "publickey" "providers" "kdfs")
   execute_process(
     COMMAND "${FOF}" "${feature}"
     WORKING_DIRECTORY "${_fossl_work_dir}"
@@ -152,14 +153,14 @@ foreach(feature "hashes" "ciphers" "curves" "publickey" "providers")
   endif()
 
   string(TOUPPER ${feature} feature_up)
-  string(TOUPPER ${feature_val} feature_val)
-  string(REPLACE "\n" ";" feature_val ${feature_val})
+  string(TOUPPER "${feature_val}" feature_val)
+  string(REPLACE "\n" ";" feature_val "${feature_val}")
   set(OPENSSL_SUPPORTED_${feature_up} ${feature_val})
   list(LENGTH OPENSSL_SUPPORTED_${feature_up} ${feature}_len)
   list(APPEND OPENSSL_SUPPORTED_FEATURES ${OPENSSL_SUPPORTED_${feature_up}})
 endforeach()
 
-message(STATUS "Fetched OpenSSL features: ${hashes_len} hashes, ${ciphers_len} ciphers, ${curves_len} curves, ${publickey_len} publickey, ${providers_len} providers.")
+message(STATUS "Fetched OpenSSL features: ${hashes_len} hashes, ${ciphers_len} ciphers, ${curves_len} curves, ${publickey_len} publickey, ${providers_len} providers, ${kdfs_len} kdfs.")
 
 function(OpenSSLHasFeature FEATURE VARIABLE)
   string(TOUPPER ${FEATURE} _feature_up)

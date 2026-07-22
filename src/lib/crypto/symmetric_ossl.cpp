@@ -226,8 +226,11 @@ pgp_cipher_aead_init(pgp_crypt_t *  crypt,
 bool
 pgp_cipher_aead_set_ad(pgp_crypt_t *crypt, const uint8_t *ad, size_t len)
 {
-    assert(len <= sizeof(crypt->aead.ad));
-    memcpy(crypt->aead.ad, ad, len);
+    delete crypt->aead.ad;
+    crypt->aead.ad = NULL;
+    if (ad && len) {
+        crypt->aead.ad = new rnp::secure_bytes(ad, ad + len);
+    }
     crypt->aead.ad_len = len;
     return true;
 }
@@ -259,7 +262,8 @@ pgp_cipher_aead_start(pgp_crypt_t *crypt, const uint8_t *nonce, size_t len)
         /* LCOV_EXCL_END */
     }
     int adlen = 0;
-    if (EVP_CipherUpdate(ctx, NULL, &adlen, aead.ad, aead.ad_len) != 1) {
+    if (aead.ad_len &&
+        EVP_CipherUpdate(ctx, NULL, &adlen, aead.ad->data(), aead.ad_len) != 1) {
         /* LCOV_EXCL_START */
         RNP_LOG("Failed to set AD: %lu", ERR_peek_last_error());
         return false;
@@ -364,6 +368,7 @@ pgp_cipher_aead_destroy(pgp_crypt_t *crypt)
         EVP_CIPHER_CTX_free(crypt->aead.obj);
     }
     delete crypt->aead.key;
+    delete crypt->aead.ad;
     memset(crypt, 0x0, sizeof(*crypt));
 }
 

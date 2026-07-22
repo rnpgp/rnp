@@ -1,5 +1,4 @@
 /*
- * Copyright (c) 2023, [MTG AG](https://www.mtg.de).
  * Copyright (c) 2026 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
@@ -25,48 +24,17 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-
-#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
-
-#include "hkdf.hpp"
-
-#if defined(CRYPTO_BACKEND_BOTAN)
-#include "hkdf_botan.hpp"
-#endif
-#if defined(CRYPTO_BACKEND_OPENSSL)
-#include "hkdf_ossl.hpp"
-#endif
+#include "secure_bytes.h"
 
 namespace rnp {
-std::unique_ptr<Hkdf>
-Hkdf::create(pgp_hash_alg_t alg)
-{
-#if defined(CRYPTO_BACKEND_OPENSSL)
-    return Hkdf_OpenSSL::create(alg);
-#elif defined(CRYPTO_BACKEND_BOTAN)
-    return Hkdf_Botan::create(alg);
-#else
-#error "Crypto backend not specified"
-#endif
-}
 
-size_t
-Hkdf::size() const
+void
+secure_wipe(void *ptr, size_t len)
 {
-    return size_;
-}
-
-pgp_hash_alg_t
-Hkdf::alg() const
-{
-    return hash_alg_;
-}
-
-Hkdf::~Hkdf()
-{
+    volatile auto *p = static_cast<volatile uint8_t *>(ptr);
+    while (len--) {
+        *p++ = 0;
+    }
 }
 
 } // namespace rnp
-
-#endif
