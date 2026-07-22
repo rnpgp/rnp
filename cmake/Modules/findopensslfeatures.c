@@ -6,6 +6,7 @@
 #include <openssl/evp.h>
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/provider.h>
+#include <openssl/kdf.h>
 #endif
 
 int
@@ -84,6 +85,12 @@ print_km(EVP_KEYMGMT *km, void *param)
 {
     EVP_KEYMGMT_names_do_all(km, print_km_name, NULL);
 }
+
+static void
+print_kdf(EVP_KDF *kdf, void *param)
+{
+    EVP_KDF_names_do_all(kdf, print_km_name, NULL);
+}
 #endif
 
 int
@@ -123,11 +130,20 @@ list_providers()
 }
 
 int
+list_kdfs()
+{
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    EVP_KDF_do_all_provided(NULL, print_kdf, NULL);
+#endif
+    return 0;
+}
+
+int
 main(int argc, char *argv[])
 {
     if (argc != 2) {
         fprintf(stderr,
-                "Usage: opensslfeatures [curves|hashes|ciphers|publickey|providers]\n");
+                "Usage: opensslfeatures [curves|hashes|ciphers|publickey|providers|kdfs]\n");
         return 1;
     }
     if (!strcmp(argv[1], "hashes")) {
@@ -144,6 +160,9 @@ main(int argc, char *argv[])
     }
     if (!strcmp(argv[1], "providers")) {
         return list_providers();
+    }
+    if (!strcmp(argv[1], "kdfs")) {
+        return list_kdfs();
     }
     fprintf(stderr, "Unknown command: %s\n", argv[1]);
     return 1;

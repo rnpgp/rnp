@@ -106,7 +106,9 @@ struct pgp_crypt_aead_param_t {
     EVP_CIPHER_CTX *   obj;
     const EVP_CIPHER * cipher;
     rnp::secure_bytes *key;
-    uint8_t            ad[PGP_AEAD_MAX_AD_LEN];
+    /* associated data, dynamically sized: v6 secret-key AEAD uses the whole public key
+     * material as AD, exceeding any fixed bound */
+    rnp::secure_bytes *ad;
     size_t             ad_len;
     size_t             n_len;
 #endif
