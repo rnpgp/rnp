@@ -29,6 +29,10 @@
 
 TEST_F(rnp_tests, test_large_packet)
 {
+    if (!bzip2_enabled()) {
+        GTEST_SKIP() << "BZip2 support is disabled, skipping.";
+    }
+
     rnp_ffi_t       ffi = NULL;
     rnp_input_t     input = NULL;
     rnp_output_t    output = NULL;
