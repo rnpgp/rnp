@@ -6100,7 +6100,7 @@ TEST_F(rnp_tests, test_result_to_string)
      * code has corresponding unique string */
 
     std::vector<std::pair<rnp_result_t, rnp_result_t>> error_codes = {
-      {RNP_ERROR_GENERIC, RNP_ERROR_NULL_POINTER},
+      {RNP_ERROR_GENERIC, RNP_ERROR_NOT_FOUND},
       {RNP_ERROR_ACCESS, RNP_ERROR_WRITE},
       {RNP_ERROR_BAD_STATE, RNP_ERROR_SIGNATURE_UNKNOWN},
       {RNP_ERROR_NOT_ENOUGH_DATA, RNP_ERROR_EOF},
@@ -6132,6 +6132,7 @@ TEST_F(rnp_tests, test_result_to_string)
       {RNP_ERROR_OUT_OF_MEMORY, "Out of memory"},
       {RNP_ERROR_SHORT_BUFFER, "Buffer too short"},
       {RNP_ERROR_NULL_POINTER, "Null pointer"},
+      {RNP_ERROR_NOT_FOUND, "Not found"},
       {RNP_ERROR_ACCESS, "Error accessing file"},
       {RNP_ERROR_READ, "Error reading file"},
       {RNP_ERROR_WRITE, "Error writing file"},

@@ -800,6 +800,8 @@ rnp_result_to_string(rnp_result_t result)
         return "Buffer too short";
     case RNP_ERROR_NULL_POINTER:
         return "Null pointer";
+    case RNP_ERROR_NOT_FOUND:
+        return "Not found";
 
     case RNP_ERROR_ACCESS:
         return "Error accessing file";
