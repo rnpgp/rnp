@@ -3596,6 +3596,11 @@ TEST_F(rnp_tests, test_ffi_aead_params)
     assert_rnp_failure(rnp_op_encrypt_set_compression(op, NULL, 6));
     assert_rnp_failure(rnp_op_encrypt_set_compression(op, "WRONG", 6));
     assert_rnp_success(rnp_op_encrypt_set_compression(op, "ZLIB", 6));
+    if (bzip2_enabled()) {
+        assert_rnp_success(rnp_op_encrypt_set_compression(op, "bzip2", 6));
+    } else {
+        assert_rnp_failure(rnp_op_encrypt_set_compression(op, "bzip2", 6));
+    }
     // set filename and mtime
     assert_rnp_failure(rnp_op_encrypt_set_file_name(NULL, "filename"));
     assert_rnp_success(rnp_op_encrypt_set_file_name(op, NULL));
