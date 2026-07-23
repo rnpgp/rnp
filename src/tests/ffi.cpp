@@ -6100,10 +6100,11 @@ TEST_F(rnp_tests, test_result_to_string)
      * code has corresponding unique string */
 
     std::vector<std::pair<rnp_result_t, rnp_result_t>> error_codes = {
-      {RNP_ERROR_GENERIC, RNP_ERROR_NULL_POINTER},
+      {RNP_ERROR_GENERIC, RNP_ERROR_NOT_FOUND},
       {RNP_ERROR_ACCESS, RNP_ERROR_WRITE},
       {RNP_ERROR_BAD_STATE, RNP_ERROR_SIGNATURE_UNKNOWN},
-      {RNP_ERROR_NOT_ENOUGH_DATA, RNP_ERROR_EOF}};
+      {RNP_ERROR_NOT_ENOUGH_DATA, RNP_ERROR_EOF},
+      {RNP_ERROR_SIG_ERROR, RNP_ERROR_SIG_UNUSABLE_KEY}};
 
     for (auto &range : error_codes) {
         for (code = range.first; code <= range.second; code++) {
@@ -6118,6 +6119,74 @@ TEST_F(rnp_tests, test_result_to_string)
 
             stringset.insert(result_string);
         }
+    }
+
+    /* Check the exact string for each defined code */
+    std::vector<std::pair<rnp_result_t, const char *>> code_strings = {
+      {RNP_SUCCESS, "Success"},
+      {RNP_ERROR_GENERIC, "Unknown error"},
+      {RNP_ERROR_BAD_FORMAT, "Bad format"},
+      {RNP_ERROR_BAD_PARAMETERS, "Bad parameters"},
+      {RNP_ERROR_NOT_IMPLEMENTED, "Not implemented"},
+      {RNP_ERROR_NOT_SUPPORTED, "Not supported"},
+      {RNP_ERROR_OUT_OF_MEMORY, "Out of memory"},
+      {RNP_ERROR_SHORT_BUFFER, "Buffer too short"},
+      {RNP_ERROR_NULL_POINTER, "Null pointer"},
+      {RNP_ERROR_NOT_FOUND, "Not found"},
+      {RNP_ERROR_ACCESS, "Error accessing file"},
+      {RNP_ERROR_READ, "Error reading file"},
+      {RNP_ERROR_WRITE, "Error writing file"},
+      {RNP_ERROR_BAD_STATE, "Bad state"},
+      {RNP_ERROR_MAC_INVALID, "Invalid MAC"},
+      {RNP_ERROR_SIGNATURE_INVALID, "Invalid signature"},
+      {RNP_ERROR_KEY_GENERATION, "Error during key generation"},
+      {RNP_ERROR_BAD_PASSWORD, "Bad password"},
+      {RNP_ERROR_KEY_NOT_FOUND, "Key not found"},
+      {RNP_ERROR_NO_SUITABLE_KEY, "No suitable key"},
+      {RNP_ERROR_DECRYPT_FAILED, "Decryption failed"},
+      {RNP_ERROR_ENCRYPT_FAILED, "Encryption failed"},
+      {RNP_ERROR_RNG, "Failure of random number generator"},
+      {RNP_ERROR_SIGNING_FAILED, "Signing failed"},
+      {RNP_ERROR_NO_SIGNATURES_FOUND, "No signatures found cannot verify"},
+      {RNP_ERROR_SIGNATURE_EXPIRED, "Expired signature"},
+      {RNP_ERROR_VERIFICATION_FAILED, "Signature verification failed cannot verify"},
+      {RNP_ERROR_SIGNATURE_UNKNOWN, "Unknown signature"},
+      {RNP_ERROR_NOT_ENOUGH_DATA, "Not enough data"},
+      {RNP_ERROR_UNKNOWN_TAG, "Unknown tag"},
+      {RNP_ERROR_PACKET_NOT_CONSUMED, "Packet not consumed"},
+      {RNP_ERROR_NO_USERID, "No userid"},
+      {RNP_ERROR_EOF, "EOF detected"},
+      {RNP_ERROR_SIG_ERROR, "Signature error"},
+      {RNP_ERROR_SIG_PARSE_ERROR, "Signature parse error"},
+      {RNP_ERROR_SIG_SIGNER_UNTRUSTED, "Signer key is not trusted"},
+      {RNP_ERROR_SIG_PUB_ALG_MISMATCH, "Public key algorithm mismatch"},
+      {RNP_ERROR_SIG_WEAK_HASH, "Signature uses a weak hash algorithm"},
+      {RNP_ERROR_SIG_HASH_ALG_MISMATCH, "Hash algorithm mismatch"},
+      {RNP_ERROR_SIG_LBITS_MISMATCH, "Hash left 16 bits mismatch"},
+      {RNP_ERROR_SIG_FROM_FUTURE, "Signature was created in the future"},
+      {RNP_ERROR_SIG_EXPIRED, "Signature has expired"},
+      {RNP_ERROR_SIG_OLDER_KEY, "Signature is older than the signing key"},
+      {RNP_ERROR_SIG_EXPIRED_KEY, "Signature made after key expiration"},
+      {RNP_ERROR_SIG_FP_MISMATCH, "Issuer fingerprint mismatch"},
+      {RNP_ERROR_SIG_UNKNOWN_NOTATION, "Unknown critical notation"},
+      {RNP_ERROR_SIG_NOT_DOCUMENT, "Not a document signature"},
+      {RNP_ERROR_SIG_NO_SIGNER_ID, "Signature has no signer key id"},
+      {RNP_ERROR_SIG_NO_SIGNER_KEY, "Signature refers to no signer key"},
+      {RNP_ERROR_SIG_NO_HASH_CTX, "Failed to get hash context"},
+      {RNP_ERROR_SIG_WRONG_KEY_SIG, "Wrong key signature type"},
+      {RNP_ERROR_SIG_UID_MISSING, "Userid not found"},
+      {RNP_ERROR_SIG_WRONG_BINDING, "Wrong binding signature"},
+      {RNP_ERROR_SIG_WRONG_DIRECT, "Wrong direct key signature"},
+      {RNP_ERROR_SIG_WRONG_REV, "Wrong revocation signature"},
+      {RNP_ERROR_SIG_UNSUPPORTED, "Unsupported key signature type"},
+      {RNP_ERROR_SIG_NO_PRIMARY_BINDING, "No primary key binding signature"},
+      {RNP_ERROR_SIG_BINDING_PARSE, "Embedded binding signature parse error"},
+      {RNP_ERROR_SIG_WRONG_BIND_TYPE, "Wrong primary key binding signature type"},
+      {RNP_ERROR_SIG_INVALID_BINDING, "Invalid primary key binding signature"},
+      {RNP_ERROR_SIG_UNUSABLE_KEY, "Signer key is not usable for verification"}};
+
+    for (auto &pair : code_strings) {
+        assert_string_equal(rnp_result_to_string(pair.first), pair.second);
     }
 }
 
