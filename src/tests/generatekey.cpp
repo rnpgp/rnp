@@ -647,7 +647,12 @@ ask_expert_details(cli_rnp_t *ctx, rnp_cfg &ops, const char *rsp)
         goto end;
     }
 #ifndef _WIN32
-    /* fcntl(), F_SETFD and FD_CLOEXEC are not available on Windows */
+    /* fcntl(), F_SETFD and FD_CLOEXEC are not available on Windows.
+     * Restore close-on-exec on STDIN_FILENO: dup() (used to snapshot the original
+     * stdin into saved_stdin) drops the CLOEXEC flag, and dup2() inherits the
+     * flag state from the source descriptor, so without this restoration any
+     * child process spawned by later tests would inherit a non-close-on-exec
+     * stdin. */
     if (fcntl(STDIN_FILENO, F_SETFD, FD_CLOEXEC) == -1) {
         ret = false;
         goto end;
@@ -660,7 +665,9 @@ end:
     if (user_input_pipefd[0]) {
         close(user_input_pipefd[0]);
     }
-    close(saved_stdin);
+    if (saved_stdin != -1) {
+        close(saved_stdin);
+    }
     return ret;
 }
 
