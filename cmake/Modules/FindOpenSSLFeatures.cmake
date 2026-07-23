@@ -82,6 +82,8 @@ if (OpenSSL::applink)\n\
   target_link_libraries(findopensslfeatures PRIVATE OpenSSL::applink)\n\
 endif(OpenSSL::applink)\n\
 if(CMAKE_CROSSCOMPILING_EMULATOR)\n\
+  # Static-link the helper so the emulator (e.g. qemu-user) doesn't need the\n\
+  # target's shared libs discoverable at its sysroot lookup paths.\n\
   target_link_options(findopensslfeatures PRIVATE -static)\n\
 endif(CMAKE_CROSSCOMPILING_EMULATOR)\n"
 )
@@ -149,6 +151,9 @@ else(WIN32 AND NOT MINGW)
 endif(WIN32 AND NOT MINGW)
 
 if(CMAKE_CROSSCOMPILING_EMULATOR)
+  # Prepend the emulator so execute_process expands ${FOF} as argv elements:
+  # COMMAND ${EMULATOR} ${FOF} "${feature}". Quotes around ${FOF} are intentionally
+  # dropped so the emulator + binary become separate argv entries.
   set(FOF ${CMAKE_CROSSCOMPILING_EMULATOR} ${FOF})
 endif()
 
