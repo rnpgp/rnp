@@ -99,13 +99,36 @@ def rnp_file_path(relpath, check = True):
 
     return fpath
 
+def _redact_sensitive_args(params):
+    # Return a copy of params with password values replaced by '***', so the
+    # sensitive values never enter the logged command line. Handles both
+    # '--password X' and '--password=X' forms (str and bytes elements).
+    redacted = []
+    hide_next = False
+    for param in params:
+        is_bytes = isinstance(param, bytes)
+        marker = b'***' if is_bytes else '***'
+        if hide_next:
+            redacted.append(marker)
+            hide_next = False
+            continue
+        opts = (b'--password', b'--passphrase') if is_bytes else ('--password', '--passphrase')
+        hide_next = param in opts
+        for opt in opts:
+            prefix = opt + b'=' if is_bytes else opt + '='
+            if param.startswith(prefix):
+                param = prefix + marker
+                break
+        redacted.append(param)
+    return redacted
+
 def run_proc_windows(proc, params, stdin=None):
     exe = os.path.basename(proc)
     # test special quote cases 
     params = list(map(lambda st: st.replace('"', '\\"'), params))
     # We need to escape empty parameters/ones with spaces with quotes
     params = tuple(map(lambda st: st if (st and not any(x in st for x in [' ','\r','\t'])) else '"%s"' % st, [exe] + params))
-    logging.debug((proc + ' ' + ' '.join(params)).strip())
+    logging.debug((proc + ' ' + ' '.join(_redact_sensitive_args(params))).strip())
     logging.debug('Working directory: ' + os.getcwd())
     sys.stdout.flush()
 
@@ -200,7 +223,7 @@ def run_proc(proc, params, stdin=None):
     # On Windows we need to use spawnv() for handle inheritance in pswd_pipe()
     if is_windows():
         return run_proc_windows(proc, params, stdin)
-    paramline = u' '.join(map(_decode, params))
+    paramline = u' '.join(map(_decode, _redact_sensitive_args(params)))
     logging.debug((proc + ' ' + paramline).strip())
     param_bytes = list(map(lambda x: x.encode(CONSOLE_ENCODING), params))
     process = Popen([proc] + param_bytes, stdout=PIPE, stderr=PIPE,
