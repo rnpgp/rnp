@@ -1777,7 +1777,9 @@ try {
             // public key was new or updated: sync into secring if a secret key exists there
             auto *expub = ffi->pubring->get_key(key.fp());
             if (expub && ffi->secring->get_key(key.fp())) {
-                ffi->secring->import_key(*expub, true);
+                if (!ffi->secring->import_key(*expub, true)) {
+                    return RNP_ERROR_BAD_PARAMETERS;
+                }
             }
         }
         // now add key fingerprint to json based on statuses
