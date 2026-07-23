@@ -80,7 +80,12 @@ target_include_directories(findopensslfeatures PRIVATE ${OPENSSL_INCLUDE_DIR})\n
 target_link_libraries(findopensslfeatures PRIVATE OpenSSL::Crypto)\n\
 if (OpenSSL::applink)\n\
   target_link_libraries(findopensslfeatures PRIVATE OpenSSL::applink)\n\
-endif(OpenSSL::applink)\n"
+endif(OpenSSL::applink)\n\
+if(CMAKE_CROSSCOMPILING_EMULATOR)\n\
+  # Static-link the helper so the emulator (e.g. qemu-user) doesn't need the\n\
+  # target's shared libs discoverable at its sysroot lookup paths.\n\
+  target_link_options(findopensslfeatures PRIVATE -static)\n\
+endif(CMAKE_CROSSCOMPILING_EMULATOR)\n"
 )
 
 set(MKF ${MKF} "-DCMAKE_BUILD_TYPE=Release" "-DOPENSSL_ROOT_DIR=${OPENSSL_INCLUDE_DIR}/..")
@@ -100,6 +105,13 @@ endif(CMAKE_GENERATOR_PLATFORM)
 if(CMAKE_GENERATOR_TOOLSET)
   set(MKF ${MKF} "-T" "${CMAKE_GENERATOR_TOOLSET}")
 endif(CMAKE_GENERATOR_TOOLSET)
+
+if(CMAKE_CROSSCOMPILING_EMULATOR)
+  # Escape semicolons so list-style emulators (e.g. "qemu;-L;/sysroot")
+  # are forwarded to the nested configure as a single -D argument.
+  string(REPLACE ";" "\\;" _fossl_emulator "${CMAKE_CROSSCOMPILING_EMULATOR}")
+  set(MKF ${MKF} "-DCMAKE_CROSSCOMPILING_EMULATOR=${_fossl_emulator}")
+endif(CMAKE_CROSSCOMPILING_EMULATOR)
 
 execute_process(
   COMMAND "${CMAKE_COMMAND}" "-Bbuild" ${MKF} "."
@@ -138,9 +150,16 @@ else(WIN32 AND NOT MINGW)
   set(FOF "build/findopensslfeatures")
 endif(WIN32 AND NOT MINGW)
 
+if(CMAKE_CROSSCOMPILING_EMULATOR)
+  # Prepend the emulator so execute_process expands ${FOF} as argv elements:
+  # COMMAND ${EMULATOR} ${FOF} "${feature}". Quotes around ${FOF} are intentionally
+  # dropped so the emulator + binary become separate argv entries.
+  set(FOF ${CMAKE_CROSSCOMPILING_EMULATOR} ${FOF})
+endif()
+
 foreach(feature "hashes" "ciphers" "curves" "publickey" "providers")
   execute_process(
-    COMMAND "${FOF}" "${feature}"
+    COMMAND ${FOF} "${feature}"
     WORKING_DIRECTORY "${_fossl_work_dir}"
     OUTPUT_VARIABLE feature_val
     ERROR_VARIABLE error
