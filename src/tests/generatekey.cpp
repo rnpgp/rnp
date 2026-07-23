@@ -602,6 +602,7 @@ ask_expert_details(cli_rnp_t *ctx, rnp_cfg &ops, const char *rsp)
     bool   ret = false;
     int    pipefd[2] = {-1, -1};
     int    user_input_pipefd[2] = {-1, -1};
+    int    saved_stdin = -1;
     size_t rsp_len;
 
     if (pipe(pipefd) == -1) {
@@ -625,19 +626,47 @@ ask_expert_details(cli_rnp_t *ctx, rnp_cfg &ops, const char *rsp)
     }
     close(user_input_pipefd[1]);
 
-    /* Mock user-input*/
-    ctx->cfg().set_int(CFG_USERINPUTFD, user_input_pipefd[0]);
-
-    if (!rnp_cmd(ctx, CMD_GENERATE_KEY, NULL)) {
+    /* Replace stdin with our pipe */
+    saved_stdin = dup(STDIN_FILENO);
+    if (dup2(user_input_pipefd[0], STDIN_FILENO) == -1) {
         ret = false;
         goto end;
     }
+    /* Reset the EOF/error flags: a previous call may have set stdin's EOF flag
+       (e.g. an expected-failure run which reads past the provided input), and
+       stdio would then refuse to read from the new pipe. */
+    clearerr(stdin);
+
+    ret = rnp_cmd(ctx, CMD_GENERATE_KEY, NULL);
+    /* always restore the original stdin */
+    if (dup2(saved_stdin, STDIN_FILENO) == -1) {
+        ret = false;
+        goto end;
+    }
+    if (!ret) {
+        goto end;
+    }
+#ifndef _WIN32
+    /* fcntl(), F_SETFD and FD_CLOEXEC are not available on Windows.
+     * Restore close-on-exec on STDIN_FILENO: dup() (used to snapshot the original
+     * stdin into saved_stdin) drops the CLOEXEC flag, and dup2() inherits the
+     * flag state from the source descriptor, so without this restoration any
+     * child process spawned by later tests would inherit a non-close-on-exec
+     * stdin. */
+    if (fcntl(STDIN_FILENO, F_SETFD, FD_CLOEXEC) == -1) {
+        ret = false;
+        goto end;
+    }
+#endif
     ops.copy(ctx->cfg());
     ret = true;
 end:
     /* Close & clean fd*/
     if (user_input_pipefd[0]) {
         close(user_input_pipefd[0]);
+    }
+    if (saved_stdin != -1) {
+        close(saved_stdin);
     }
     return ret;
 }
