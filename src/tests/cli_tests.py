@@ -55,6 +55,7 @@ RNP_BLOWFISH = True
 RNP_CAST5 = True
 RNP_RIPEMD160 = True
 RNP_SM2 = True
+RNP_BZIP2 = True
 # Botan may cause AV during OCB decryption in certain cases, see https://github.com/randombit/botan/issues/3812
 RNP_BOTAN_OCB_AV = False
 RNP_BACKEND = ''
@@ -902,7 +903,7 @@ def gpg_check_features():
     print('GPG_BRAINPOOL: ' + str(GPG_BRAINPOOL))
 
 def rnp_check_features():
-    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_AEAD_EAX, RNP_AEAD_OCB, RNP_AEAD_OCB_AES, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160, RNP_PQC, RNP_SM2, RNP_CRYPTO_REFRESH
+    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_AEAD_EAX, RNP_AEAD_OCB, RNP_AEAD_OCB_AES, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160, RNP_PQC, RNP_SM2, RNP_CRYPTO_REFRESH, RNP_BZIP2
     global RNP_BOTAN_OCB_AV
     global RNP_BACKEND
     ret, out, _ = run_proc(RNP, ['--version'])
@@ -936,6 +937,8 @@ def rnp_check_features():
     RNP_BLOWFISH = re.match(r'(?s)^.*Encryption:.*BLOWFISH.*', out) is not None
     RNP_CAST5 = re.match(r'(?s)^.*Encryption:.*CAST5.*', out) is not None
     RNP_RIPEMD160 = re.match(r'(?s)^.*Hash:.*RIPEMD160.*', out) is not None
+    # BZip2 compression
+    RNP_BZIP2 = re.match(r'(?s)^.*Compression:.*BZip2.*', out) is not None
     # SM2
     RNP_SM2 = re.match(r'(?s)^.*Public key:.*SM2.*', out) is not None
     # Determine PQC support.
@@ -948,6 +951,7 @@ def rnp_check_features():
     print('RNP_IDEA: ' + str(RNP_IDEA))
     print('RNP_CAST5: ' + str(RNP_CAST5))
     print('RNP_RIPEMD160: ' + str(RNP_RIPEMD160))
+    print('RNP_BZIP2: ' + str(RNP_BZIP2))
     print('RNP_BRAINPOOL: ' + str(RNP_BRAINPOOL))
     print('RNP_AEAD_EAX: ' + str(RNP_AEAD_EAX))
     print('RNP_AEAD_OCB: ' + str(RNP_AEAD_OCB))
@@ -4399,6 +4403,8 @@ class Encryption(unittest.TestCase):
             cipher_skip += ['CAST5']
         if cipher_skip:
             Encryption.CIPHERS = list(filter(lambda x: x not in cipher_skip, Encryption.CIPHERS))
+        if not RNP_BZIP2:
+            Encryption.Z = list(filter(lambda z: z[0] != 'bzip2', Encryption.Z))
         Encryption.CIPHERS_R = list_upto(Encryption.CIPHERS, Encryption.RUNS)
         Encryption.SIZES_R = list_upto(Encryption.SIZES, Encryption.RUNS)
         Encryption.Z_R = list_upto(Encryption.Z, Encryption.RUNS)
@@ -5128,7 +5134,10 @@ class Compression(unittest.TestCase):
     def test_rnp_compression(self):
         runs = 30
         levels = list_upto([None, 0, 2, 4, 6, 9], runs)
-        algosrnp = list_upto([None, 'zip', 'zlib', 'bzip2'], runs)
+        algos = [None, 'zip', 'zlib', 'bzip2']
+        if not RNP_BZIP2:
+            algos.remove('bzip2')
+        algosrnp = list_upto(algos, runs)
         sizes = list_upto([20, 1000, 5000, 15000, 250000], runs)
 
         for level, algo, size in zip(levels, algosrnp, sizes):
@@ -5145,6 +5154,8 @@ class Compression(unittest.TestCase):
 
         src = data_path('test_compression/cleartext-z-bz.txt')
         algosrnp = [None, 'zip', 'zlib', 'bzip2']
+        if not RNP_BZIP2:
+            algosrnp.remove('bzip2')
 
         for algo in algosrnp:
             z = [algo, None]

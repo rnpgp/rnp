@@ -1318,6 +1318,13 @@ ripemd160_enabled()
 }
 
 bool
+bzip2_enabled()
+{
+    bool enabled = false;
+    return !rnp_supports_feature(RNP_FEATURE_COMP_ALG, "BZIP2", &enabled) && enabled;
+}
+
+bool
 test_load_gpg_check_key(rnp::KeyStore *pub, rnp::KeyStore *sec, const char *id)
 {
     rnp::Key *key = rnp_tests_get_key_by_id(pub, id);

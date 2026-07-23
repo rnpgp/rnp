@@ -82,7 +82,9 @@ typedef struct pgp_dest_compressed_param_t {
     pgp_compression_type_t  alg;
     union {
         z_stream  z;
+#ifdef HAVE_BZLIB_H
         bz_stream bz;
+#endif
     };
     bool    zstarted;                        /* whether we initialize zlib/bzip2  */
     uint8_t cache[PGP_INPUT_CACHE_SIZE / 2]; /* pre-allocated cache for compression */

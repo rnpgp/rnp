@@ -25,8 +25,24 @@
 include(GNUInstallDirs)
 include(GenerateExportHeader)
 
+# BZip2 is optional (tri-state): On - require, Off - do not use, Auto - use if found
+if (ENABLE_BZIP2)
+  string(TOLOWER "${ENABLE_BZIP2}" ENABLE_BZIP2_LOWER)
+  if (ENABLE_BZIP2_LOWER STREQUAL "auto")
+    find_package(BZip2)
+    if (BZIP2_FOUND)
+      set(ENABLE_BZIP2 On CACHE STRING "Autodetected" FORCE)
+    else()
+      set(ENABLE_BZIP2 Off CACHE STRING "Autodetected" FORCE)
+      message(STATUS "BZip2 not found - BZip2 compression support is disabled.")
+    endif()
+  else()
+    find_package(BZip2 REQUIRED)
+  endif()
+  unset(ENABLE_BZIP2_LOWER)
+endif()
+
 # these could probably be optional but are currently not
-find_package(BZip2 REQUIRED)
 find_package(ZLIB REQUIRED)
 
 # required packages
@@ -690,6 +706,13 @@ elseif (CRYPTO_BACKEND_BOTAN)
 elseif (CRYPTO_BACKEND_OPENSSL)
   set(RNP_CONFIG_CRYPTO_DEPENDENCY "find_dependency(OpenSSL 1.1.1)")
 endif()
+
+# BZip2 is optional, so consumers must resolve it only if librnp was built with it.
+if (BZIP2_FOUND)
+  set(RNP_CONFIG_BZIP2_DEPENDENCY "find_dependency(BZip2)")
+else ()
+  set(RNP_CONFIG_BZIP2_DEPENDENCY "# BZip2 support was disabled in this build")
+endif ()
 
 # A shared librnp has sexpp linked in, and a static librnp built with the
 # bundled sexpp is exported together with it (rnp::sexpp), so sexpp is an
