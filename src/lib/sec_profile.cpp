@@ -176,6 +176,12 @@ SecurityProfile::def_level() const
     return SecurityLevel::Default;
 };
 
+const std::vector<SecurityRule> &
+SecurityProfile::rules() const noexcept
+{
+    return rules_;
+}
+
 SecurityContext::SecurityContext() : time_(0), prov_state_(NULL), rng(RNG::Type::DRBG)
 {
     /* Initialize crypto provider if needed (currently only for OpenSSL 3.0) */
