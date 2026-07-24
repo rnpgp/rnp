@@ -165,6 +165,40 @@ Creates `${filename}`, the decrypted form of the `${filename}.gpg`
 encrypted OpenPGP message.
 
 
+== Verify
+
+OpenPGP messages can carry signatures in several arrangements, and `rnp`
+provides three closely-related commands that differ in what they output:
+
+[cols="1,4"]
+|===
+| Command | Behaviour
+
+| `rnp --verify`
+| Verifies signatures and prints the verification result to stderr. The
+message contents are *not* written out. Use this when you only want to
+confirm authenticity.
+
+| `rnp --verify-cat`
+| Verifies signatures *and* writes the recovered message contents to the
+output (file or stdout). Use this for `cleartext`-signed messages and
+inline-signed messages where you want both the verification result and
+the payload. For detached signatures, supply the message via `--source`.
+
+| `rnp --decrypt`
+| Like `--verify-cat`, but additionally handles encrypted messages
+(`--verify-cat` does not attempt decryption).
+|===
+
+For a detached signature `${filename}.sig`, the message body must be
+supplied via `--source`:
+
+[source,console]
+----
+rnp --verify-cat --source=${filename} --homedir=${keyringdir} ${filename}.sig
+----
+
+
 == Check version
 
 The output of `rnp --version` contains the `git` hash of the version
