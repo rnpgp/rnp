@@ -1567,6 +1567,21 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_is_fips_mode_enabled(rnp_ffi_t ffi, size_t *enabled)
+try {
+    if (!ffi || !enabled) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+#if defined(RNP_FIPS_MODE)
+    *enabled = 1;
+#else
+    *enabled = 0;
+#endif
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_request_password(rnp_ffi_t ffi, rnp_key_handle_t key, const char *context, char **password)
 try {
     if (!ffi || !password || !ffi->getpasscb) {
