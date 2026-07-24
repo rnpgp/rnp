@@ -22,8 +22,12 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-find_package(Botan 2.14.0 REQUIRED)
-
+# Fuzz targets link against the librnp target that the top-level CMakeLists
+# has already configured for the selected CRYPTO_BACKEND (botan or openssl).
+# Only the g10 key-store fuzzer needs the static rnp target because it calls
+# into internal rnp::KeyStore APIs that are not exported from the shared
+# library; librnp-static carries the backend dependency on its own, so no
+# explicit Botan::Botan / OpenSSL::Crypto link is required here.
 if(NOT DEFINED ENV{LIB_FUZZING_ENGINE})
   add_compile_options(-fsanitize=fuzzer-no-link)
   add_link_options(-fsanitize=fuzzer)
@@ -139,7 +143,6 @@ target_include_directories(fuzz_keyring_g10
 target_link_libraries(fuzz_keyring_g10
   PRIVATE
     librnp-static
-    Botan::Botan
 )
 
 if (ENABLE_SANITIZERS)
