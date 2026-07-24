@@ -2275,6 +2275,11 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
 }
 
 #define MAX_HIDDEN_TRIES 64
+/* Number of password attempts before giving up on a wrong password. Applies to
+ * both the secret-key decrypt path (per candidate key) and the symmetric
+ * decryption path. A password provider that returns false (user cancellation)
+ * exits the retry loop immediately at either site. */
+#define RNP_PASSWORD_MAX_ATTEMPTS 3
 
 static rnp_result_t
 init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *readsrc)
@@ -2379,12 +2384,10 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             }
             /* Decrypt key */
             rnp::KeyLocker seclock(*seckey);
-            int            attempts = 3;
+            int            attempts = RNP_PASSWORD_MAX_ATTEMPTS;
             while (attempts--) {
-                errcode = RNP_ERROR_NO_SUITABLE_KEY;
                 if (!seckey->unlock(*handler->password_provider, PGP_OP_DECRYPT)) {
                     errcode = RNP_ERROR_BAD_PASSWORD;
-                    RNP_LOG("Bad password, try again.");
                     continue;
                 }
                 break;
@@ -2410,13 +2413,12 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
     if (!have_key && !param->symencs.empty()) {
         rnp::secure_array<char, MAX_PASSWORD_LENGTH> password;
         pgp_password_ctx_t                           pass_ctx(PGP_OP_DECRYPT_SYM);
-        int                                          attempts = 3;
+        int                                          attempts = RNP_PASSWORD_MAX_ATTEMPTS;
 
         while (attempts--) {
-            errcode = RNP_ERROR_NO_SUITABLE_KEY;
             if (!pgp_request_password(
                   handler->password_provider, &pass_ctx, password.data(), password.size())) {
-                  errcode = RNP_ERROR_BAD_PASSWORD;
+                errcode = RNP_ERROR_BAD_PASSWORD;
                 goto finish;
             }
 
@@ -2429,9 +2431,8 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
                 break;
             } else {
                 errcode = RNP_ERROR_BAD_PASSWORD;
-                RNP_LOG("Bad password, try again.");
             }
-	}
+        }
     }
 
     /* report decryption start to the handler */
