@@ -65,12 +65,13 @@ env:
 
 jobs:
   build_and_test:
-    name: Windows-2022 [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }}, backend ${{ matrix.backend }}, build shared libs ${{ matrix.shared_libs }}, use CMake prefix path ${{ matrix.use_cmake_prefix_path }}, sanitizers ${{ matrix.sanitizers }}]
-    runs-on: windows-2022
+    name: ${{ matrix.os }} [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }}, backend ${{ matrix.backend }}, build shared libs ${{ matrix.shared_libs }}, use CMake prefix path ${{ matrix.use_cmake_prefix_path }}, sanitizers ${{ matrix.sanitizers }}]
+    runs-on: ${{ matrix.os }}
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     strategy:
       fail-fast: false
       matrix:
+        os: [ windows-2022 ]
         arch: [ { name: 'x64',    triplet: 'x64-windows' } ]
         toolset: [ 'v143',  'ClangCL' ]
         backend: [ 'botan', 'openssl' ]
@@ -96,6 +97,24 @@ jobs:
             use_cmake_prefix_path:  'off'
             shared_libs:            'off'
             sanitizers:             'off'
+          # Windows Server 2025 (newer VS toolchain; preview of what windows-2022
+          # deprecation will land on).
+          - os:                    'windows-2025'
+            arch:                  { name: 'x64', triplet: 'x64-windows' }
+            toolset:               'v143'
+            backend:               'botan'
+            use_cmake_prefix_path: 'off'
+            shared_libs:           'off'
+            sanitizers:            'off'
+          # Windows 11 ARM (preview runner; vcpkg ARM coverage has improved enough
+          # for our dependency set). Marked continue-on-error below.
+          - os:                    'windows-11-arm'
+            arch:                  { name: 'ARM64', triplet: 'arm64-windows' }
+            toolset:               'v143'
+            backend:               'botan'
+            use_cmake_prefix_path: 'off'
+            shared_libs:           'off'
+            sanitizers:            'off'
 
     steps:
       - name: Checkout
@@ -222,3 +241,5 @@ jobs:
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
           ctest --parallel ${{ env.CORES }} --test-dir build -C Release --output-on-failure
+        # Windows 11 ARM is a preview runner; don't gate the build on it.
+        continue-on-error: ${{ matrix.os == 'windows-11-arm' }}
