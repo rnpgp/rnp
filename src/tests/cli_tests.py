@@ -2825,9 +2825,21 @@ class Misc(unittest.TestCase):
     def test_no_home_dir(self):
         del os.environ['HOME']
         ret, _, err = run_proc(RNP, ['-v', 'non-existing.pgp'])
-        self.assertEqual(ret, 2, 'failed to run without HOME env variable')
-        self.assertRegex(err, r'(?s)^.*Home directory .* does not exist or is not writable!')
-        self.assertRegex(err, RE_KEYSTORE_INFO)
+        self.assertEqual(ret, 1, 'failed to run without HOME env variable')
+        self.assertRegex(err, r'(?s)^.*can\'t stat \'non-existing.pgp\'')
+
+    def test_home_dir_fallback(self):
+        """When HOME/USERPROFILE is unset, rnp must still resolve a home dir via
+        the system fallback (getpwuid on POSIX, SHGetFolderPathW on Windows)
+        rather than crashing or returning an empty path. Verifies that
+        rnp --version runs successfully with the fallback."""
+        from unittest.mock import patch
+        env_without_home = {k: v for k, v in os.environ.items()
+                            if k not in ('HOME', 'USERPROFILE', 'LANG', 'LC_ALL')}
+        with patch.dict(os.environ, env_without_home, clear=True):
+            ret, out, _ = run_proc(RNP, ['--version'])
+            self.assertEqual(ret, 0, 'rnp --version must succeed with HOME/USERPROFILE unset')
+            self.assertRegex(out, r'(?s)^.*rnp.*version.*', 'expected version banner in output')
 
     def test_exit_codes(self):
         ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--help'])

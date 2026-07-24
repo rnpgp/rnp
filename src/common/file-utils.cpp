@@ -42,6 +42,7 @@
 #include "str-utils.h"
 #include <algorithm>
 #ifdef _WIN32
+#include <Shlobj.h>
 #include <random> // for rnp_mkstemp
 #define CATCH_AND_RETURN(v) \
     catch (...)             \
@@ -51,6 +52,7 @@
     }
 #else
 #include <string.h>
+#include <pwd.h>
 #endif
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
@@ -327,10 +329,29 @@ empty(const std::string &path)
 std::string
 HOME(const std::string &sdir)
 {
+#ifdef _WIN32
+    std::string home;
+    wchar_t     wcsidlprf[MAX_PATH];
+    /* Prefer USERPROFILE (set by Windows on user logon; overridable by users).
+     * Fall back to SHGetFolderPathW(CSIDL_PROFILE), the documented way to look
+     * up the user's profile directory when the env var is absent. */
+    wchar_t *wuserprf = _wgetenv(L"USERPROFILE");
+    if (wuserprf != NULL) {
+        home = wstr_to_utf8(wuserprf);
+    } else if (SHGetFolderPathW(NULL, CSIDL_PROFILE, NULL, SHGFP_TYPE_CURRENT, wcsidlprf) ==
+               S_OK) {
+        home = wstr_to_utf8(wcsidlprf);
+    }
+#else
     const char *home = getenv("HOME");
     if (!home) {
-        return "";
+        /* TODO: switch to getpwuid_r when rnp goes thread-safe.
+         * getpwuid is not reentrant; safe today because rnp's home-dir lookup
+         * is single-threaded, but the constraint should be documented. */
+        struct passwd *pwd = getpwuid(getuid());
+        home = pwd ? pwd->pw_dir : "";
     }
+#endif
     return sdir.empty() ? home : append(home, sdir);
 }
 
