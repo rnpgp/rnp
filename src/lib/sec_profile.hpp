@@ -88,6 +88,7 @@ class SecurityProfile {
                                    uint64_t       time,
                                    SecurityAction action = SecurityAction::Any) const noexcept;
     SecurityLevel       def_level() const;
+    const std::vector<SecurityRule> &rules() const noexcept;
 };
 
 class SecurityContext {
