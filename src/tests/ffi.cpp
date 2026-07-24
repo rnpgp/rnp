@@ -5827,6 +5827,27 @@ TEST_F(rnp_tests, test_ffi_set_log_fd)
     close(file_fd);
 }
 
+TEST_F(rnp_tests, test_ffi_fips_mode_query)
+{
+    /* Querying FIPS mode must always succeed and must reflect the compile-time
+     * setting only (RNP_FIPS_MODE). The default test build does not define it,
+     * so the query must report 0. NULL ffi / NULL out are rejected. */
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    size_t enabled = 99;
+    assert_rnp_failure(rnp_is_fips_mode_enabled(NULL, &enabled));
+    assert_rnp_failure(rnp_is_fips_mode_enabled(ffi, NULL));
+    assert_rnp_success(rnp_is_fips_mode_enabled(ffi, &enabled));
+#if defined(RNP_FIPS_MODE)
+    assert_int_equal(enabled, 1);
+#else
+    assert_int_equal(enabled, 0);
+#endif
+
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_security_profile)
 {
     rnp_ffi_t ffi = NULL;

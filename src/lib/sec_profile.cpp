@@ -208,6 +208,41 @@ SecurityContext::SecurityContext() : time_(0), prov_state_(NULL), rng(RNG::Type:
     profile.add_rule(
       {FeatureType::Hash, PGP_HASH_RIPEMD, SecurityLevel::Insecure, 1705629600});
 #endif
+#if defined(RNP_FIPS_MODE)
+    /*
+     * FIPS-compliant defaults: mark non-FIPS-approved algorithms as Disabled
+     * (not merely Insecure) so they cannot be used at all. These rules have
+     * from = 0, so they apply to objects regardless of creation time. The
+     * caller may still relax individual rules via rnp_add_security_rule() with
+     * the RNP_SECURITY_OVERRIDE flag, but the defaults are intentionally
+     * strict. See docs/security.adoc for the certification boundary.
+     *
+     * Note: this enforces rnp's policy on top of OpenSSL's validated module.
+     * It does not by itself make rnp a FIPS-validated module.
+     */
+    /* Non-FIPS symmetric algorithms */
+    profile.add_rule({FeatureType::Cipher, PGP_SA_TWOFISH, SecurityLevel::Disabled, 0});
+    profile.add_rule({FeatureType::Cipher, PGP_SA_CAST5, SecurityLevel::Disabled, 0});
+    profile.add_rule({FeatureType::Cipher, PGP_SA_IDEA, SecurityLevel::Disabled, 0});
+    profile.add_rule({FeatureType::Cipher, PGP_SA_BLOWFISH, SecurityLevel::Disabled, 0});
+    profile.add_rule({FeatureType::Cipher, PGP_SA_SM4, SecurityLevel::Disabled, 0});
+    /* Non-FIPS hash algorithms */
+    profile.add_rule({FeatureType::Hash, PGP_HASH_MD5, SecurityLevel::Disabled, 0});
+    profile.add_rule({FeatureType::Hash, PGP_HASH_SHA1, SecurityLevel::Disabled, 0});
+    profile.add_rule({FeatureType::Hash, PGP_HASH_RIPEMD, SecurityLevel::Disabled, 0});
+    /* Non-FIPS public-key algorithms. DSA is FIPS-approved but only with
+     * approved key sizes; that size gating is enforced separately during key
+     * generation/use, not via a blanket rule here. */
+    profile.add_rule(
+      {FeatureType::PublicKey, PGP_PKA_EDDSA, SecurityLevel::Disabled, 0});
+    profile.add_rule({FeatureType::PublicKey, PGP_PKA_SM2, SecurityLevel::Disabled, 0});
+    profile.add_rule(
+      {FeatureType::PublicKey, PGP_PKA_ELGAMAL, SecurityLevel::Disabled, 0});
+    profile.add_rule({FeatureType::PublicKey,
+                      PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN,
+                      SecurityLevel::Disabled,
+                      0});
+#endif
 }
 
 SecurityContext::~SecurityContext()
