@@ -1,0 +1,108 @@
+# Clang-tidy configuration for rnp.
+#
+# Starts permissive — only a few categories are enabled, and none are
+# promoted to errors yet (the workflow uploads findings as a CI artifact
+# rather than gating). The plan is to tighten checks incrementally and
+# flip WarningsAsErrors on once the existing codebase is clean for the
+# enabled set. See TODO.rnp-roadmap/20-static-analysis.md.
+
+Checks: >
+  -*,
+  bugprone-assert-side-effect,
+  bugprone-bool-pointer-implicit-conversion,
+  bugprone-copy-constructor-init,
+  bugprone-dangling-handle,
+  bugprone-fold-init-type,
+  bugprone-forwarding-reference-overload,
+  bugprone-inaccurate-copy,
+  bugprone-incorrect-roundings,
+  bugprone-infinite-loop,
+  bugprone-integer-division,
+  bugprone-misplaced-widening-cast,
+  bugprone-move-forwarding-reference,
+  bugprone-multiple-statement-macro,
+  bugprone-string-constructor,
+  bugprone-suspicious-enum-usage,
+  bugprone-suspicious-memset-usage,
+  bugprone-suspicious-missing-comma,
+  bugprone-suspicious-semicolon,
+  bugprone-suspicious-string-compare,
+  bugprone-swapped-arguments,
+  bugprone-terminating-continue,
+  bugprone-undefined-memory-manipulation,
+  bugprone-use-after-move,
+  bugprone-virtual-near-miss,
+  cert-dcl21-cpp,
+  cert-dcl50-cpp,
+  cert-dcl58-cpp,
+  cert-env33-c,
+  cert-err34-c,
+  cert-err52-cpp,
+  cert-err58-cpp,
+  cert-err60-cpp,
+  cert-flp30-c,
+  cert-msc50-cpp,
+  cert-msc51-cpp,
+  cert-oop57-cpp,
+  cert-oop58-cpp,
+  cppcoreguidelines-pro-type-cstyle-cast,
+  cppcoreguidelines-pro-type-static-cast-downcast,
+  cppcoreguidelines-slicing,
+  misc-assert-conflict,
+  misc-throw-by-value-catch-by-reference,
+  misc-unconventional-assign-operator,
+  misc-uniqueptr-reset-release,
+  modernize-deprecated-headers,
+  modernize-loop-convert,
+  modernize-redundant-void-arg,
+  modernize-shrink-to-fit,
+  modernize-use-bool-literals,
+  modernize-use-default-member-init,
+  modernize-use-emplace,
+  modernize-use-nullptr,
+  modernize-use-override,
+  modernize-use-using,
+  performance-faster-string-find,
+  performance-for-range-copy,
+  performance-implicit-conversion-in-loop,
+  performance-inefficient-algorithm,
+  performance-inefficient-string-concatenation,
+  performance-inefficient-vector-operation,
+  performance-move-const-arg,
+  performance-no-automatic-move,
+  performance-noexcept-move-constructor,
+  performance-trivially-destructible,
+  performance-type-promotion-in-math-fn,
+  performance-unnecessary-copy-initialization,
+  performance-unnecessary-value-param,
+  readability-braces-around-statements,
+  readability-container-size-empty,
+  readability-delete-null-pointer,
+  readability-deleted-default,
+  readability-else-after-return,
+  readability-function-cognitive-complexity,
+  readability-inconsistent-declaration-parameter-name,
+  readability-make-member-function-const,
+  readability-non-const-parameter,
+  readability-qualified-auto,
+  readability-redundant-control-flow,
+  readability-redundant-string-cstr,
+  readability-redundant-string-init,
+  readability-simplify-boolean-expr,
+  readability-static-definition-in-anonymous-namespace,
+  readability-string-compare,
+  readability-uniqueptr-delete-release,
+  readability-uppercase-literal-suffix,
+  readability-use-anyofallof
+
+# WarningsAsErrors: ''  # disabled until existing codebase is clean for the
+                        # enabled set; flip on incrementally per category.
+
+CheckOptions:
+  - key:   readability-function-cognitive-complexity.Threshold
+    value: '30'
+  - key:   readability-braces-around-statements.ShortStatementOnSameLine
+    value: 'true'
+
+HeaderFilterRegex: '^src/.*\.hpp$|^src/.*\.h$|^include/.*\.h$'
+FormatStyle: file
