@@ -45,6 +45,7 @@
 #include "types.h"
 #include "crypto/s2k.h"
 #include "crypto/signatures.h"
+#include "crypto/mem.h"
 #include "fingerprint.hpp"
 #include "key.hpp"
 #ifdef ENABLE_CRYPTO_REFRESH
@@ -99,6 +100,12 @@ typedef struct pgp_source_encrypted_param_t {
     uint8_t              cache[PGP_AEAD_CACHE_LEN]; /* read cache */
     size_t               cachelen{};                /* number of bytes in the cache */
     size_t               cachepos{}; /* index of first unread byte in the cache */
+    /* RFC 9580 §5.16.2: plaintext from a chunk must NOT be released until the
+     * chunk's auth tag is verified. We accumulate decrypted-but-unverified
+     * plaintext in chunk_buf and only copy to cache after the tag succeeds. */
+    std::vector<uint8_t> chunk_buf;   /* plaintext accumulator for current chunk */
+    size_t               chunk_buflen{}; /* bytes accumulated so far in chunk_buf */
+    size_t               chunk_bufpos{}; /* read offset for releasing verified data */
     pgp_aead_hdr_t       aead_hdr;   /* AEAD encryption parameters */
     uint8_t              aead_ad[PGP_AEAD_MAX_AD_LEN]; /* additional data */
     size_t               aead_adlen{};                 /* length of the additional data */
@@ -558,15 +565,30 @@ encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool
 static bool
 encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
 {
-    /* Check whether we have some bytes which were read but not decrypted */
-    if (param->rawbytes) {
-        memcpy(param->cache, param->cache + param->cachelen, param->rawbytes);
-    }
     param->cachepos = 0;
     param->cachelen = 0;
 
+    /* If we have verified plaintext pending in chunk_buf, release it to cache. */
+    if (param->chunk_buflen > 0 && param->chunk_bufpos < param->chunk_buflen) {
+        size_t to_copy = param->chunk_buflen - param->chunk_bufpos;
+        if (to_copy > sizeof(param->cache)) {
+            to_copy = sizeof(param->cache);
+        }
+        memcpy(param->cache,
+               param->chunk_buf.data() + param->chunk_bufpos,
+               to_copy);
+        param->cachelen = to_copy;
+        param->chunk_bufpos += to_copy;
+        return true;
+    }
+
     if (param->auth_validated) {
         return true;
+    }
+
+    /* Check whether we have some bytes which were read but not decrypted */
+    if (param->rawbytes) {
+        memmove(param->cache, param->cache + param->cachelen, param->rawbytes);
     }
 
     /* it is always 16 for defined EAX and OCB, however this may change in future */
@@ -619,8 +641,18 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
 
         param->chunkin += used;
         if (res) {
-            param->cachelen = used;
+            /* RFC 9580 §5.16.2: do NOT release plaintext until the chunk's
+             * auth tag is verified. Accumulate in chunk_buf instead. */
+            if (param->chunk_buf.empty()) {
+                param->chunk_buf.resize(param->chunklen);
+                param->chunk_buflen = 0;
+            }
+            if (param->chunk_buflen + used <= param->chunk_buf.size()) {
+                memcpy(param->chunk_buf.data() + param->chunk_buflen, param->cache, used);
+                param->chunk_buflen += used;
+            }
             param->rawbytes = param->rawbytes + read - used;
+            /* Do NOT set cachelen — no plaintext released until tag verification */
         }
         return res;
     }
@@ -636,11 +668,37 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
                                     param->cache,
                                     param->rawbytes + read + tagread - taglen)) {
             RNP_LOG("failed to finalize aead chunk");
+            /* Zero unverified plaintext — tag verification failed. */
+            if (!param->chunk_buf.empty() && param->chunk_buflen > 0) {
+                secure_clear(param->chunk_buf.data(), param->chunk_buflen);
+            }
+            param->chunk_buflen = 0;
             return false;
         }
-        param->cachelen = param->rawbytes + read + tagread - 2 * taglen;
-        param->chunkin += param->cachelen;
+        /* Tag verified — accumulate final decrypted piece into chunk_buf. */
+        size_t final_used = param->rawbytes + read + tagread - 2 * taglen;
+        param->chunkin += final_used;
+        if (param->chunk_buf.empty()) {
+            param->chunk_buf.resize(final_used > 0 ? final_used : 1);
+        }
+        if (final_used > 0) {
+            memcpy(param->chunk_buf.data() + param->chunk_buflen,
+                   param->cache,
+                   final_used);
+        }
+        param->chunk_buflen += final_used;
         param->rawbytes = 0;
+        /* Release first batch of verified plaintext from chunk_buf. */
+        param->chunk_bufpos = 0;
+        size_t to_copy = param->chunk_buflen;
+        if (to_copy > sizeof(param->cache)) {
+            to_copy = sizeof(param->cache);
+        }
+        if (to_copy > 0) {
+            memcpy(param->cache, param->chunk_buf.data(), to_copy);
+            param->cachelen = to_copy;
+            param->chunk_bufpos = to_copy;
+        }
     }
 
     /* Starting a new chunk */
@@ -655,6 +713,10 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
     }
 
     if (!lastchunk) {
+        /* Reset chunk_buf for the next chunk. Will be re-populated on first
+         * intermediate read of the new chunk. */
+        param->chunk_buflen = 0;
+        param->chunk_bufpos = 0;
         return true;
     }
 
@@ -663,13 +725,15 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
         param->pkt.readsrc->skip(tagread);
     }
 
-    /* Probably math below could be improved. The reason of this is that for chunkend we set
-     * rawbytes to 0 but it still be useful. */
     size_t off =
       chunkend ? param->cachelen + taglen : param->rawbytes + read + tagread - taglen;
     if (!pgp_cipher_aead_finish(
           &param->decrypt, param->cache + off, param->cache + off, taglen)) {
         RNP_LOG("wrong last chunk");
+        if (!param->chunk_buf.empty() && param->chunk_buflen > 0) {
+            secure_clear(param->chunk_buf.data(), param->chunk_buflen);
+        }
+        param->chunk_buflen = 0;
         return false;
     }
     param->rawbytes = 0;
