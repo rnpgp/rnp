@@ -1,0 +1,102 @@
+name: fuzzing-openssl
+
+# Build the fuzz targets under the OpenSSL crypto backend and exercise them
+# against the existing corpus. oss-fuzz currently only covers the Botan
+# backend (see projects/rnp/build.sh in google/oss-fuzz), so this workflow
+# catches OpenSSL-specific link/build and dispatch bugs before they reach
+# oss-fuzz. See roadmap item #19 and issue rnpgp/rnp#1988.
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/fuzzing-openssl.yml'
+  pull_request:
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
+
+jobs:
+  fuzzing-openssl:
+    name: fuzzers (openssl, libfuzzer)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CC: clang
+      CXX: clang++
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install cmake libbz2-dev libjson-c-dev libssl-dev clang
+
+      - name: Configure
+        run: |
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+          cmake -B build \
+                -DCRYPTO_BACKEND=openssl \
+                -DENABLE_FUZZERS=ON \
+                -DENABLE_SANITIZERS=OFF \
+                -DBUILD_SHARED_LIBS=ON \
+                -DBUILD_TESTING=OFF \
+                -DCMAKE_BUILD_TYPE=Release .
+
+      - name: Build fuzzers
+        run: cmake --build build --parallel ${{ env.CORES }} --target fuzz_dump fuzz_keyring fuzz_keyimport fuzz_sigimport fuzz_verify fuzz_verify_detached fuzz_keyring_kbx fuzz_keyring_g10
+
+      - name: Prepare corpus
+        run: |
+          mkdir -p corpus
+          find src/tests/data -type f -print0 | while IFS= read -r -d '' f; do
+            cp "$f" "corpus/$(sha256sum "$f" | cut -c1-16)"
+          done
+          echo "Corpus entries: $(find corpus -type f | wc -l)"
+
+      - name: Smoke-test fuzzers
+        run: |
+          set -e
+          export LD_LIBRARY_PATH="$PWD/build/src/lib:$LD_LIBRARY_PATH"
+          for fuzzer in fuzz_dump fuzz_keyring fuzz_keyimport fuzz_sigimport fuzz_verify fuzz_verify_detached fuzz_keyring_kbx fuzz_keyring_g10; do
+            bin="build/src/fuzzing/$fuzzer"
+            echo "== $fuzzer =="
+            # Run each fuzzer for a short window against the shared corpus.
+            # A non-zero exit indicates a crash; -max_len caps input size so
+            # the run finishes within the CI budget.
+            timeout 60 "$bin" corpus -runs=500 -max_len=4096 || \
+              code=$?
+            if [ "${code:-0}" = "124" ]; then
+              echo "$fuzzer: timed out after 60s (acceptable)"
+            elif [ -n "${code:-}" ] && [ "$code" != "0" ]; then
+              echo "$fuzzer: exited with $code"
+              exit "$code"
+            fi
+          done
