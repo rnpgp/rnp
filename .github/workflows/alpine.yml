@@ -1,0 +1,123 @@
+# Copyright (c) 2026 [Ribose Inc](https://www.ribose.com).
+# All rights reserved.
+# This file is a part of rnp
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+name: alpine
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/alpine.yml'
+  pull_request:
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
+
+# Alpine uses musl libc, not glibc. Some rnp code paths (notably the
+# error-number string tables, passwd-related paths, and the more pedantic
+# warnings-as-errors compilers) behave differently. We test the current
+# Alpine stable (3.21) and edge in parallel.
+jobs:
+  tests:
+    name: alpine:${{ matrix.alpine }} [CC ${{ matrix.env.CC }}; ${{ matrix.backend.name }}]
+    runs-on: ubuntu-latest
+    container:
+      image: alpine:${{ matrix.alpine }}
+    strategy:
+      fail-fast: false
+      matrix:
+        alpine: [ '3.21', 'edge' ]
+        backend:
+          - { name: 'botan',   package: 'botan-dev' }
+          - { name: 'openssl', package: 'openssl-dev' }
+        env:
+          - { CC: gcc,   CXX: g++ }
+          - { CC: clang, CXX: clang++ }
+        exclude:
+          # Clang on Alpine edge occasionally trails behind gcc; keep one
+          # clang leg on stable only to surface musl+clang-specific issues
+          # without burning runner time on the moving target.
+          - alpine: 'edge'
+            env: { CC: clang, CXX: clang++ }
+
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    env: ${{ matrix.env }}
+    timeout-minutes: 50
+    steps:
+      - name: Install Alpine dependencies
+        run: |
+          apk add --no-cache \
+              build-base cmake clang ninja \
+              git bash perl \
+              zlib-dev bzip2-dev json-c-dev \
+              ${{ matrix.backend.package }} \
+              gpg gpgme-dev
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: Configure
+        run: |
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+          cmake -B build   -DBUILD_SHARED_LIBS=ON                \
+                           -DCRYPTO_BACKEND=${{ matrix.backend.name }} \
+                           -DDOWNLOAD_GTEST=ON                            \
+                           -DCMAKE_BUILD_TYPE=Release  .
+
+      - name: Build
+        run: cmake --build build --parallel ${{ env.CORES }}
+
+      - name: Test
+        run: |
+          mkdir -p "build/Testing/Temporary"
+          cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
+          export PATH="$PWD/build/src/lib:$PATH"
+          ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure
