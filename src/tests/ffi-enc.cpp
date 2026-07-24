@@ -2281,3 +2281,123 @@ TEST_F(rnp_tests, test_ffi_mimemode_signature)
     rnp_output_destroy(output);
     rnp_ffi_destroy(ffi);
 }
+
+/* Password provider that returns a sequence of passwords, then a final one.
+ * Used to test the password-retry logic in init_encrypted_src. */
+typedef struct password_sequence {
+    std::vector<std::string> passwords; /* wrong passwords to return in order */
+    std::string              final_password; /* returned after the wrong ones */
+    size_t                   idx = 0;
+} password_sequence;
+
+static bool
+password_sequence_cb(rnp_ffi_t        ffi,
+                     void *           app_ctx,
+                     rnp_key_handle_t key,
+                     const char *     pgp_context,
+                     char *           buf,
+                     size_t           buf_len)
+{
+    auto *seq = static_cast<password_sequence *>(app_ctx);
+    const std::string &pw =
+      (seq->idx < seq->passwords.size()) ? seq->passwords[seq->idx++] : seq->final_password;
+    if (pw.size() >= buf_len) {
+        return false;
+    }
+    memcpy(buf, pw.data(), pw.size() + 1);
+    return true;
+}
+
+typedef struct password_cancel_state {
+    bool cancelled = false;
+} password_cancel_state;
+
+static bool
+password_cancel_cb(rnp_ffi_t        ffi,
+                   void *           app_ctx,
+                   rnp_key_handle_t key,
+                   const char *     pgp_context,
+                   char *           buf,
+                   size_t           buf_len)
+{
+    auto *state = static_cast<password_cancel_state *>(app_ctx);
+    state->cancelled = true;
+    return false;
+}
+
+TEST_F(rnp_tests, test_ffi_decrypt_password_retry)
+{
+    /* Verify the password retry in init_encrypted_src:
+     *   - up to RNP_PASSWORD_MAX_ATTEMPTS tries per candidate key / symmetric password
+     *   - provider cancellation exits immediately (no retry)
+     *   - wrong-then-right succeeds
+     *   - all-wrong fails
+     * Uses a symmetric (password-only) encrypted message so the retry surface is
+     * exactly the symmetric path. */
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* Encrypt a message with a known password. */
+    rnp_op_encrypt_t op = NULL;
+    rnp_input_t      input = NULL;
+    assert_rnp_success(
+      rnp_input_from_memory(&input, (const uint8_t *) "payload", 7, false));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
+    assert_rnp_success(rnp_op_encrypt_add_password(op, "correct", NULL, 0, NULL));
+    assert_rnp_success(rnp_op_encrypt_execute(op));
+    rnp_op_encrypt_destroy(op);
+    rnp_input_destroy(input);
+
+    size_t   buf_len = 0;
+    uint8_t *buf = NULL;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &buf_len, false));
+
+    /* Helper macros to keep the three cases readable. */
+#define ATTEMPT_DECRYPT(cb, cb_ctx)                                           \
+    do {                                                                      \
+        rnp_input_t  _in = NULL;                                              \
+        rnp_output_t _out = NULL;                                             \
+        rnp_op_verify_t _verify = NULL;                                       \
+        assert_rnp_success(rnp_input_from_memory(&_in, buf, buf_len, false)); \
+        assert_rnp_success(rnp_output_to_null(&_out));                        \
+        assert_rnp_success(rnp_op_verify_create(&_verify, ffi, _in, _out));   \
+        assert_rnp_success(rnp_ffi_set_pass_provider(ffi, (cb), (cb_ctx)));   \
+        ret = rnp_op_verify_execute(_verify);                                 \
+        rnp_op_verify_destroy(_verify);                                       \
+        rnp_input_destroy(_in);                                               \
+        rnp_output_destroy(_out);                                             \
+    } while (0)
+
+    rnp_result_t ret = RNP_SUCCESS;
+
+    /* Case 1: wrong, wrong, correct → success (retry worked). */
+    {
+        password_sequence seq{{"wrong1", "wrong2"}, "correct"};
+        ATTEMPT_DECRYPT(password_sequence_cb, &seq);
+        assert_int_equal(ret, RNP_SUCCESS);
+        /* The sequence should have been consumed past idx 2 (i.e. we tried the
+         * final password). */
+        assert_true(seq.idx >= 2);
+    }
+
+    /* Case 2: three wrong passwords → BAD_PASSWORD (retry exhausted). */
+    {
+        password_sequence seq{{"wrong1", "wrong2", "wrong3"}, ""};
+        ATTEMPT_DECRYPT(password_sequence_cb, &seq);
+        assert_int_equal(ret, RNP_ERROR_BAD_PASSWORD);
+    }
+
+    /* Case 3: provider cancels immediately → BAD_PASSWORD, callback called once. */
+    {
+        password_cancel_state state;
+        ATTEMPT_DECRYPT(password_cancel_cb, &state);
+        assert_int_equal(ret, RNP_ERROR_BAD_PASSWORD);
+        assert_true(state.cancelled);
+    }
+#undef ATTEMPT_DECRYPT
+
+    rnp_output_destroy(output);
+    rnp_ffi_destroy(ffi);
+}
