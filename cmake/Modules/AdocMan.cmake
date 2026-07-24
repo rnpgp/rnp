@@ -38,10 +38,21 @@
 #
 
 set(ADOCCOMMAND_FOUND 0)
-find_program(ADOCCOMMAND_PATH
-  NAMES asciidoctor
-  DOC "Path to AsciiDoc processor. Used to generate man pages from AsciiDoc."
-)
+
+# Allow the user to force a specific tool via -DASCIIDOC_TOOL=asciidoctor|asciidoc
+if(DEFINED ASCIIDOC_TOOL)
+  find_program(ADOCCOMMAND_PATH
+    NAMES ${ASCIIDOC_TOOL}
+    DOC "Path to AsciiDoc processor (forced via ASCIIDOC_TOOL=${ASCIIDOC_TOOL})."
+  )
+else()
+  # Prefer asciidoctor (Ruby); fall back to asciidoc (Python) for distros
+  # like Debian that don't ship asciidoctor by default (#2395).
+  find_program(ADOCCOMMAND_PATH
+    NAMES asciidoctor asciidoc
+    DOC "Path to AsciiDoc processor. Used to generate man pages from AsciiDoc."
+  )
+endif()
 
 if(NOT EXISTS ${ADOCCOMMAND_PATH})
   set(ADOC_MISSING_MSG "AsciiDoc processor not found, man pages will not be generated. Install asciidoctor or use the CMAKE_PROGRAM_PATH variable.")
