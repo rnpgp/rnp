@@ -100,9 +100,19 @@ generate(rnp::RNG &rng, ec::Key &key)
     }
 
     uint8_t key_bits[64];
+    /* rnp supports Botan 2.14+; botan_privkey_view_raw (the non-deprecated
+     * replacement for botan_privkey_ed25519_get_privkey) was added in Botan
+     * 3.6, so we cannot migrate yet. See docs/develop/compile-time-warnings.adoc. */
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
     if (botan_privkey_ed25519_get_privkey(eddsa.get(), key_bits)) {
         return RNP_ERROR_GENERIC;
     }
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
     // First 32 bytes of key_bits are the EdDSA seed (private key)
     // Second 32 bytes are the EdDSA public key

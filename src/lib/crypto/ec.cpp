@@ -66,9 +66,19 @@ Key::generate_x25519(rnp::RNG &rng)
 
     /* botan returns key in little-endian, while mpi is big-endian */
     rnp::secure_array<uint8_t, 32> keyle;
+    /* rnp supports Botan 2.14+; botan_privkey_view_raw (the non-deprecated
+     * replacement for botan_privkey_x25519_get_privkey) was added in Botan
+     * 3.6, so we cannot migrate yet. See docs/develop/compile-time-warnings.adoc. */
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
     if (botan_privkey_x25519_get_privkey(pr_key.get(), keyle.data())) {
         return RNP_ERROR_KEY_GENERATION;
     }
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
     x.resize(32);
     for (int i = 0; i < 32; i++) {
         x[31 - i] = keyle[i];
@@ -79,9 +89,17 @@ Key::generate_x25519(rnp::RNG &rng)
     }
 
     p.resize(33);
+    /* same rationale as the private-key call above */
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
     if (botan_pubkey_x25519_get_pubkey(pu_key.get(), &p[1])) {
         return RNP_ERROR_KEY_GENERATION;
     }
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
     p[0] = 0x40;
     return RNP_SUCCESS;
 }

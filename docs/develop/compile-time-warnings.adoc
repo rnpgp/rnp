@@ -1,0 +1,68 @@
+= Compile-time warnings policy
+
+rnp's goal is a clean compile baseline so that `-Werror` can be enabled
+on the main CI matrix. New warnings introduced by a PR are blockers.
+
+== Build flags
+
+Default debug builds use `-Wall -Wextra`. We do not enable `-Wpedantic`
+or `-Wconversion` project-wide; both generate too much noise for the
+value they provide.
+
+For new code, prefer to fix a warning rather than suppress it. The
+suppression mechanisms below are reserved for cases where fixing the
+warning would either:
+
+* require breaking the public API,
+* require dropping supported toolchain versions (Botan, OpenSSL,
+  compilers), or
+* require an intrusive refactor that belongs in its own PR.
+
+== Categorisation
+
+When fixing warnings, group them by category — one PR per category:
+
+* **Real bugs** (signed/unsigned comparisons, unused variables hiding a
+  missing error path, etc.): fix the code.
+* **Stylistic / pedantic** (long lines, naming, redundant casts): fix
+  only if low-cost.
+* **Platform-specific quirks** (MSVC `C4996` for `strdup`, deprecated
+  Botan FFI accessors): suppress at the call site with a comment
+  explaining why.
+
+== Suppressing warnings
+
+Use `#pragma GCC diagnostic push/pop` pairs around the minimum scope
+needed, with an explanatory comment:
+
+[source,cpp]
+----
+/* rnp supports Botan 2.14+; botan_privkey_view_raw (the non-deprecated
+ * replacement for botan_privkey_x25519_get_privkey) was added in Botan
+ * 3.6, so we cannot migrate yet. */
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+    if (botan_privkey_x25519_get_privkey(pr_key.get(), keyle.data())) {
+        return RNP_ERROR_KEY_GENERATION;
+    }
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+----
+
+For MSVC-specific warnings, use `__pragma(warning(push))` /
+`__pragma(warning(disable : NNNN))` / `__pragma(warning(pop))`.
+
+== Suppression lifetime
+
+Every suppression must include:
+
+* the warning being suppressed,
+* why the warning cannot be fixed today,
+* what would be required to remove the suppression (e.g. "drop Botan
+  2.x support").
+
+When the underlying blocker is removed, the suppression must be
+removed in the same PR.
