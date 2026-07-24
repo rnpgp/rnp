@@ -2142,6 +2142,54 @@ TEST_F(rnp_tests, test_ffi_decrypt_small_eg)
     rnp_ffi_destroy(ffi);
 }
 
+/* Regression test for #1275 / PR #2391: rnp_op_verify_get_used_recipient must
+ * return the actual key that was used for decryption, even when the recipient
+ * was hidden in the PKESK packet (keyid all zeroes). The fix patches the
+ * used_recipient's keyid from the key that successfully decrypted. Without
+ * the fix, used_recipient is NULL because no embedded keyid matches a key. */
+TEST_F(rnp_tests, test_ffi_decrypt_hidden_recipient_used_recipient)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_sec_keys(ffi, "data/keyrings/1/secring.gpg"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
+
+    /* message.txt.enc-hidden-1 has a hidden first recipient. The seckey that
+     * decrypts it (per src/tests/cli_tests.py::test_hidden_recipient) is
+     * 0x326EF111425D14A5. */
+    rnp_input_t input = NULL;
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-hidden-1"));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_null(&output));
+
+    rnp_op_verify_t verify = NULL;
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(
+      rnp_op_verify_set_flags(verify, RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+
+    /* Without the PR's patch, used_recipient->keyid would be all-zero
+     * (the hidden-recipient sentinel from RFC 4880 §5.1) because no real
+     * keyid is embedded in the PKESK packet. With the patch, used_recipient
+     * ->keyid is the actual key that succeeded. */
+    rnp_recipient_handle_t recipient = NULL;
+    assert_rnp_success(rnp_op_verify_get_used_recipient(verify, &recipient));
+    assert_non_null(recipient);
+    char *keyid = NULL;
+    assert_rnp_success(rnp_recipient_get_keyid(recipient, &keyid));
+    assert_non_null(keyid);
+    /* Must not be the all-zero hidden-recipient sentinel. */
+    EXPECT_STRNE(keyid, "0000000000000000");
+    rnp_buffer_destroy(keyid);
+
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_encrypt_no_wrap)
 {
     rnp_ffi_t ffi = NULL;
@@ -2152,8 +2200,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_no_wrap)
     rnp_input_t input = NULL;
     assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.signed"));
     rnp_output_t output = NULL;
-    assert_rnp_success(rnp_output_to_path(&output, "encrypted"));
-    rnp_op_encrypt_t op = NULL;
+    assert_rnp_success(rnp_output_to_path(&output, "encrypted"));    rnp_op_encrypt_t op = NULL;
     assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key0-uid2", &key));

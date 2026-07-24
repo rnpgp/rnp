@@ -3401,6 +3401,13 @@ try {
     handler.ctx = &op->rnpctx;
 
     rnp_result_t ret = process_pgp_source(&handler, op->input->src);
+    /* For hidden recipients, patch used_recipient with the actual key id that was used.
+     * kparam.last still points to the key that succeeded: the stream-parse loop breaks
+     * immediately after a successful encrypted_try_key(), so the key provider is not
+     * called again after that point. */
+    if (kparam.has_hidden && kparam.last && op->used_recipient) {
+        op->used_recipient->keyid = kparam.last->keyid();
+    }
     /* Allow to decrypt data ignoring the signatures check if requested */
     if (op->ignore_sigs && op->validated && (ret == RNP_ERROR_SIGNATURE_INVALID)) {
         ret = RNP_SUCCESS;
