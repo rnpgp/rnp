@@ -6093,6 +6093,96 @@ TEST_F(rnp_tests, test_ffi_security_profile)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_security_rule_enumeration)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* NULL-pointer checks */
+    assert_rnp_failure(rnp_get_security_rule_count(NULL, NULL));
+    assert_rnp_failure(rnp_get_security_rule_count(ffi, NULL));
+    assert_rnp_failure(rnp_get_security_rule_count(NULL, NULL));
+
+    size_t count = 0;
+    assert_rnp_success(rnp_get_security_rule_count(ffi, &count));
+    size_t add_ripemd = 0;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    add_ripemd = 1;
+#endif
+    /* 2 SHA1 (data + key) + MD5 + 4 symmetric ciphers + optional RIPEMD */
+    assert_int_equal(count, 3 + 4 + add_ripemd);
+
+    /* Out-of-range index */
+    uint32_t level = 0;
+    uint64_t from = 0;
+    uint32_t flags = 0;
+    char *type = NULL;
+    char *name = NULL;
+    assert_rnp_failure(
+      rnp_get_security_rule_at(ffi, count, &type, &name, &level, &from, &flags));
+    assert_rnp_failure(
+      rnp_get_security_rule_at(NULL, 0, &type, &name, &level, &from, &flags));
+
+    /* Enumerate and look up the MD5 rule */
+    bool found_md5 = false;
+    bool found_cast5 = false;
+    bool found_sha1_data = false;
+    bool found_sha1_key = false;
+    for (size_t i = 0; i < count; i++) {
+        type = NULL;
+        name = NULL;
+        level = 0;
+        from = 0;
+        flags = 0;
+        assert_rnp_success(
+          rnp_get_security_rule_at(ffi, i, &type, &name, &level, &from, &flags));
+        assert_non_null(type);
+        assert_non_null(name);
+        if (strcmp(type, "hash") == 0 && strcmp(name, "MD5") == 0) {
+            found_md5 = true;
+            assert_int_equal(level, RNP_SECURITY_INSECURE);
+            assert_int_equal(from, MD5_FROM);
+            assert_int_equal(flags, 0);
+        }
+        if (strcmp(type, "symmetric") == 0 && strcmp(name, "CAST5") == 0) {
+            found_cast5 = true;
+            assert_int_equal(level, RNP_SECURITY_INSECURE);
+            assert_int_equal(from, CAST5_3DES_IDEA_BLOWFISH_FROM);
+            assert_int_equal(flags, 0);
+        }
+        if (strcmp(type, "hash") == 0 && strcmp(name, "SHA1") == 0) {
+            if (flags == RNP_SECURITY_VERIFY_DATA && from == SHA1_DATA_FROM) {
+                found_sha1_data = true;
+            }
+            if (flags == RNP_SECURITY_VERIFY_KEY && from == SHA1_KEY_FROM) {
+                found_sha1_key = true;
+            }
+        }
+        rnp_buffer_destroy(type);
+        rnp_buffer_destroy(name);
+    }
+    assert_true(found_md5);
+    assert_true(found_cast5);
+    assert_true(found_sha1_data);
+    assert_true(found_sha1_key);
+
+    /* NULL output parameters should be tolerated */
+    assert_rnp_success(rnp_get_security_rule_at(ffi, 0, NULL, NULL, NULL, NULL, NULL));
+
+    /* Adding a rule should be reflected in count */
+    assert_rnp_success(rnp_add_security_rule(ffi,
+                                             RNP_FEATURE_HASH_ALG,
+                                             "SHA3-256",
+                                             RNP_SECURITY_OVERRIDE,
+                                             12345,
+                                             RNP_SECURITY_DEFAULT));
+    size_t count2 = 0;
+    assert_rnp_success(rnp_get_security_rule_count(ffi, &count2));
+    assert_int_equal(count2, count + 1);
+
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_result_to_string)
 {
     const char *          result_string = NULL;
