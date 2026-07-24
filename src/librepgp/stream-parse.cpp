@@ -2386,11 +2386,11 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             rnp::KeyLocker seclock(*seckey);
             int            attempts = RNP_PASSWORD_MAX_ATTEMPTS;
             while (attempts--) {
-                if (!seckey->unlock(*handler->password_provider, PGP_OP_DECRYPT)) {
-                    errcode = RNP_ERROR_BAD_PASSWORD;
-                    continue;
+                if (seckey->unlock(*handler->password_provider, PGP_OP_DECRYPT)) {
+                    errcode = RNP_SUCCESS;
+                    break;
                 }
-                break;
+                errcode = RNP_ERROR_BAD_PASSWORD;
             }
             if (errcode == RNP_ERROR_BAD_PASSWORD) {
                 continue;
