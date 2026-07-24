@@ -1,0 +1,96 @@
+= Security and FIPS mode
+:toc:
+
+== FIPS-compliant mode
+
+`rnp` can be built with a FIPS-compliant default security profile. This is a
+compile-time switch that tightens the default algorithm policy and requires
+the OpenSSL crypto backend.
+
+=== Certification boundary
+
+`rnp` is a *consumer* of a validated cryptographic module, not a validated
+module itself. The FIPS validation boundary is the OpenSSL FIPS provider
+module (OpenSSL 3.x); `rnp` enforces an algorithm policy on top of that
+module.
+
+Building `rnp` with `ENABLE_FIPS_MODE=On` does not, by itself, confer any
+FIPS validation. Operators seeking FIPS compliance must:
+
+. Install OpenSSL 3.x configured with the FIPS provider module.
+. Ensure the OpenSSL installation they link against is itself validated.
+. Operate the resulting binary within the OpenSSL FIPS provider's
+  approved security policy.
+
+`rnp` is responsible for: enforcing which algorithms may be used at the
+OpenPGP layer, ensuring no non-FIPS primitives are reachable through its
+API, and documenting the boundary.
+
+=== Enabling FIPS mode at build time
+
+Build with cmake:
+
+----
+cmake -B build \
+      -DCRYPTO_BACKEND=openssl \
+      -DENABLE_FIPS_MODE=On \
+      -DCMAKE_BUILD_TYPE=Release
+----
+
+`ENABLE_FIPS_MODE=On` forces the following:
+
+* `CRYPTO_BACKEND=openssl` (Botan is rejected by cmake with an error).
+* OpenSSL 3.x is required; the FIPS provider is a 3.x feature and is
+  not present in OpenSSL 1.1.1.
+* The `RNP_FIPS_MODE` preprocessor macro is defined throughout the
+  library.
+
+=== What FIPS mode does
+
+When `RNP_FIPS_MODE` is defined, the default `SecurityProfile` (see
+`src/lib/sec_profile.cpp`) marks the following non-FIPS-approved
+algorithms as `Disabled`, regardless of object creation time:
+
+* Symmetric: TWOFISH, CAST5, IDEA, BLOWFISH, SM4
+* Hash: MD5, SHA1, RIPEMD160
+* Public key: EdDSA, SM2, ElGamal, ElGamal-Encrypt-Or-Sign
+
+`Disabled` is stricter than `Insecure`: disabled algorithms cannot be
+used at all unless an explicit per-rule override is added via
+`rnp_add_security_rule()` with the `RNP_SECURITY_OVERRIDE` flag.
+
+DSA, RSA, ECDSA, and ECDH remain available subject to the OpenSSL FIPS
+provider's own key-size and curve policy. `rnp` defers those checks to
+the provider.
+
+=== Querying FIPS mode at runtime
+
+Callers can detect whether the loaded `rnp` library was built with
+`ENABLE_FIPS_MODE=On` via:
+
+[source,c]
+----
+#include <rnp/rnp.h>
+
+size_t fips_enabled = 0;
+if (rnp_is_fips_mode_enabled(ffi, &fips_enabled) == RNP_SUCCESS) {
+    // fips_enabled == 1 if rnp was built with -DENABLE_FIPS_MODE=On
+}
+----
+
+This reflects the compile-time setting only; it does not reflect runtime
+modifications to the security profile or whether the OpenSSL FIPS
+provider is actually loaded into the process.
+
+=== Limitations
+
+This is a *policy* layer, not a *validation*. In particular:
+
+* Constant-time guarantees are the OpenSSL FIPS provider's
+  responsibility, not `rnp`'s.
+* Key zeroisation depends on the allocator and provider.
+* Argon2 is not FIPS-approved; users requiring FIPS-strict S2K should
+  prefer PBKDF2 (this enforcement is not yet implemented and will land
+  in a follow-up).
+* The FIPS provider must be separately installed, configured, and
+  validated by the operator.
