@@ -84,6 +84,8 @@ static const char *usage =
   "  --clearsign             Cleartext-sign data.\n"
   "  -d, --decrypt           Decrypt and output data, verifying signatures.\n"
   "  -v, --verify            Verify signatures, without outputting data.\n"
+  "    --verify-cat          Verify signatures, and output the data (like --decrypt,\n"
+  "                          but for signed-only or detached-signature messages).\n"
   "    --source              Specify source for the detached signature.\n"
   "  --dearmor               Strip ASCII armor from the data, outputting binary.\n"
   "  --enarmor               Add ASCII armor to the data.\n"
