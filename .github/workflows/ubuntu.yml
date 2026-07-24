@@ -74,13 +74,20 @@ jobs:
           - { CC: gcc,    CXX: g++     }
           - { CC: clang,  CXX: clang++ }
         include:
+        # Ubuntu 22.04 LTS (jammy) — supported until 2027 (ESM 2032).
+        # Ships Botan 2.19.1 (older 2.x than noble's 2.19.3) and OpenSSL 3.0.
         # OpenSSL 1.1.1 coverage: ubuntu runners no longer ship openssl 1.1.x
         # in apt (ubuntu-22.04+ moved to 3.x). OpenSSL 1.1.1 is exercised via
         # containers in centos-and-fedora.yml (RHEL 8 ubi) and debian.yml
         # (Debian 11), both of which ship openssl 1.1 in their distro repos.
           - os: ubuntu-22.04
             shared_libs: 'on'
-            backend: { name: 'openssl',  package: 'libssl-dev' }
+            backend: { name: 'botan',   package: 'libbotan-2-dev' }
+            env: { CC: gcc, CXX: g++ }
+
+          - os: ubuntu-22.04
+            shared_libs: 'on'
+            backend: { name: 'openssl', package: 'libssl-dev' }
             env: { CC: gcc, CXX: g++ }
 
           # Static-link sanity check

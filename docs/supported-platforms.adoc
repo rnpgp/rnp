@@ -1,0 +1,223 @@
+= Supported platforms
+
+This document lists the operating systems, distributions, and hardware
+architectures on which librnp and the rnp / rnpkeys command-line tools
+are known to work. The matrix is derived from the project's CI coverage
+(see `.github/workflows/`) and from downstream packager reports.
+
+If you have rnp running on a combination not listed here, please open a
+PR adding it.
+
+== Cryptographic backends
+
+rnp ships with two interchangeable cryptographic backends:
+
+* **Botan** — supports Botan 2.x (2.12.1+ tested) and 3.x (3.7+ tested).
+  Required for full crypto-refresh (RFC 9580) and PQC support.
+* **OpenSSL** — supports OpenSSL 1.1.1 (legacy distro support) and 3.x.
+  Required for FIPS-mode deployments.
+
+Both backends are tested in CI on every PR. PQC and crypto-refresh
+currently require Botan 3.6+ or OpenSSL 3.x; PR
+[#2392](https://github.com/rnpgp/rnp/pull/2392) adds the OpenSSL backend
+for those features.
+
+== Supported Linux distributions
+
+Each row gives the rnp CI coverage. Versions marked **bold** are
+currently in CI; other versions in the same family are expected to work
+but are not actively tested.
+
+[cols="1,3,2,2,1"]
+|===
+| Distribution family | Versions tested | Botan version (system) | OpenSSL version (system) | Status
+
+| **Fedora**
+| **Fedora 42**, **43**, **44** + drops 39, 40, 41
+| Botan 2.19.5 (compat), 3.9.0 (default)
+| OpenSSL 3.x
+| Fully supported (current stable + 1 previous)
+
+| **CentOS Stream**
+| **CentOS Stream 9**
+| Botan 2.19.x
+| OpenSSL 3.x
+| Fully supported
+
+| **RHEL / EPEL**
+| **RHEL 8**, **RHEL 9**
+| Botan 2.12.1 (EPEL 8), 2.19.5 (EPEL 9)
+| **OpenSSL 1.1.1** (RHEL 8), OpenSSL 3.x (RHEL 9)
+| Fully supported; RHEL 8 is the primary OpenSSL 1.1.1 test bed
+
+| **Debian**
+| **Debian 11** (LTS), **Debian 12** (stable), **Debian 13** (testing) + drops 10
+| Botan 2.17.3 (11), 2.19.3 (12), 3.7.1 (13)
+| OpenSSL 1.1.x (11), 3.0 (12, 13)
+| Fully supported
+
+| **Ubuntu**
+| **Ubuntu 22.04 LTS**, **Ubuntu 24.04 LTS** + 24.04-arm
+| Botan 2.19.1 (22.04), 2.19.3 (24.04)
+| OpenSSL 3.0
+| Fully supported (LTS span)
+
+| **openSUSE**
+| **Leap 15.6**, **Tumbleweed**
+| Botan 2.19.x (Leap), 3.11.x (Tumbleweed)
+| OpenSSL 3.x
+| Supported
+
+| **Alpine Linux**
+| **Alpine 3.21**, **edge** (PR #2416)
+| Botan 3.x
+| OpenSSL 3.x
+| Supported (musl libc)
+|===
+
+For other RPM-based distros that track Fedora / CentOS / RHEL (Amazon
+Linux, Oracle Linux, Rocky Linux, AlmaLinux), the closest entry above
+applies.
+
+== Other Unix
+
+[cols="1,3,1"]
+|===
+| Platform | Versions tested | Status
+
+| **FreeBSD**
+| Not in CI
+| Reported working by community packagers; please add yourself to
+  `MAINTAINERS.md` if you maintain a FreeBSD port.
+
+| **NetBSD / OpenBSD**
+| Not in CI
+| Reported working historically; same as above.
+|===
+
+== macOS
+
+[cols="1,3,1,1"]
+|===
+| macOS version | Architectures | Backend | Status
+
+| **macOS 15** (Sequoia)
+| Apple Silicon + Intel
+| Botan 2.x, OpenSSL 3 (Homebrew)
+| Fully supported
+
+| **macOS 26**
+| Apple Silicon + Intel
+| Botan 3 (Homebrew)
+| Fully supported (added by #2416)
+
+| macOS 14 (Sonoma)
+| Apple Silicon + Intel
+| (deprecated; dropped by #2416)
+| Was supported until 2026-07
+|===
+
+Homebrew formula: `brew install rnp` (Botan backend, shared libs).
+
+== Windows
+
+[cols="1,3,2,2,1"]
+|===
+| Windows version | Architectures | Toolchain | Backend | Status
+
+| **Windows Server 2022**
+| x64, Win32
+| MSVC v143, ClangCL
+| Botan, OpenSSL (via vcpkg)
+| Fully supported
+
+| **Windows Server 2025**
+| x64
+| MSVC v143
+| Botan
+| Supported (added by #2416)
+
+| **Windows 11 ARM**
+| ARM64
+| MSVC v143
+| Botan
+| Preview (continue-on-error in CI; added by #2416)
+
+| **MSYS2** (mingw64, ucrt64, clang64)
+| x86_64
+| GCC, Clang
+| Botan, OpenSSL
+| Fully supported
+|===
+
+Installation: `vcpkg install rnp` once
+[microsoft/vcpkg#52989](https://github.com/microsoft/vcpkg/pull/52989)
+merges.
+
+== Hardware architectures
+
+rnp is portable C++17 and runs on any architecture its dependencies
+support. CI currently exercises:
+
+* **x86_64 / amd64** — primary development and test architecture.
+* **i386 / i686** — tested via Debian 13 i386 and Win32. Catches
+  32-bit-specific issues (size_t vs uint64_t, time_t width, etc.).
+* **ARM64 / aarch64** — Linux (Ubuntu 24.04 ARM, Fedora 44), Windows 11
+  ARM (preview), and macOS Apple Silicon.
+* **PowerPC** (Big Sur / Monterey) — community-supported; see
+  `@barracuda156` in `MAINTAINERS.md`.
+
+s390x, RISC-V, MIPS not currently in CI but reported working by
+downstream packagers.
+
+== Build options summary
+
+[cols="2,4,1"]
+|===
+| Option | Values | Default
+
+| `CRYPTO_BACKEND`
+| `Botan` \| `OpenSSL`
+| `Botan`
+
+| `ENABLE_CRYPTO_REFRESH` (RFC 9580)
+| `On` \| `Off` \| `Auto`
+| `Auto` (requires Botan 3+ or OpenSSL 3.x)
+
+| `ENABLE_PQC`
+| `On` \| `Off` \| `Auto`
+| `Auto` (requires Botan 3.6+)
+
+| `BUILD_SHARED_LIBS`
+| `On` \| `Off`
+| `On`
+
+| `ENABLE_BZIP2`
+| `On` \| `Off` \| `Auto`
+| `Auto`
+
+| `ENABLE_BLOWFISH` / `ENABLE_CAST5` / `ENABLE_RIPEMD160`
+| `On` \| `Off` \| `Auto`
+| `Auto`
+
+| `ENABLE_AEAD_EAX` / `ENABLE_AEAD_OCB`
+| `On` \| `Off`
+| `On` (Botan); `Off` for EAX on OpenSSL
+|===
+
+See `docs/installation.adoc` for build instructions and full option
+reference.
+
+== Reporting platform issues
+
+If rnp does not build or run on a platform listed here, please
+[file an issue](https://github.com/rnpgp/rnp/issues/new) with:
+
+* Distribution name and version.
+* Architecture.
+* Crypto backend (`Botan` or `OpenSSL`) and version.
+* `rnp --version` output (if it runs).
+* Build log or test failure output.
+
+For platforms not listed here, please open a PR adding the platform to
+this document once you have verified rnp builds and tests pass.
