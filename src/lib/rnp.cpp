@@ -1454,6 +1454,104 @@ success:
 FFI_GUARD
 
 rnp_result_t
+rnp_get_security_rule_count(rnp_ffi_t ffi, size_t *count)
+try {
+    if (!ffi || !count) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    *count = ffi->profile().rules().size();
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_get_security_rule_at(rnp_ffi_t  ffi,
+                         size_t     idx,
+                         char **    type,
+                         char **    name,
+                         uint32_t * level,
+                         uint64_t * from,
+                         uint32_t * flags)
+try {
+    if (!ffi) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    const auto &rules = ffi->profile().rules();
+    if (idx >= rules.size()) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    const auto &rule = rules[idx];
+
+    /* Feature type → string */
+    static const char *type_str[] = {"hash", "symmetric", "public-key"};
+    int ti = static_cast<int>(rule.type);
+    if (ti < 0 || ti > 2) {
+        return RNP_ERROR_BAD_STATE;
+    }
+    if (type) {
+        rnp_result_t ret = ret_str_value(type_str[ti], type);
+        if (ret) {
+            return ret;
+        }
+    }
+
+    /* Feature int → name string */
+    const id_str_pair *map = nullptr;
+    switch (rule.type) {
+    case rnp::FeatureType::Hash:
+        map = hash_alg_map;
+        break;
+    case rnp::FeatureType::Cipher:
+        map = symm_alg_map;
+        break;
+    case rnp::FeatureType::PublicKey:
+        map = pubkey_alg_map;
+        break;
+    }
+    if (name) {
+        const char *n = map ? id_str_pair::lookup(map, rule.feature, "unknown") : "unknown";
+        rnp_result_t ret = ret_str_value(n, name);
+        if (ret) {
+            return ret;
+        }
+    }
+
+    /* Security level */
+    if (level) {
+        switch (rule.level) {
+        case rnp::SecurityLevel::Disabled:
+            *level = RNP_SECURITY_PROHIBITED;
+            break;
+        case rnp::SecurityLevel::Insecure:
+            *level = RNP_SECURITY_INSECURE;
+            break;
+        default:
+            *level = RNP_SECURITY_DEFAULT;
+            break;
+        }
+    }
+
+    if (from) {
+        *from = rule.from;
+    }
+
+    if (flags) {
+        *flags = 0;
+        if (rule.override) {
+            *flags |= RNP_SECURITY_OVERRIDE;
+        }
+        if (rule.action == rnp::SecurityAction::VerifyKey) {
+            *flags |= RNP_SECURITY_VERIFY_KEY;
+        }
+        if (rule.action == rnp::SecurityAction::VerifyData) {
+            *flags |= RNP_SECURITY_VERIFY_DATA;
+        }
+    }
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_request_password(rnp_ffi_t ffi, rnp_key_handle_t key, const char *context, char **password)
 try {
     if (!ffi || !password || !ffi->getpasscb) {
