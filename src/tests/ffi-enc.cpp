@@ -2461,5 +2461,118 @@ TEST_F(rnp_tests, test_ffi_decrypt_password_retry)
 #undef ATTEMPT_DECRYPT
 
     rnp_output_destroy(output);
+=======
+/* Assert that encrypt and key-export operations do not leak plaintext or
+ * passphrase material in their output. Per docs/develop/testing-crypto-paths.adoc.
+ * A regression in any of these would indicate the encryption pipeline is
+ * broken in a way that silently exposes user secrets. */
+TEST_F(rnp_tests, test_no_plaintext_leakage)
+{
+    const char *MARKER = "SECRET_PLAINTEXT_MARKER_a1b2c3d4e5";
+
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(
+      load_keys_gpg(ffi, "data/keyrings/1/pubring.gpg", "data/keyrings/1/secring.gpg"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
+
+    /* --- Case 1: symmetric (password) encryption must not contain plaintext --- */
+    {
+        rnp_input_t input = NULL;
+        assert_rnp_success(rnp_input_from_memory(
+          &input, (const uint8_t *) MARKER, strlen(MARKER), false));
+        rnp_output_t output = NULL;
+        assert_rnp_success(rnp_output_to_memory(&output, 0));
+        rnp_op_encrypt_t op = NULL;
+        assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
+        assert_rnp_success(rnp_op_encrypt_add_password(op, "testpass", NULL, 0, NULL));
+        assert_rnp_success(rnp_op_encrypt_execute(op));
+        rnp_op_encrypt_destroy(op);
+        rnp_input_destroy(input);
+
+        size_t   len = 0;
+        uint8_t *buf = NULL;
+        assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+        assert_non_null(buf);
+        assert_true(len > 0);
+        /* The marker MUST NOT appear in the encrypted output. */
+        assert_null(memmem(buf, len, MARKER, strlen(MARKER)));
+        rnp_output_destroy(output);
+    }
+
+    /* --- Case 2: public-key encryption must not contain plaintext --- */
+    {
+        rnp_input_t input = NULL;
+        assert_rnp_success(rnp_input_from_memory(
+          &input, (const uint8_t *) MARKER, strlen(MARKER), false));
+        rnp_output_t output = NULL;
+        assert_rnp_success(rnp_output_to_memory(&output, 0));
+        rnp_op_encrypt_t op = NULL;
+        assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
+        rnp_key_handle_t key = NULL;
+        assert_rnp_success(rnp_locate_key(ffi, "keyid", "7bc6709b15c23a4a", &key));
+        assert_rnp_success(rnp_op_encrypt_add_recipient(op, key));
+        rnp_key_handle_destroy(key);
+        assert_rnp_success(rnp_op_encrypt_execute(op));
+        rnp_op_encrypt_destroy(op);
+        rnp_input_destroy(input);
+
+        size_t   len = 0;
+        uint8_t *buf = NULL;
+        assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+        assert_non_null(buf);
+        assert_true(len > 0);
+        assert_null(memmem(buf, len, MARKER, strlen(MARKER)));
+        rnp_output_destroy(output);
+    }
+
+    /* --- Case 3: secret-key export must not contain the passphrase --- */
+    {
+        rnp_key_handle_t key = NULL;
+        assert_rnp_success(rnp_locate_key(ffi, "keyid", "7bc6709b15c23a4a", &key));
+        assert_non_null(key);
+        rnp_output_t output = NULL;
+        assert_rnp_success(rnp_output_to_memory(&output, 0));
+        assert_rnp_success(rnp_key_export(key, output, RNP_KEY_EXPORT_SECRET));
+        rnp_key_handle_destroy(key);
+
+        size_t   len = 0;
+        uint8_t *buf = NULL;
+        assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+        assert_non_null(buf);
+        assert_true(len > 0);
+        /* The passphrase MUST NOT appear in the exported key material. */
+        assert_null(memmem(buf, len, "password", 8));
+        rnp_output_destroy(output);
+    }
+
+    /* --- Case 4: detached signature must not contain the plaintext --- */
+    {
+        rnp_input_t input = NULL;
+        assert_rnp_success(rnp_input_from_memory(
+          &input, (const uint8_t *) MARKER, strlen(MARKER), false));
+        rnp_output_t output = NULL;
+        assert_rnp_success(rnp_output_to_memory(&output, 0));
+        rnp_op_sign_t op = NULL;
+        assert_rnp_success(rnp_op_sign_detached_create(&op, ffi, input, output));
+        rnp_key_handle_t key = NULL;
+        assert_rnp_success(rnp_locate_key(ffi, "keyid", "7bc6709b15c23a4a", &key));
+        assert_rnp_success(rnp_op_sign_add_signature(op, key, NULL));
+        rnp_key_handle_destroy(key);
+        assert_rnp_success(rnp_op_sign_execute(op));
+        rnp_op_sign_destroy(op);
+        rnp_input_destroy(input);
+
+        size_t   len = 0;
+        uint8_t *buf = NULL;
+        assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+        assert_non_null(buf);
+        assert_true(len > 0);
+        /* Detached signature MUST NOT contain the plaintext. */
+        assert_null(memmem(buf, len, MARKER, strlen(MARKER)));
+        rnp_output_destroy(output);
+    }
+
     rnp_ffi_destroy(ffi);
 }

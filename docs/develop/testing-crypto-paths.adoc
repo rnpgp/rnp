@@ -1,0 +1,40 @@
+= Testing crypto code paths
+
+== Assert-output-is-encrypted
+
+Security-critical code paths (encrypt, sign-then-encrypt, secret-key
+export) must include tests that verify the output does not leak
+plaintext key material. A bug that accidentally produces an unencrypted
+output, or that transmits key material before encryption is applied,
+would silently compromise all of the user's secrets.
+
+== Convention
+
+For each encrypt / sign-export operation:
+
+1. Generate a known plaintext containing a distinctive marker string
+   (e.g. `SECRET_PLAINTEXT_MARKER_12345`).
+2. Run the operation and capture the full output.
+3. Assert the marker string does NOT appear in the output bytes.
+4. Assert the output matches expected OpenPGP packet structure (e.g.
+   parse with `rnp_dump_packets` and verify expected packet tags).
+
+For secret-key export:
+
+1. Export a secret key encrypted with a known passphrase.
+2. Assert the passphrase does NOT appear in the output.
+3. Assert the key material (when parseable) is encrypted.
+
+== Where this applies
+
+- `rnp_op_encrypt_*` (all variants: password, public-key, AEAD).
+- `rnp_key_export_*` (especially secret keys).
+- `rnp_op_sign_*` (verify detached sigs are detached; inline sigs wrap
+  the data in a literal-data packet, not raw plaintext).
+
+== Why
+
+A future refactor that accidentally swaps the encrypt-and-sign order,
+or that skips the encryption step, would be caught by these tests. The
+AEAD unauthenticated-chunk fix (#807, PR #2422) is an example of the
+class of bug this discipline prevents.
