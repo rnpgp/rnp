@@ -1,0 +1,133 @@
+# Copyright (c) 2026 [Ribose Inc](https://www.ribose.com).
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+# Static analysis via clang-tidy. Not a gate (warnings don't fail the build
+# today) — see TODO.rnp-roadmap/20-static-analysis.md for the plan to tighten
+# the configuration over time.
+name: clang-tidy
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/clang-tidy.yml'
+  pull_request:
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
+
+jobs:
+  run:
+    name: clang-tidy (clang-${{ matrix.clang }}, ${{ matrix.backend }})
+    runs-on: ubuntu-latest
+    container: ubuntu:24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        clang: [ '18' ]
+        backend: [ 'botan', 'openssl' ]
+
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    timeout-minutes: 30
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get -y update
+          DEBIAN_FRONTEND=noninteractive apt-get -y install \
+              build-essential clang-${{ matrix.clang }} clang-tidy-${{ matrix.clang }} \
+              cmake ninja-build git \
+              zlib1g-dev libbz2-dev libjson-c-dev \
+              libbotan-3-dev libssl-dev
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: Configure
+        env:
+          CC: clang-${{ matrix.clang }}
+          CXX: clang++-${{ matrix.clang }}
+        run: |
+          cmake -B build -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+                -DCMAKE_CXX_CLANG_TIDY="clang-tidy-${{ matrix.clang }};-p;build" \
+                -DCRYPTO_BACKEND=${{ matrix.backend }} \
+                -DENABLE_CRYPTO_REFRESH=ON \
+                -DBUILD_TESTING=ON .
+
+      - name: Build (clang-tidy runs per-translation-unit)
+        env:
+          # Warnings don't fail the build yet — the existing codebase has
+          # too many findings to flip this on all at once. Tighten
+          # incrementally by adding checks to .clang-tidy.
+          LC_ALL: C.UTF-8
+        run: cmake --build build --parallel $(nproc) 2>&1 | tee clang-tidy.log || true
+
+      - name: Summarise clang-tidy findings
+        if: always()
+        run: |
+          echo "## clang-tidy summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          total=$(grep -cE "warning: .* \[" clang-tidy.log || echo 0)
+          echo "Total findings: **${total}**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Top 10 check categories:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          grep -oE "\[[a-z0-9.-]+\]$" clang-tidy.log | sort | uniq -c | sort -rn | head -10 | \
+            awk '{printf "- %s: %s\n", $2, $1}' >> $GITHUB_STEP_SUMMARY || \
+            echo "_No findings recorded._" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload full log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clang-tidy-${{ matrix.backend }}-log
+          path: clang-tidy.log
+          retention-days: 14
