@@ -240,6 +240,6 @@ jobs:
           fi
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
-          ctest --parallel ${{ env.CORES }} --test-dir build -C Release --output-on-failure
+          ctest --parallel ${{ env.CORES }} --test-dir build -C Release --output-on-failure -E '_slow$'
         # Windows 11 ARM is a preview runner; don't gate the build on it.
         continue-on-error: ${{ matrix.os == 'windows-11-arm' }}

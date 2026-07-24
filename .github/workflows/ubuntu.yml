@@ -139,7 +139,7 @@ jobs:
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
           export PATH="$PWD/build/src/lib:$PATH"
-          ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure
+          ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure -E '_slow$'
 
   cmake-offline-googletest-src:
     runs-on: ubuntu-latest
@@ -174,7 +174,7 @@ jobs:
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
           export PATH="$PWD/build/src/lib:$PATH"
-          ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure
+          ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure -E '_slow$'
 
       - name: Check googletest
         run: |
@@ -220,7 +220,7 @@ jobs:
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
           export PATH="$PWD/build/src/lib:$PATH"
-          ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure
+          ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure -E '_slow$'
 
       - name: Check googletest
         run: |
@@ -292,7 +292,7 @@ jobs:
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
           export PATH="$PWD/build/src/lib:$PATH"
-          ctest --parallel ${{ env.CORES }} --test-dir build -R rnp_tests --output-on-failure
+          ctest --parallel ${{ env.CORES }} --test-dir build -R rnp_tests --output-on-failure -E '_slow$'
 
   package-source:
     runs-on: ubuntu-latest

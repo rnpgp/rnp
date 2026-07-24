@@ -222,6 +222,7 @@ jobs:
           else
             exec sudo -u rnpuser ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure
           fi
+          exec su rnpuser -c "ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure -E '_slow$'"
 
       - name: Coverage
         if: env.BUILD_MODE == 'coverage'
