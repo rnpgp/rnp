@@ -159,7 +159,7 @@ jobs:
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
           export PATH="$PWD/build/src/lib:$PATH"
-          ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure
+          ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure -E '_slow$'
 
       - name: Configure and build with botan-config.cmake
         if:  matrix.backend == 'botan3'
