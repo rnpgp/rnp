@@ -18,6 +18,7 @@
 # BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
 # CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
 # SUBSTITUTE GOODS OR SERVICES, LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
 # INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 # CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
@@ -50,6 +51,19 @@ on:
       - 'src/lib/CMakeLists.txt'
       - 'src/libsexpp/CMakeLists.txt'
       - '.github/workflows/alpine.yml'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/alpine.yml'
+  pull_request:
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
 
 concurrency:
   group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
@@ -119,6 +133,59 @@ jobs:
                 -DCMAKE_CXX_FLAGS_RELEASE="-UNDEBUG"               \
                 -DCMAKE_C_FLAGS_RELEASE="-UNDEBUG"                 \
                 .
+# Alpine uses musl libc, not glibc. Some rnp code paths (notably the
+# error-number string tables, passwd-related paths, and the more pedantic
+# warnings-as-errors compilers) behave differently. We test the current
+# Alpine stable (3.21) and edge in parallel.
+jobs:
+  tests:
+    name: alpine:${{ matrix.alpine }} [CC ${{ matrix.env.CC }}; ${{ matrix.backend.name }}]
+    runs-on: ubuntu-latest
+    container:
+      image: alpine:${{ matrix.alpine }}
+    strategy:
+      fail-fast: false
+      matrix:
+        alpine: [ '3.21', 'edge' ]
+        backend:
+          - { name: 'botan',   package: 'botan-dev' }
+          - { name: 'openssl', package: 'openssl-dev' }
+        env:
+          - { CC: gcc,   CXX: g++ }
+          - { CC: clang, CXX: clang++ }
+        exclude:
+          # Clang on Alpine edge occasionally trails behind gcc; keep one
+          # clang leg on stable only to surface musl+clang-specific issues
+          # without burning runner time on the moving target.
+          - alpine: 'edge'
+            env: { CC: clang, CXX: clang++ }
+
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    env: ${{ matrix.env }}
+    timeout-minutes: 50
+    steps:
+      - name: Install Alpine dependencies
+        run: |
+          apk add --no-cache \
+              build-base cmake clang ninja \
+              git bash perl \
+              zlib-dev bzip2-dev json-c-dev \
+              ${{ matrix.backend.package }} \
+              gpg gpgme-dev
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: Configure
+        run: |
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+          cmake -B build   -DBUILD_SHARED_LIBS=ON                \
+                           -DCRYPTO_BACKEND=${{ matrix.backend.name }} \
+                           -DDOWNLOAD_GTEST=ON                            \
+                           -DCMAKE_BUILD_TYPE=Release  .
 
       - name: Build
         run: cmake --build build --parallel ${{ env.CORES }}
@@ -131,3 +198,6 @@ jobs:
           chown -R rnpuser:rnpuser $PWD
           # BusyBox su requires explicit shell even when the user has one set.
           su -s /bin/sh rnpuser -c "ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure"
+          cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
+          export PATH="$PWD/build/src/lib:$PATH"
+          ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure

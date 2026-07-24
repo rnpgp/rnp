@@ -65,7 +65,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest ]
+        os: [ ubuntu-24.04 ]
         shared_libs: [ 'on' ]
         backend:
           - { name: 'botan',    package: 'libbotan-2-dev' }
@@ -74,15 +74,30 @@ jobs:
           - { CC: gcc,    CXX: g++     }
           - { CC: clang,  CXX: clang++ }
         include:
-        # Since ubuntu-20.04 runner is deprecated we do not test OpenSSL 1.1.1 here.
+        # OpenSSL 1.1.1 coverage: ubuntu runners no longer ship openssl 1.1.x
+        # in apt (ubuntu-22.04+ moved to 3.x). OpenSSL 1.1.1 is exercised via
+        # containers in centos-and-fedora.yml (RHEL 8 ubi) and debian.yml
+        # (Debian 11), both of which ship openssl 1.1 in their distro repos.
           - os: ubuntu-22.04
             shared_libs: 'on'
             backend: { name: 'openssl',  package: 'libssl-dev' }
             env: { CC: gcc, CXX: g++ }
 
-          - os: ubuntu-latest
+          # Static-link sanity check
+          - os: ubuntu-24.04
             shared_libs: 'off'
             backend: { name: 'botan',    package: 'libbotan-2-dev' }
+            env: { CC: gcc, CXX: g++ }
+
+          # ARM64 Linux (native runner; Thunderbird-on-ARM-Linux is a growing audience)
+          - os: ubuntu-24.04-arm
+            shared_libs: 'on'
+            backend: { name: 'botan',    package: 'libbotan-2-dev' }
+            env: { CC: gcc, CXX: g++ }
+
+          - os: ubuntu-24.04-arm
+            shared_libs: 'on'
+            backend: { name: 'openssl',  package: 'libssl-dev' }
             env: { CC: gcc, CXX: g++ }
 
     if: "!contains(github.event.head_commit.message, 'skip ci')"
