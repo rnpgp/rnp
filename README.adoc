@@ -37,6 +37,8 @@ Currently supported platforms:
 
 == link:docs/installation.adoc[Installation]
 
+== link:docs/supported-platforms.adoc[Supported platforms]
+
 == link:docs/cli-usage.adoc[Using CLI tool]
 
 == link:docs/c-usage.adoc[Using the RNP C API in your projects]
@@ -64,3 +66,5 @@ created by Alistair Crooks of NetBSD in 2016. RNP has been heavily rewritten,
 and carries minimal if any code from the original codebase.
 
 == link:docs/code-of-conduct.adoc[Code of Conduct]
+
+== link:MAINTAINERS.md[Distribution maintainers]
