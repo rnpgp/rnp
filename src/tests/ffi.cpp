@@ -2420,6 +2420,54 @@ TEST_F(rnp_tests, test_ffi_key_dump_edge_cases)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_dump_multiple_armored_messages)
+{
+    /* Regression for issue #2036: a single input file containing multiple
+     * armored OpenPGP messages must dump all of them, not just the first.
+     * Fixture has public keys in the first armor block and secret keys in
+     * the second. Before the fix the secret-key packets were silently
+     * dropped from --list-packets output. */
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    rnp_input_t input = NULL;
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_key_merge/key-both.asc"));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_dump_packets_to_output(input, output, 0));
+    rnp_input_destroy(input);
+
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    std::string dstr(buf, buf + len);
+    rnp_output_destroy(output);
+
+    /* first armor block: public key + 2 userids + 2 public subkeys */
+    assert_true(dstr.find("Public key packet") != std::string::npos);
+    assert_true(dstr.find("Public subkey packet") != std::string::npos);
+    /* second armor block: secret key + secret subkeys -- the bit that
+     * used to be dropped because ArmoredSource without AllowMultiple stops
+     * at the first -----END...----- */
+    assert_true(dstr.find("Secret key packet") != std::string::npos);
+    assert_true(dstr.find("Secret subkey packet") != std::string::npos);
+
+    /* Same coverage via the JSON dumper, which has the same multi-armor
+     * bug class. */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_key_merge/key-both.asc"));
+    char *json = NULL;
+    assert_rnp_success(rnp_dump_packets_to_json(input, 0, &json));
+    rnp_input_destroy(input);
+    std::string jstr(json);
+    rnp_buffer_destroy(json);
+    assert_true(jstr.find("\"tag\":5") != std::string::npos);   /* secret key */
+    assert_true(jstr.find("\"tag\":7") != std::string::npos);   /* secret subkey */
+
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_key_userid_dump_has_no_special_chars)
 {
     rnp_ffi_t    ffi = NULL;

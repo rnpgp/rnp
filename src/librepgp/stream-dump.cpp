@@ -1653,17 +1653,32 @@ DumpContextDst::dump(bool raw_only)
 
     /* check whether source is armored */
     if (!raw_only && src.is_armored()) {
-        std::unique_ptr<Source> armor(new Source());
-        auto                    ret = init_armored_src(&armor->src(), &src);
-        if (ret) {
-            RNP_LOG("failed to parse armored data");
-            return ret;
+        /* ArmoredSource with AllowMultiple so we walk past the first
+         * -----END ...----- and continue with the next armored message
+         * in the same input (see issue #2036). */
+        rnp::ArmoredSource armor(
+          src, rnp::ArmoredSource::AllowBinary | rnp::ArmoredSource::AllowMultiple);
+        rnp_result_t ret = RNP_SUCCESS;
+        bool         first = true;
+        while (true) {
+            if (armor.eof() && armor.multiple()) {
+                armor.restart();
+            }
+            if (armor.eof()) {
+                break;
+            }
+            if (first) {
+                dst_printf(dst, ":armored input\n");
+                first = false;
+            }
+            DumpContextDst ctx(armor.src(), dst);
+            ctx.copy_params(*this);
+            ret = ctx.dump(true);
+            if (ret) {
+                break;
+            }
         }
-        dst_printf(dst, ":armored input\n");
-
-        std::unique_ptr<DumpContextDst> ctx(new DumpContextDst(armor->src(), dst));
-        ctx->copy_params(*this);
-        return ctx->dump(true);
+        return ret;
     }
 
     if (src.eof()) {
@@ -2751,15 +2766,26 @@ DumpContextJson::dump(bool raw_only)
     }
     /* check whether source is armored */
     if (!raw_only && src.is_armored()) {
-        std::unique_ptr<Source> armor(new Source());
-        rnp_result_t            ret = init_armored_src(&armor->src(), &src);
-        if (ret) {
-            RNP_LOG("failed to parse armored data");
-            return ret;
+        /* Walk all armored messages in the stream, mirroring the text
+         * dumper (see issue #2036). */
+        rnp::ArmoredSource armor(
+          src, rnp::ArmoredSource::AllowBinary | rnp::ArmoredSource::AllowMultiple);
+        rnp_result_t ret = RNP_SUCCESS;
+        while (true) {
+            if (armor.eof() && armor.multiple()) {
+                armor.restart();
+            }
+            if (armor.eof()) {
+                break;
+            }
+            DumpContextJson ctx(armor.src(), json);
+            ctx.copy_params(*this);
+            ret = ctx.dump(true);
+            if (ret) {
+                break;
+            }
         }
-        DumpContextJson ctx(armor->src(), json);
-        ctx.copy_params(*this);
-        return ctx.dump(true);
+        return ret;
     }
 
     if (src.eof()) {
