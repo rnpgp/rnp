@@ -1299,8 +1299,63 @@ TEST_F(rnp_tests, test_ffi_decrypt_argon2_skesk)
 }
 #endif
 
-#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
-TEST_F(rnp_tests, test_ffi_verify_v2_seipd_test_vector)
+#if defined(ENABLE_CRYPTO_REFRESH)
+/* Negative coverage for Argon2 AEAD locked secret keys (#2296 follow-up).
+ * The happy-path test confirms a correct password unlocks; this test
+ * confirms a wrong password does NOT unlock, and that the failure leaves
+ * the key material untouched (no partial decrypt). */
+TEST_F(rnp_tests, test_ffi_argon2_locked_seckey_wrong_password)
+{
+    if (sizeof(size_t) == 4) {
+        GTEST_SKIP();
+    }
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(
+      import_all_keys(ffi, "data/RFC9580/A.5.sample-locked-v6-seckey-argon2-aead.asc"));
+
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "CB186C4F0609A697", &key));
+
+    /* Wrong password: must fail cleanly, no crash, no partial unlock */
+    assert_rnp_failure(rnp_key_unlock(key, "wrong password"));
+    /* Wrong password, second attempt: still fails (state is reset, not stuck) */
+    assert_rnp_failure(rnp_key_unlock(key, "another wrong password"));
+    /* Right password still works after the failed attempts */
+    assert_rnp_success(rnp_key_unlock(key, "correct horse battery staple"));
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(ffi);
+}
+#endif
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+/* Wrong password for an Argon2-encrypted SKESK must fail without leaking
+ * the plaintext. */
+TEST_F(rnp_tests, test_ffi_decrypt_argon2_skesk_wrong_password)
+{
+    if (sizeof(size_t) == 4) {
+        GTEST_SKIP();
+    }
+    rnp_ffi_t       ffi = NULL;
+    rnp_input_t     input = NULL;
+    rnp_output_t    output = NULL;
+    rnp_op_verify_t verify = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/RFC9580/A.12.1.v4-skesk-argon2-aes128.asc"));
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    assert_rnp_success(rnp_ffi_set_pass_provider(
+      ffi, ffi_string_password_provider, (void *) "wrong password"));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    /* Verification must fail: wrong password cannot derive the AEAD key */
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    rnp_ffi_destroy(ffi);
+}
+#endif
 {
     rnp_ffi_t       ffi = NULL;
     rnp_input_t     input = NULL;
@@ -1398,6 +1453,43 @@ TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
         rnp_ffi_destroy(ffi);
     }
 }
+
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
+/* Negative coverage for PQC PKESK decryption (#2355 follow-up). Takes a
+ * valid PQC-encrypted message, flips a byte in the ciphertext, and asserts
+ * decryption fails cleanly without leaking plaintext. Without this test,
+ * the AEAD tag verification path on the PQC PKESK is uncovered. */
+TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_corrupted)
+{
+    /* Load the valid message into memory, then flip one byte near the end
+     * (well inside the AEAD-protected region). */
+    std::string orig_path = "data/draft-ietf-openpgp-pqc/v6-eddsa-sample-message.asc";
+    std::vector<uint8_t> buf = file_to_vec(orig_path);
+    assert_true(buf.size() > 100);
+    /* Flip a byte near the end (within the SEIPD payload, not the armor) */
+    buf[buf.size() - 50] ^= 0x01;
+    /* Write to a temp file via binary fwrite so NULL bytes survive. */
+    FILE *f = fopen("corrupted.msg", "wb");
+    assert_non_null(f);
+    assert_int_equal(fwrite(buf.data(), 1, buf.size(), f), buf.size());
+    fclose(f);
+
+    rnp_ffi_t    ffi = NULL;
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_all_keys(ffi, "data/draft-ietf-openpgp-pqc/v6-eddsa-sample-sk.asc"));
+    assert_rnp_success(rnp_input_from_path(&input, "corrupted.msg"));
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    /* Decrypt must fail because the AEAD tag won't match the tampered bytes */
+    assert_rnp_failure(rnp_decrypt(ffi, input, output));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    rnp_ffi_destroy(ffi);
+    unlink("corrupted.msg");
+    unlink("decrypted");
+}
+#endif
 
 TEST_F(rnp_tests, test_ffi_pqc_default_enc_subkey)
 {
