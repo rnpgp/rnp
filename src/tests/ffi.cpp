@@ -6228,6 +6228,41 @@ TEST_F(rnp_tests, test_ffi_security_rule_enumeration)
     assert_rnp_success(rnp_get_security_rule_count(ffi, &count2));
     assert_int_equal(count2, count + 1);
 
+    /* Cover FeatureType::PublicKey branch and the Disabled/PROHIBITED level
+     * mapping, which the built-in defaults don't exercise. */
+    assert_rnp_success(rnp_add_security_rule(ffi,
+                                             RNP_FEATURE_PK_ALG,
+                                             "EDDSA",
+                                             RNP_SECURITY_OVERRIDE,
+                                             20000,
+                                             RNP_SECURITY_PROHIBITED));
+    size_t count3 = 0;
+    assert_rnp_success(rnp_get_security_rule_count(ffi, &count3));
+    assert_int_equal(count3, count2 + 1);
+
+    /* Find the EdDSA rule we just added and verify the fields round-trip. */
+    bool found_eddsa = false;
+    for (size_t i = 0; i < count3; i++) {
+        type = NULL;
+        name = NULL;
+        level = 0;
+        from = 0;
+        flags = 0;
+        assert_rnp_success(
+          rnp_get_security_rule_at(ffi, i, &type, &name, &level, &from, &flags));
+        assert_non_null(type);
+        assert_non_null(name);
+        if (strcmp(type, "public-key") == 0 && strcmp(name, "EDDSA") == 0) {
+            found_eddsa = true;
+            assert_int_equal(level, RNP_SECURITY_PROHIBITED);
+            assert_int_equal(from, 20000);
+            assert_int_equal(flags, RNP_SECURITY_OVERRIDE);
+        }
+        rnp_buffer_destroy(type);
+        rnp_buffer_destroy(name);
+    }
+    assert_true(found_eddsa);
+
     rnp_ffi_destroy(ffi);
 }
 
