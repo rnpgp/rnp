@@ -7874,9 +7874,167 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_key_protect_ex(rnp_key_handle_t handle, const char *password, const rnp_protection_params_t *params)
+try {
+    if (!handle || !password) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    /* Resolve FFI strings into enums. Defaults mirror rnp_key_protect. */
+    pgp_symm_alg_t    symm_alg = DEFAULT_PGP_SYMM_ALG;
+    pgp_cipher_mode_t cipher_mode = DEFAULT_PGP_CIPHER_MODE;
+    pgp_hash_alg_t    hash_alg = DEFAULT_PGP_HASH_ALG;
+    unsigned          iterations = 0;
+    pgp_s2k_specifier_t s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
+    pgp_s2k_usage_t     s2k_usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
+    pgp_aead_alg_t      aead_alg = PGP_AEAD_NONE;
+    uint8_t             argon2_t = 0;
+    uint8_t             argon2_p = 0;
+    uint8_t             argon2_m = 0;
+    bool                want_argon2 = false;
+
+    if (params) {
+        if (params->cipher && !str_to_cipher(params->cipher, &symm_alg)) {
+            FFI_LOG(handle->ffi, "Invalid cipher: %s", params->cipher);
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        if (params->cipher_mode && !str_to_cipher_mode(params->cipher_mode, &cipher_mode)) {
+            FFI_LOG(handle->ffi, "Invalid cipher mode: %s", params->cipher_mode);
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        if (params->hash && !str_to_hash_alg(params->hash, &hash_alg)) {
+            FFI_LOG(handle->ffi, "Invalid hash: %s", params->hash);
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        iterations = params->iterations;
+
+        const char *stype = params->s2k_type ? params->s2k_type : "Iterated and salted";
+        if (rnp::str_case_eq(stype, "Simple")) {
+            s2k_specifier = PGP_S2KS_SIMPLE;
+        } else if (rnp::str_case_eq(stype, "Salted")) {
+            s2k_specifier = PGP_S2KS_SALTED;
+        } else if (rnp::str_case_eq(stype, "Iterated and salted")) {
+            s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
+        } else if (rnp::str_case_eq(stype, "Argon2")) {
+#if !defined(ENABLE_CRYPTO_REFRESH)
+            FFI_LOG(handle->ffi, "Argon2 S2K requires a build with ENABLE_CRYPTO_REFRESH");
+            return RNP_ERROR_NOT_SUPPORTED;
+#else
+            want_argon2 = true;
+            s2k_specifier = PGP_S2KS_ARGON2;
+            s2k_usage = PGP_S2KU_AEAD;
+            aead_alg = params->aead_alg ? PGP_AEAD_NONE /* set below */ : PGP_AEAD_OCB;
+            if (params->aead_alg) {
+                if (!str_to_aead_alg(params->aead_alg, &aead_alg) ||
+                    aead_alg == PGP_AEAD_NONE) {
+                    FFI_LOG(handle->ffi, "Invalid AEAD algorithm: %s", params->aead_alg);
+                    return RNP_ERROR_BAD_PARAMETERS;
+                }
+            }
+            /* Default Argon2 params follow RFC 9100 §4: t=1, p=4, m=2^21 on
+             * 64-bit; t=3, p=4, m=2^16 on memory-constrained 32-bit. */
+            argon2_t = params->argon2_t ? (uint8_t) params->argon2_t :
+                       (uint8_t)(sizeof(size_t) > 4 ? 1 : 3);
+            argon2_p = params->argon2_p ? (uint8_t) params->argon2_p : (uint8_t) 4;
+            if (params->argon2_m_kib) {
+                /* User gives KiB; on-wire field is log2(bytes). */
+                size_t m_bytes = params->argon2_m_kib * 1024;
+                uint8_t  log = 0;
+                while (m_bytes > 1) {
+                    m_bytes >>= 1;
+                    log++;
+                }
+                argon2_m = log;
+            } else {
+                argon2_m = (uint8_t)(sizeof(size_t) > 4 ? 21 : 16);
+            }
+#endif
+        } else {
+            FFI_LOG(handle->ffi, "Unknown S2K type: %s", stype);
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        /* Non-Argon2 AEAD: caller may request AEAD explicitly */
+        if (!want_argon2 && params->aead_alg) {
+#if !defined(ENABLE_CRYPTO_REFRESH)
+            FFI_LOG(handle->ffi, "AEAD secret-key protection requires ENABLE_CRYPTO_REFRESH");
+            return RNP_ERROR_NOT_SUPPORTED;
+#else
+            if (!str_to_aead_alg(params->aead_alg, &aead_alg) || aead_alg == PGP_AEAD_NONE) {
+                FFI_LOG(handle->ffi, "Invalid AEAD algorithm: %s", params->aead_alg);
+                return RNP_ERROR_BAD_PARAMETERS;
+            }
+            s2k_usage = PGP_S2KU_AEAD;
+#endif
+        }
+    }
+
+    /* Get the key; decrypt if currently encrypted (same as rnp_key_protect) */
+    auto *key = get_key_require_secret(handle);
+    if (!key) {
+        return RNP_ERROR_NO_SUITABLE_KEY;
+    }
+    pgp_key_pkt_t *decrypted_key = NULL;
+    const std::string pass = password;
+    if (key->encrypted()) {
+        pgp_password_ctx_t ctx(PGP_OP_PROTECT, key);
+        decrypted_key = pgp_decrypt_seckey(*key, handle->ffi->pass_provider, ctx);
+        if (!decrypted_key) {
+            return RNP_ERROR_GENERIC;
+        }
+    }
+    pgp_key_pkt_t &target = decrypted_key ? *decrypted_key : key->pkt();
+    if (!target.material || !target.material->secret()) {
+        delete decrypted_key;
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    /* Populate sec_protection directly so we have full control over the
+     * Argon2 / AEAD fields that Key::protect() does not expose. */
+    auto &sp = target.sec_protection;
+    sp = {};
+    sp.s2k.usage = s2k_usage;
+    sp.s2k.specifier = s2k_specifier;
+    sp.symm_alg = symm_alg;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    sp.cipher_mode = (s2k_usage == PGP_S2KU_AEAD) ? PGP_CIPHER_MODE_NONE : cipher_mode;
+#else
+    sp.cipher_mode = cipher_mode;
+#endif
+    sp.s2k.hash_alg = hash_alg;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    sp.aead_alg = aead_alg;
+    if (want_argon2) {
+        sp.s2k.argon2_t = argon2_t;
+        sp.s2k.argon2_p = argon2_p;
+        sp.s2k.argon2_encoded_m = argon2_m;
+    }
+#endif
+    /* Iteration count: for iterated-and-salted, derive a sane default if 0 */
+    if (s2k_specifier == PGP_S2KS_ITERATED_AND_SALTED) {
+        unsigned iter = iterations;
+        if (!iter) {
+            iter = handle->ffi->context.s2k_iterations(hash_alg);
+        }
+        sp.s2k.iterations = pgp_s2k_round_iterations(iter);
+    } else {
+        sp.s2k.iterations = 0;
+    }
+
+    /* encrypt_secret_key operates on the target packet in-place. Key::protect
+     * also copies the result back to pkt(); we mirror that here. */
+    rnp_result_t ret = encrypt_secret_key(&target, password, handle->ffi->context.rng);
+    if (ret == RNP_SUCCESS) {
+        if (decrypted_key) {
+            key->pkt() = std::move(target);
+        }
+    }
+    delete decrypted_key;
+    return ret;
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_key_unprotect(rnp_key_handle_t handle, const char *password)
 try {
-    // checks
     if (!handle) {
         return RNP_ERROR_NULL_POINTER;
     }

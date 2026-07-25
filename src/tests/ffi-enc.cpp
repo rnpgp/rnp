@@ -1175,6 +1175,69 @@ TEST_F(rnp_tests, test_ffi_decrypt_v6_pkesk_test_vector)
 #endif
 
 #if defined(ENABLE_CRYPTO_REFRESH)
+/* Round-trip via the new rnp_key_protect_ex() FFI: generate a fresh v4 RSA
+ * key, protect it with Argon2 S2K + AEAD, export, reload, and unlock with
+ * the correct password. Exercises the Argon2 S2K key-derivation path on the
+ * protect side and the AEAD decrypt path on the unlock side, both of which
+ * were only reachable via JSON keygen before this PR. */
+TEST_F(rnp_tests, test_ffi_key_protect_ex_argon2_roundtrip)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* Generate a small RSA key for speed */
+    rnp_op_generate_t op = NULL;
+    rnp_key_handle_t  key = NULL;
+    assert_rnp_success(rnp_op_generate_create(&op, ffi, "RSA"));
+    assert_rnp_success(rnp_op_generate_set_rsa_bits(op, 2048));
+    assert_rnp_success(rnp_op_generate_set_userid(op, "test <test@example.com>"));
+    assert_rnp_success(rnp_op_generate_execute(op));
+    assert_rnp_success(rnp_op_generate_get_key(op, &key));
+    rnp_op_generate_destroy(op);
+
+    /* Protect with Argon2 + AEAD via the new FFI */
+    rnp_protection_params_t params = {};
+    params.s2k_type = "Argon2";
+    params.cipher = "AES256";
+    params.aead_alg = "OCB";
+    /* Use small Argon2 parameters so the test runs in seconds, not minutes */
+    params.argon2_t = 1;
+    params.argon2_p = 1;
+    params.argon2_m_kib = 8192; /* 8 MiB */
+    assert_rnp_success(rnp_key_protect_ex(key, "password", &params));
+
+    /* Wrong password must fail */
+    assert_rnp_failure(rnp_key_unlock(key, "wrong password"));
+    /* Correct password must succeed */
+    assert_rnp_success(rnp_key_unlock(key, "password"));
+
+    /* Round-trip: export secret key, reload into a fresh FFI, unlock */
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_key_export(output, key,
+                                      RNP_KEY_SECRET_SUBKEY | RNP_KEY_PUBLIC_SUBKEY | RNP_KEY_SUBKEYS));
+    rnp_output_destroy(output);
+
+    /* Sanity: key is still usable for sign+verify after protect/unlock */
+    rnp_input_t  input = NULL;
+    rnp_output_t sigout = NULL;
+    str_to_file("data.txt", "hello");
+    assert_rnp_success(rnp_input_from_path(&input, "data.txt"));
+    assert_rnp_success(rnp_output_to_path(&sigout, "data.sig"));
+    rnp_op_sign_t sign = NULL;
+    assert_rnp_success(rnp_op_sign_create(&sign, ffi, input, sigout));
+    assert_rnp_success(rnp_op_sign_add_signature(sign, key, NULL));
+    assert_rnp_success(rnp_op_sign_execute(sign));
+    rnp_op_sign_destroy(sign);
+    rnp_input_destroy(input);
+    rnp_output_destroy(sigout);
+
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(ffi);
+    unlink("data.txt");
+    unlink("data.sig");
+}
+
 TEST_F(rnp_tests, test_ffi_argon2_locked_seckey)
 {
     /* The sample uses Argon2 with m = 2^21 (2 GiB), which does not fit into a
