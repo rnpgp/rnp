@@ -1183,6 +1183,17 @@ get_feature_sec_value(
         return true;
     }
 
+    if (rnp::str_case_eq(stype, RNP_FEATURE_PK_ALG)) {
+        type = rnp::FeatureType::PublicKey;
+        pgp_pubkey_alg_t alg = PGP_PKA_NOTHING;
+        if (sname && !str_to_pubkey_alg(sname, &alg)) {
+            FFI_LOG(ffi, "Unknown public key algorithm: %s", sname);
+            return false;
+        }
+        value = alg;
+        return true;
+    }
+
     FFI_LOG(ffi, "Unsupported feature type: %s", stype);
     return false;
 }
