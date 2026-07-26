@@ -475,6 +475,7 @@ add_library(librnp-obj OBJECT
   logging.cpp
   json-utils.cpp
   utils.cpp
+  entropy_encoding.cpp
   pass-provider.cpp
   rawpacket.cpp
   sig_subpacket.cpp
