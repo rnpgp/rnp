@@ -1,0 +1,142 @@
+= Common workflow patterns
+
+This document describes common OpenPGP workflows that clients of the
+rnp C API may want to compose from the primitive operations rnp
+provides. rnp is intentionally a crypto library, not a workflow
+framework: each pattern below is a small composition of existing
+FFI calls rather than a single-purpose API.
+
+== Pre-generating a revocation certificate
+
+A revocation certificate is a revocation signature that can be
+published later, independent of when it was created. Generating
+one in advance and storing it somewhere safe allows the key to be
+revoked even after the secret key material is lost (for example, if
+the device that holds the key fails).
+
+.Revocation certificate generation
+[source,c]
+----
+#include <rnp/rnp.h>
+
+rnp_result_t
+generate_revocation_cert(rnp_ffi_t ffi, rnp_key_handle_t key, rnp_output_t out)
+{
+    return rnp_key_revokes(key,
+                           RNP_KEY_REVOCATION_NO_REASON, /* or another reason */
+                           "pre-generated revocation",    /* human-readable */
+                           0,                             /* no subkey */
+                           false,                         /* not revocable */
+                           out);
+}
+----
+
+The output of `rnp_key_revokes()` is a single OpenPGP revocation
+signature packet that can be re-imported later via
+`rnp_key_import_revocations()` or published directly via
+`rnp_key_export()` with `RNP_KEY_EXPORT_REVOKED`.
+
+== Encrypting an arbitrary payload to a third-party key
+
+This pattern is useful when a third party needs to be able to
+read material the data owner cannot read themselves — for example,
+a service that processes user-supplied data without holding the
+decryption key.
+
+.Encrypt to third-party public key
+[source,c]
+----
+rnp_result_t
+encrypt_to_recipient(rnp_ffi_t            ffi,
+                     rnp_key_handle_t     recipient_key,
+                     rnp_input_t          payload,
+                     rnp_output_t         ciphertext)
+{
+    rnp_op_encrypt_t op = NULL;
+    rnp_result_t     ret = RNP_ERROR_GENERIC;
+
+    if ((ret = rnp_op_encrypt_create(&op, ffi, payload, ciphertext))) {
+        return ret;
+    }
+    if ((ret = rnp_op_encrypt_add_recipient(op, recipient_key))) {
+        goto done;
+    }
+    /* Optional: set cipher, AEAD, etc. Defaults are reasonable. */
+    ret = rnp_op_encrypt_execute(op);
+done:
+    rnp_op_encrypt_destroy(op);
+    return ret;
+}
+----
+
+The third party decrypts with `rnp_decrypt()` using their secret
+key. The data owner never sees the plaintext after the encrypt
+call returns.
+
+== Publishing a revocation to a keyserver
+
+Once a revocation certificate is in hand, it can be published via
+any of the standard OpenPGP keyserver mechanisms. rnp itself does
+not operate a keyserver, but produces the wire-format bytes that
+keyservers accept.
+
+.Publishing a revocation
+[source,c]
+----
+/* `revocation_input` is the previously-generated revocation cert,
+ * opened via rnp_input_from_path() or rnp_input_from_memory().
+ * `keyserver_put` is the caller's HTTPS-PUT function. */
+rnp_result_t
+publish_revocation(rnp_ffi_t      ffi,
+                   rnp_key_handle_t key,
+                   rnp_input_t    revocation_input,
+                   int          (*keyserver_put)(const uint8_t *data, size_t len))
+{
+    /* Import the revocation into the local keyring, then export
+     * the revoked key in armored form for the keyserver. */
+    rnp_result_t ret = rnp_key_import_revocations(ffi, revocation_input, 0);
+    if (ret) {
+        return ret;
+    }
+    rnp_output_t armored = NULL;
+    ret = rnp_output_to_memory(&armored, 0);
+    if (ret) {
+        return ret;
+    }
+    uint32_t flags = RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_SUBKEYS | RNP_KEY_EXPORT_ARMORED;
+    ret = rnp_key_export(armored, key, flags);
+    if (ret) {
+        rnp_output_destroy(armored);
+        return ret;
+    }
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    ret = rnp_output_memory_get_buf(armored, &buf, &len, false);
+    if (ret == RNP_SUCCESS) {
+        keyserver_put(buf, len);
+    }
+    rnp_output_destroy(armored);
+    return ret;
+}
+----
+
+== Composing the patterns
+
+A common application of the three patterns above is the "escrowed
+revocation" workflow: a user pre-generates a revocation certificate,
+encrypts it together with the public key to a third-party's public
+key, and stores the encrypted blob somewhere durable. If the user
+later loses their secret key, the third party can decrypt the blob,
+verify the revocation certificate against the enclosed public key,
+and publish it on the user's behalf.
+
+The exact verification ceremony (email confirmation, delay windows,
+rate limiting) is an application-layer concern — rnp's role is to
+make the underlying crypto operations safe, correct, and easy to
+compose.
+
+== See also
+
+* `include/rnp/rnp.h` — FFI function reference.
+* `docs/c-usage.adoc` — top-level C API overview.
+* `docs/develop/compile-time-warnings.adoc` — compile-time warnings policy.

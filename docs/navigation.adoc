@@ -8,6 +8,7 @@ items:
   path: develop/
   items:
   - { title: "C++ usage", path: develop/cpp-usage/ }
+  - { title: "Common workflow patterns", path: develop/workflows/ }
   - { title: "Packaging", path: develop/packaging/ }
   - { title: "Release workflow", path: develop/release-workflow/ }
   # - title: "Acceptance tests"
