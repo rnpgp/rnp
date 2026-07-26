@@ -27,6 +27,7 @@
 
 #include "crypto/common.h"
 #include "key.hpp"
+#include "entropy_encoding.hpp"
 #include "defaults.h"
 #include <assert.h>
 #include <nlohmann/json.hpp>
@@ -8982,3 +8983,374 @@ rnp_backend_version()
 {
     return rnp::backend_version();
 }
+
+/* ===================== Entropy encoding ===================== */
+
+static void
+normalize_entropy_params(const rnp_entropy_encoding_params_t *in,
+                          rnp_entropy_encoding_params_t &out)
+{
+    out = {};
+    if (in) {
+        out = *in;
+    }
+    if (!out.alphabet) {
+        out.alphabet = "0123456789ABCDEF";
+    }
+    if (out.entropy_bits == 0) {
+        out.entropy_bits = 256;
+    }
+    if (out.group_size == 0) {
+        out.group_size = 4;
+    }
+    /* disable_* fields are bool; user-supplied value stands. NULL params
+     * defaults to "include" (false). */
+    out.disable_group_ids = in ? in->disable_group_ids : false;
+    out.disable_checksum = in ? in->disable_checksum : false;
+    if (out.checksum_bits == 0) {
+        out.checksum_bits = 16;
+    }
+    if (!out.separator) {
+        out.separator = " ";
+    }
+}
+
+static bool
+params_to_cfg(const rnp_entropy_encoding_params_t *params,
+               rnp::EntropyEncodingConfig &cfg,
+               std::string &                error)
+{
+    rnp_entropy_encoding_params_t norm;
+    normalize_entropy_params(params, norm);
+    cfg.alphabet = norm.alphabet;
+    cfg.entropy_bits = norm.entropy_bits;
+    cfg.group_size = norm.group_size;
+    cfg.disable_group_ids = norm.disable_group_ids;
+    cfg.disable_checksum = norm.disable_checksum;
+    cfg.checksum_bits = norm.checksum_bits;
+    cfg.checksum_id = norm.checksum_id;
+    cfg.separator = norm.separator;
+    return cfg.validate(error);
+}
+
+static char *
+alloc_cstr(const std::string &s)
+{
+    char *out = static_cast<char *>(malloc(s.size() + 1));
+    if (!out) {
+        return nullptr;
+    }
+    memcpy(out, s.data(), s.size());
+    out[s.size()] = '\0';
+    return out;
+}
+
+rnp_result_t
+rnp_entropy_encode_human_readable(rnp_ffi_t                             ffi,
+                                   const rnp_entropy_encoding_params_t * params,
+                                   char **                               structured_form,
+                                   char **                               flat_form)
+try {
+    if (!ffi || (!structured_form && !flat_form)) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    rnp::EntropyEncodingConfig cfg;
+    std::string                error;
+    if (!params_to_cfg(params, cfg, error)) {
+        FFI_LOG(ffi, "entropy encoding params invalid: %s", error.c_str());
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    /* Generate entropy via the FFI RNG. */
+    std::vector<uint8_t> entropy(cfg.entropy_bytes());
+    ffi->context.rng.get(entropy.data(), entropy.size());
+    std::string flat;
+    if (!rnp::entropy_to_flat_string(entropy, cfg, flat)) {
+        return RNP_ERROR_GENERIC;
+    }
+    if (flat_form) {
+        *flat_form = alloc_cstr(flat);
+        if (!*flat_form) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+    }
+    if (structured_form) {
+        std::string structured;
+        if (!rnp::encode_structured(entropy, cfg, structured)) {
+            if (flat_form) {
+                free(*flat_form);
+                *flat_form = nullptr;
+            }
+            return RNP_ERROR_GENERIC;
+        }
+        *structured_form = alloc_cstr(structured);
+        if (!*structured_form) {
+            if (flat_form) {
+                free(*flat_form);
+                *flat_form = nullptr;
+            }
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+    }
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_entropy_decode_human_readable(const char *                          structured_form,
+                                   const rnp_entropy_encoding_params_t * params,
+                                   char **                               flat_form)
+try {
+    if (!structured_form || !flat_form) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    rnp::EntropyEncodingConfig cfg;
+    std::string                error;
+    if (!params_to_cfg(params, cfg, error)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    std::string flat;
+    bool        checksum_ok = true;
+    if (!rnp::decode_structured(std::string(structured_form), cfg, flat, checksum_ok)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!checksum_ok) {
+        return RNP_ERROR_SIGNATURE_INVALID;
+    }
+    char *out = alloc_cstr(flat);
+    if (!out) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    *flat_form = out;
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_entropy_encoding_validate(const char *                          structured_form,
+                               const rnp_entropy_encoding_params_t * params)
+try {
+    if (!structured_form) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    rnp::EntropyEncodingConfig cfg;
+    std::string                error;
+    if (!params_to_cfg(params, cfg, error)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    std::string flat;
+    bool        checksum_ok = true;
+    if (!rnp::decode_structured(std::string(structured_form), cfg, flat, checksum_ok)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return checksum_ok ? RNP_SUCCESS : RNP_ERROR_SIGNATURE_INVALID;
+}
+FFI_GUARD
+
+/* ===================== Backup archive ===================== */
+
+rnp_result_t
+rnp_backup_archive_create(rnp_ffi_t                            ffi,
+                           rnp_key_handle_t *                   keys_to_backup,
+                           size_t                               key_count,
+                           rnp_key_handle_t                     signing_key,
+                           rnp_key_handle_t                     encryption_key,
+                           const rnp_backup_archive_params_t *  params,
+                           rnp_output_t                         output)
+try {
+    if (!ffi || !keys_to_backup || !signing_key || !encryption_key || !output) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (key_count == 0) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    /* Step 1: export each key as a transferable secret key into a single
+     * memory buffer. */
+    rnp_output_t keys_output = NULL;
+    if (rnp_output_to_memory(&keys_output, 0)) {
+        return RNP_ERROR_GENERIC;
+    }
+    for (size_t i = 0; i < key_count; i++) {
+        if (!keys_to_backup[i]) {
+            rnp_output_destroy(keys_output);
+            return RNP_ERROR_NULL_POINTER;
+        }
+        uint32_t flags = RNP_KEY_EXPORT_SECRET | RNP_KEY_EXPORT_SUBKEYS;
+        rnp_result_t r = rnp_key_export(keys_to_backup[i], keys_output, flags);
+        if (r) {
+            rnp_output_destroy(keys_output);
+            return r;
+        }
+    }
+    uint8_t *keys_buf = NULL;
+    size_t   keys_len = 0;
+    if (rnp_output_memory_get_buf(keys_output, &keys_buf, &keys_len, false)) {
+        rnp_output_destroy(keys_output);
+        return RNP_ERROR_GENERIC;
+    }
+
+    /* Step 2: build a signed, encrypted OpenPGP message containing the
+     * concatenated transferable keys as the literal data. */
+    rnp_input_t payload_input = NULL;
+    rnp_result_t r =
+      rnp_input_from_memory(&payload_input, keys_buf, keys_len, true);
+    rnp_output_destroy(keys_output);
+    if (r) {
+        return r;
+    }
+
+    rnp_op_encrypt_t op = NULL;
+    r = rnp_op_encrypt_create(&op, ffi, payload_input, output);
+    if (r) {
+        rnp_input_destroy(payload_input);
+        return r;
+    }
+    /* Add recipient (the encryption_key). */
+    r = rnp_op_encrypt_add_recipient(op, encryption_key);
+    if (r) {
+        rnp_op_encrypt_destroy(op);
+        rnp_input_destroy(payload_input);
+        return r;
+    }
+    /* Add signature with signing_key. */
+    r = rnp_op_encrypt_add_signature(op, signing_key, NULL);
+    if (r) {
+        rnp_op_encrypt_destroy(op);
+        rnp_input_destroy(payload_input);
+        return r;
+    }
+    if (params) {
+        if (params->cipher) {
+            r = rnp_op_encrypt_set_cipher(op, params->cipher);
+            if (r) {
+                goto enc_cleanup;
+            }
+        }
+        if (params->aead) {
+            r = rnp_op_encrypt_set_aead(op, params->aead);
+            if (r) {
+                goto enc_cleanup;
+            }
+        }
+        if (params->hash) {
+            r = rnp_op_encrypt_set_hash(op, params->hash);
+            if (r) {
+                goto enc_cleanup;
+            }
+        }
+    }
+    r = rnp_op_encrypt_execute(op);
+enc_cleanup:
+    rnp_op_encrypt_destroy(op);
+    rnp_input_destroy(payload_input);
+    output->keep = (r == RNP_SUCCESS);
+    return r;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_backup_archive_load(rnp_ffi_t        ffi,
+                         rnp_input_t      input,
+                         rnp_key_handle_t decryption_key,
+                         rnp_key_handle_t signing_key_public)
+try {
+    if (!ffi || !input || !decryption_key || !signing_key_public) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    /* Unlock the decryption key (caller may have already unlocked it). */
+    bool locked = false;
+    {
+        bool is_locked = false;
+        if (rnp_key_is_locked(decryption_key, &is_locked) == RNP_SUCCESS && is_locked) {
+            locked = true;
+        }
+    }
+    (void) locked; /* The caller is responsible for unlocking. */
+
+    /* Decrypt via rnp_op_verify, which returns both the plaintext and
+     * signature verification status. */
+    rnp_output_t plaintext_output = NULL;
+    if (rnp_output_to_memory(&plaintext_output, 0)) {
+        return RNP_ERROR_GENERIC;
+    }
+    rnp_op_verify_t verify = NULL;
+    rnp_result_t    r = rnp_op_verify_create(&verify, ffi, input, plaintext_output);
+    if (r) {
+        rnp_output_destroy(plaintext_output);
+        return r;
+    }
+    r = rnp_op_verify_execute(verify);
+    if (r) {
+        rnp_op_verify_destroy(verify);
+        rnp_output_destroy(plaintext_output);
+        return r;
+    }
+    /* Verify the signature using the signing key's public component. */
+    size_t sig_count = 0;
+    rnp_op_verify_get_signature_count(verify, &sig_count);
+    if (sig_count == 0) {
+        rnp_op_verify_destroy(verify);
+        rnp_output_destroy(plaintext_output);
+        return RNP_ERROR_SIGNATURE_INVALID;
+    }
+    bool any_good = false;
+    for (size_t i = 0; i < sig_count; i++) {
+        rnp_op_verify_signature_t sig = NULL;
+        if (rnp_op_verify_get_signature_at(verify, i, &sig)) {
+            continue;
+        }
+        rnp_signature_handle_t sig_handle = NULL;
+        if (rnp_op_verify_signature_get_handle(sig, &sig_handle)) {
+            continue;
+        }
+        rnp_key_handle_t sig_key = NULL;
+        rnp_result_t     sig_r = rnp_signature_get_signer(sig_handle, &sig_key);
+        rnp_signature_handle_destroy(sig_handle);
+        if (sig_r) {
+            continue;
+        }
+        char *keyid = NULL;
+        rnp_key_get_keyid(sig_key, &keyid);
+        char *expected_keyid = NULL;
+        rnp_key_get_keyid(signing_key_public, &expected_keyid);
+        bool match = keyid && expected_keyid && strcmp(keyid, expected_keyid) == 0;
+        free(keyid);
+        free(expected_keyid);
+        rnp_key_handle_destroy(sig_key);
+        if (match) {
+            rnp_result_t status = rnp_op_verify_signature_get_status(sig);
+            if (status == RNP_SUCCESS) {
+                any_good = true;
+                break;
+            }
+        }
+    }
+    if (!any_good) {
+        rnp_op_verify_destroy(verify);
+        rnp_output_destroy(plaintext_output);
+        return RNP_ERROR_SIGNATURE_INVALID;
+    }
+    /* Import the recovered keys from the decrypted plaintext. */
+    uint8_t *keys_buf = NULL;
+    size_t   keys_len = 0;
+    r = rnp_output_memory_get_buf(plaintext_output, &keys_buf, &keys_len, false);
+    if (r) {
+        rnp_op_verify_destroy(verify);
+        rnp_output_destroy(plaintext_output);
+        return r;
+    }
+    rnp_input_t keys_input = NULL;
+    r = rnp_input_from_memory(&keys_input, keys_buf, keys_len, true);
+    if (r) {
+        rnp_op_verify_destroy(verify);
+        rnp_output_destroy(plaintext_output);
+        return r;
+    }
+    char *results = NULL;
+    r = rnp_import_keys(ffi, keys_input, RNP_LOAD_SAVE_SECRET_KEYS, &results);
+    free(results);
+    rnp_input_destroy(keys_input);
+    rnp_op_verify_destroy(verify);
+    rnp_output_destroy(plaintext_output);
+    return r;
+}
+FFI_GUARD

@@ -4165,4 +4165,183 @@ RNP_API const char *rnp_backend_version();
 #define RNP_KEYSTORE_G10 ("G10")
 #define RNP_KEYSTORE_GPG21 ("GPG21")
 
+/**
+ * @brief Parameters for the human-readable entropy encoding utility
+ *        (rnp_entropy_encode_human_readable and friends).
+ *
+ *  This is a generic encoding for representing random entropy in a form
+ *  that a human can transcribe accurately (e.g. from a printout). The
+ *  caller chooses the alphabet, group size, and whether to include
+ *  a checksum line and/or group identifiers for order-independent entry.
+ *
+ *  The flat form is just the entropy characters concatenated, suitable
+ *  for use as a passphrase (e.g. for symmetric OpenPGP encryption).
+ *  The structured form is the same characters split into groups with
+ *  optional identifiers and checksum, suitable for display to the user.
+ */
+typedef struct rnp_entropy_encoding_params_t {
+    /** Alphabet for the entropy characters. NULL = "0123456789ABCDEF" (hex).
+     *  Must be a power of two in length and at most 256 entries. Each
+     *  character must be unique. */
+    const char *alphabet;
+    /** Number of entropy bits to encode. 0 = 256. Must be an exact
+     *  multiple of (log2(alphabet_size) * group_size). */
+    size_t entropy_bits;
+    /** Number of entropy characters per data group. 0 = 4. */
+    size_t group_size;
+    /** If true, OMIT group identifiers from the structured form. Default
+     *  (false) includes identifiers so the user can enter groups in any
+     *  order. The checksum line uses a separate identifier
+     *  (see checksum_id). */
+    bool disable_group_ids;
+    /** If true, OMIT the checksum line. Default (false) includes a
+     *  checksum line consisting of the first checksum_bits bits of
+     *  SHA-256(entropy), encoded as one data group. */
+    bool disable_checksum;
+    /** Number of bits in the checksum. 0 = 16. Must produce an integer
+     *  number of alphabet characters when divided by log2(alphabet_size). */
+    size_t checksum_bits;
+    /** Identifier for the checksum line. Must NOT be a character in the
+     *  alphabet. 0 (NUL) = auto-pick the first printable ASCII character
+     *  not in the alphabet. */
+    char checksum_id;
+    /** Separator between groups in the structured form. NULL = " "
+     *  (single space). */
+    const char *separator;
+} rnp_entropy_encoding_params_t;
+
+/**
+ * @brief Generate fresh entropy and encode it as a human-readable string.
+ *
+ *  Generates `entropy_bits` worth of cryptographically random bytes via
+ *  the FFI's RNG, encodes them according to `params`, and returns two
+ *  strings:
+ *
+ *  - `structured_form`: the human-readable form with groups, identifiers,
+ *    and checksum (for display).
+ *  - `flat_form`: the entropy characters concatenated without structure
+ *    (for use as a passphrase, e.g. for `rnp_op_encrypt_add_password`).
+ *
+ *  Either output pointer may be NULL if the caller only needs one form.
+ *  Non-NULL output pointers must be freed via `rnp_buffer_destroy()`.
+ *
+ * @param ffi populated FFI structure, cannot be NULL.
+ * @param params encoding parameters. May be NULL for all-defaults.
+ * @param structured_form on success, the structured human-readable form.
+ *        May be NULL.
+ * @param flat_form on success, the flat passphrase form. May be NULL.
+ * @return RNP_SUCCESS on success, RNP_ERROR_BAD_PARAMETERS for invalid params.
+ */
+RNP_API rnp_result_t rnp_entropy_encode_human_readable(
+  rnp_ffi_t                              ffi,
+  const rnp_entropy_encoding_params_t *  params,
+  char **                                structured_form,
+  char **                                flat_form);
+
+/**
+ * @brief Parse a structured human-readable entropy encoding and return
+ *        the flat passphrase form.
+ *
+ *  Validates the checksum (if `params->include_checksum` is true), then
+ *  returns the flat form suitable for use as a passphrase.
+ *
+ *  Groups may appear in any order if `params->include_group_ids` is true.
+ *  The checksum line is identified by its `checksum_id` character.
+ *
+ * @param structured_form the structured form, cannot be NULL.
+ * @param params encoding parameters. May be NULL for all-defaults.
+ * @param flat_form on success, the flat passphrase form. Caller must
+ *        free via `rnp_buffer_destroy()`.
+ * @return RNP_SUCCESS on success. RNP_ERROR_SIGNATURE_INVALID if the
+ *         checksum does not match. RNP_ERROR_BAD_PARAMETERS for malformed
+ *         input or invalid params.
+ */
+RNP_API rnp_result_t rnp_entropy_decode_human_readable(
+  const char *                           structured_form,
+  const rnp_entropy_encoding_params_t *  params,
+  char **                                flat_form);
+
+/**
+ * @brief Validate the checksum of a structured human-readable entropy
+ *        encoding without extracting the flat form.
+ *
+ * @param structured_form the structured form, cannot be NULL.
+ * @param params encoding parameters. May be NULL for all-defaults.
+ * @return RNP_SUCCESS if valid. RNP_ERROR_SIGNATURE_INVALID if the
+ *         checksum does not match. RNP_ERROR_BAD_PARAMETERS for malformed
+ *         input or invalid params.
+ */
+RNP_API rnp_result_t rnp_entropy_encoding_validate(
+  const char *                           structured_form,
+  const rnp_entropy_encoding_params_t *  params);
+
+/**
+ * @brief Parameters for backup archive creation/loading.
+ */
+typedef struct rnp_backup_archive_params_t {
+    /** Hash algorithm for the signature, e.g. "SHA256". NULL = default. */
+    const char *hash;
+    /** Cipher for encryption, e.g. "AES256". NULL = default. */
+    const char *cipher;
+    /** AEAD algorithm, e.g. "OCB". NULL = no AEAD preference. */
+    const char *aead;
+} rnp_backup_archive_params_t;
+
+/**
+ * @brief Create a signed and encrypted backup archive of one or more
+ *        secret keys.
+ *
+ *  Each key in `keys_to_backup` is exported as a transferable secret key
+ *  (with subkeys) and concatenated into a single literal data block.
+ *  The block is signed with `signing_key`, then encrypted to
+ *  `encryption_key`. The result is a standard OpenPGP message that can
+ *  be stored anywhere (file, blob, message attachment).
+ *
+ *  See `docs/develop/backup-format.adoc` for the wire format.
+ *
+ * @param ffi populated FFI structure, cannot be NULL.
+ * @param keys_to_backup array of secret key handles to include.
+ * @param key_count number of entries in keys_to_backup.
+ * @param signing_key secret key to sign the archive. Must have sign flag.
+ * @param encryption_key public key to encrypt the archive to.
+ * @param params optional parameters (cipher, hash, AEAD). May be NULL.
+ * @param output destination for the encrypted archive.
+ * @return RNP_SUCCESS on success, error code otherwise.
+ */
+RNP_API rnp_result_t rnp_backup_archive_create(
+  rnp_ffi_t                            ffi,
+  rnp_key_handle_t *                   keys_to_backup,
+  size_t                               key_count,
+  rnp_key_handle_t                     signing_key,
+  rnp_key_handle_t                     encryption_key,
+  const rnp_backup_archive_params_t *  params,
+  rnp_output_t                         output);
+
+/**
+ * @brief Decrypt and verify a backup archive, importing all recovered
+ *        secret keys into the FFI.
+ *
+ *  Decrypts the archive using `decryption_key` (the secret pair of the
+ *  encryption_key used at create time), verifies the signature against
+ *  the public component of `signing_key_public`, and imports all
+ *  recovered transferable secret keys into the FFI's secret keyring.
+ *
+ *  If the signature does not verify, no keys are imported and the
+ *  function returns RNP_ERROR_SIGNATURE_INVALID.
+ *
+ * @param ffi populated FFI structure, cannot be NULL.
+ * @param input source containing the encrypted archive.
+ * @param decryption_key secret key matching the encryption_key used at
+ *        create time.
+ * @param signing_key_public public component of the signing_key used at
+ *        create time.
+ * @return RNP_SUCCESS on success, RNP_ERROR_SIGNATURE_INVALID if the
+ *         signature does not verify.
+ */
+RNP_API rnp_result_t rnp_backup_archive_load(
+  rnp_ffi_t        ffi,
+  rnp_input_t      input,
+  rnp_key_handle_t decryption_key,
+  rnp_key_handle_t signing_key_public);
+
 #endif
