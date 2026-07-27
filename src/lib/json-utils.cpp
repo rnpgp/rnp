@@ -34,9 +34,7 @@ namespace json {
 /* Internal helper: pull a pointer to a field if it exists and matches the
  * type predicate, otherwise nullptr. */
 static nlohmann::ordered_json *
-get_field(nlohmann::ordered_json &obj,
-          const char             *name,
-          bool (*pred)(const nlohmann::ordered_json &))
+get_field(nlohmann::ordered_json &obj, const char *name, bool (*pred)(const nlohmann::ordered_json &))
 {
     if (!obj.is_object() || !obj.contains(name)) {
         return nullptr;
@@ -136,8 +134,7 @@ array_add(nlohmann::ordered_json &arr, nlohmann::ordered_json val)
 bool
 get_str(nlohmann::ordered_json &obj, const char *name, std::string &out, bool del)
 {
-    auto *field =
-      get_field(obj, name, [](const nlohmann::ordered_json &v) { return v.is_string(); });
+    auto *field = get_field(obj, name, [](const nlohmann::ordered_json &v) { return v.is_string(); });
     if (!field) {
         return false;
     }
@@ -152,7 +149,7 @@ bool
 get_int(nlohmann::ordered_json &obj, const char *name, int &out, bool del)
 {
     auto *field = get_field(
-      obj, name, [](const nlohmann::ordered_json &v) { return v.is_number_integer(); });
+        obj, name, [](const nlohmann::ordered_json &v) { return v.is_number_integer(); });
     if (!field) {
         return false;
     }
@@ -166,8 +163,8 @@ get_int(nlohmann::ordered_json &obj, const char *name, int &out, bool del)
 bool
 get_uint64(nlohmann::ordered_json &obj, const char *name, uint64_t &out, bool del)
 {
-    auto *field =
-      get_field(obj, name, [](const nlohmann::ordered_json &v) { return v.is_number(); });
+    auto *field = get_field(
+        obj, name, [](const nlohmann::ordered_json &v) { return v.is_number(); });
     if (!field) {
         return false;
     }
@@ -179,13 +176,12 @@ get_uint64(nlohmann::ordered_json &obj, const char *name, uint64_t &out, bool de
 }
 
 bool
-get_str_arr(nlohmann::ordered_json   &obj,
-            const char               *name,
-            std::vector<std::string> &out,
-            bool                      del)
+get_str_arr(nlohmann::ordered_json &            obj,
+            const char *                name,
+            std::vector<std::string> &  out,
+            bool                        del)
 {
-    auto *arr =
-      get_field(obj, name, [](const nlohmann::ordered_json &v) { return v.is_array(); });
+    auto *arr = get_field(obj, name, [](const nlohmann::ordered_json &v) { return v.is_array(); });
     if (!arr) {
         return false;
     }
