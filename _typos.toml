@@ -17,6 +17,8 @@ ede3 = "ede3"
 ffrom = "ffrom"
 clen = "clen"
 __THW_INTEL__ = "__THW_INTEL__"
+unexpect_eof = "unexpect_eof"
+unexpect_char = "unexpect_char"
 
 [default.extend-words]
 MERCHANTIBILITY = "MERCHANTIBILITY"
@@ -29,5 +31,6 @@ CNA = "CNA"
 [files]
 extend-exclude = [
     "src/tests/data/**",
-    "src/libsexpp/**"
+    "src/libsexpp/**",
+    "src/lib/nlohmann/**"
 ]
