@@ -79,6 +79,12 @@ endif()
 # generate a config.h
 include(CheckIncludeFileCXX)
 include(CheckCXXSymbolExists)
+# Some toolchain files (e.g. ohos.toolchain.cmake) set CMAKE_SYSROOT but the
+# try-compile doesn't always propagate it to the linker invocation. Pass
+# --sysroot explicitly to be safe; harmless when CMAKE_SYSROOT is empty.
+if(CMAKE_SYSROOT)
+  list(APPEND CMAKE_REQUIRED_FLAGS "--sysroot=${CMAKE_SYSROOT}")
+endif()
 check_include_file_cxx(fcntl.h HAVE_FCNTL_H)
 check_include_file_cxx(inttypes.h HAVE_INTTYPES_H)
 check_include_file_cxx(limits.h HAVE_LIMITS_H)
