@@ -210,7 +210,7 @@ is_tmp_path(const char *path)
         rlpath = strdup(path);
     }
     const char *tmp = get_tmp();
-    char       *rltmp = realpath(tmp, NULL);
+    char *      rltmp = realpath(tmp, NULL);
     if (!rltmp) {
         rltmp = strdup(tmp);
     }
@@ -525,19 +525,19 @@ cli_set_default_rsa_key_desc(rnp_cfg &cfg, const char *hashalg)
 // this is a password callback that will always fail
 bool
 failing_password_callback(const pgp_password_ctx_t *ctx,
-                          char                     *password,
+                          char *                    password,
                           size_t                    password_size,
-                          void                     *userdata)
+                          void *                    userdata)
 {
     return false;
 }
 
 bool
 ffi_failing_password_provider(rnp_ffi_t        ffi,
-                              void            *app_ctx,
+                              void *           app_ctx,
                               rnp_key_handle_t key,
-                              const char      *pgp_context,
-                              char            *buf,
+                              const char *     pgp_context,
+                              char *           buf,
                               size_t           buf_len)
 {
     return false;
@@ -545,10 +545,10 @@ ffi_failing_password_provider(rnp_ffi_t        ffi,
 
 bool
 ffi_asserting_password_provider(rnp_ffi_t        ffi,
-                                void            *app_ctx,
+                                void *           app_ctx,
                                 rnp_key_handle_t key,
-                                const char      *pgp_context,
-                                char            *buf,
+                                const char *     pgp_context,
+                                char *           buf,
                                 size_t           buf_len)
 {
     EXPECT_TRUE(false);
@@ -557,10 +557,10 @@ ffi_asserting_password_provider(rnp_ffi_t        ffi,
 
 bool
 ffi_string_password_provider(rnp_ffi_t        ffi,
-                             void            *app_ctx,
+                             void *           app_ctx,
                              rnp_key_handle_t key,
-                             const char      *pgp_context,
-                             char            *buf,
+                             const char *     pgp_context,
+                             char *           buf,
                              size_t           buf_len)
 {
     size_t pass_len = strlen((const char *) app_ctx);
@@ -574,9 +574,9 @@ ffi_string_password_provider(rnp_ffi_t        ffi,
 // this is a password callback that should never be called
 bool
 asserting_password_callback(const pgp_password_ctx_t *ctx,
-                            char                     *password,
+                            char *                    password,
                             size_t                    password_size,
-                            void                     *userdata)
+                            void *                    userdata)
 {
     EXPECT_TRUE(false);
     return false;
@@ -586,9 +586,9 @@ asserting_password_callback(const pgp_password_ctx_t *ctx,
 // the password buffer
 bool
 string_copy_password_callback(const pgp_password_ctx_t *ctx,
-                              char                     *password,
+                              char *                    password,
                               size_t                    password_size,
-                              void                     *userdata)
+                              void *                    userdata)
 {
     const char *str = (const char *) userdata;
     strncpy(password, str, password_size - 1);
@@ -597,7 +597,7 @@ string_copy_password_callback(const pgp_password_ctx_t *ctx,
 
 void
 unused_getkeycb(rnp_ffi_t   ffi,
-                void       *app_ctx,
+                void *      app_ctx,
                 const char *identifier_type,
                 const char *identifier,
                 bool        secret)
@@ -607,10 +607,10 @@ unused_getkeycb(rnp_ffi_t   ffi,
 
 bool
 unused_getpasscb(rnp_ffi_t        ffi,
-                 void            *app_ctx,
+                 void *           app_ctx,
                  rnp_key_handle_t key,
-                 const char      *pgp_context,
-                 char            *buf,
+                 const char *     pgp_context,
+                 char *           buf,
                  size_t           buf_len)
 {
     EXPECT_TRUE(false);
@@ -672,9 +672,7 @@ lowercase(const std::string &str)
 }
 
 static bool
-jso_get_field(const nlohmann::ordered_json  &obj,
-              const nlohmann::ordered_json *&fld,
-              const std::string             &name)
+jso_get_field(const nlohmann::ordered_json &obj, const nlohmann::ordered_json *&fld, const std::string &name)
 {
     if (!obj.is_object() || !obj.contains(name)) {
         fld = nullptr;
@@ -685,9 +683,7 @@ jso_get_field(const nlohmann::ordered_json  &obj,
 }
 
 bool
-check_json_field_str(const nlohmann::ordered_json &obj,
-                     const std::string            &field,
-                     const std::string            &value)
+check_json_field_str(const nlohmann::ordered_json &obj, const std::string &field, const std::string &value)
 {
     const nlohmann::ordered_json *fld = nullptr;
     if (!jso_get_field(obj, fld, field)) {

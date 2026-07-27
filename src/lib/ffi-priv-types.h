@@ -109,13 +109,13 @@ struct rnp_symenc_handle_st {
 };
 
 struct rnp_ffi_st {
-    FILE                   *errs;
-    rnp::KeyStore          *pubring;
-    rnp::KeyStore          *secring;
+    FILE *                  errs;
+    rnp::KeyStore *         pubring;
+    rnp::KeyStore *         secring;
     rnp_get_key_cb          getkeycb;
-    void                   *getkeycb_ctx;
+    void *                  getkeycb_ctx;
     rnp_password_cb         getpasscb;
-    void                   *getpasscb_ctx;
+    void *                  getpasscb_ctx;
     rnp::KeyProvider        key_provider;
     pgp_password_provider_t pass_provider;
     rnp::SecurityContext    context;
@@ -123,7 +123,7 @@ struct rnp_ffi_st {
     rnp_ffi_st(rnp::KeyFormat pub_fmt, rnp::KeyFormat sec_fmt);
     ~rnp_ffi_st();
 
-    rnp::RNG             &rng() noexcept;
+    rnp::RNG &            rng() noexcept;
     rnp::SecurityProfile &profile() noexcept;
 };
 
@@ -133,7 +133,7 @@ struct rnp_input_st {
     std::string         src_directory;
     rnp_input_reader_t *reader;
     rnp_input_closer_t *closer;
-    void               *app_ctx;
+    void *              app_ctx;
 
     rnp_input_st();
     rnp_input_st(const rnp_input_st &) = delete;
@@ -147,10 +147,10 @@ struct rnp_input_st {
 struct rnp_output_st {
     /* either dst or dst_directory are valid, not both */
     pgp_dest_t           dst;
-    char                *dst_directory;
+    char *               dst_directory;
     rnp_output_writer_t *writer;
     rnp_output_closer_t *closer;
-    void                *app_ctx;
+    void *               app_ctx;
     bool                 keep;
 };
 
@@ -285,8 +285,8 @@ static_assert(RNP_LOCATOR_MAX_SIZE > MAX_ID_LENGTH, "Locator size mismatch.");
 struct rnp_identifier_iterator_st {
     rnp_ffi_t                       ffi;
     rnp::KeySearch::Type            type;
-    rnp::KeyStore                  *store;
-    std::list<rnp::Key>::iterator  *keyp;
+    rnp::KeyStore *                 store;
+    std::list<rnp::Key>::iterator * keyp;
     size_t                          uididx;
     std::unordered_set<std::string> tbl;
     std::string                     item;
@@ -308,10 +308,10 @@ struct rnp_identifier_iterator_st {
 struct rnp_decryption_kp_param_t {
     rnp_op_verify_t op;
     bool            has_hidden; /* key provider had hidden keyid request */
-    rnp::Key       *last;       /* last key, returned in hidden keyid request */
+    rnp::Key *      last;       /* last key, returned in hidden keyid request */
 
     rnp_decryption_kp_param_t(rnp_op_verify_t opobj)
-        : op(opobj), has_hidden(false), last(NULL) {};
+        : op(opobj), has_hidden(false), last(NULL){};
 };
 
 /* This is just for readability at the call site and will hopefully reduce mistakes.
