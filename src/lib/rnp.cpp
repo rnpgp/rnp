@@ -8639,8 +8639,8 @@ FFI_GUARD
 static rnp_result_t
 rnp_dump_src_to_json(pgp_source_t &src, uint32_t flags, char **result)
 {
-    json_object *        jso = NULL;
-    rnp::DumpContextJson dumpctx(src, &jso);
+    nlohmann::json        jso;
+    rnp::DumpContextJson  dumpctx(src, &jso);
 
     dumpctx.set_dump_mpi(extract_flag(flags, RNP_JSON_DUMP_MPI));
     dumpctx.set_dump_packets(extract_flag(flags, RNP_JSON_DUMP_RAW));
@@ -8651,12 +8651,10 @@ rnp_dump_src_to_json(pgp_source_t &src, uint32_t flags, char **result)
 
     rnp_result_t ret = dumpctx.dump();
     if (ret) {
-        json_object_put(jso);
         return ret;
     }
 
-    rnp::JSONObject jsowrap(jso);
-    return ret_str_value(json_object_to_json_string_ext(jso, JSON_C_TO_STRING_PRETTY), result);
+    return ret_str_value(jso.dump(4).c_str(), result);
 }
 
 rnp_result_t
