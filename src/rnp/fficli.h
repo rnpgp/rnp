@@ -270,7 +270,7 @@ bool cli_rnp_set_cipher(rnp_cfg &cfg, const std::string &cipher);
 
 void clear_key_handles(std::vector<rnp_key_handle_t> &keys);
 
-const char *json_obj_get_str(const nlohmann::json &obj, const char *key);
+const char *json_obj_get_str(const nlohmann::ordered_json &obj, const char *key);
 
 #ifdef _WIN32
 bool rnp_win_substitute_cmdline_args(int *argc, char ***argv);

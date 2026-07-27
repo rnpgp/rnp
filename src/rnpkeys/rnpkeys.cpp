@@ -213,10 +213,10 @@ import_keys(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
         }
 
         // print information about imported key(s)
-        nlohmann::json jso;
+        nlohmann::ordered_json jso;
         try {
-            jso = nlohmann::json::parse(results);
-        } catch (const nlohmann::json::parse_error &) {
+            jso = nlohmann::ordered_json::parse(results);
+        } catch (const nlohmann::ordered_json::parse_error &) {
             rnp_buffer_destroy(results);
             ERR_MSG("invalid key import resulting JSON");
             break;
@@ -292,8 +292,8 @@ import_sigs(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
 {
     bool         res = false;
     char *       results = NULL;
-    nlohmann::json jso;
-    nlohmann::json *sigs = nullptr;
+    nlohmann::ordered_json jso;
+    nlohmann::ordered_json *sigs = nullptr;
     int          unknown_sigs = 0;
     int          new_sigs = 0;
     int          old_sigs = 0;
@@ -304,8 +304,8 @@ import_sigs(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
     }
     // print information about imported signature(s)
     try {
-        jso = nlohmann::json::parse(results);
-    } catch (const nlohmann::json::parse_error &) {
+        jso = nlohmann::ordered_json::parse(results);
+    } catch (const nlohmann::ordered_json::parse_error &) {
         ERR_MSG("Invalid signature import result");
         goto done;
     }
