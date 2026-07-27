@@ -67,10 +67,10 @@ test_s2k_iterations_value(rnp_ffi_t ffi,
         // check the symmetric-key encrypted session key packet
         nlohmann::json pkt = jso.at(0);
         assert_true(check_json_pkt_type(pkt, PGP_PKT_SK_SESSION_KEY));
-        nlohmann::json s2k = ;
-        assert_true(json_object_object_get_ex(pkt, "s2k", &s2k));
-        nlohmann::json fld = ;
-        assert_true(json_object_object_get_ex(s2k, "iterations", &fld));
+        nlohmann::json s2k;
+        assert_true((pkt.contains("s2k") ? (s2k = pkt["s2k"], true) : false));
+        nlohmann::json fld;
+        assert_true((s2k.contains("iterations") ? (fld = s2k["iterations"], true) : false));
         assert_true(fld.is_number_integer());
         // there was already decoded value in JSON
         size_t extracted_value = (size_t) fld.get<int>();

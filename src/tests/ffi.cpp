@@ -1184,8 +1184,8 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_true(check_json_field_int(pkt, "hash algorithm", 8));
     assert_true(check_json_field_str(pkt, "hash algorithm.str", "SHA256"));
     assert_true(check_json_field_str(pkt, "lbits", "816e"));
-    nlohmann::json subpkts = ;
-    assert_true(json_object_object_get_ex(pkt, "subpackets", &subpkts));
+    nlohmann::json subpkts;
+    assert_true((pkt.contains("subpackets") ? (subpkts = pkt["subpackets"], true) : false));
     assert_non_null(subpkts);
     assert_true(subpkts.is_array());
     assert_int_equal(subpkts.size(), 3);
@@ -1282,7 +1282,7 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_true(check_json_field_str(pkt, "hash algorithm.str", "SHA256"));
     assert_true(check_json_field_str(pkt, "lbits", "1037"));
     subpkts = NULL;
-    assert_true(json_object_object_get_ex(pkt, "subpackets", &subpkts));
+    assert_true((pkt.contains("subpackets") ? (subpkts = pkt["subpackets"], true) : false));
     assert_non_null(subpkts);
     assert_true(subpkts.is_array());
     assert_int_equal(subpkts.size(), 3);
@@ -1379,7 +1379,7 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_true(check_json_field_str(pkt, "hash algorithm.str", "SHA512"));
     assert_true(check_json_field_str(pkt, "lbits", "2727"));
     subpkts = NULL;
-    assert_true(json_object_object_get_ex(pkt, "subpackets", &subpkts));
+    assert_true((pkt.contains("subpackets") ? (subpkts = pkt["subpackets"], true) : false));
     assert_non_null(subpkts);
     assert_true(subpkts.is_array());
     assert_int_equal(subpkts.size(), 7);
@@ -1433,8 +1433,8 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_true(check_json_field_int(subpkt, "length", 105));
     assert_true(check_json_field_bool(subpkt, "hashed", true));
     assert_true(check_json_field_bool(subpkt, "critical", true));
-    nlohmann::json embsig = ;
-    assert_true(json_object_object_get_ex(subpkt, "signature", &embsig));
+    nlohmann::json embsig;
+    assert_true((subpkt.contains("signature") ? (embsig = subpkt["signature"], true) : false));
     assert_true(check_json_field_int(embsig, "version", 4));
     assert_true(check_json_field_int(embsig, "type", 0));
     assert_true(check_json_field_str(embsig, "type.str", "Signature of a binary document"));
@@ -2311,7 +2311,7 @@ TEST_F(rnp_tests, test_ffi_key_dump)
     rnp_ffi_t        ffi = NULL;
     rnp_key_handle_t key = NULL;
     char *           json = NULL;
-    nlohmann::json jso = ;
+    nlohmann::json jso;
 
     // setup FFI
     test_ffi_init(&ffi);
@@ -2424,7 +2424,7 @@ TEST_F(rnp_tests, test_ffi_key_userid_dump_has_no_special_chars)
 {
     rnp_ffi_t    ffi = NULL;
     char *       json = NULL;
-    nlohmann::json jso = ;
+    nlohmann::json jso;
     const char * trackers[] = {
       "userid\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f@rnp",
       "userid\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f@rnp"};
@@ -2472,7 +2472,7 @@ TEST_F(rnp_tests, test_ffi_pkt_dump)
     rnp_ffi_t    ffi = NULL;
     rnp_input_t  input = NULL;
     char *       json = NULL;
-    nlohmann::json jso = ;
+    nlohmann::json jso;
 
     // setup FFI
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -2583,17 +2583,17 @@ TEST_F(rnp_tests, test_ffi_rsa_v3_dump)
     assert_non_null(rsapkt);
     assert_true(rsapkt.is_object());
     /* check algorithm string */
-    nlohmann::json fld = ;
-    assert_true(json_object_object_get_ex(rsapkt, "algorithm.str", &fld));
+    nlohmann::json fld;
+    assert_true((rsapkt.contains("algorithm.str") ? (fld = rsapkt["algorithm.str"], true) : false));
     assert_non_null(fld);
-    const char *str = fld.get_ref<const std::string &>();
+    const char *str = fld.get_ref<const std::string &>().c_str();
     assert_non_null(str);
     assert_string_equal(str, "RSA (Encrypt or Sign)");
     /* check fingerprint */
     fld = NULL;
-    assert_true(json_object_object_get_ex(rsapkt, "fingerprint", &fld));
+    assert_true((rsapkt.contains("fingerprint") ? (fld = rsapkt["fingerprint"], true) : false));
     assert_non_null(fld);
-    str = fld.get_ref<const std::string &>();
+    str = fld.get_ref<const std::string &>().c_str();
     assert_non_null(str);
     assert_string_equal(str, "06a044022bb5aa7991077466aeba2ce7");
     /* json_object_put removed: jso */
@@ -2988,7 +2988,7 @@ check_features(const char *type, const char *json, size_t count)
     }
     for (size_t i = 0; i < count; i++) {
         nlohmann::json val = features.at(i);
-        const char * str = val.get_ref<const std::string &>();
+        const char * str = val.get_ref<const std::string &>().c_str();
         bool         supported = false;
         if (!str || rnp_supports_feature(type, str, &supported) || !supported) {
             goto done;
