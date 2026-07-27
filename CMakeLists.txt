@@ -59,6 +59,11 @@ option(ENABLE_SANITIZERS "Enable ASan and other sanitizers.")
 option(ENABLE_FUZZERS "Enable fuzz targets.")
 option(DOWNLOAD_GTEST "Download Googletest" On)
 option(SYSTEM_LIBSEXPP "Use system sexpp library" OFF)
+# nlohmann/json is vendored as a single-header under src/lib/nlohmann/ — see
+# JSON_VENDORED below. This option is kept for documentation only; if set to
+# ON it would let a downstream consumer override the vendored copy via
+# find_package(nlohmann_json), but the project itself always vendors.
+set(JSON_VENDORED ON CACHE BOOL "Use vendored nlohmann/json (single-header under src/lib/nlohmann/)" FORCE)
 
 # crypto components
 function(tristate_feature_auto NAME DESCRIPTION)
@@ -246,6 +251,11 @@ else (SYSTEM_LIBSEXPP)
   set(BUILD_SHARED_LIBS ${SAVED_BUILD_SHARED_LIBS})
   set(SEXPP_TARGET sexpp)
 endif (SYSTEM_LIBSEXPP)
+
+# nlohmann/json is vendored as a single-header under src/lib/nlohmann/.
+# json-utils.h does `#include <nlohmann/json.hpp>`; src/lib/CMakeLists.txt
+# adds src/lib/nlohmann to the include path. No external dependency, no
+# FetchContent, no install rules.
 
 add_subdirectory(src/lib)
 add_subdirectory(src/rnp)
