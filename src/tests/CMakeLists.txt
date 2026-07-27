@@ -65,7 +65,6 @@ else()
   set(GTestMain gtest_main)
 endif()
 
-find_package(JSON-C 0.11 REQUIRED)
 if (CRYPTO_BACKEND_BOTAN3)
   find_package(Botan 3.0.0 REQUIRED)
 elseif (CRYPTO_BACKEND_BOTAN)
@@ -205,7 +204,6 @@ target_include_directories(rnp_tests
 target_link_libraries(rnp_tests
   PRIVATE
     librnp-static
-    JSON-C::JSON-C
     sexpp
     ${GTestMain}
 )
