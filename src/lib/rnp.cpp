@@ -1091,10 +1091,10 @@ try {
 FFI_GUARD
 
 static rnp_result_t
-json_array_add_id_str(json_object *arr, const id_str_pair *map, bool (*check)(int))
+json_array_add_id_str(nlohmann::json &arr, const id_str_pair *map, bool (*check)(int))
 {
     while (map->str) {
-        if (check(map->id) && !json_array_add(arr, map->str)) {
+        if (check(map->id) && !rnp::json::array_add(arr, map->str)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         map++;
@@ -1109,11 +1109,7 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    json_object *features = json_object_new_array();
-    if (!features) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
-    rnp::JSONObject featwrap(features);
+    nlohmann::json features = nlohmann::json::array();
     rnp_result_t    ret = RNP_ERROR_BAD_PARAMETERS;
 
     if (rnp::str_case_eq(type, RNP_FEATURE_SYMM_ALG)) {
@@ -1139,7 +1135,7 @@ try {
             if (!desc->supported) {
                 continue;
             }
-            if (!json_array_add(features, desc->pgp_name)) {
+            if (!rnp::json::array_add(features, desc->pgp_name)) {
                 return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
             }
         }
@@ -1149,8 +1145,10 @@ try {
     if (ret) {
         return ret;
     }
-    return ret_str_value(json_object_to_json_string_ext(features, JSON_C_TO_STRING_PRETTY),
-                         result);
+    /* Match the indent used by the prior json-c JSON_C_TO_STRING_PRETTY
+     * (4 spaces). Tests parse the JSON and assert on values, not bytes,
+     * so other format deltas (slash escaping, Unicode) are accepted. */
+    return ret_str_value(features.dump(4).c_str(), result);
 }
 FFI_GUARD
 
