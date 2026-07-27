@@ -170,7 +170,7 @@ jobs:
           export SystemDrive="$SYSTEMDRIVE"
           export SystemRoot="$SYSTEMROOT"
           export windir="$WINDIR"          
-          vcpkg install --triplet ${{ matrix.arch.triplet }} bzip2 zlib json-c getopt dirent ${{ matrix.backend }}
+          vcpkg install --triplet ${{ matrix.arch.triplet }} bzip2 zlib getopt dirent ${{ matrix.backend }}
 
       - name: Upload vcpkg logs on failure
         if: failure()
