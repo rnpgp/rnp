@@ -29,8 +29,7 @@
 #include "key.hpp"
 #include "defaults.h"
 #include <assert.h>
-#include <json_object.h>
-#include <json.h>
+#include <nlohmann/json.hpp>
 #include <librepgp/stream-ctx.h>
 #include <librepgp/stream-common.h>
 #include <librepgp/stream-armor.h>
