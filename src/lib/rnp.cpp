@@ -8071,7 +8071,7 @@ add_json_key_flags(nlohmann::json &jso, uint8_t key_flags)
 }
 
 static rnp_result_t
-add_json_mpis(nlohmann::json &jso, ...)
+add_json_mpis(nlohmann::json *jso, ...)
 {
     va_list      ap;
     const char * name;
@@ -8084,7 +8084,7 @@ add_json_mpis(nlohmann::json &jso, ...)
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
-        if (!rnp::json::add_hex(jso, name, val->data(), val->size())) {
+        if (!rnp::json::add_hex(*jso, name, val->data(), val->size())) {
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
@@ -8108,26 +8108,26 @@ add_json_mpis(nlohmann::json &jso, rnp::Key *key, bool secret = false)
     case PGP_PKA_RSA_SIGN_ONLY: {
         auto &rsa = dynamic_cast<pgp::RSAKeyMaterial &>(km);
         if (!secret) {
-            return add_json_mpis(jso, "n", &rsa.n(), "e", &rsa.e(), NULL);
+            return add_json_mpis(&jso, "n", &rsa.n(), "e", &rsa.e(), NULL);
         }
         return add_json_mpis(
-          jso, "d", &rsa.d(), "p", &rsa.p(), "q", &rsa.q(), "u", &rsa.u(), NULL);
+          &jso, "d", &rsa.d(), "p", &rsa.p(), "q", &rsa.q(), "u", &rsa.u(), NULL);
     }
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
         auto &eg = dynamic_cast<pgp::EGKeyMaterial &>(km);
         if (!secret) {
-            return add_json_mpis(jso, "p", &eg.p(), "g", &eg.g(), "y", &eg.y(), NULL);
+            return add_json_mpis(&jso, "p", &eg.p(), "g", &eg.g(), "y", &eg.y(), NULL);
         }
-        return add_json_mpis(jso, "x", &eg.x(), NULL);
+        return add_json_mpis(&jso, "x", &eg.x(), NULL);
     }
     case PGP_PKA_DSA: {
         auto &dsa = dynamic_cast<pgp::DSAKeyMaterial &>(km);
         if (!secret) {
             return add_json_mpis(
-              jso, "p", &dsa.p(), "q", &dsa.q(), "g", &dsa.g(), "y", &dsa.y(), NULL);
+              &jso, "p", &dsa.p(), "q", &dsa.q(), "g", &dsa.g(), "y", &dsa.y(), NULL);
         }
-        return add_json_mpis(jso, "x", &dsa.x(), NULL);
+        return add_json_mpis(&jso, "x", &dsa.x(), NULL);
     }
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
@@ -8135,9 +8135,9 @@ add_json_mpis(nlohmann::json &jso, rnp::Key *key, bool secret = false)
     case PGP_PKA_SM2: {
         auto &ec = dynamic_cast<pgp::ECKeyMaterial &>(km);
         if (!secret) {
-            return add_json_mpis(jso, "point", &ec.p(), NULL);
+            return add_json_mpis(&jso, "point", &ec.p(), NULL);
         }
-        return add_json_mpis(jso, "x", &ec.x(), NULL);
+        return add_json_mpis(&jso, "x", &ec.x(), NULL);
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
@@ -8200,22 +8200,22 @@ add_json_sig_mpis(nlohmann::json &jso, const pgp::pkt::Signature *sig)
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY: {
         auto &rsa = dynamic_cast<const pgp::RSASigMaterial &>(*material);
-        return add_json_mpis(jso, "sig", &rsa.sig.s, NULL);
+        return add_json_mpis(&jso, "sig", &rsa.sig.s, NULL);
     }
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
         auto &eg = dynamic_cast<const pgp::EGSigMaterial &>(*material);
-        return add_json_mpis(jso, "r", &eg.sig.r, "s", &eg.sig.s, NULL);
+        return add_json_mpis(&jso, "r", &eg.sig.r, "s", &eg.sig.s, NULL);
     }
     case PGP_PKA_DSA: {
         auto &dsa = dynamic_cast<const pgp::DSASigMaterial &>(*material);
-        return add_json_mpis(jso, "r", &dsa.sig.r, "s", &dsa.sig.s, NULL);
+        return add_json_mpis(&jso, "r", &dsa.sig.r, "s", &dsa.sig.s, NULL);
     }
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2: {
         auto &ec = dynamic_cast<const pgp::ECSigMaterial &>(*material);
-        return add_json_mpis(jso, "r", &ec.sig.r, "s", &ec.sig.s, NULL);
+        return add_json_mpis(&jso, "r", &ec.sig.r, "s", &ec.sig.s, NULL);
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
@@ -8564,7 +8564,7 @@ key_to_json(nlohmann::json &jso, rnp_key_handle_t handle, uint32_t flags)
     if (flags & RNP_JSON_PUBLIC_MPIS) {
         auto &jsompis = jsopublic["mpis"] = nlohmann::json::object();
         rnp_result_t tmpret;
-        if ((tmpret = add_json_mpis(jsompis, key))) {
+        if ((tmpret = add_json_mpis(&jsompis, key))) {
             return tmpret;
         }
     }
@@ -8581,7 +8581,7 @@ key_to_json(nlohmann::json &jso, rnp_key_handle_t handle, uint32_t flags)
             } else {
                 auto &jsompis = jsosecret["mpis"] = nlohmann::json::object();
                 rnp_result_t tmpret;
-                if ((tmpret = add_json_mpis(jsompis, handle->sec, true))) {
+                if ((tmpret = add_json_mpis(&jsompis, handle->sec, true))) {
                     return tmpret;
                 }
             }
