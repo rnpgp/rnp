@@ -1171,7 +1171,7 @@ try {
     }
 
     nlohmann::ordered_json features = nlohmann::ordered_json::array();
-    rnp_result_t    ret = RNP_ERROR_BAD_PARAMETERS;
+    rnp_result_t           ret = RNP_ERROR_BAD_PARAMETERS;
 
     if (rnp::str_case_eq(type, RNP_FEATURE_SYMM_ALG)) {
         ret = json_array_add_id_str(features, symm_alg_map, symm_alg_supported);
@@ -1725,7 +1725,7 @@ key_status_to_str(pgp_key_import_status_t status)
 }
 
 static rnp_result_t
-add_key_status(nlohmann::ordered_json &       keys,
+add_key_status(nlohmann::ordered_json &keys,
                const rnp::Key *        key,
                pgp_key_import_status_t pub,
                pgp_key_import_status_t sec)
@@ -1734,7 +1734,8 @@ add_key_status(nlohmann::ordered_json &       keys,
 
     if (!rnp::json::add(jsokey, "public", key_status_to_str(pub)) ||
         !rnp::json::add(jsokey, "secret", key_status_to_str(sec)) ||
-        !rnp::json::add(jsokey, "fingerprint", key->fp()) || !rnp::json::array_add(keys, jsokey)) {
+        !rnp::json::add(jsokey, "fingerprint", key->fp()) ||
+        !rnp::json::array_add(keys, jsokey)) {
         /* LCOV_EXCL_START */
         return RNP_ERROR_OUT_OF_MEMORY;
         /* LCOV_EXCL_END */
@@ -1854,8 +1855,8 @@ sig_status_to_str(pgp_sig_import_status_t status)
 }
 
 static rnp_result_t
-add_sig_status(nlohmann::ordered_json &         sigs,
-               const rnp::Key *         signer,
+add_sig_status(nlohmann::ordered_json &sigs,
+               const rnp::Key *        signer,
                pgp_sig_import_status_t pub,
                pgp_sig_import_status_t sec)
 {
@@ -4573,9 +4574,9 @@ parse_protection(nlohmann::ordered_json &jso, rnp_key_protection_params_t &prote
 }
 
 static bool
-parse_keygen_common_fields(nlohmann::ordered_json &            jso,
-                           uint8_t &                   usage,
-                           uint32_t &                  expiry,
+parse_keygen_common_fields(nlohmann::ordered_json &     jso,
+                           uint8_t &                    usage,
+                           uint32_t &                   expiry,
                            rnp_key_protection_params_t &prot)
 {
     /* Key/subkey usage flags */
@@ -4611,7 +4612,7 @@ parse_keygen_common_fields(nlohmann::ordered_json &            jso,
 
 static std::unique_ptr<rnp::KeygenParams>
 parse_keygen_primary(rnp_ffi_t                    ffi,
-                     nlohmann::ordered_json &             jso,
+                     nlohmann::ordered_json &     jso,
                      rnp::CertParams &            cert,
                      rnp_key_protection_params_t &prot)
 {
@@ -4646,7 +4647,7 @@ parse_keygen_primary(rnp_ffi_t                    ffi,
 
 static std::unique_ptr<rnp::KeygenParams>
 parse_keygen_sub(rnp_ffi_t                    ffi,
-                 nlohmann::ordered_json &             jso,
+                 nlohmann::ordered_json &     jso,
                  rnp::BindingParams &         binding,
                  rnp_key_protection_params_t &prot)
 {
@@ -4696,7 +4697,7 @@ gen_json_grips(char **result, const rnp::Key *primary, const rnp::Key *sub)
 
 static rnp_result_t
 gen_json_primary_key(rnp_ffi_t                    ffi,
-                     nlohmann::ordered_json &             jsoparams,
+                     nlohmann::ordered_json &     jsoparams,
                      rnp_key_protection_params_t &prot,
                      pgp::Fingerprint &           fp,
                      bool                         protect)
@@ -4730,11 +4731,11 @@ gen_json_primary_key(rnp_ffi_t                    ffi,
 }
 
 static rnp_result_t
-gen_json_subkey(rnp_ffi_t         ffi,
-                nlohmann::ordered_json &  jsoparams,
-                rnp::Key &        prim_pub,
-                rnp::Key &        prim_sec,
-                pgp::Fingerprint &fp)
+gen_json_subkey(rnp_ffi_t               ffi,
+                nlohmann::ordered_json &jsoparams,
+                rnp::Key &              prim_pub,
+                rnp::Key &              prim_sec,
+                pgp::Fingerprint &      fp)
 {
     rnp::BindingParams          binding;
     rnp_key_protection_params_t prot = {};
@@ -4786,14 +4787,14 @@ try {
     }
 
     // locate the appropriate sections
-    rnp_result_t    ret = RNP_ERROR_GENERIC;
+    rnp_result_t            ret = RNP_ERROR_GENERIC;
     nlohmann::ordered_json *jsoprimary = nullptr;
     nlohmann::ordered_json *jsosub = nullptr;
     {
         for (auto &el : jso.items()) {
-            const std::string &key = el.key();
-            nlohmann::ordered_json &   value = el.value();
-            nlohmann::ordered_json **  dest = nullptr;
+            const std::string &      key = el.key();
+            nlohmann::ordered_json & value = el.value();
+            nlohmann::ordered_json **dest = nullptr;
 
             if (rnp::str_case_eq(key, "primary")) {
                 dest = &jsoprimary;
@@ -8071,13 +8072,15 @@ add_json_key_flags(nlohmann::ordered_json &jso, uint8_t key_flags)
 }
 
 static rnp_result_t
-add_json_mpis(nlohmann::ordered_json *jso, std::initializer_list<std::pair<const char *, const pgp::mpi *>> mpis)
+add_json_mpis(nlohmann::ordered_json *                                         jso,
+              std::initializer_list<std::pair<const char *, const pgp::mpi *>> mpis)
 {
     for (auto &entry : mpis) {
         if (!entry.second) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
-        if (!rnp::json::add_hex(*jso, entry.first, entry.second->data(), entry.second->size())) {
+        if (!rnp::json::add_hex(
+              *jso, entry.first, entry.second->data(), entry.second->size())) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
@@ -8099,8 +8102,8 @@ add_json_mpis(nlohmann::ordered_json &jso, rnp::Key *key, bool secret = false)
         if (!secret) {
             return add_json_mpis(&jso, {{"n", &rsa.n()}, {"e", &rsa.e()}});
         }
-        return add_json_mpis(&jso, {{"d", &rsa.d()}, {"p", &rsa.p()},
-                                    {"q", &rsa.q()}, {"u", &rsa.u()}});
+        return add_json_mpis(
+          &jso, {{"d", &rsa.d()}, {"p", &rsa.p()}, {"q", &rsa.q()}, {"u", &rsa.u()}});
     }
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
@@ -8113,8 +8116,8 @@ add_json_mpis(nlohmann::ordered_json &jso, rnp::Key *key, bool secret = false)
     case PGP_PKA_DSA: {
         auto &dsa = dynamic_cast<pgp::DSAKeyMaterial &>(km);
         if (!secret) {
-            return add_json_mpis(&jso, {{"p", &dsa.p()}, {"q", &dsa.q()},
-                                        {"g", &dsa.g()}, {"y", &dsa.y()}});
+            return add_json_mpis(
+              &jso, {{"p", &dsa.p()}, {"q", &dsa.q()}, {"g", &dsa.g()}, {"y", &dsa.y()}});
         }
         return add_json_mpis(&jso, {{"x", &dsa.x()}});
     }
@@ -8241,10 +8244,10 @@ add_json_sig_mpis(nlohmann::ordered_json &jso, const pgp::pkt::Signature *sig)
 }
 
 static bool
-add_json_array_lookup(nlohmann::ordered_json &       jso,
-                      std::vector<uint8_t>  vals,
-                      const char *          name,
-                      const id_str_pair *   map)
+add_json_array_lookup(nlohmann::ordered_json &jso,
+                      std::vector<uint8_t>    vals,
+                      const char *            name,
+                      const id_str_pair *     map)
 {
     if (vals.empty()) {
         return true;
@@ -8286,7 +8289,10 @@ add_json_user_prefs(nlohmann::ordered_json &jso, const rnp::UserPrefs &prefs)
 }
 
 static rnp_result_t
-add_json_subsig(nlohmann::ordered_json &jso, bool is_sub, uint32_t flags, const rnp::Signature *subsig)
+add_json_subsig(nlohmann::ordered_json &jso,
+                bool                    is_sub,
+                uint32_t                flags,
+                const rnp::Signature *  subsig)
 {
     // userid (if applicable)
     if (!is_sub && !rnp::json::add(jso, "userid", (int) subsig->uid)) {
@@ -8347,7 +8353,7 @@ add_json_subsig(nlohmann::ordered_json &jso, bool is_sub, uint32_t flags, const 
     // signer
     // TODO: add signer fingerprint as well (no support internally yet)
     if (sig->has_keyid()) {
-        auto &jsosigner = jso["signer"] = nlohmann::ordered_json::object();
+        auto &     jsosigner = jso["signer"] = nlohmann::ordered_json::object();
         char       keyid[PGP_KEY_ID_SIZE * 2 + 1];
         pgp::KeyID signer = sig->keyid();
         if (!rnp::hex_encode(signer.data(), signer.size(), keyid, sizeof(keyid))) {
@@ -8361,7 +8367,7 @@ add_json_subsig(nlohmann::ordered_json &jso, bool is_sub, uint32_t flags, const 
     }
     // mpis
     if (flags & RNP_JSON_SIGNATURE_MPIS) {
-        auto &jsompis = jso["mpis"] = nlohmann::ordered_json::object();
+        auto &       jsompis = jso["mpis"] = nlohmann::ordered_json::object();
         rnp_result_t tmpret;
         if ((tmpret = add_json_sig_mpis(jsompis, sig))) {
             return tmpret;
@@ -8545,13 +8551,13 @@ key_to_json(nlohmann::ordered_json &jso, rnp_key_handle_t handle, uint32_t flags
     }
     // public
     auto &jsopublic = jso["public key"] = nlohmann::ordered_json::object();
-    bool have_sec = handle->sec != NULL;
-    bool have_pub = handle->pub != NULL;
+    bool  have_sec = handle->sec != NULL;
+    bool  have_pub = handle->pub != NULL;
     if (!rnp::json::add(jsopublic, "present", have_pub)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (flags & RNP_JSON_PUBLIC_MPIS) {
-        auto &jsompis = jsopublic["mpis"] = nlohmann::ordered_json::object();
+        auto &       jsompis = jsopublic["mpis"] = nlohmann::ordered_json::object();
         rnp_result_t tmpret;
         if ((tmpret = add_json_mpis(jsompis, key))) {
             return tmpret;
@@ -8568,7 +8574,7 @@ key_to_json(nlohmann::ordered_json &jso, rnp_key_handle_t handle, uint32_t flags
             if (locked) {
                 jsosecret["mpis"] = nullptr;
             } else {
-                auto &jsompis = jsosecret["mpis"] = nlohmann::ordered_json::object();
+                auto &       jsompis = jsosecret["mpis"] = nlohmann::ordered_json::object();
                 rnp_result_t tmpret;
                 if ((tmpret = add_json_mpis(jsompis, handle->sec, true))) {
                     return tmpret;
@@ -8593,7 +8599,7 @@ key_to_json(nlohmann::ordered_json &jso, rnp_key_handle_t handle, uint32_t flags
     if (flags & RNP_JSON_SIGNATURES) {
         auto &jsosigs_arr = jso["signatures"] = nlohmann::ordered_json::array();
         for (size_t i = 0; i < key->sig_count(); i++) {
-            auto &jsosig = jsosigs_arr.emplace_back(nlohmann::ordered_json::object());
+            auto &       jsosig = jsosigs_arr.emplace_back(nlohmann::ordered_json::object());
             rnp_result_t tmpret;
             if ((tmpret =
                    add_json_subsig(jsosig, key->is_subkey(), flags, &key->get_sig(i)))) {
@@ -8612,7 +8618,7 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
     nlohmann::ordered_json jso = nlohmann::ordered_json::object();
-    rnp_result_t    ret = RNP_ERROR_GENERIC;
+    rnp_result_t           ret = RNP_ERROR_GENERIC;
     if ((ret = key_to_json(jso, handle, flags))) {
         return ret;
     }
@@ -8623,8 +8629,8 @@ FFI_GUARD
 static rnp_result_t
 rnp_dump_src_to_json(pgp_source_t &src, uint32_t flags, char **result)
 {
-    nlohmann::ordered_json        jso;
-    rnp::DumpContextJson  dumpctx(src, &jso);
+    nlohmann::ordered_json jso;
+    rnp::DumpContextJson   dumpctx(src, &jso);
 
     dumpctx.set_dump_mpi(extract_flag(flags, RNP_JSON_DUMP_MPI));
     dumpctx.set_dump_packets(extract_flag(flags, RNP_JSON_DUMP_RAW));

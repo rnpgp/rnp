@@ -70,7 +70,8 @@ test_s2k_iterations_value(rnp_ffi_t ffi,
         nlohmann::ordered_json *s2k = nullptr;
         assert_true((pkt.contains("s2k") ? (s2k = &pkt["s2k"], true) : false));
         nlohmann::ordered_json fld;
-        assert_true((s2k->contains("iterations") ? (fld = (*s2k)["iterations"], true) : false));
+        assert_true(
+          (s2k->contains("iterations") ? (fld = (*s2k)["iterations"], true) : false));
         assert_true(fld.is_number_integer());
         // there was already decoded value in JSON
         size_t extracted_value = (size_t) fld.get<int>();
