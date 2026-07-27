@@ -1664,21 +1664,17 @@ key_status_to_str(pgp_key_import_status_t status)
 }
 
 static rnp_result_t
-add_key_status(json_object            *keys,
-               const rnp::Key         *key,
+add_key_status(nlohmann::json &       keys,
+               const rnp::Key *        key,
                pgp_key_import_status_t pub,
                pgp_key_import_status_t sec)
 {
-    json_object *jsokey = json_object_new_object();
-    if (!jsokey) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
+    nlohmann::json jsokey = nlohmann::json::object();
 
-    if (!json_add(jsokey, "public", key_status_to_str(pub)) ||
-        !json_add(jsokey, "secret", key_status_to_str(sec)) ||
-        !json_add(jsokey, "fingerprint", key->fp()) || !json_array_add(keys, jsokey)) {
+    if (!rnp::json::add(jsokey, "public", key_status_to_str(pub)) ||
+        !rnp::json::add(jsokey, "secret", key_status_to_str(sec)) ||
+        !rnp::json::add(jsokey, "fingerprint", key->fp()) || !rnp::json::array_add(keys, jsokey)) {
         /* LCOV_EXCL_START */
-        json_object_put(jsokey);
         return RNP_ERROR_OUT_OF_MEMORY;
         /* LCOV_EXCL_END */
     }
@@ -1740,15 +1736,9 @@ try {
         }
     }
 
-    json_object *jsores = json_object_new_object();
-    if (!jsores) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
-    rnp::JSONObject jsowrap(jsores);
-    json_object    *jsokeys = json_object_new_array();
-    if (!json_add(jsores, "keys", jsokeys)) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
+    nlohmann::json jsores = nlohmann::json::object();
+    nlohmann::json jsokeys = nlohmann::json::array();
+    jsores["keys"] = jsokeys;
 
     // import keys to the main keystore.
     for (auto &key : tmp_store.keys) {
@@ -1789,8 +1779,7 @@ try {
     if (!results) {
         return RNP_SUCCESS;
     }
-    return ret_str_value(json_object_to_json_string_ext(jsores, JSON_C_TO_STRING_PRETTY),
-                         results);
+    return ret_str_value(jsores.dump(4).c_str(), results);
 }
 FFI_GUARD
 
@@ -1804,34 +1793,28 @@ sig_status_to_str(pgp_sig_import_status_t status)
 }
 
 static rnp_result_t
-add_sig_status(json_object            *sigs,
-               const rnp::Key         *signer,
+add_sig_status(nlohmann::json &         sigs,
+               const rnp::Key *         signer,
                pgp_sig_import_status_t pub,
                pgp_sig_import_status_t sec)
 {
-    json_object *jsosig = json_object_new_object();
-    if (!jsosig) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
+    nlohmann::json jsosig = nlohmann::json::object();
 
-    if (!json_add(jsosig, "public", sig_status_to_str(pub)) ||
-        !json_add(jsosig, "secret", sig_status_to_str(sec))) {
+    if (!rnp::json::add(jsosig, "public", sig_status_to_str(pub)) ||
+        !rnp::json::add(jsosig, "secret", sig_status_to_str(sec))) {
         /* LCOV_EXCL_START */
-        json_object_put(jsosig);
         return RNP_ERROR_OUT_OF_MEMORY;
         /* LCOV_EXCL_END */
     }
 
-    if (signer && !json_add(jsosig, "signer fingerprint", signer->fp())) {
+    if (signer && !rnp::json::add(jsosig, "signer fingerprint", signer->fp())) {
         /* LCOV_EXCL_START */
-        json_object_put(jsosig);
         return RNP_ERROR_OUT_OF_MEMORY;
         /* LCOV_EXCL_END */
     }
 
-    if (!json_array_add(sigs, jsosig)) {
+    if (!rnp::json::array_add(sigs, jsosig)) {
         /* LCOV_EXCL_START */
-        json_object_put(jsosig);
         return RNP_ERROR_OUT_OF_MEMORY;
         /* LCOV_EXCL_END */
     }
@@ -1857,15 +1840,9 @@ try {
         return sigret;
     }
 
-    json_object *jsores = json_object_new_object();
-    if (!jsores) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
-    rnp::JSONObject jsowrap(jsores);
-    json_object    *jsosigs = json_object_new_array();
-    if (!json_add(jsores, "sigs", jsosigs)) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
+    nlohmann::json jsores = nlohmann::json::object();
+    nlohmann::json jsosigs = nlohmann::json::array();
+    jsores["sigs"] = jsosigs;
 
     for (auto &sig : sigs) {
         pgp_sig_import_status_t pub_status = PGP_SIG_IMPORT_STATUS_UNKNOWN;
@@ -1880,8 +1857,7 @@ try {
     if (!results) {
         return RNP_SUCCESS;
     }
-    return ret_str_value(json_object_to_json_string_ext(jsores, JSON_C_TO_STRING_PRETTY),
-                         results);
+    return ret_str_value(jsores.dump(4).c_str(), results);
 }
 FFI_GUARD
 
