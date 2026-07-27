@@ -1251,7 +1251,7 @@ check_dump_file_json(const char *file, bool mpi, bool grip)
         return false;
     }
 
-    json_object *        jso = NULL;
+    nlohmann::json jso = ;
     rnp::DumpContextJson ctx(src.src(), &jso);
     ctx.set_dump_mpi(mpi);
     ctx.set_dump_grips(grip);
@@ -1259,10 +1259,10 @@ check_dump_file_json(const char *file, bool mpi, bool grip)
     if (ctx.dump()) {
         return false;
     }
-    if (!json_object_is_type(jso, json_type_array)) {
+    if (!jso.is_array()) {
         return false;
     }
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     return true;
 }
 
