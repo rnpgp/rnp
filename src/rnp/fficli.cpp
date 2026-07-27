@@ -1166,13 +1166,12 @@ cli_rnp_t::edit_key(const std::string &key)
 }
 
 const char *
-json_obj_get_str(json_object *obj, const char *key)
+json_obj_get_str(const nlohmann::json &obj, const char *key)
 {
-    json_object *fld = NULL;
-    if (!json_object_object_get_ex(obj, key, &fld)) {
+    if (!obj.contains(key) || !obj[key].is_string()) {
         return NULL;
     }
-    return json_object_get_string(fld);
+    return obj[key].get_ptr<const std::string *>()->c_str();
 }
 
 static char *
@@ -3256,25 +3255,29 @@ void
 cli_rnp_print_feature(FILE *fp, const char *type, const char *printed_type)
 {
     char * result = NULL;
-    size_t count;
     if (rnp_supported_features(type, &result) != RNP_SUCCESS) {
         ERR_MSG("Failed to list supported features: %s", type);
+        rnp_buffer_destroy(result);
         return;
     }
-    json_object *jso = json_tokener_parse(result);
-    if (!jso) {
+    try {
+        nlohmann::json jso = nlohmann::json::parse(result);
+        if (!jso.is_array()) {
+            ERR_MSG("Failed to parse JSON with features: %s", type);
+            rnp_buffer_destroy(result);
+            return;
+        }
+        fprintf(fp, "%s: ", printed_type);
+        size_t count = jso.size();
+        for (size_t idx = 0; idx < count; idx++) {
+            fprintf(fp, " %s%s",
+                    jso[idx].get_ref<const std::string &>().c_str(),
+                    idx < count - 1 ? "," : "");
+        }
+        fputs("\n", fp);
+        fflush(fp);
+    } catch (const nlohmann::json::parse_error &) {
         ERR_MSG("Failed to parse JSON with features: %s", type);
-        goto done;
     }
-    fprintf(fp, "%s: ", printed_type);
-    count = json_object_array_length(jso);
-    for (size_t idx = 0; idx < count; idx++) {
-        json_object *val = json_object_array_get_idx(jso, idx);
-        fprintf(fp, " %s%s", json_object_get_string(val), idx < count - 1 ? "," : "");
-    }
-    fputs("\n", fp);
-    fflush(fp);
-    json_object_put(jso);
-done:
     rnp_buffer_destroy(result);
 }
