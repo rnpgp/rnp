@@ -504,6 +504,7 @@ target_include_directories(librnp-obj
     "$<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/lib>"
     "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/common>"
     "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
+    "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/lib/nlohmann>"
     "$<INSTALL_INTERFACE:include>"
   PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
