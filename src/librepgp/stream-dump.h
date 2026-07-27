@@ -30,8 +30,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <sys/types.h>
-#include "json_object.h"
-#include "json.h"
+#include <nlohmann/json.hpp>
 #include "rnp.h"
 #include "stream-common.h"
 #include "stream-packet.h"
@@ -107,27 +106,27 @@ class DumpContextDst : public DumpContext {
 };
 
 class DumpContextJson : public DumpContext {
-    json_object **json;
+    nlohmann::json *json;
 
-    bool dump_signature_subpacket(const pgp::pkt::sigsub::Raw &subpkt, json_object *obj);
-    json_object *dump_signature_subpackets(const pgp::pkt::Signature &sig);
-    rnp_result_t dump_signature_pkt(const pgp::pkt::Signature &sig, json_object *pkt);
-    rnp_result_t dump_signature(json_object *pkt);
-    bool         dump_key_material(const pgp::KeyMaterial *material, json_object *jso);
-    rnp_result_t dump_key(json_object *pkt);
-    rnp_result_t dump_user_id(json_object *pkt);
-    rnp_result_t dump_pk_session_key(json_object *pkt);
-    rnp_result_t dump_sk_session_key(json_object *pkt);
-    rnp_result_t dump_encrypted(json_object *pkt, pgp_pkt_type_t tag);
-    rnp_result_t dump_one_pass(json_object *pkt);
-    rnp_result_t dump_marker(json_object *pkt);
-    rnp_result_t dump_compressed(json_object *pkt);
-    rnp_result_t dump_literal(json_object *pkt);
-    bool         dump_pkt_hdr(pgp_packet_hdr_t &hdr, json_object *pkt);
-    rnp_result_t dump_raw_packets() override;
+    bool         dump_signature_subpacket(const pgp::pkt::sigsub::Raw &subpkt, nlohmann::json &obj);
+    nlohmann::json dump_signature_subpackets(const pgp::pkt::Signature &sig);
+    rnp_result_t  dump_signature_pkt(const pgp::pkt::Signature &sig, nlohmann::json &pkt);
+    rnp_result_t  dump_signature(nlohmann::json &pkt);
+    bool         dump_key_material(const pgp::KeyMaterial *material, nlohmann::json &jso);
+    rnp_result_t  dump_key(nlohmann::json &pkt);
+    rnp_result_t  dump_user_id(nlohmann::json &pkt);
+    rnp_result_t  dump_pk_session_key(nlohmann::json &pkt);
+    rnp_result_t  dump_sk_session_key(nlohmann::json &pkt);
+    rnp_result_t  dump_encrypted(nlohmann::json &pkt, pgp_pkt_type_t tag);
+    rnp_result_t  dump_one_pass(nlohmann::json &pkt);
+    rnp_result_t  dump_marker(nlohmann::json &pkt);
+    rnp_result_t  dump_compressed(nlohmann::json &pkt);
+    rnp_result_t  dump_literal(nlohmann::json &pkt);
+    bool         dump_pkt_hdr(pgp_packet_hdr_t &hdr, nlohmann::json &pkt);
+    rnp_result_t  dump_raw_packets() override;
 
   public:
-    DumpContextJson(pgp_source_t &asrc, json_object **ajson)
+    DumpContextJson(pgp_source_t &asrc, nlohmann::json *ajson)
         : DumpContext(asrc), json(ajson){};
 
     rnp_result_t dump(bool raw_only = false) override;
