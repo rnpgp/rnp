@@ -4482,11 +4482,11 @@ pk_alg_allows_custom_curve(pgp_pubkey_alg_t pkalg)
 }
 
 static bool
-parse_preferences(json_object *jso, rnp::UserPrefs &prefs)
+parse_preferences(nlohmann::json &jso, rnp::UserPrefs &prefs)
 {
     /* Preferred hashes */
     std::vector<std::string> strs;
-    if (json_get_str_arr(jso, "hashes", strs)) {
+    if (rnp::json::get_str_arr(jso, "hashes", strs)) {
         for (auto &str : strs) {
             pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
             if (!str_to_hash_alg(str.c_str(), &hash_alg)) {
@@ -4496,7 +4496,7 @@ parse_preferences(json_object *jso, rnp::UserPrefs &prefs)
         }
     }
     /* Preferred symmetric algorithms */
-    if (json_get_str_arr(jso, "ciphers", strs)) {
+    if (rnp::json::get_str_arr(jso, "ciphers", strs)) {
         for (auto &str : strs) {
             pgp_symm_alg_t symm_alg = PGP_SA_UNKNOWN;
             if (!str_to_cipher(str.c_str(), &symm_alg)) {
@@ -4506,7 +4506,7 @@ parse_preferences(json_object *jso, rnp::UserPrefs &prefs)
         }
     }
     /* Preferred compression algorithms */
-    if (json_get_str_arr(jso, "compression", strs)) {
+    if (rnp::json::get_str_arr(jso, "compression", strs)) {
         for (auto &str : strs) {
             pgp_compression_type_t z_alg = PGP_C_UNKNOWN;
             if (!str_to_compression_alg(str.c_str(), &z_alg)) {
@@ -4517,26 +4517,26 @@ parse_preferences(json_object *jso, rnp::UserPrefs &prefs)
     }
     /* Preferred key server */
     std::string key_server;
-    if (json_get_str(jso, "key server", key_server)) {
+    if (rnp::json::get_str(jso, "key server", key_server)) {
         prefs.key_server = std::move(key_server);
     }
     /* Do not allow extra unknown keys */
-    return !json_object_object_length(jso);
+    return jso.empty();
 }
 
 static std::unique_ptr<rnp::KeygenParams>
-parse_keygen_params(rnp_ffi_t ffi, json_object *jso)
+parse_keygen_params(rnp_ffi_t ffi, nlohmann::json &jso)
 {
     /* Type */
     std::string      str;
     pgp_pubkey_alg_t alg = PGP_PKA_RSA;
-    if (json_get_str(jso, "type", str) && !str_to_pubkey_alg(str.c_str(), &alg)) {
+    if (rnp::json::get_str(jso, "type", str) && !str_to_pubkey_alg(str.c_str(), &alg)) {
         return nullptr;
     }
     std::unique_ptr<rnp::KeygenParams> params(new rnp::KeygenParams(alg, ffi->context));
     /* Length */
     int bits = 0;
-    if (json_get_int(jso, "length", bits)) {
+    if (rnp::json::get_int(jso, "length", bits)) {
         auto bit_params = dynamic_cast<pgp::BitsKeyParams *>(&params->key_params());
         if (!bit_params) {
             return nullptr;
@@ -4544,7 +4544,7 @@ parse_keygen_params(rnp_ffi_t ffi, json_object *jso)
         bit_params->set_bits(bits);
     }
     /* Curve */
-    if (json_get_str(jso, "curve", str)) {
+    if (rnp::json::get_str(jso, "curve", str)) {
         if (!pk_alg_allows_custom_curve(params->alg())) {
             return nullptr;
         }
@@ -4556,7 +4556,7 @@ parse_keygen_params(rnp_ffi_t ffi, json_object *jso)
         ecc_params->set_curve(curve);
     }
     /* Hash algorithm */
-    if (json_get_str(jso, "hash", str)) {
+    if (rnp::json::get_str(jso, "hash", str)) {
         pgp_hash_alg_t hash = PGP_HASH_UNKNOWN;
         if (!str_to_hash_alg(str.c_str(), &hash)) {
             return nullptr;
@@ -4567,49 +4567,49 @@ parse_keygen_params(rnp_ffi_t ffi, json_object *jso)
 }
 
 static bool
-parse_protection(json_object *jso, rnp_key_protection_params_t &protection)
+parse_protection(nlohmann::json &jso, rnp_key_protection_params_t &protection)
 {
     /* Cipher */
     std::string str;
-    if (json_get_str(jso, "cipher", str)) {
+    if (rnp::json::get_str(jso, "cipher", str)) {
         if (!str_to_cipher(str.c_str(), &protection.symm_alg)) {
             return false;
         }
     }
     /* Mode */
-    if (json_get_str(jso, "mode", str)) {
+    if (rnp::json::get_str(jso, "mode", str)) {
         if (!str_to_cipher_mode(str.c_str(), &protection.cipher_mode)) {
             return false;
         }
     }
     /* Iterations */
     int iterations = 0;
-    if (json_get_int(jso, "iterations", iterations)) {
+    if (rnp::json::get_int(jso, "iterations", iterations)) {
         protection.iterations = iterations;
     }
     /* Hash algorithm */
-    if (json_get_str(jso, "hash", str)) {
+    if (rnp::json::get_str(jso, "hash", str)) {
         if (!str_to_hash_alg(str.c_str(), &protection.hash_alg)) {
             return false;
         }
     }
     /* Do not allow extra unknown keys */
-    return !json_object_object_length(jso);
+    return jso.empty();
 }
 
 static bool
-parse_keygen_common_fields(json_object *                jso,
-                           uint8_t &                    usage,
-                           uint32_t &                   expiry,
+parse_keygen_common_fields(nlohmann::json &            jso,
+                           uint8_t &                   usage,
+                           uint32_t &                  expiry,
                            rnp_key_protection_params_t &prot)
 {
     /* Key/subkey usage flags */
     std::string              str;
     std::vector<std::string> strs;
-    if (json_get_str(jso, "usage", str)) {
+    if (rnp::json::get_str(jso, "usage", str)) {
         strs.push_back(std::move(str));
     } else {
-        json_get_str_arr(jso, "usage", strs);
+        rnp::json::get_str_arr(jso, "usage", strs);
     }
     for (auto &st : strs) {
         uint8_t flag = 0;
@@ -4620,23 +4620,23 @@ parse_keygen_common_fields(json_object *                jso,
     }
     /* Key/subkey expiration */
     uint64_t keyexp = 0;
-    if (json_get_uint64(jso, "expiration", keyexp)) {
+    if (rnp::json::get_uint64(jso, "expiration", keyexp)) {
         keyexp = expiry;
     }
     /* Protection */
-    auto obj = json_get_obj(jso, "protection");
+    auto *obj = rnp::json::get_obj(jso, "protection");
     if (obj) {
-        if (!parse_protection(obj, prot)) {
+        if (!parse_protection(*obj, prot)) {
             return false;
         }
-        json_object_object_del(jso, "protection");
+        jso.erase("protection");
     }
     return true;
 }
 
 static std::unique_ptr<rnp::KeygenParams>
 parse_keygen_primary(rnp_ffi_t                    ffi,
-                     json_object *                jso,
+                     nlohmann::json &             jso,
                      rnp::CertParams &            cert,
                      rnp_key_protection_params_t &prot)
 {
@@ -4651,27 +4651,27 @@ parse_keygen_primary(rnp_ffi_t                    ffi,
     }
     /* UserID */
     std::string str;
-    if (json_get_str(jso, "userid", str)) {
+    if (rnp::json::get_str(jso, "userid", str)) {
         if (str.size() > MAX_ID_LENGTH) {
             return nullptr;
         }
         cert.userid = std::move(str);
     }
     /* Preferences */
-    auto obj = json_get_obj(jso, "preferences");
+    auto *obj = rnp::json::get_obj(jso, "preferences");
     if (obj) {
-        if (!parse_preferences(obj, cert.prefs)) {
+        if (!parse_preferences(*obj, cert.prefs)) {
             return nullptr;
         }
-        json_object_object_del(jso, "preferences");
+        jso.erase("preferences");
     }
     /* Do not allow unknown extra fields */
-    return json_object_object_length(jso) ? nullptr : std::move(params);
+    return jso.empty() ? std::move(params) : nullptr;
 }
 
 static std::unique_ptr<rnp::KeygenParams>
 parse_keygen_sub(rnp_ffi_t                    ffi,
-                 json_object *                jso,
+                 nlohmann::json &             jso,
                  rnp::BindingParams &         binding,
                  rnp_key_protection_params_t &prot)
 {
@@ -4685,7 +4685,7 @@ parse_keygen_sub(rnp_ffi_t                    ffi,
         return nullptr;
     }
     /* Do not allow unknown extra fields */
-    return json_object_object_length(jso) ? nullptr : std::move(params);
+    return jso.empty() ? std::move(params) : nullptr;
 }
 
 static bool
@@ -4695,40 +4695,33 @@ gen_json_grips(char **result, const rnp::Key *primary, const rnp::Key *sub)
         return true;
     }
 
-    json_object *jso = json_object_new_object();
-    if (!jso) {
-        return false;
-    }
-    rnp::JSONObject jsowrap(jso);
+    nlohmann::json jso = nlohmann::json::object();
 
     char grip[PGP_KEY_GRIP_SIZE * 2 + 1];
     if (primary) {
-        json_object *jsoprimary = json_object_new_object();
-        if (!jsoprimary) {
-            return false;
-        }
-        if (!json_add(jso, "primary", jsoprimary) ||
-            !rnp::hex_encode(
+        nlohmann::json jsoprimary = nlohmann::json::object();
+        if (!rnp::hex_encode(
               primary->grip().data(), primary->grip().size(), grip, sizeof(grip)) ||
-            !json_add(jsoprimary, "grip", grip)) {
+            !rnp::json::add(jsoprimary, "grip", grip)) {
             return false;
         }
+        jso["primary"] = std::move(jsoprimary);
     }
     if (sub) {
-        json_object *jsosub = json_object_new_object();
-        if (!jsosub || !json_add(jso, "sub", jsosub) ||
-            !rnp::hex_encode(sub->grip().data(), sub->grip().size(), grip, sizeof(grip)) ||
-            !json_add(jsosub, "grip", grip)) {
+        nlohmann::json jsosub = nlohmann::json::object();
+        if (!rnp::hex_encode(sub->grip().data(), sub->grip().size(), grip, sizeof(grip)) ||
+            !rnp::json::add(jsosub, "grip", grip)) {
             return false;
         }
+        jso["sub"] = std::move(jsosub);
     }
-    *result = strdup(json_object_to_json_string_ext(jso, JSON_C_TO_STRING_PRETTY));
+    *result = strdup(jso.dump(4).c_str());
     return *result;
 }
 
 static rnp_result_t
 gen_json_primary_key(rnp_ffi_t                    ffi,
-                     json_object *                jsoparams,
+                     nlohmann::json &             jsoparams,
                      rnp_key_protection_params_t &prot,
                      pgp::Fingerprint &           fp,
                      bool                         protect)
@@ -4763,7 +4756,7 @@ gen_json_primary_key(rnp_ffi_t                    ffi,
 
 static rnp_result_t
 gen_json_subkey(rnp_ffi_t         ffi,
-                json_object *     jsoparams,
+                nlohmann::json &  jsoparams,
                 rnp::Key &        prim_pub,
                 rnp::Key &        prim_sec,
                 pgp::Fingerprint &fp)
@@ -4809,23 +4802,23 @@ try {
     }
 
     // parse the JSON
-    json_tokener_error error;
-    json_object *      jso = json_tokener_parse_verbose(json, &error);
-    if (!jso) {
-        // syntax error or some other issue
-        FFI_LOG(ffi, "Invalid JSON: %s", json_tokener_error_desc(error));
+    nlohmann::json jso;
+    try {
+        jso = nlohmann::json::parse(json);
+    } catch (const nlohmann::json::parse_error &e) {
+        FFI_LOG(ffi, "Invalid JSON: %s", e.what());
         return RNP_ERROR_BAD_FORMAT;
     }
-    rnp::JSONObject jsowrap(jso);
 
     // locate the appropriate sections
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-    json_object *jsoprimary = NULL;
-    json_object *jsosub = NULL;
+    rnp_result_t    ret = RNP_ERROR_GENERIC;
+    nlohmann::json *jsoprimary = nullptr;
+    nlohmann::json *jsosub = nullptr;
     {
-        json_object_object_foreach(jso, key, value)
-        {
-            json_object **dest = NULL;
+        for (auto &el : jso.items()) {
+            const std::string &key = el.key();
+            nlohmann::json &   value = el.value();
+            nlohmann::json **  dest = nullptr;
 
             if (rnp::str_case_eq(key, "primary")) {
                 dest = &jsoprimary;
@@ -4833,7 +4826,7 @@ try {
                 dest = &jsosub;
             } else {
                 // unrecognized key in the object
-                FFI_LOG(ffi, "Unexpected key in JSON: %s", key);
+                FFI_LOG(ffi, "Unexpected key in JSON: %s", key.c_str());
                 return RNP_ERROR_BAD_PARAMETERS;
             }
 
@@ -4841,7 +4834,7 @@ try {
             if (*dest) {
                 return RNP_ERROR_BAD_PARAMETERS;
             }
-            *dest = value;
+            *dest = &value;
         }
     }
 
@@ -4855,7 +4848,7 @@ try {
     rnp_key_protection_params_t prim_prot = {};
     pgp::Fingerprint            fp;
     if (jsoprimary) {
-        ret = gen_json_primary_key(ffi, jsoprimary, prim_prot, fp, !jsosub);
+        ret = gen_json_primary_key(ffi, *jsoprimary, prim_prot, fp, !jsosub);
         if (ret) {
             return ret;
         }
@@ -4869,26 +4862,24 @@ try {
         prim_sec = ffi->secring->get_key(fp);
     } else {
         /* generate subkey only - find primary key via JSON  params */
-        json_object *jsoparent = NULL;
-        if (!json_object_object_get_ex(jsosub, "primary", &jsoparent) ||
-            json_object_object_length(jsoparent) != 1) {
+        nlohmann::json *jsoparent = rnp::json::get_obj(*jsosub, "primary");
+        if (!jsoparent || jsoparent->size() != 1) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
-        const char *identifier_type = NULL;
-        const char *identifier = NULL;
-        json_object_object_foreach(jsoparent, key, value)
-        {
-            if (!json_object_is_type(value, json_type_string)) {
+        std::string identifier_type;
+        std::string identifier;
+        for (auto &el : jsoparent->items()) {
+            if (!el.value().is_string()) {
                 return RNP_ERROR_BAD_PARAMETERS;
             }
-            identifier_type = key;
-            identifier = json_object_get_string(value);
+            identifier_type = el.key();
+            identifier = el.value().get_ref<const std::string &>();
         }
-        if (!identifier_type || !identifier) {
+        if (identifier_type.empty() || identifier.empty()) {
             return RNP_ERROR_BAD_STATE;
         }
 
-        auto search = rnp::KeySearch::create(identifier_type, identifier);
+        auto search = rnp::KeySearch::create(identifier_type.c_str(), identifier.c_str());
         if (!search) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
@@ -4898,11 +4889,11 @@ try {
         if (!prim_sec || !prim_pub) {
             return RNP_ERROR_KEY_NOT_FOUND;
         }
-        json_object_object_del(jsosub, "primary");
+        jsosub->erase("primary");
     }
 
     /* Generate subkey */
-    ret = gen_json_subkey(ffi, jsosub, *prim_pub, *prim_sec, fp);
+    ret = gen_json_subkey(ffi, *jsosub, *prim_pub, *prim_sec, fp);
     if (ret) {
         if (jsoprimary) {
             /* do not leave generated primary key in keyring */
