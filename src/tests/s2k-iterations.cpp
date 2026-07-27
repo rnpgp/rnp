@@ -60,27 +60,27 @@ test_s2k_iterations_value(rnp_ffi_t ffi,
         assert_rnp_success(rnp_input_from_memory(&input_dump, mem, len, false));
         assert_rnp_success(rnp_dump_packets_to_json(input_dump, 0, &json));
         assert_non_null(json);
-        json_object *jso = json_tokener_parse(json);
+        nlohmann::json jso = nlohmann::json::parse(json);
         rnp_buffer_destroy(json);
         assert_non_null(jso);
-        assert_true(json_object_is_type(jso, json_type_array));
+        assert_true(jso.is_array());
         // check the symmetric-key encrypted session key packet
-        json_object *pkt = json_object_array_get_idx(jso, 0);
+        nlohmann::json pkt = jso.at(0);
         assert_true(check_json_pkt_type(pkt, PGP_PKT_SK_SESSION_KEY));
-        json_object *s2k = NULL;
+        nlohmann::json s2k = ;
         assert_true(json_object_object_get_ex(pkt, "s2k", &s2k));
-        json_object *fld = NULL;
+        nlohmann::json fld = ;
         assert_true(json_object_object_get_ex(s2k, "iterations", &fld));
-        assert_true(json_object_is_type(fld, json_type_int));
+        assert_true(fld.is_number_integer());
         // there was already decoded value in JSON
-        size_t extracted_value = (size_t) json_object_get_int(fld);
+        size_t extracted_value = (size_t) fld.get<int>();
         if (exact_match) {
             assert_int_equal(extracted_value, expected_iterations);
         } else {
             assert_true(extracted_value >= expected_iterations);
         }
         // cleanup
-        json_object_put(jso); // release the JSON object
+        /* json_object_put removed: jso */ // release the JSON object
         assert_rnp_success(rnp_input_destroy(input_dump));
     }
     assert_rnp_success(rnp_op_encrypt_destroy(op));
