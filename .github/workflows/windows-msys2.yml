@@ -107,7 +107,7 @@ jobs:
             toolchain:p
             cmake:p
             ${{ matrix.backend.lib }}:p
-            json-c:p
+            
             asciidoctor:p
             gtest:p
           path-type: minimal
