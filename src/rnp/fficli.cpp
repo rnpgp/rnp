@@ -3329,7 +3329,7 @@ cli_rnp_print_praise(void)
 void
 cli_rnp_print_feature(FILE *fp, const char *type, const char *printed_type)
 {
-    char * result = NULL;
+    char *result = NULL;
     if (rnp_supported_features(type, &result) != RNP_SUCCESS) {
         ERR_MSG("Failed to list supported features: %s", type);
         rnp_buffer_destroy(result);
@@ -3345,7 +3345,8 @@ cli_rnp_print_feature(FILE *fp, const char *type, const char *printed_type)
         fprintf(fp, "%s: ", printed_type);
         size_t count = jso.size();
         for (size_t idx = 0; idx < count; idx++) {
-            fprintf(fp, " %s%s",
+            fprintf(fp,
+                    " %s%s",
                     jso[idx].get_ref<const std::string &>().c_str(),
                     idx < count - 1 ? "," : "");
         }

@@ -203,7 +203,7 @@ TEST_F(rnp_tests, test_partial_length_first_packet_length)
     assert_rnp_success(rnp_op_sign_execute(sign));
     // read from the saved packets
     pgp_source_t src;
-    uint8_t *    mem = NULL;
+    uint8_t     *mem = NULL;
     size_t       len = 0;
     assert_rnp_success(rnp_output_memory_get_buf(output, &mem, &len, false));
     assert_rnp_success(init_mem_src(&src, mem, len, false));

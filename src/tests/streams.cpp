@@ -73,8 +73,8 @@ TEST_F(rnp_tests, test_stream_memory)
     const char *data = "Sample data to test memory streams";
     size_t      datalen;
     pgp_dest_t  memdst;
-    void *      mown;
-    void *      mcpy;
+    void       *mown;
+    void       *mcpy;
 
     datalen = strlen(data) + 1;
 
@@ -103,7 +103,7 @@ TEST_F(rnp_tests, test_stream_memory_discard)
 {
     pgp_dest_t   memdst = {};
     char         mem[32];
-    const char * hexes = "123456789ABCDEF";
+    const char  *hexes = "123456789ABCDEF";
     const size_t hexes_len = 15;
 
     /* init mem dst and write some data */
@@ -176,10 +176,10 @@ copy_tmp_path(char *buf, size_t buflen, pgp_dest_t *dst)
 
 TEST_F(rnp_tests, test_stream_file)
 {
-    const char * filename = "dummyfile.dat";
-    const char * dirname = "dummydir";
-    const char * file2name = "dummydir/dummyfile.dat";
-    const char * filedata = "dummy message to be stored in the file";
+    const char  *filename = "dummyfile.dat";
+    const char  *dirname = "dummydir";
+    const char  *file2name = "dummydir/dummyfile.dat";
+    const char  *filedata = "dummy message to be stored in the file";
     const int    iterations = 10000;
     const int    filedatalen = strlen(filedata);
     char         tmpname[128] = {0};
@@ -336,7 +336,7 @@ TEST_F(rnp_tests, test_stream_signatures)
 {
     pgp::pkt::Signature sig;
     pgp_source_t        sigsrc;
-    rnp::Key *          key = nullptr;
+    rnp::Key           *key = nullptr;
 
     /* load keys */
     auto pubring = new rnp::KeyStore("data/test_stream_signatures/pub.asc", global_ctx);
@@ -435,7 +435,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     pgp_dest_t                 keydst = {};
     pgp_key_sequence_t         keyseq;
     pgp::Fingerprint           keyfp;
-    pgp_transferable_key_t *   key = NULL;
+    pgp_transferable_key_t    *key = NULL;
     pgp_transferable_subkey_t *skey = NULL;
 
     /* public keyring, read-save-read-save armored-read */
@@ -740,7 +740,7 @@ buggy_key_load_single(const void *keydata, size_t keylen)
     pgp_source_t       memsrc = {0};
     pgp_key_sequence_t keyseq;
     size_t             partlen;
-    uint8_t *          dataptr;
+    uint8_t           *dataptr;
 
     /* try truncated load */
     for (partlen = 1; partlen < keylen; partlen += 15) {
@@ -821,7 +821,7 @@ TEST_F(rnp_tests, test_stream_key_decrypt)
 {
     pgp_source_t               keysrc = {0};
     pgp_key_sequence_t         keyseq;
-    pgp_transferable_key_t *   key = NULL;
+    pgp_transferable_key_t    *key = NULL;
     pgp_transferable_subkey_t *subkey = NULL;
 
     /* load and decrypt secret keyring */
@@ -989,7 +989,7 @@ TEST_F(rnp_tests, test_stream_key_signatures)
 {
     pgp_source_t       keysrc = {0};
     pgp_key_sequence_t keyseq;
-    rnp::Key *         pkey = nullptr;
+    rnp::Key          *pkey = nullptr;
     rnp::SignatureInfo sinfo;
 
     /* v3 public key */
@@ -1252,7 +1252,7 @@ check_dump_file_json(const char *file, bool mpi, bool grip)
     }
 
     nlohmann::ordered_json jso;
-    rnp::DumpContextJson ctx(src.src(), &jso);
+    rnp::DumpContextJson   ctx(src.src(), &jso);
     ctx.set_dump_mpi(mpi);
     ctx.set_dump_grips(grip);
 
@@ -1471,7 +1471,7 @@ TEST_F(rnp_tests, test_stream_814_dearmor_double_free)
 {
     pgp_source_t src;
     pgp_dest_t   dst;
-    const char * buf = "-----BEGIN PGP BAD HEADER-----";
+    const char  *buf = "-----BEGIN PGP BAD HEADER-----";
 
     assert_rnp_success(init_mem_src(&src, buf, strlen(buf), false));
     assert_rnp_success(init_null_dest(&dst));
@@ -1629,7 +1629,7 @@ add_openpgp_layers(
 
     /* add compression layers */
     for (int i = 0; i < compr; i++) {
-        pgp_compression_type_t alg = (pgp_compression_type_t)((i % 3) + 1);
+        pgp_compression_type_t alg = (pgp_compression_type_t) ((i % 3) + 1);
         assert_rnp_success(init_mem_dest(&dst, NULL, 0));
         assert_rnp_success(rnp_compress_src(src, dst, alg, 9));
         src.close();

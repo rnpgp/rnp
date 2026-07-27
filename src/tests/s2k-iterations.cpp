@@ -40,7 +40,7 @@ test_s2k_iterations_value(rnp_ffi_t ffi,
     rnp_input_t      input = NULL;
     rnp_output_t     output = NULL;
     rnp_op_encrypt_t op = NULL;
-    const char *     message = "RNP encryption sample message";
+    const char      *message = "RNP encryption sample message";
     assert_rnp_success(
       rnp_input_from_memory(&input, (uint8_t *) message, strlen(message), false));
     assert_rnp_success(rnp_output_to_memory(&output, 1024));
@@ -52,8 +52,8 @@ test_s2k_iterations_value(rnp_ffi_t ffi,
     // testing the saved packets
     {
         rnp_input_t input_dump = NULL;
-        char *      json = NULL;
-        uint8_t *   mem = NULL;
+        char       *json = NULL;
+        uint8_t    *mem = NULL;
         size_t      len = 0;
         // get the output and dump it to JSON
         assert_rnp_success(rnp_output_memory_get_buf(output, &mem, &len, false));
@@ -70,7 +70,8 @@ test_s2k_iterations_value(rnp_ffi_t ffi,
         nlohmann::ordered_json *s2k = nullptr;
         assert_true((pkt.contains("s2k") ? (s2k = &pkt["s2k"], true) : false));
         nlohmann::ordered_json fld;
-        assert_true((s2k->contains("iterations") ? (fld = (*s2k)["iterations"], true) : false));
+        assert_true(
+          (s2k->contains("iterations") ? (fld = (*s2k)["iterations"], true) : false));
         assert_true(fld.is_number_integer());
         // there was already decoded value in JSON
         size_t extracted_value = (size_t) fld.get<int>();

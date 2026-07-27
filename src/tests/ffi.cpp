@@ -47,10 +47,10 @@
 TEST_F(rnp_tests, test_ffi_homedir)
 {
     rnp_ffi_t ffi = NULL;
-    char *    pub_format = NULL;
-    char *    pub_path = NULL;
-    char *    sec_format = NULL;
-    char *    sec_path = NULL;
+    char     *pub_format = NULL;
+    char     *pub_path = NULL;
+    char     *sec_format = NULL;
+    char     *sec_path = NULL;
 
     // get the default homedir (not a very thorough test)
     {
@@ -648,11 +648,11 @@ get_longest_line_length(const std::string &str, const std::set<std::string> line
 TEST_F(rnp_tests, test_ffi_add_userid)
 {
     rnp_ffi_t              ffi = NULL;
-    char *                 results = NULL;
+    char                  *results = NULL;
     size_t                 count = 0;
     rnp_uid_handle_t       uid;
     rnp_signature_handle_t sig;
-    char *                 hash_alg_name = NULL;
+    char                  *hash_alg_name = NULL;
 
     const char *new_userid = "my new userid <user@example.com>";
     const char *default_hash_userid = "default hash <user@example.com";
@@ -798,9 +798,9 @@ test_ffi_init_verify_detached_file_input(rnp_input_t *input, rnp_input_t *signat
 }
 
 static void
-test_ffi_init_verify_memory_input(rnp_input_t * input,
+test_ffi_init_verify_memory_input(rnp_input_t  *input,
                                   rnp_output_t *output,
-                                  uint8_t *     signed_buf,
+                                  uint8_t      *signed_buf,
                                   size_t        signed_len)
 {
     // create input+output
@@ -854,7 +854,7 @@ test_ffi_check_signatures(rnp_op_verify_t *verify)
     size_t                    sig_count;
     uint32_t                  sig_create;
     uint32_t                  sig_expires;
-    char *                    hname = NULL;
+    char                     *hname = NULL;
     const uint32_t            issued = 1516211899;   // Unix epoch, nowish
     const uint32_t            expires = 1000000000;  // expires later
     const uint32_t            issued2 = 1516211900;  // Unix epoch, nowish
@@ -889,9 +889,9 @@ TEST_F(rnp_tests, test_ffi_signatures_memory)
     rnp_output_t    output = NULL;
     rnp_op_sign_t   op = NULL;
     rnp_op_verify_t verify;
-    uint8_t *       signed_buf;
+    uint8_t        *signed_buf;
     size_t          signed_len;
-    uint8_t *       verified_buf;
+    uint8_t        *verified_buf;
     size_t          verified_len;
 
     // init ffi
@@ -1007,7 +1007,7 @@ TEST_F(rnp_tests, test_ffi_signatures_detached_memory)
     rnp_output_t    output = NULL;
     rnp_op_sign_t   op = NULL;
     rnp_op_verify_t verify;
-    uint8_t *       signed_buf;
+    uint8_t        *signed_buf;
     size_t          signed_len;
 
     // init ffi
@@ -1496,7 +1496,7 @@ TEST_F(rnp_tests, test_ffi_locate_key)
                                     "54505A936A4A970E",
                                     "326EF111425D14A5"};
         for (size_t i = 0; i < ARRAY_SIZE(ids); i++) {
-            const char *     id = ids[i];
+            const char      *id = ids[i];
             rnp_key_handle_t key = NULL;
             assert_rnp_success(rnp_locate_key(ffi, "keyid", id, &key));
             assert_non_null(key);
@@ -1521,7 +1521,7 @@ TEST_F(rnp_tests, test_ffi_locate_key)
         static const char *ids[] = {
           "key0-uid0", "key0-uid1", "key0-uid2", "key1-uid0", "key1-uid2", "key1-uid1"};
         for (size_t i = 0; i < ARRAY_SIZE(ids); i++) {
-            const char *     id = ids[i];
+            const char      *id = ids[i];
             rnp_key_handle_t key = NULL;
             assert_rnp_success(rnp_locate_key(ffi, "userid", id, &key));
             assert_non_null(key);
@@ -1545,7 +1545,7 @@ TEST_F(rnp_tests, test_ffi_locate_key)
                                     "A3E94DE61A8CB229413D348E54505A936A4A970E",
                                     "57F8ED6E5C197DB63C60FFAF326EF111425D14A5"};
         for (size_t i = 0; i < ARRAY_SIZE(ids); i++) {
-            const char *     id = ids[i];
+            const char      *id = ids[i];
             rnp_key_handle_t key = NULL;
             assert_rnp_success(rnp_locate_key(ffi, "fingerprint", id, &key));
             assert_non_null(key);
@@ -1576,7 +1576,7 @@ TEST_F(rnp_tests, test_ffi_locate_key)
                                     "43C01D6D96BE98C3C87FE0F175870ED92DE7BE45",
                                     "8082FE753013923972632550838A5F13D81F43B9"};
         for (size_t i = 0; i < ARRAY_SIZE(ids); i++) {
-            const char *     id = ids[i];
+            const char      *id = ids[i];
             rnp_key_handle_t key = NULL;
             assert_rnp_success(rnp_locate_key(ffi, "grip", id, &key));
             assert_non_null(key);
@@ -1610,8 +1610,8 @@ TEST_F(rnp_tests, test_ffi_signatures_detached_memory_g10)
     rnp_key_handle_t key = NULL;
     rnp_op_sign_t    opsign = NULL;
     rnp_op_verify_t  opverify = NULL;
-    const char *     data = "my data";
-    uint8_t *        sig = NULL;
+    const char      *data = "my data";
+    uint8_t         *sig = NULL;
     size_t           sig_len = 0;
 
     // setup FFI
@@ -1709,7 +1709,7 @@ TEST_F(rnp_tests, test_ffi_enarmor_dearmor)
     const std::string msg("this is a test");
     data.clear();
     {
-        uint8_t *    buf = NULL;
+        uint8_t     *buf = NULL;
         size_t       buf_size = 0;
         rnp_input_t  input = NULL;
         rnp_output_t output = NULL;
@@ -1729,7 +1729,7 @@ TEST_F(rnp_tests, test_ffi_enarmor_dearmor)
         rnp_output_destroy(output);
     }
     {
-        uint8_t *    buf = NULL;
+        uint8_t     *buf = NULL;
         size_t       buf_size = 0;
         rnp_input_t  input = NULL;
         rnp_output_t output = NULL;
@@ -1751,7 +1751,7 @@ TEST_F(rnp_tests, test_ffi_enarmor_dearmor)
     // enarmor public key
     data.clear();
     {
-        uint8_t *    buf = NULL;
+        uint8_t     *buf = NULL;
         size_t       buf_size = 0;
         rnp_input_t  input = NULL;
         rnp_output_t output = NULL;
@@ -1772,7 +1772,7 @@ TEST_F(rnp_tests, test_ffi_enarmor_dearmor)
     }
     // dearmor public key
     {
-        uint8_t *    buf = NULL;
+        uint8_t     *buf = NULL;
         size_t       buf_size = 0;
         rnp_input_t  input = NULL;
         rnp_output_t output = NULL;
@@ -2015,7 +2015,7 @@ TEST_F(rnp_tests, test_ffi_customized_enarmor)
     rnp_output_t          output = NULL;
     rnp_output_t          armor_layer = NULL;
     const std::string     msg("this is a test long enough to have more than 76 characters in "
-                          "enarmored representation");
+                              "enarmored representation");
     std::set<std::string> lines_to_skip{"-----BEGIN PGP MESSAGE-----",
                                         "-----END PGP MESSAGE-----"};
 
@@ -2036,7 +2036,7 @@ TEST_F(rnp_tests, test_ffi_customized_enarmor)
 
     for (size_t llen = 16; llen <= 76; llen++) {
         std::string data;
-        uint8_t *   buf = NULL;
+        uint8_t    *buf = NULL;
         size_t      buf_size = 0;
 
         input = NULL;
@@ -2119,11 +2119,11 @@ TEST_F(rnp_tests, test_ffi_backend_version)
     assert_true(strlen(rnp_backend_version()) > 0 && strlen(rnp_backend_version()) < 255);
 }
 
-void check_loaded_keys(const char *                    format,
+void check_loaded_keys(const char                     *format,
                        bool                            armored,
-                       uint8_t *                       buf,
+                       uint8_t                        *buf,
                        size_t                          buf_len,
-                       const char *                    id_type,
+                       const char                     *id_type,
                        const std::vector<std::string> &expected_ids,
                        bool                            secret);
 
@@ -2133,7 +2133,7 @@ TEST_F(rnp_tests, test_ffi_key_export_customized_enarmor)
     rnp_output_t          output = NULL;
     rnp_output_t          armor_layer = NULL;
     rnp_key_handle_t      key = NULL;
-    uint8_t *             buf = NULL;
+    uint8_t              *buf = NULL;
     size_t                buf_len = 0;
     std::set<std::string> lines_to_skip{"-----BEGIN PGP PUBLIC KEY BLOCK-----",
                                         "-----END PGP PUBLIC KEY BLOCK-----",
@@ -2308,9 +2308,9 @@ TEST_F(rnp_tests, test_ffi_key_export_customized_enarmor)
 
 TEST_F(rnp_tests, test_ffi_key_dump)
 {
-    rnp_ffi_t        ffi = NULL;
-    rnp_key_handle_t key = NULL;
-    char *           json = NULL;
+    rnp_ffi_t              ffi = NULL;
+    rnp_key_handle_t       key = NULL;
+    char                  *json = NULL;
     nlohmann::ordered_json jso;
 
     // setup FFI
@@ -2422,10 +2422,10 @@ TEST_F(rnp_tests, test_ffi_key_dump_edge_cases)
 
 TEST_F(rnp_tests, test_ffi_key_userid_dump_has_no_special_chars)
 {
-    rnp_ffi_t    ffi = NULL;
-    char *       json = NULL;
+    rnp_ffi_t              ffi = NULL;
+    char                  *json = NULL;
     nlohmann::ordered_json jso;
-    const char * trackers[] = {
+    const char            *trackers[] = {
       "userid\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f@rnp",
       "userid\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f@rnp"};
     // setup FFI
@@ -2469,9 +2469,9 @@ TEST_F(rnp_tests, test_ffi_key_userid_dump_has_no_special_chars)
 
 TEST_F(rnp_tests, test_ffi_pkt_dump)
 {
-    rnp_ffi_t    ffi = NULL;
-    rnp_input_t  input = NULL;
-    char *       json = NULL;
+    rnp_ffi_t              ffi = NULL;
+    rnp_input_t            input = NULL;
+    char                  *json = NULL;
     nlohmann::ordered_json jso;
 
     // setup FFI
@@ -2568,7 +2568,7 @@ TEST_F(rnp_tests, test_ffi_pkt_dump)
 TEST_F(rnp_tests, test_ffi_rsa_v3_dump)
 {
     rnp_input_t input = NULL;
-    char *      json = NULL;
+    char       *json = NULL;
 
     /* dump rsav3 key to json via FFI */
     assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/4/rsav3-p.asc"));
@@ -2584,14 +2584,16 @@ TEST_F(rnp_tests, test_ffi_rsa_v3_dump)
     assert_true(rsapkt.is_object());
     /* check algorithm string */
     nlohmann::ordered_json fld;
-    assert_true((rsapkt.contains("algorithm.str") ? (fld = rsapkt["algorithm.str"], true) : false));
+    assert_true(
+      (rsapkt.contains("algorithm.str") ? (fld = rsapkt["algorithm.str"], true) : false));
     assert_true(!fld.is_null());
     const char *str = fld.get_ref<const std::string &>().c_str();
     assert_non_null(str);
     assert_string_equal(str, "RSA (Encrypt or Sign)");
     /* check fingerprint */
     fld = NULL;
-    assert_true((rsapkt.contains("fingerprint") ? (fld = rsapkt["fingerprint"], true) : false));
+    assert_true(
+      (rsapkt.contains("fingerprint") ? (fld = rsapkt["fingerprint"], true) : false));
     assert_true(!fld.is_null());
     str = fld.get_ref<const std::string &>().c_str();
     assert_non_null(str);
@@ -2988,8 +2990,8 @@ check_features(const char *type, const char *json, size_t count)
     }
     for (size_t i = 0; i < count; i++) {
         nlohmann::ordered_json val = features.at(i);
-        const char * str = val.get_ref<const std::string &>().c_str();
-        bool         supported = false;
+        const char            *str = val.get_ref<const std::string &>().c_str();
+        bool                   supported = false;
         if (!str || rnp_supports_feature(type, str, &supported) || !supported) {
             goto done;
         }
@@ -3294,7 +3296,7 @@ TEST_F(rnp_tests, test_ffi_output_to_armor)
 
 TEST_F(rnp_tests, test_ffi_rnp_guess_contents)
 {
-    char *      msgt = NULL;
+    char       *msgt = NULL;
     rnp_input_t input = NULL;
     assert_rnp_failure(rnp_guess_contents(NULL, &msgt));
 
@@ -3417,7 +3419,7 @@ TEST_F(rnp_tests, test_ffi_literal_filename)
     rnp_input_t   input = NULL;
     rnp_output_t  output = NULL;
     rnp_op_sign_t op = NULL;
-    uint8_t *     signed_buf;
+    uint8_t      *signed_buf;
     size_t        signed_len;
 
     // init ffi
@@ -3474,7 +3476,7 @@ TEST_F(rnp_tests, test_ffi_op_set_hash)
     rnp_input_t   input = NULL;
     rnp_output_t  output = NULL;
     rnp_op_sign_t op = NULL;
-    uint8_t *     signed_buf;
+    uint8_t      *signed_buf;
     size_t        signed_len;
 
     // init ffi
@@ -3520,7 +3522,7 @@ TEST_F(rnp_tests, test_ffi_op_set_compression)
     rnp_input_t   input = NULL;
     rnp_output_t  output = NULL;
     rnp_op_sign_t op = NULL;
-    uint8_t *     signed_buf;
+    uint8_t      *signed_buf;
     size_t        signed_len;
 
     // init ffi
@@ -4522,10 +4524,10 @@ TEST_F(rnp_tests, test_ffi_op_verify_get_protection_info)
 
 static bool
 getpasscb_for_key(rnp_ffi_t        ffi,
-                  void *           app_ctx,
+                  void            *app_ctx,
                   rnp_key_handle_t key,
-                  const char *     pgp_context,
-                  char *           buf,
+                  const char      *pgp_context,
+                  char            *buf,
                   size_t           buf_len)
 {
     if (!key) {
@@ -4568,7 +4570,7 @@ TEST_F(rnp_tests, test_ffi_op_verify_recipients_info)
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
     assert_rnp_success(rnp_op_verify_execute(verify));
     /* check filename and mtime */
-    char *   filename = NULL;
+    char    *filename = NULL;
     uint32_t mtime = 0;
     assert_rnp_failure(rnp_op_verify_get_file_info(NULL, &filename, &mtime));
     assert_rnp_success(rnp_op_verify_get_file_info(verify, &filename, &mtime));
@@ -5028,10 +5030,10 @@ TEST_F(rnp_tests, test_ffi_secret_sig_import)
 
 static bool
 getpasscb_fail(rnp_ffi_t        ffi,
-               void *           app_ctx,
+               void            *app_ctx,
                rnp_key_handle_t key,
-               const char *     pgp_context,
-               char *           buf,
+               const char      *pgp_context,
+               char            *buf,
                size_t           buf_len)
 {
     return false;
@@ -5039,10 +5041,10 @@ getpasscb_fail(rnp_ffi_t        ffi,
 
 static bool
 getpasscb_context(rnp_ffi_t        ffi,
-                  void *           app_ctx,
+                  void            *app_ctx,
                   rnp_key_handle_t key,
-                  const char *     pgp_context,
-                  char *           buf,
+                  const char      *pgp_context,
+                  char            *buf,
                   size_t           buf_len)
 {
     strncpy(buf, pgp_context, buf_len - 1);
@@ -5051,10 +5053,10 @@ getpasscb_context(rnp_ffi_t        ffi,
 
 static bool
 getpasscb_keyid(rnp_ffi_t        ffi,
-                void *           app_ctx,
+                void            *app_ctx,
                 rnp_key_handle_t key,
-                const char *     pgp_context,
-                char *           buf,
+                const char      *pgp_context,
+                char            *buf,
                 size_t           buf_len)
 {
     if (!key) {
@@ -6085,7 +6087,7 @@ TEST_F(rnp_tests, test_ffi_security_profile)
 
 TEST_F(rnp_tests, test_result_to_string)
 {
-    const char *          result_string = NULL;
+    const char           *result_string = NULL;
     rnp_result_t          code;
     std::set<std::string> stringset;
 

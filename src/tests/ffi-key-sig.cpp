@@ -33,9 +33,9 @@
 #include "support.h"
 
 static bool check_sig_status(nlohmann::ordered_json sig,
-                             const char * pub,
-                             const char * sec,
-                             const char * fp);
+                             const char            *pub,
+                             const char            *sec,
+                             const char            *fp);
 
 TEST_F(rnp_tests, test_ffi_key_signatures)
 {
@@ -211,7 +211,10 @@ TEST_F(rnp_tests, test_ffi_key_signatures)
 }
 
 static bool
-check_import_sigs(rnp_ffi_t ffi, nlohmann::ordered_json *jso, nlohmann::ordered_json *sigarr, const char *sigpath)
+check_import_sigs(rnp_ffi_t               ffi,
+                  nlohmann::ordered_json *jso,
+                  nlohmann::ordered_json *sigarr,
+                  const char             *sigpath)
 {
     rnp_input_t input = NULL;
     if (rnp_input_from_path(&input, sigpath)) {
@@ -235,7 +238,8 @@ check_import_sigs(rnp_ffi_t ffi, nlohmann::ordered_json *jso, nlohmann::ordered_
     if (!jso->is_object()) {
         goto done;
     }
-    if (!((*sigarr = jso->value("sigs", nlohmann::ordered_json::array()), jso->contains("sigs")))) {
+    if (!((*sigarr = jso->value("sigs", nlohmann::ordered_json::array()),
+           jso->contains("sigs")))) {
         goto done;
     }
     if (!sigarr->is_array()) {
@@ -274,11 +278,13 @@ check_sig_status(nlohmann::ordered_json sig, const char *pub, const char *sec, c
     if (strcmp(fld.get_ref<const std::string &>().c_str(), sec) != 0) {
         return false;
     }
-    if (!fp && (sig.contains("signer fingerprint") ? (fld = sig["signer fingerprint"], true) : false)) {
+    if (!fp && (sig.contains("signer fingerprint") ? (fld = sig["signer fingerprint"], true) :
+                                                     false)) {
         return false;
     }
     if (fp) {
-        if (!(sig.contains("signer fingerprint") ? (fld = sig["signer fingerprint"], true) : false)) {
+        if (!(sig.contains("signer fingerprint") ? (fld = sig["signer fingerprint"], true) :
+                                                   false)) {
             return false;
         }
         if (strcmp(fld.get_ref<const std::string &>().c_str(), fp) != 0) {
@@ -292,7 +298,7 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
 {
     rnp_ffi_t   ffi = NULL;
     rnp_input_t input = NULL;
-    char *      results = NULL;
+    char       *results = NULL;
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_true(import_pub_keys(ffi, "data/test_key_validity/alice-pub.asc"));
@@ -1286,7 +1292,7 @@ static std::string
 sig_info(rnp_signature_handle_t sig)
 {
     int      type = sig->sig->sig.type();
-    char *   keyid = NULL;
+    char    *keyid = NULL;
     uint32_t sigid = sig->sig->sigid[0] + (sig->sig->sigid[1] << 8);
     rnp_signature_get_keyid(sig, &keyid);
     std::stringstream ss;
@@ -1304,7 +1310,7 @@ uid_info(rnp_uid_handle_t uid)
     if (type == RNP_USER_ATTR) {
         res = ":uid(photo)";
     } else {
-        char * uidstr = NULL;
+        char  *uidstr = NULL;
         size_t len = 0;
         rnp_uid_get_data(uid, (void **) &uidstr, &len);
         res = ":uid(" + std::string(uidstr, uidstr + len) + ")";
@@ -1389,9 +1395,9 @@ sigremove_remove(rnp_ffi_t ffi, void *app_ctx, rnp_signature_handle_t sig, uint3
 
 static void
 sigremove_revocation(rnp_ffi_t              ffi,
-                     void *                 app_ctx,
+                     void                  *app_ctx,
                      rnp_signature_handle_t sig,
-                     uint32_t *             action)
+                     uint32_t              *action)
 {
     assert_true((*(int *) app_ctx) == 48);
     char *type = NULL;
@@ -1677,7 +1683,7 @@ TEST_F(rnp_tests, test_ffi_key_import_invalid_issuer)
     rnp_input_t input = NULL;
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_key_edge_cases/alice-sub-sig-fp.pgp"));
-    char *   keys = NULL;
+    char    *keys = NULL;
     uint32_t flags =
       RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS | RNP_LOAD_SAVE_SINGLE;
     assert_rnp_success(rnp_import_keys(ffi, input, flags, &keys));

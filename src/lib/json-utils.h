@@ -89,10 +89,10 @@ bool get_int(nlohmann::ordered_json &obj, const char *name, int &out, bool del =
 /** Read uint64 field. */
 bool get_uint64(nlohmann::ordered_json &obj, const char *name, uint64_t &out, bool del = true);
 /** Read string-array field. */
-bool get_str_arr(nlohmann::ordered_json &            obj,
-                 const char *                name,
-                 std::vector<std::string> &  out,
-                 bool                        del = true);
+bool get_str_arr(nlohmann::ordered_json   &obj,
+                 const char               *name,
+                 std::vector<std::string> &out,
+                 bool                      del = true);
 
 /** Get a non-owning pointer to a sub-object, or nullptr if missing/wrong-typed. */
 nlohmann::ordered_json *get_obj(nlohmann::ordered_json &obj, const char *name);

@@ -146,65 +146,65 @@ bool setupPasswordfd(int *pipefd);
 
 /* Common initialization of rnp structure : home path, keystore format and pointer to store
  * password fd */
-bool setup_cli_rnp_common(cli_rnp_t * rnp,
+bool setup_cli_rnp_common(cli_rnp_t  *rnp,
                           const char *ks_format,
                           const char *homedir,
-                          int *       pipefd);
+                          int        *pipefd);
 
 /* Initialize key generation params with default values and specified hash algorithm */
 void cli_set_default_rsa_key_desc(rnp_cfg &cfg, const char *hash);
 
 // this is a password callback that will always fail
 bool failing_password_callback(const pgp_password_ctx_t *ctx,
-                               char *                    password,
+                               char                     *password,
                                size_t                    password_size,
-                               void *                    userdata);
+                               void                     *userdata);
 
 bool ffi_failing_password_provider(rnp_ffi_t        ffi,
-                                   void *           app_ctx,
+                                   void            *app_ctx,
                                    rnp_key_handle_t key,
-                                   const char *     pgp_context,
-                                   char *           buf,
+                                   const char      *pgp_context,
+                                   char            *buf,
                                    size_t           buf_len);
 
 // this is a password callback that should never be called
 bool asserting_password_callback(const pgp_password_ctx_t *ctx,
-                                 char *                    password,
+                                 char                     *password,
                                  size_t                    password_size,
-                                 void *                    userdata);
+                                 void                     *userdata);
 
 bool ffi_asserting_password_provider(rnp_ffi_t        ffi,
-                                     void *           app_ctx,
+                                     void            *app_ctx,
                                      rnp_key_handle_t key,
-                                     const char *     pgp_context,
-                                     char *           buf,
+                                     const char      *pgp_context,
+                                     char            *buf,
                                      size_t           buf_len);
 
 // this is a password callback that just copies the string in userdata to
 // the password buffer
 bool string_copy_password_callback(const pgp_password_ctx_t *ctx,
-                                   char *                    password,
+                                   char                     *password,
                                    size_t                    password_size,
-                                   void *                    userdata);
+                                   void                     *userdata);
 
 bool ffi_string_password_provider(rnp_ffi_t        ffi,
-                                  void *           app_ctx,
+                                  void            *app_ctx,
                                   rnp_key_handle_t key,
-                                  const char *     pgp_context,
-                                  char *           buf,
+                                  const char      *pgp_context,
+                                  char            *buf,
                                   size_t           buf_len);
 
 void unused_getkeycb(rnp_ffi_t   ffi,
-                     void *      app_ctx,
+                     void       *app_ctx,
                      const char *identifier_type,
                      const char *identifier,
                      bool        secret);
 
 bool unused_getpasscb(rnp_ffi_t        ffi,
-                      void *           app_ctx,
+                      void            *app_ctx,
                       rnp_key_handle_t key,
-                      const char *     pgp_context,
-                      char *           buf,
+                      const char      *pgp_context,
+                      char            *buf,
                       size_t           buf_len);
 
 bool starts_with(const std::string &data, const std::string &match);
@@ -214,16 +214,20 @@ std::string fmt(const char *format, ...);
 std::string strip_eol(const std::string &str);
 std::string lowercase(const std::string &str);
 
-bool check_json_field_str(const nlohmann::ordered_json & obj,
-                          const std::string &   field,
-                          const std::string &   value);
-bool check_json_field_int(const nlohmann::ordered_json &obj, const std::string &field, int value);
-bool check_json_field_bool(const nlohmann::ordered_json &obj, const std::string &field, bool value);
+bool check_json_field_str(const nlohmann::ordered_json &obj,
+                          const std::string            &field,
+                          const std::string            &value);
+bool check_json_field_int(const nlohmann::ordered_json &obj,
+                          const std::string            &field,
+                          int                           value);
+bool check_json_field_bool(const nlohmann::ordered_json &obj,
+                           const std::string            &field,
+                           bool                          value);
 bool check_json_pkt_type(const nlohmann::ordered_json &pkt, int tag);
 
-rnp::Key *rnp_tests_get_key_by_id(rnp::KeyStore *    keyring,
+rnp::Key *rnp_tests_get_key_by_id(rnp::KeyStore     *keyring,
                                   const std::string &keyid,
-                                  rnp::Key *         after = NULL);
+                                  rnp::Key          *after = NULL);
 rnp::Key *rnp_tests_get_key_by_fpr(rnp::KeyStore *keyring, const std::string &keyid);
 rnp::Key *rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const std::string &grip);
 rnp::Key *rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const pgp::KeyGrip &grip);
@@ -262,11 +266,11 @@ size_t   get_key_uids(rnp_key_handle_t key);
 bool     check_sub_valid(rnp_key_handle_t key, size_t idx, bool validity);
 bool     check_uid_valid(rnp_key_handle_t key, size_t idx, bool valid);
 bool     check_uid_primary(rnp_key_handle_t key, size_t idx, bool primary);
-void     check_loaded_keys(const char *                    format,
+void     check_loaded_keys(const char                     *format,
                            bool                            armored,
-                           uint8_t *                       buf,
+                           uint8_t                        *buf,
                            size_t                          buf_len,
-                           const char *                    id_type,
+                           const char                     *id_type,
                            const std::vector<std::string> &expected_ids,
                            bool                            secret);
 bool     check_key_grip(rnp_key_handle_t key, const std::string &expected);
@@ -279,8 +283,8 @@ bool     check_has_key(rnp_ffi_t          ffi,
 bool     check_sig_hash(rnp_signature_handle_t sig, const char *hash);
 bool     check_sig_type(rnp_signature_handle_t sig, const char *type);
 bool     check_sig_revreason(rnp_signature_handle_t sig,
-                             const char *           revcode,
-                             const char *           revreason);
+                             const char            *revcode,
+                             const char            *revreason);
 
 rnp_key_handle_t get_key_by_fp(rnp_ffi_t ffi, const char *fp);
 rnp_key_handle_t get_key_by_uid(rnp_ffi_t ffi, const char *uid);
