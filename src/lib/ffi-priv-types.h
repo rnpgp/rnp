@@ -26,7 +26,7 @@
  */
 
 #include <rnp/rnp.h>
-#include <json.h>
+#include <nlohmann/json.hpp>
 #include "utils.h"
 #include <list>
 #include <unordered_set>
