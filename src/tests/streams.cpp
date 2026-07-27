@@ -1251,7 +1251,7 @@ check_dump_file_json(const char *file, bool mpi, bool grip)
         return false;
     }
 
-    nlohmann::json jso;
+    nlohmann::ordered_json jso;
     rnp::DumpContextJson ctx(src.src(), &jso);
     ctx.set_dump_mpi(mpi);
     ctx.set_dump_grips(grip);

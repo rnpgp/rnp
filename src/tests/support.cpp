@@ -672,7 +672,7 @@ lowercase(const std::string &str)
 }
 
 static bool
-jso_get_field(const nlohmann::json &obj, const nlohmann::json *&fld, const std::string &name)
+jso_get_field(const nlohmann::ordered_json &obj, const nlohmann::ordered_json *&fld, const std::string &name)
 {
     if (!obj.is_object() || !obj.contains(name)) {
         fld = nullptr;
@@ -683,9 +683,9 @@ jso_get_field(const nlohmann::json &obj, const nlohmann::json *&fld, const std::
 }
 
 bool
-check_json_field_str(const nlohmann::json &obj, const std::string &field, const std::string &value)
+check_json_field_str(const nlohmann::ordered_json &obj, const std::string &field, const std::string &value)
 {
-    const nlohmann::json *fld = nullptr;
+    const nlohmann::ordered_json *fld = nullptr;
     if (!jso_get_field(obj, fld, field)) {
         return false;
     }
@@ -696,9 +696,9 @@ check_json_field_str(const nlohmann::json &obj, const std::string &field, const 
 }
 
 bool
-check_json_field_int(const nlohmann::json &obj, const std::string &field, int value)
+check_json_field_int(const nlohmann::ordered_json &obj, const std::string &field, int value)
 {
-    const nlohmann::json *fld = nullptr;
+    const nlohmann::ordered_json *fld = nullptr;
     if (!jso_get_field(obj, fld, field)) {
         return false;
     }
@@ -709,9 +709,9 @@ check_json_field_int(const nlohmann::json &obj, const std::string &field, int va
 }
 
 bool
-check_json_field_bool(const nlohmann::json &obj, const std::string &field, bool value)
+check_json_field_bool(const nlohmann::ordered_json &obj, const std::string &field, bool value)
 {
-    const nlohmann::json *fld = nullptr;
+    const nlohmann::ordered_json *fld = nullptr;
     if (!jso_get_field(obj, fld, field)) {
         return false;
     }
@@ -722,7 +722,7 @@ check_json_field_bool(const nlohmann::json &obj, const std::string &field, bool 
 }
 
 bool
-check_json_pkt_type(const nlohmann::json &pkt, int tag)
+check_json_pkt_type(const nlohmann::ordered_json &pkt, int tag)
 {
     if (!pkt.is_object() || !pkt.contains("header") || !pkt["header"].is_object()) {
         return false;
