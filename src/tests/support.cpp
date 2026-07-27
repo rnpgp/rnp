@@ -672,7 +672,9 @@ lowercase(const std::string &str)
 }
 
 static bool
-jso_get_field(const nlohmann::ordered_json &obj, const nlohmann::ordered_json *&fld, const std::string &name)
+jso_get_field(const nlohmann::ordered_json & obj,
+              const nlohmann::ordered_json *&fld,
+              const std::string &            name)
 {
     if (!obj.is_object() || !obj.contains(name)) {
         fld = nullptr;
@@ -683,7 +685,9 @@ jso_get_field(const nlohmann::ordered_json &obj, const nlohmann::ordered_json *&
 }
 
 bool
-check_json_field_str(const nlohmann::ordered_json &obj, const std::string &field, const std::string &value)
+check_json_field_str(const nlohmann::ordered_json &obj,
+                     const std::string &           field,
+                     const std::string &           value)
 {
     const nlohmann::ordered_json *fld = nullptr;
     if (!jso_get_field(obj, fld, field)) {

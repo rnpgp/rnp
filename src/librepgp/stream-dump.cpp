@@ -1675,7 +1675,10 @@ DumpContextDst::dump(bool raw_only)
 }
 
 static bool
-obj_add_intstr_json(nlohmann::ordered_json &obj, const char *name, int val, const id_str_pair map[])
+obj_add_intstr_json(nlohmann::ordered_json &obj,
+                    const char *            name,
+                    int                     val,
+                    const id_str_pair       map[])
 {
     if (!rnp::json::add(obj, name, val)) {
         return false; // LCOV_EXCL_LINE
@@ -1705,10 +1708,10 @@ obj_add_mpi_json(nlohmann::ordered_json &obj, const char *name, const mpi &mpi, 
 }
 
 static bool
-subpacket_obj_add_algs(nlohmann::ordered_json &             obj,
-                       const char *                  name,
-                       const std::vector<uint8_t> &  algs,
-                       const id_str_pair             map[])
+subpacket_obj_add_algs(nlohmann::ordered_json &    obj,
+                       const char *                name,
+                       const std::vector<uint8_t> &algs,
+                       const id_str_pair           map[])
 {
     auto &jso_algs = obj[name] = nlohmann::ordered_json::array();
     for (auto &alg : algs) {
@@ -1769,7 +1772,8 @@ obj_add_s2k_json(nlohmann::ordered_json &obj, pgp_s2k_t *s2k)
 }
 
 bool
-DumpContextJson::dump_signature_subpacket(const pkt::sigsub::Raw &subpkt, nlohmann::ordered_json &obj)
+DumpContextJson::dump_signature_subpacket(const pkt::sigsub::Raw &subpkt,
+                                          nlohmann::ordered_json &obj)
 {
     switch (subpkt.type()) {
     case pkt::sigsub::Type::CreationTime: {
@@ -1859,7 +1863,8 @@ DumpContextJson::dump_signature_subpacket(const pkt::sigsub::Raw &subpkt, nlohma
         if ((flg & PGP_KF_ENCRYPT_COMMS) && !rnp::json::array_add(jso_flg, "encrypt_comm")) {
             return false; // LCOV_EXCL_LINE
         }
-        if ((flg & PGP_KF_ENCRYPT_STORAGE) && !rnp::json::array_add(jso_flg, "encrypt_storage")) {
+        if ((flg & PGP_KF_ENCRYPT_STORAGE) &&
+            !rnp::json::array_add(jso_flg, "encrypt_storage")) {
             return false; // LCOV_EXCL_LINE
         }
         if ((flg & PGP_KF_SPLIT) && !rnp::json::array_add(jso_flg, "split")) {
@@ -1909,7 +1914,8 @@ DumpContextJson::dump_signature_subpacket(const pkt::sigsub::Raw &subpkt, nlohma
             return false; // LCOV_EXCL_LINE
         }
         if (sub.human_readable()) {
-            return rnp::json::add(obj, "value", (char *) sub.value().data(), sub.value().size());
+            return rnp::json::add(
+              obj, "value", (char *) sub.value().data(), sub.value().size());
         }
         return rnp::json::add_hex(obj, "value", sub.value());
     }
@@ -2407,7 +2413,8 @@ DumpContextJson::dump_sk_session_key(nlohmann::ordered_json &pkt)
     if (!obj_add_s2k_json(pkt, &skey.s2k)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
-    if ((skey.version == PGP_SKSK_V5) && !rnp::json::add_hex(pkt, "aead iv", skey.iv, skey.ivlen)) {
+    if ((skey.version == PGP_SKSK_V5) &&
+        !rnp::json::add_hex(pkt, "aead iv", skey.iv, skey.ivlen)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (!rnp::json::add_hex(pkt, "encrypted key", skey.enckey, skey.enckeylen)) {
@@ -2463,7 +2470,8 @@ DumpContextJson::dump_one_pass(nlohmann::ordered_json &pkt)
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     if (onepass.version == PGP_OPS_V6 &&
-        !rnp::json::add(pkt, "salt", (const char *) onepass.salt.data(), onepass.salt.size())) {
+        !rnp::json::add(
+          pkt, "salt", (const char *) onepass.salt.data(), onepass.salt.size())) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 #endif
@@ -2506,8 +2514,8 @@ DumpContextJson::dump_compressed(nlohmann::ordered_json &pkt)
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
-    nlohmann::ordered_json    contents;
-    DumpContextJson   ctx(zsrc->src(), &contents);
+    nlohmann::ordered_json contents;
+    DumpContextJson        ctx(zsrc->src(), &contents);
     ctx.copy_params(*this);
     ret = ctx.dump(true);
     copy_params(ctx);
@@ -2594,7 +2602,7 @@ DumpContextJson::dump_raw_packets()
     }
 
     while (!src.eof()) {
-        auto &pkt = pkts.emplace_back(nlohmann::ordered_json::object());
+        auto &           pkt = pkts.emplace_back(nlohmann::ordered_json::object());
         pgp_packet_hdr_t hdr{};
         if (!dump_pkt_hdr(hdr, pkt)) {
             return RNP_ERROR_OUT_OF_MEMORY;
