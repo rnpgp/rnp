@@ -27,7 +27,7 @@ jobs:
           submodules: true
       - uses: DoozyX/clang-format-lint-action@v0.18.2
         with:
-          clangFormatVersion: 18
+          clangFormatVersion: 11.0.0
           exclude: './src/lib/nlohmann'
   shellcheck:
     runs-on: ubuntu-latest
