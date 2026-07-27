@@ -58,7 +58,7 @@ ignoring_writer(void *app_ctx, const void *buf, size_t len)
 
 TEST_F(rnp_tests, test_pipe)
 {
-    uint8_t *         buf = NULL;
+    uint8_t          *buf = NULL;
     size_t            buf_size = 0;
     rnp_input_t       input = NULL;
     rnp_output_t      output = NULL;
