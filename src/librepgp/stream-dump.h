@@ -106,27 +106,27 @@ class DumpContextDst : public DumpContext {
 };
 
 class DumpContextJson : public DumpContext {
-    nlohmann::json *json;
+    nlohmann::ordered_json *json;
 
-    bool         dump_signature_subpacket(const pgp::pkt::sigsub::Raw &subpkt, nlohmann::json &obj);
-    nlohmann::json dump_signature_subpackets(const pgp::pkt::Signature &sig);
-    rnp_result_t  dump_signature_pkt(const pgp::pkt::Signature &sig, nlohmann::json &pkt);
-    rnp_result_t  dump_signature(nlohmann::json &pkt);
-    bool         dump_key_material(const pgp::KeyMaterial *material, nlohmann::json &jso);
-    rnp_result_t  dump_key(nlohmann::json &pkt);
-    rnp_result_t  dump_user_id(nlohmann::json &pkt);
-    rnp_result_t  dump_pk_session_key(nlohmann::json &pkt);
-    rnp_result_t  dump_sk_session_key(nlohmann::json &pkt);
-    rnp_result_t  dump_encrypted(nlohmann::json &pkt, pgp_pkt_type_t tag);
-    rnp_result_t  dump_one_pass(nlohmann::json &pkt);
-    rnp_result_t  dump_marker(nlohmann::json &pkt);
-    rnp_result_t  dump_compressed(nlohmann::json &pkt);
-    rnp_result_t  dump_literal(nlohmann::json &pkt);
-    bool         dump_pkt_hdr(pgp_packet_hdr_t &hdr, nlohmann::json &pkt);
+    bool         dump_signature_subpacket(const pgp::pkt::sigsub::Raw &subpkt, nlohmann::ordered_json &obj);
+    nlohmann::ordered_json dump_signature_subpackets(const pgp::pkt::Signature &sig);
+    rnp_result_t  dump_signature_pkt(const pgp::pkt::Signature &sig, nlohmann::ordered_json &pkt);
+    rnp_result_t  dump_signature(nlohmann::ordered_json &pkt);
+    bool         dump_key_material(const pgp::KeyMaterial *material, nlohmann::ordered_json &jso);
+    rnp_result_t  dump_key(nlohmann::ordered_json &pkt);
+    rnp_result_t  dump_user_id(nlohmann::ordered_json &pkt);
+    rnp_result_t  dump_pk_session_key(nlohmann::ordered_json &pkt);
+    rnp_result_t  dump_sk_session_key(nlohmann::ordered_json &pkt);
+    rnp_result_t  dump_encrypted(nlohmann::ordered_json &pkt, pgp_pkt_type_t tag);
+    rnp_result_t  dump_one_pass(nlohmann::ordered_json &pkt);
+    rnp_result_t  dump_marker(nlohmann::ordered_json &pkt);
+    rnp_result_t  dump_compressed(nlohmann::ordered_json &pkt);
+    rnp_result_t  dump_literal(nlohmann::ordered_json &pkt);
+    bool         dump_pkt_hdr(pgp_packet_hdr_t &hdr, nlohmann::ordered_json &pkt);
     rnp_result_t  dump_raw_packets() override;
 
   public:
-    DumpContextJson(pgp_source_t &asrc, nlohmann::json *ajson)
+    DumpContextJson(pgp_source_t &asrc, nlohmann::ordered_json *ajson)
         : DumpContext(asrc), json(ajson){};
 
     rnp_result_t dump(bool raw_only = false) override;

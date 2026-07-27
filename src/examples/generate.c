@@ -31,48 +31,48 @@
 
 /* RSA key JSON description. 31536000 = 1 year expiration, 15768000 = half year */
 const char *RSA_KEY_DESC = "{\
-    'primary': {\
-        'type': 'RSA',\
-        'length': 2048,\
-        'userid': 'rsa@key',\
-        'expiration': 31536000,\
-        'usage': ['sign'],\
-        'protection': {\
-            'cipher': 'AES256',\
-            'hash': 'SHA256'\
+    \"primary\": {\
+        \"type\": \"RSA\",\
+        \"length\": 2048,\
+        \"userid\": \"rsa@key\",\
+        \"expiration\": 31536000,\
+        \"usage\": [\"sign\"],\
+        \"protection\": {\
+            \"cipher\": \"AES256\",\
+            \"hash\": \"SHA256\"\
         }\
     },\
-    'sub': {\
-        'type': 'RSA',\
-        'length': 2048,\
-        'expiration': 15768000,\
-        'usage': ['encrypt'],\
-        'protection': {\
-            'cipher': 'AES256',\
-            'hash': 'SHA256'\
+    \"sub\": {\
+        \"type\": \"RSA\",\
+        \"length\": 2048,\
+        \"expiration\": 15768000,\
+        \"usage\": [\"encrypt\"],\
+        \"protection\": {\
+            \"cipher\": \"AES256\",\
+            \"hash\": \"SHA256\"\
         }\
     }\
 }";
 
 const char *CURVE_25519_KEY_DESC = "{\
-    'primary': {\
-        'type': 'EDDSA',\
-        'userid': '25519@key',\
-        'expiration': 0,\
-        'usage': ['sign'],\
-        'protection': {\
-            'cipher': 'AES256',\
-            'hash': 'SHA256'\
+    \"primary\": {\
+        \"type\": \"EDDSA\",\
+        \"userid\": \"25519@key\",\
+        \"expiration\": 0,\
+        \"usage\": [\"sign\"],\
+        \"protection\": {\
+            \"cipher\": \"AES256\",\
+            \"hash\": \"SHA256\"\
         }\
     },\
-    'sub': {\
-        'type': 'ECDH',\
-        'curve': 'Curve25519',\
-        'expiration': 15768000,\
-        'usage': ['encrypt'],\
-        'protection': {\
-            'cipher': 'AES256',\
-            'hash': 'SHA256'\
+    \"sub\": {\
+        \"type\": \"ECDH\",\
+        \"curve\": \"Curve25519\",\
+        \"expiration\": 15768000,\
+        \"usage\": [\"encrypt\"],\
+        \"protection\": {\
+            \"cipher\": \"AES256\",\
+            \"hash\": \"SHA256\"\
         }\
     }\
 }";

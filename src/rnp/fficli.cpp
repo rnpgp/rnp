@@ -1166,7 +1166,7 @@ cli_rnp_t::edit_key(const std::string &key)
 }
 
 const char *
-json_obj_get_str(const nlohmann::json &obj, const char *key)
+json_obj_get_str(const nlohmann::ordered_json &obj, const char *key)
 {
     if (!obj.contains(key) || !obj[key].is_string()) {
         return NULL;
@@ -3351,7 +3351,7 @@ cli_rnp_print_feature(FILE *fp, const char *type, const char *printed_type)
         return;
     }
     try {
-        nlohmann::json jso = nlohmann::json::parse(result);
+        nlohmann::ordered_json jso = nlohmann::ordered_json::parse(result);
         if (!jso.is_array()) {
             ERR_MSG("Failed to parse JSON with features: %s", type);
             rnp_buffer_destroy(result);
@@ -3366,7 +3366,7 @@ cli_rnp_print_feature(FILE *fp, const char *type, const char *printed_type)
         }
         fputs("\n", fp);
         fflush(fp);
-    } catch (const nlohmann::json::parse_error &) {
+    } catch (const nlohmann::ordered_json::parse_error &) {
         ERR_MSG("Failed to parse JSON with features: %s", type);
     }
     rnp_buffer_destroy(result);
