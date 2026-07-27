@@ -212,12 +212,12 @@ std::string fmt(const char *format, ...);
 std::string strip_eol(const std::string &str);
 std::string lowercase(const std::string &str);
 
-bool check_json_field_str(json_object *      obj,
-                          const std::string &field,
-                          const std::string &value);
-bool check_json_field_int(json_object *obj, const std::string &field, int value);
-bool check_json_field_bool(json_object *obj, const std::string &field, bool value);
-bool check_json_pkt_type(json_object *pkt, int tag);
+bool check_json_field_str(const nlohmann::json & obj,
+                          const std::string &   field,
+                          const std::string &   value);
+bool check_json_field_int(const nlohmann::json &obj, const std::string &field, int value);
+bool check_json_field_bool(const nlohmann::json &obj, const std::string &field, bool value);
+bool check_json_pkt_type(const nlohmann::json &pkt, int tag);
 
 rnp::Key *rnp_tests_get_key_by_id(rnp::KeyStore *    keyring,
                                   const std::string &keyid,
