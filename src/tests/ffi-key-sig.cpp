@@ -138,8 +138,8 @@ TEST_F(rnp_tests, test_ffi_key_signatures)
     nlohmann::json jso = nlohmann::json::parse(json);
     assert_non_null(jso);
     assert_true(jso.is_object());
-    nlohmann::json jsigs = ;
-    assert_true(json_object_object_get_ex(jso, "sigs", &jsigs));
+    nlohmann::json jsigs;
+    assert_true((jso.contains("sigs") ? (jsigs = jso["sigs"], true) : false));
     assert_true(jsigs.is_array());
     assert_int_equal(jsigs.size(), 1);
     nlohmann::json jsig = jsigs.at(0);
@@ -232,19 +232,19 @@ check_import_sigs(rnp_ffi_t ffi, nlohmann::json *jso, nlohmann::json *sigarr, co
     if (!jso) {
         goto done;
     }
-    if (!*jso.is_object()) {
+    if (!jso->is_object()) {
         goto done;
     }
-    if (!json_object_object_get_ex(*jso, "sigs", sigarr)) {
+    if (!((*sigarr = jso->value("sigs", nlohmann::json::array()), jso->contains("sigs")))) {
         goto done;
     }
-    if (!*sigarr.is_array()) {
+    if (!sigarr->is_array()) {
         goto done;
     }
     res = true;
 done:
     if (!res) {
-        json_object_put(*jso);
+        (void) (*jso); /* removed */
         *jso = NULL;
     }
     rnp_input_destroy(input);
@@ -261,27 +261,27 @@ check_sig_status(nlohmann::json sig, const char *pub, const char *sec, const cha
     if (!sig.is_object()) {
         return false;
     }
-    nlohmann::json fld = ;
-    if (!json_object_object_get_ex(sig, "public", &fld)) {
+    nlohmann::json fld;
+    if (!(sig.contains("public") ? (fld = sig["public"], true) : false)) {
         return false;
     }
-    if (strcmp(fld.get_ref<const std::string &>(), pub) != 0) {
+    if (strcmp(fld.get_ref<const std::string &>().c_str(), pub) != 0) {
         return false;
     }
-    if (!json_object_object_get_ex(sig, "secret", &fld)) {
+    if (!(sig.contains("secret") ? (fld = sig["secret"], true) : false)) {
         return false;
     }
-    if (strcmp(fld.get_ref<const std::string &>(), sec) != 0) {
+    if (strcmp(fld.get_ref<const std::string &>().c_str(), sec) != 0) {
         return false;
     }
-    if (!fp && json_object_object_get_ex(sig, "signer fingerprint", &fld)) {
+    if (!fp && (sig.contains("signer fingerprint") ? (fld = sig["signer fingerprint"], true) : false)) {
         return false;
     }
     if (fp) {
-        if (!json_object_object_get_ex(sig, "signer fingerprint", &fld)) {
+        if (!(sig.contains("signer fingerprint") ? (fld = sig["signer fingerprint"], true) : false)) {
             return false;
         }
-        if (strcmp(fld.get_ref<const std::string &>(), fp) != 0) {
+        if (strcmp(fld.get_ref<const std::string &>().c_str(), fp) != 0) {
             return false;
         }
     }
@@ -309,8 +309,8 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
     /* some import edge cases */
     assert_rnp_failure(rnp_import_signatures(ffi, NULL, 0, &results));
     /* import revocation signature */
-    nlohmann::json jso = ;
-    nlohmann::json jsosigs = ;
+    nlohmann::json jso;
+    nlohmann::json jsosigs;
     assert_true(
       check_import_sigs(ffi, &jso, &jsosigs, "data/test_key_validity/alice-rev.pgp"));
     assert_int_equal(jsosigs.size(), 1);
@@ -556,8 +556,8 @@ TEST_F(rnp_tests, test_ffi_export_revocation)
     assert_true(locked);
     assert_rnp_success(rnp_key_handle_destroy(key_handle));
     /* make sure we can successfully import exported revocation */
-    nlohmann::json jso = ;
-    nlohmann::json jsosigs = ;
+    nlohmann::json jso;
+    nlohmann::json jsosigs;
     assert_true(check_import_sigs(ffi, &jso, &jsosigs, "alice-revocation.pgp"));
     assert_int_equal(jsosigs.size(), 1);
     nlohmann::json jsosig = jsosigs.at(0);
