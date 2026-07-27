@@ -34,7 +34,7 @@
 #include "librepgp/stream-common.h"
 #include "librepgp/stream-packet.h"
 #include "librepgp/stream-sig.h"
-#include <json.h>
+#include <nlohmann/json.hpp>
 #include <vector>
 #include <string>
 #include "file-utils.h"

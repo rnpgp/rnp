@@ -32,7 +32,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include "utils.h"
-#include <json.h>
+#include <nlohmann/json.hpp>
 #include <vector>
 #include <string>
 
