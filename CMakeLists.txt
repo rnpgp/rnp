@@ -50,6 +50,40 @@ project(RNP
   DESCRIPTION "${PACKAGE_DESCRIPTION_SHORT}"
 )
 
+# Cross-compilation setup. When CMAKE_SYSTEM_NAME differs from CMAKE_HOST_SYSTEM_NAME,
+# CMake sets CMAKE_CROSSCOMPILING=TRUE. We additionally expose RNP_CROSSCOMPILING so
+# child modules (libsexpp) and find modules can branch without re-deriving it, and
+# constrain find_package/find_path/find_library to CMAKE_FIND_ROOT_PATH (the target
+# sysroot). Build-time helper executables (run during configure) bypass the root path
+# via explicit NO_CMAKE_FIND_ROOT_PATH on the relevant find_program/find_package calls.
+if(CMAKE_CROSSCOMPILING)
+  set(RNP_CROSSCOMPILING TRUE)
+  set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+  set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+  set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+  set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+endif()
+
+# OHOS (OpenHarmony) is musl-based; the OHOS NDK's ohos.toolchain.cmake sets
+# CMAKE_SYSTEM_NAME=OHOS. We set RNP_TARGET_OHOS so downstream code can branch on
+# OHOS-specific quirks (musl rootfs layout, etc.).
+if(CMAKE_SYSTEM_NAME STREQUAL "OHOS")
+  set(RNP_TARGET_OHOS TRUE)
+  add_compile_definitions(RNP_PLATFORM_OHOS=1)
+endif()
+
+# Some cross-compile toolchain files (e.g. ohos.toolchain.cmake) default
+# CMAKE_INSTALL_PREFIX to /usr for sysroot staging. That causes install to
+# write to /usr/lib on the host filesystem. Surface a NOTICE so packagers
+# know to set DESTDIR or pass --prefix to cmake --install.
+if((CMAKE_INSTALL_PREFIX STREQUAL "/usr" OR CMAKE_INSTALL_PREFIX STREQUAL "/usr/local")
+    AND CMAKE_CROSSCOMPILING AND NOT DEFINED ENV{DESTDIR})
+  message(NOTICE
+    "CMAKE_INSTALL_PREFIX is '${CMAKE_INSTALL_PREFIX}' under cross-compile. "
+    "Install will write to '${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}' on the host. "
+    "For sysroot staging, set DESTDIR or pass --prefix to cmake --install.")
+endif()
+
 # tri-state options
 set(TRISTATE_VALUES On Off Auto)
 
