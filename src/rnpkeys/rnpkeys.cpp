@@ -232,11 +232,12 @@ import_keys(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
         processed_keys += jso["keys"].size();
         for (auto &keyinfo : jso["keys"]) {
             rnp_key_handle_t key = NULL;
-            std::string pub_status = keyinfo.value("public", "");
-            std::string sec_status = keyinfo.value("secret", "");
-            const char *fphex = keyinfo.contains("fingerprint") && keyinfo["fingerprint"].is_string()
-                                  ? keyinfo["fingerprint"].get_ptr<const std::string *>()->c_str()
-                                  : nullptr;
+            std::string      pub_status = keyinfo.value("public", "");
+            std::string      sec_status = keyinfo.value("secret", "");
+            const char *     fphex =
+              keyinfo.contains("fingerprint") && keyinfo["fingerprint"].is_string() ?
+                     keyinfo["fingerprint"].get_ptr<const std::string *>()->c_str() :
+                     nullptr;
 
             if (pub_status == "new") {
                 new_pub_keys.insert(fphex);
@@ -293,13 +294,13 @@ import_keys(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
 static bool
 import_sigs(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
 {
-    bool         res = false;
-    char *       results = NULL;
-    nlohmann::ordered_json jso;
+    bool                    res = false;
+    char *                  results = NULL;
+    nlohmann::ordered_json  jso;
     nlohmann::ordered_json *sigs = nullptr;
-    int          unknown_sigs = 0;
-    int          new_sigs = 0;
-    int          old_sigs = 0;
+    int                     unknown_sigs = 0;
+    int                     new_sigs = 0;
+    int                     old_sigs = 0;
 
     if (rnp_import_signatures(rnp->ffi, input, 0, &results)) {
         ERR_MSG("Failed to import signatures from %s", inname.c_str());

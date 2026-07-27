@@ -33,9 +33,9 @@
 #include "support.h"
 
 static bool check_sig_status(nlohmann::ordered_json sig,
-                             const char * pub,
-                             const char * sec,
-                             const char * fp);
+                             const char *           pub,
+                             const char *           sec,
+                             const char *           fp);
 
 TEST_F(rnp_tests, test_ffi_key_signatures)
 {
@@ -211,7 +211,10 @@ TEST_F(rnp_tests, test_ffi_key_signatures)
 }
 
 static bool
-check_import_sigs(rnp_ffi_t ffi, nlohmann::ordered_json *jso, nlohmann::ordered_json *sigarr, const char *sigpath)
+check_import_sigs(rnp_ffi_t               ffi,
+                  nlohmann::ordered_json *jso,
+                  nlohmann::ordered_json *sigarr,
+                  const char *            sigpath)
 {
     rnp_input_t input = NULL;
     if (rnp_input_from_path(&input, sigpath)) {
@@ -235,7 +238,8 @@ check_import_sigs(rnp_ffi_t ffi, nlohmann::ordered_json *jso, nlohmann::ordered_
     if (!jso->is_object()) {
         goto done;
     }
-    if (!((*sigarr = jso->value("sigs", nlohmann::ordered_json::array()), jso->contains("sigs")))) {
+    if (!((*sigarr = jso->value("sigs", nlohmann::ordered_json::array()),
+           jso->contains("sigs")))) {
         goto done;
     }
     if (!sigarr->is_array()) {
@@ -274,11 +278,13 @@ check_sig_status(nlohmann::ordered_json sig, const char *pub, const char *sec, c
     if (strcmp(fld.get_ref<const std::string &>().c_str(), sec) != 0) {
         return false;
     }
-    if (!fp && (sig.contains("signer fingerprint") ? (fld = sig["signer fingerprint"], true) : false)) {
+    if (!fp && (sig.contains("signer fingerprint") ? (fld = sig["signer fingerprint"], true) :
+                                                     false)) {
         return false;
     }
     if (fp) {
-        if (!(sig.contains("signer fingerprint") ? (fld = sig["signer fingerprint"], true) : false)) {
+        if (!(sig.contains("signer fingerprint") ? (fld = sig["signer fingerprint"], true) :
+                                                   false)) {
             return false;
         }
         if (strcmp(fld.get_ref<const std::string &>().c_str(), fp) != 0) {
