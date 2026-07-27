@@ -1166,13 +1166,13 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     /* now dump signature packet to json */
     char *json = NULL;
     assert_rnp_success(rnp_signature_packet_to_json(sighandle, 0, &json));
-    nlohmann::json jso = nlohmann::json::parse(json);
+    nlohmann::ordered_json jso = nlohmann::ordered_json::parse(json);
     rnp_buffer_destroy(json);
-    assert_non_null(jso);
+    assert_true(!jso.is_null());
     assert_true(jso.is_array());
     assert_int_equal(jso.size(), 1);
     /* check the signature packet dump */
-    nlohmann::json pkt = jso.at(0);
+    nlohmann::ordered_json pkt = jso.at(0);
     /* check helper functions */
     assert_false(check_json_field_int(pkt, "unknown", 4));
     assert_false(check_json_field_int(pkt, "version", 5));
@@ -1184,13 +1184,13 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_true(check_json_field_int(pkt, "hash algorithm", 8));
     assert_true(check_json_field_str(pkt, "hash algorithm.str", "SHA256"));
     assert_true(check_json_field_str(pkt, "lbits", "816e"));
-    nlohmann::json subpkts;
+    nlohmann::ordered_json subpkts;
     assert_true((pkt.contains("subpackets") ? (subpkts = pkt["subpackets"], true) : false));
-    assert_non_null(subpkts);
+    assert_true(!subpkts.is_null());
     assert_true(subpkts.is_array());
     assert_int_equal(subpkts.size(), 3);
     /* subpacket 0 */
-    nlohmann::json subpkt = subpkts.at(0);
+    nlohmann::ordered_json subpkt = subpkts.at(0);
     assert_true(check_json_field_int(subpkt, "type", 33));
     assert_true(check_json_field_str(subpkt, "type.str", "issuer fingerprint"));
     assert_true(check_json_field_int(subpkt, "length", 21));
@@ -1262,9 +1262,9 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     rnp_buffer_destroy(alg);
     /* now dump signature packet to json */
     assert_rnp_success(rnp_signature_packet_to_json(sighandle, 0, &json));
-    jso = nlohmann::json::parse(json);
+    jso = nlohmann::ordered_json::parse(json);
     rnp_buffer_destroy(json);
-    assert_non_null(jso);
+    assert_true(!jso.is_null());
     assert_true(jso.is_array());
     assert_int_equal(jso.size(), 1);
     /* check the signature packet dump */
@@ -1283,7 +1283,7 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_true(check_json_field_str(pkt, "lbits", "1037"));
     subpkts = NULL;
     assert_true((pkt.contains("subpackets") ? (subpkts = pkt["subpackets"], true) : false));
-    assert_non_null(subpkts);
+    assert_true(!subpkts.is_null());
     assert_true(subpkts.is_array());
     assert_int_equal(subpkts.size(), 3);
     /* subpacket 0 */
@@ -1360,9 +1360,9 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     rnp_buffer_destroy(alg);
     /* now dump signature packet to json */
     assert_rnp_success(rnp_signature_packet_to_json(sighandle, 0, &json));
-    jso = nlohmann::json::parse(json);
+    jso = nlohmann::ordered_json::parse(json);
     rnp_buffer_destroy(json);
-    assert_non_null(jso);
+    assert_true(!jso.is_null());
     assert_true(jso.is_array());
     assert_int_equal(jso.size(), 1);
     /* check the signature packet dump */
@@ -1380,7 +1380,7 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_true(check_json_field_str(pkt, "lbits", "2727"));
     subpkts = NULL;
     assert_true((pkt.contains("subpackets") ? (subpkts = pkt["subpackets"], true) : false));
-    assert_non_null(subpkts);
+    assert_true(!subpkts.is_null());
     assert_true(subpkts.is_array());
     assert_int_equal(subpkts.size(), 7);
     /* subpacket 0 */
@@ -1433,7 +1433,7 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_true(check_json_field_int(subpkt, "length", 105));
     assert_true(check_json_field_bool(subpkt, "hashed", true));
     assert_true(check_json_field_bool(subpkt, "critical", true));
-    nlohmann::json embsig;
+    nlohmann::ordered_json embsig;
     assert_true((subpkt.contains("signature") ? (embsig = subpkt["signature"], true) : false));
     assert_true(check_json_field_int(embsig, "version", 4));
     assert_true(check_json_field_int(embsig, "type", 0));
@@ -2311,7 +2311,7 @@ TEST_F(rnp_tests, test_ffi_key_dump)
     rnp_ffi_t        ffi = NULL;
     rnp_key_handle_t key = NULL;
     char *           json = NULL;
-    nlohmann::json jso;
+    nlohmann::ordered_json jso;
 
     // setup FFI
     test_ffi_init(&ffi);
@@ -2324,8 +2324,8 @@ TEST_F(rnp_tests, test_ffi_key_dump)
     assert_rnp_success(rnp_key_packets_to_json(
       key, false, RNP_JSON_DUMP_MPI | RNP_JSON_DUMP_RAW | RNP_JSON_DUMP_GRIP, &json));
     assert_non_null(json);
-    jso = nlohmann::json::parse(json);
-    assert_non_null(jso);
+    jso = nlohmann::ordered_json::parse(json);
+    assert_true(!jso.is_null());
     assert_true(jso.is_array());
     /* json_object_put removed: jso */
     rnp_buffer_destroy(json);
@@ -2334,8 +2334,8 @@ TEST_F(rnp_tests, test_ffi_key_dump)
     assert_rnp_success(rnp_key_packets_to_json(
       key, true, RNP_JSON_DUMP_MPI | RNP_JSON_DUMP_RAW | RNP_JSON_DUMP_GRIP, &json));
     assert_non_null(json);
-    jso = nlohmann::json::parse(json);
-    assert_non_null(jso);
+    jso = nlohmann::ordered_json::parse(json);
+    assert_true(!jso.is_null());
     assert_true(jso.is_array());
     /* json_object_put removed: jso */
     rnp_buffer_destroy(json);
@@ -2424,7 +2424,7 @@ TEST_F(rnp_tests, test_ffi_key_userid_dump_has_no_special_chars)
 {
     rnp_ffi_t    ffi = NULL;
     char *       json = NULL;
-    nlohmann::json jso;
+    nlohmann::ordered_json jso;
     const char * trackers[] = {
       "userid\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f@rnp",
       "userid\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f@rnp"};
@@ -2455,8 +2455,8 @@ TEST_F(rnp_tests, test_ffi_key_userid_dump_has_no_special_chars)
                 assert_null(strchr(json, c));
             }
         }
-        jso = nlohmann::json::parse(json);
-        assert_non_null(jso);
+        jso = nlohmann::ordered_json::parse(json);
+        assert_true(!jso.is_null());
         assert_true(jso.is_array());
         /* json_object_put removed: jso */
         rnp_buffer_destroy(json);
@@ -2472,7 +2472,7 @@ TEST_F(rnp_tests, test_ffi_pkt_dump)
     rnp_ffi_t    ffi = NULL;
     rnp_input_t  input = NULL;
     char *       json = NULL;
-    nlohmann::json jso;
+    nlohmann::ordered_json jso;
 
     // setup FFI
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -2492,8 +2492,8 @@ TEST_F(rnp_tests, test_ffi_pkt_dump)
     assert_non_null(json);
 
     // check results
-    jso = nlohmann::json::parse(json);
-    assert_non_null(jso);
+    jso = nlohmann::ordered_json::parse(json);
+    assert_true(!jso.is_null());
     assert_true(jso.is_array());
     /* make sure that correct number of packets dumped */
     assert_int_equal(jso.size(), 35);
@@ -2575,24 +2575,24 @@ TEST_F(rnp_tests, test_ffi_rsa_v3_dump)
     assert_rnp_success(rnp_dump_packets_to_json(input, RNP_JSON_DUMP_GRIP, &json));
     rnp_input_destroy(input);
     /* parse dump */
-    nlohmann::json jso = nlohmann::json::parse(json);
+    nlohmann::ordered_json jso = nlohmann::ordered_json::parse(json);
     rnp_buffer_destroy(json);
-    assert_non_null(jso);
+    assert_true(!jso.is_null());
     assert_true(jso.is_array());
-    nlohmann::json rsapkt = jso.at(0);
-    assert_non_null(rsapkt);
+    nlohmann::ordered_json rsapkt = jso.at(0);
+    assert_true(!rsapkt.is_null());
     assert_true(rsapkt.is_object());
     /* check algorithm string */
-    nlohmann::json fld;
+    nlohmann::ordered_json fld;
     assert_true((rsapkt.contains("algorithm.str") ? (fld = rsapkt["algorithm.str"], true) : false));
-    assert_non_null(fld);
+    assert_true(!fld.is_null());
     const char *str = fld.get_ref<const std::string &>().c_str();
     assert_non_null(str);
     assert_string_equal(str, "RSA (Encrypt or Sign)");
     /* check fingerprint */
     fld = NULL;
     assert_true((rsapkt.contains("fingerprint") ? (fld = rsapkt["fingerprint"], true) : false));
-    assert_non_null(fld);
+    assert_true(!fld.is_null());
     str = fld.get_ref<const std::string &>().c_str();
     assert_non_null(str);
     assert_string_equal(str, "06a044022bb5aa7991077466aeba2ce7");
@@ -2973,8 +2973,8 @@ check_features(const char *type, const char *json, size_t count)
 {
     size_t got_count = 0;
 
-    nlohmann::json features = nlohmann::json::parse(json);
-    if (!features) {
+    nlohmann::ordered_json features = nlohmann::ordered_json::parse(json);
+    if (features.is_null()) {
         return false;
     }
     bool res = false;
@@ -2987,7 +2987,7 @@ check_features(const char *type, const char *json, size_t count)
         goto done;
     }
     for (size_t i = 0; i < count; i++) {
-        nlohmann::json val = features.at(i);
+        nlohmann::ordered_json val = features.at(i);
         const char * str = val.get_ref<const std::string &>().c_str();
         bool         supported = false;
         if (!str || rnp_supports_feature(type, str, &supported) || !supported) {
@@ -3618,12 +3618,12 @@ TEST_F(rnp_tests, test_ffi_aead_params)
     assert_rnp_success(rnp_dump_packets_to_json(input, 0, &json));
     assert_rnp_success(rnp_input_destroy(input));
     input = NULL;
-    nlohmann::json jso = nlohmann::json::parse(json);
+    nlohmann::ordered_json jso = nlohmann::ordered_json::parse(json);
     rnp_buffer_destroy(json);
-    assert_non_null(jso);
+    assert_true(!jso.is_null());
     assert_true(jso.is_array());
     /* check the symmetric-key encrypted session key packet */
-    nlohmann::json pkt = jso.at(0);
+    nlohmann::ordered_json pkt = jso.at(0);
     assert_true(check_json_pkt_type(pkt, PGP_PKT_SK_SESSION_KEY));
     if (!aead_ocb_enabled()) {
         // if AEAD is not enabled then v4 encrypted packet will be created

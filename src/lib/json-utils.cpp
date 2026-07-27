@@ -33,13 +33,13 @@ namespace json {
 
 /* Internal helper: pull a pointer to a field if it exists and matches the
  * type predicate, otherwise nullptr. */
-static nlohmann::json *
-get_field(nlohmann::json &obj, const char *name, bool (*pred)(const nlohmann::json &))
+static nlohmann::ordered_json *
+get_field(nlohmann::ordered_json &obj, const char *name, bool (*pred)(const nlohmann::ordered_json &))
 {
     if (!obj.is_object() || !obj.contains(name)) {
         return nullptr;
     }
-    nlohmann::json *field = &obj[name];
+    nlohmann::ordered_json *field = &obj[name];
     if (!pred(*field)) {
         return nullptr;
     }
@@ -47,49 +47,49 @@ get_field(nlohmann::json &obj, const char *name, bool (*pred)(const nlohmann::js
 }
 
 bool
-add(nlohmann::json &obj, const char *name, const char *value)
+add(nlohmann::ordered_json &obj, const char *name, const char *value)
 {
     obj[name] = value;
     return true;
 }
 
 bool
-add(nlohmann::json &obj, const char *name, const char *value, size_t len)
+add(nlohmann::ordered_json &obj, const char *name, const char *value, size_t len)
 {
     obj[name] = std::string(value, len);
     return true;
 }
 
 bool
-add(nlohmann::json &obj, const char *name, const std::string &value)
+add(nlohmann::ordered_json &obj, const char *name, const std::string &value)
 {
     obj[name] = value;
     return true;
 }
 
 bool
-add(nlohmann::json &obj, const char *name, bool value)
+add(nlohmann::ordered_json &obj, const char *name, bool value)
 {
     obj[name] = value;
     return true;
 }
 
 bool
-add(nlohmann::json &obj, const char *name, int value)
+add(nlohmann::ordered_json &obj, const char *name, int value)
 {
     obj[name] = value;
     return true;
 }
 
 bool
-add(nlohmann::json &obj, const char *name, uint64_t value)
+add(nlohmann::ordered_json &obj, const char *name, uint64_t value)
 {
     obj[name] = value;
     return true;
 }
 
 bool
-add_hex(nlohmann::json &obj, const char *name, const uint8_t *val, size_t val_len)
+add_hex(nlohmann::ordered_json &obj, const char *name, const uint8_t *val, size_t val_len)
 {
     if (val_len > 1024 * 1024) {
         RNP_LOG("too large json hex field: %zu", val_len);
@@ -100,41 +100,41 @@ add_hex(nlohmann::json &obj, const char *name, const uint8_t *val, size_t val_le
 }
 
 bool
-add_hex(nlohmann::json &obj, const char *name, const std::vector<uint8_t> &vec)
+add_hex(nlohmann::ordered_json &obj, const char *name, const std::vector<uint8_t> &vec)
 {
     return add_hex(obj, name, vec.data(), vec.size());
 }
 
 bool
-add(nlohmann::json &obj, const char *name, const pgp::KeyID &keyid)
+add(nlohmann::ordered_json &obj, const char *name, const pgp::KeyID &keyid)
 {
     return add_hex(obj, name, keyid.data(), keyid.size());
 }
 
 bool
-add(nlohmann::json &obj, const char *name, const pgp::Fingerprint &fp)
+add(nlohmann::ordered_json &obj, const char *name, const pgp::Fingerprint &fp)
 {
     return add_hex(obj, name, fp.data(), fp.size());
 }
 
 bool
-array_add(nlohmann::json &arr, const char *val)
+array_add(nlohmann::ordered_json &arr, const char *val)
 {
     arr.push_back(val);
     return true;
 }
 
 bool
-array_add(nlohmann::json &arr, nlohmann::json val)
+array_add(nlohmann::ordered_json &arr, nlohmann::ordered_json val)
 {
     arr.push_back(std::move(val));
     return true;
 }
 
 bool
-get_str(nlohmann::json &obj, const char *name, std::string &out, bool del)
+get_str(nlohmann::ordered_json &obj, const char *name, std::string &out, bool del)
 {
-    auto *field = get_field(obj, name, [](const nlohmann::json &v) { return v.is_string(); });
+    auto *field = get_field(obj, name, [](const nlohmann::ordered_json &v) { return v.is_string(); });
     if (!field) {
         return false;
     }
@@ -146,10 +146,10 @@ get_str(nlohmann::json &obj, const char *name, std::string &out, bool del)
 }
 
 bool
-get_int(nlohmann::json &obj, const char *name, int &out, bool del)
+get_int(nlohmann::ordered_json &obj, const char *name, int &out, bool del)
 {
     auto *field = get_field(
-        obj, name, [](const nlohmann::json &v) { return v.is_number_integer(); });
+        obj, name, [](const nlohmann::ordered_json &v) { return v.is_number_integer(); });
     if (!field) {
         return false;
     }
@@ -161,10 +161,10 @@ get_int(nlohmann::json &obj, const char *name, int &out, bool del)
 }
 
 bool
-get_uint64(nlohmann::json &obj, const char *name, uint64_t &out, bool del)
+get_uint64(nlohmann::ordered_json &obj, const char *name, uint64_t &out, bool del)
 {
     auto *field = get_field(
-        obj, name, [](const nlohmann::json &v) { return v.is_number(); });
+        obj, name, [](const nlohmann::ordered_json &v) { return v.is_number(); });
     if (!field) {
         return false;
     }
@@ -176,12 +176,12 @@ get_uint64(nlohmann::json &obj, const char *name, uint64_t &out, bool del)
 }
 
 bool
-get_str_arr(nlohmann::json &            obj,
+get_str_arr(nlohmann::ordered_json &            obj,
             const char *                name,
             std::vector<std::string> &  out,
             bool                        del)
 {
-    auto *arr = get_field(obj, name, [](const nlohmann::json &v) { return v.is_array(); });
+    auto *arr = get_field(obj, name, [](const nlohmann::ordered_json &v) { return v.is_array(); });
     if (!arr) {
         return false;
     }
@@ -198,10 +198,58 @@ get_str_arr(nlohmann::json &            obj,
     return true;
 }
 
-nlohmann::json *
-get_obj(nlohmann::json &obj, const char *name)
+nlohmann::ordered_json *
+get_obj(nlohmann::ordered_json &obj, const char *name)
 {
-    return get_field(obj, name, [](const nlohmann::json &v) { return v.is_object(); });
+    return get_field(obj, name, [](const nlohmann::ordered_json &v) { return v.is_object(); });
+}
+
+std::string
+dump_pretty(const nlohmann::ordered_json &jso)
+{
+    /* nlohmann::ordered_json::dump(2) produces 2-space indent but with `": ` after
+     * keys. json-c uses `":` (no space). Walk the dumped string and remove
+     * the space after structural colons (colons that follow an unescaped
+     * closing quote of a key). Inside-string `":` is part of a value and
+     * is left untouched because the preceding quote is escaped (`\"`). */
+    std::string raw = jso.dump(2);
+    std::string out;
+    out.reserve(raw.size());
+    bool in_string = false;
+    bool escaped = false;
+    for (size_t i = 0; i < raw.size(); i++) {
+        char c = raw[i];
+        if (escaped) {
+            out.push_back(c);
+            escaped = false;
+            continue;
+        }
+        if (in_string) {
+            if (c == '\\') {
+                escaped = true;
+                out.push_back(c);
+                continue;
+            }
+            if (c == '"') {
+                in_string = false;
+            }
+            out.push_back(c);
+            continue;
+        }
+        if (c == '"') {
+            in_string = true;
+            out.push_back(c);
+            continue;
+        }
+        /* structural colon followed by space → drop the space */
+        if (c == ':' && i + 1 < raw.size() && raw[i + 1] == ' ') {
+            out.push_back(':');
+            i++; /* skip the space */
+            continue;
+        }
+        out.push_back(c);
+    }
+    return out;
 }
 
 } // namespace json

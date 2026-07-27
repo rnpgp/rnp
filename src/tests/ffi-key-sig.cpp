@@ -32,7 +32,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 
-static bool check_sig_status(nlohmann::json sig,
+static bool check_sig_status(nlohmann::ordered_json sig,
                              const char * pub,
                              const char * sec,
                              const char * fp);
@@ -135,14 +135,14 @@ TEST_F(rnp_tests, test_ffi_key_signatures)
     char *json = NULL;
     assert_rnp_success(rnp_import_signatures(ffi, input, 0, &json));
     assert_non_null(json);
-    nlohmann::json jso = nlohmann::json::parse(json);
-    assert_non_null(jso);
+    nlohmann::ordered_json jso = nlohmann::ordered_json::parse(json);
+    assert_true(!jso.is_null());
     assert_true(jso.is_object());
-    nlohmann::json jsigs;
+    nlohmann::ordered_json jsigs;
     assert_true((jso.contains("sigs") ? (jsigs = jso["sigs"], true) : false));
     assert_true(jsigs.is_array());
     assert_int_equal(jsigs.size(), 1);
-    nlohmann::json jsig = jsigs.at(0);
+    nlohmann::ordered_json jsig = jsigs.at(0);
     assert_true(check_sig_status(jsig, "none", "none", NULL));
     /* json_object_put removed: jso */
     rnp_buffer_destroy(json);
@@ -211,7 +211,7 @@ TEST_F(rnp_tests, test_ffi_key_signatures)
 }
 
 static bool
-check_import_sigs(rnp_ffi_t ffi, nlohmann::json *jso, nlohmann::json *sigarr, const char *sigpath)
+check_import_sigs(rnp_ffi_t ffi, nlohmann::ordered_json *jso, nlohmann::ordered_json *sigarr, const char *sigpath)
 {
     rnp_input_t input = NULL;
     if (rnp_input_from_path(&input, sigpath)) {
@@ -228,14 +228,14 @@ check_import_sigs(rnp_ffi_t ffi, nlohmann::json *jso, nlohmann::json *sigarr, co
         goto done;
     }
 
-    *jso = nlohmann::json::parse(sigs);
+    *jso = nlohmann::ordered_json::parse(sigs);
     if (!jso) {
         goto done;
     }
     if (!jso->is_object()) {
         goto done;
     }
-    if (!((*sigarr = jso->value("sigs", nlohmann::json::array()), jso->contains("sigs")))) {
+    if (!((*sigarr = jso->value("sigs", nlohmann::ordered_json::array()), jso->contains("sigs")))) {
         goto done;
     }
     if (!sigarr->is_array()) {
@@ -253,15 +253,15 @@ done:
 }
 
 static bool
-check_sig_status(nlohmann::json sig, const char *pub, const char *sec, const char *fp)
+check_sig_status(nlohmann::ordered_json sig, const char *pub, const char *sec, const char *fp)
 {
-    if (!sig) {
+    if (sig.is_null()) {
         return false;
     }
     if (!sig.is_object()) {
         return false;
     }
-    nlohmann::json fld;
+    nlohmann::ordered_json fld;
     if (!(sig.contains("public") ? (fld = sig["public"], true) : false)) {
         return false;
     }
@@ -309,12 +309,12 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
     /* some import edge cases */
     assert_rnp_failure(rnp_import_signatures(ffi, NULL, 0, &results));
     /* import revocation signature */
-    nlohmann::json jso;
-    nlohmann::json jsosigs;
+    nlohmann::ordered_json jso;
+    nlohmann::ordered_json jsosigs;
     assert_true(
       check_import_sigs(ffi, &jso, &jsosigs, "data/test_key_validity/alice-rev.pgp"));
     assert_int_equal(jsosigs.size(), 1);
-    nlohmann::json jsosig = jsosigs.at(0);
+    nlohmann::ordered_json jsosig = jsosigs.at(0);
     assert_true(check_sig_status(
       jsosig, "new", "unknown key", "73edcc9119afc8e2dbbdcde50451409669ffde3c"));
     /* json_object_put removed: jso */
@@ -556,11 +556,11 @@ TEST_F(rnp_tests, test_ffi_export_revocation)
     assert_true(locked);
     assert_rnp_success(rnp_key_handle_destroy(key_handle));
     /* make sure we can successfully import exported revocation */
-    nlohmann::json jso;
-    nlohmann::json jsosigs;
+    nlohmann::ordered_json jso;
+    nlohmann::ordered_json jsosigs;
     assert_true(check_import_sigs(ffi, &jso, &jsosigs, "alice-revocation.pgp"));
     assert_int_equal(jsosigs.size(), 1);
-    nlohmann::json jsosig = jsosigs.at(0);
+    nlohmann::ordered_json jsosig = jsosigs.at(0);
     assert_true(
       check_sig_status(jsosig, "new", "new", "73edcc9119afc8e2dbbdcde50451409669ffde3c"));
     /* json_object_put removed: jso */
