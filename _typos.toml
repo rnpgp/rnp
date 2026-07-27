@@ -17,6 +17,8 @@ ede3 = "ede3"
 ffrom = "ffrom"
 clen = "clen"
 __THW_INTEL__ = "__THW_INTEL__"
+unexpect_eof = "unexpect_eof"
+unexpect_char = "unexpect_char"
 
 [default.extend-words]
 MERCHANTIBILITY = "MERCHANTIBILITY"
@@ -33,5 +35,6 @@ extend-exclude = [
     "src/tests/data/**",
     "src/libsexpp/**",
     # Generated roff (ci/regen-man-pages.sh); lint the .adoc sources instead
-    "docs/man/**"
+    "docs/man/**",
+    "src/lib/nlohmann/**"
 ]
