@@ -47,7 +47,7 @@ RNP_ROOT="$( cd "$DIR0"/../.. && pwd )"
 #   CRYPTO_BACKEND         - backend rnp is built with (default: botan3)
 #   CMAKE_DEPS_PREFIX_PATH - ';'-separated extra CMAKE_PREFIX_PATH entries
 #                            used to locate rnp's dependencies (e.g.
-#                            "/opt/homebrew/opt/botan@3;/opt/homebrew/opt/json-c")
+#                            "/opt/homebrew/opt/botan@3")
 #   SEXPP_PREFIX           - prefix of a sexpp installation, appended to
 #                            CMAKE_PREFIX_PATH for the static consumers
 #   RAW_DEP_LIBS           - extra libraries for the raw-flags static
@@ -86,7 +86,7 @@ default_raw_dep_libs() {
         botan)   libs="$libs -lbotan-2" ;;
         openssl) libs="$libs -lcrypto" ;;
     esac
-    printf '%s' "$libs -ljson-c -lz -lbz2"
+    printf '%s' "$libs -lz -lbz2"
 }
 
 write_consumer() {

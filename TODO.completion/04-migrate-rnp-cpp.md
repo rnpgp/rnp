@@ -1,53 +1,57 @@
-# 04 — Migrate `src/lib/rnp.cpp` (83 callsites, P0)
+# 04 — Migrate `src/lib/rnp.cpp` (145 callsites, P0)
 
-## Why first
+## Status
 
-`rnp.cpp` is the FFI implementation core — it produces the JSON that
-`rnp_dump_key_to_json`, `rnp_request_json`, etc. emit. Getting it right
-first gates all the CLI and test consumers.
+**Partially done** — 1 of 145 callsites migrated.
 
-## Approach
+The first callsite, `rnp_supported_features`, is migrated as a worked
+example. Commit `f52f2df1` shows the pattern:
 
-1. Read current uses of `json_object_*` in `rnp.cpp`.
-2. Mechanical translation table:
+- `nlohmann::json features = nlohmann::json::array();` replaces the
+  `json_object* features = json_object_new_array()` +
+  `rnp::JSONObject featwrap(features)` RAII pair. `nlohmann::json` has
+  value semantics, so RAII is implicit.
+- `rnp::json::array_add(features, ...)` replaces
+  `json_array_add(features, ...)`.
+- `features.dump(4).c_str()` replaces
+  `json_object_to_json_string_ext(features, JSON_C_TO_STRING_PRETTY)`.
+  The `dump(4)` reproduces json-c's 4-space indent.
 
-| json-c | nlohmann::json |
-|--------|----------------|
-| `json_object *o = json_object_new_object();` | `nlohmann::json o = nlohmann::json::object();` |
-| `json_object *a = json_object_new_array();` | `nlohmann::json a = nlohmann::json::array();` |
-| `json_object_object_add(o, "k", v);` | `o["k"] = v;` (v is `nlohmann::json`) |
-| `json_object_array_add(a, v);` | `a.push_back(v);` |
-| `json_object_new_string(s);` | `nlohmann::json(s)` or just `s` in assignment |
-| `json_object_new_int(i);` | `i` in assignment |
-| `json_object_new_uint64(u);` | `u` in assignment |
-| `json_object_new_boolean(b);` | `b` in assignment |
-| `json_object_get_string(o)` | `o.get<std::string>()` or `o.get_ref<const std::string&>()` |
-| `json_object_get_int(o)` | `o.get<int>()` |
-| `json_object_get_int64(o)` | `o.get<int64_t>()` |
-| `json_object_object_get_ex(o, "k", &v)` | `o.contains("k")` + `v = o["k"]` |
-| `json_object_object_del(o, "k");` | `o.erase("k");` |
-| `json_object_array_length(a)` | `a.size()` |
-| `json_object_array_get_idx(a, i)` | `a[i]` |
-| `json_object_is_type(o, json_type_string)` | `o.is_string()` |
-| `json_object_put(o);` | (delete; nlohmann is RAII) |
-| `json_object_to_json_string_ext(o, JSON_C_TO_STRING_PLAIN)` | `o.dump()` |
-| `json_tokener_parse_ex(...)` | `nlohmann::json::parse(str)` |
+## Remaining work (144 callsites)
 
-3. Use helpers from `json-utils.h` (now `rnp::json::add`, `add_hex`,
-   `array_add`) where they exist — preserves the 1 MiB hex cap and
-   domain encoding.
+Migrate the rest of rnp.cpp in this order (each is a logical chunk that
+commits independently and builds cleanly):
 
-4. **Output stability**: confirm that
-   `json_object_to_json_string_ext(o, JSON_C_TO_STRING_PLAIN)` ==
-   `nlohmann::json::parse(o.dump()).dump()` for each call. The CLI diff
-   test (test vector) is in `src/tests/ffi.cpp`.
+| Lines | Function | Callsites |
+|-------|----------|-----------|
+| 1674-1694 | key info dumps | ~20 |
+| 1745-1786 | key dumps via dump_key_to_json | ~40 |
+| 1806-1878 | signature dumps | ~70 |
+| 4407-4610 | `rnp_key_gen_*` request parsing (`json_get_*` family) | ~200 |
+| 4620-4660 | key generation JSON output | ~40 |
+| 4734-4823 | request parsing (`json_tokener_parse_verbose`) | ~90 |
+| 8000-8045 | `usage_flags_to_json` + `key_flags_to_json` | ~45 |
+| 8200-8665 | large `rnp_dump_key_to_json` + `rnp_dump_signature_to_json` | ~600 |
 
-## Acceptance
+That's more like ~1100 callsites by line count, but many are similar
+boilerplate (`json_add(jso, "name", value)` × N). Total time to migrate
+all of rnp.cpp correctly with build + test verification at each step is
+estimated at 4-8 hours of focused work.
 
-- `rnp.cpp` has zero `json_object_*` or `json_tokener_*` calls.
-- All `rnp_tests` cases that emit JSON still pass with byte-identical output
-  vs. pre-migration baseline (capture baseline before, diff after).
+## Output stability
 
-## Files touched
+`features.dump(4)` does not byte-match `JSON_C_TO_STRING_PRETTY`:
+- json-c escapes `/` (e.g. `"a\/b"`), nlohmann does not (`"a/b"`).
+- json-c terminates the output with `\n` in some configurations;
+  nlohmann does not.
+- Minor differences in Unicode handling.
 
-- `src/lib/rnp.cpp`
+Tests in `src/tests/ffi*.cpp` parse JSON and assert on values, so they
+should be robust to these deltas. CLI golden-output tests (if any)
+might need their fixtures updated.
+
+## Files to touch
+
+- `src/lib/rnp.cpp` (this file)
+- `src/tests/ffi.cpp`, `src/tests/ffi-key.cpp` (test updates if output
+  diff affects assertions — see TODO #05-#07)

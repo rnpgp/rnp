@@ -48,8 +48,6 @@ if(MSVC)
 endif()
 
 # for the headers
-find_package(JSON-C 0.11 REQUIRED)
-
 add_executable(rnp
   rnp.cpp
   fficli.cpp
@@ -73,7 +71,6 @@ target_include_directories(rnp
   PRIVATE
     "${PROJECT_SOURCE_DIR}/src"
     "${PROJECT_SOURCE_DIR}/src/lib"
-    "${JSON-C_INCLUDE_DIRS}"
 )
 if(MSVC)
   target_include_directories(rnp
@@ -86,7 +83,6 @@ endif()
 target_link_libraries(rnp
   PRIVATE
     librnp
-    JSON-C::JSON-C
 )
 if(MSVC)
   target_link_libraries(rnp
