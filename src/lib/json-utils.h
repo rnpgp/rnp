@@ -34,6 +34,8 @@
 #include "types.h"
 #include "fingerprint.hpp"
 
+#include <nlohmann/json.hpp>
+
 /**
  * @brief Add field to the json object.
  *        Note: this function is for convenience, it will check val for NULL and destroy val
@@ -154,6 +156,69 @@ class JSONObject {
         return res;
     }
 };
+
+/**
+ * @brief New nlohmann::json-based helpers.
+ *
+ * These mirror the legacy free-function API above but operate on
+ * nlohmann::json instead of json_object*. Callsites migrate from the old
+ * API to this one file-by-file; the legacy API is removed once no
+ * consumer references json-c.
+ *
+ * Design notes:
+ *  - Writes return bool for parity with the legacy API; for nlohmann::json
+ *    they always succeed (the only failure mode in the legacy code was
+ *    allocation failure, which nlohmann::json reports via exception).
+ *  - The optional `del` parameter on reads mirrors the legacy semantics
+ *    (erase the field after extraction); it defaults to false because
+ *    nlohmann::json copies are cheap and the json-c del=true pattern was
+ *    a workaround for refcounted shared ownership.
+ *  - Domain helpers (add_hex with the 1 MiB cap, add(KeyID)/add(Fingerprint))
+ *    preserve the same business rules as the legacy implementation.
+ */
+namespace json {
+
+/** Add string field. */
+bool add(nlohmann::json &obj, const char *name, const char *value);
+bool add(nlohmann::json &obj, const char *name, const char *value, size_t len);
+bool add(nlohmann::json &obj, const char *name, const std::string &value);
+
+/** Add bool field. */
+bool add(nlohmann::json &obj, const char *name, bool value);
+
+/** Add int / uint64 field. */
+bool add(nlohmann::json &obj, const char *name, int value);
+bool add(nlohmann::json &obj, const char *name, uint64_t value);
+
+/** Add hex-encoded binary field (1 MiB cap, lowercase). */
+bool add_hex(nlohmann::json &obj, const char *name, const uint8_t *val, size_t len);
+bool add_hex(nlohmann::json &obj, const char *name, const std::vector<uint8_t> &vec);
+
+/** Add hex-encoded KeyID / Fingerprint field. */
+bool add(nlohmann::json &obj, const char *name, const pgp::KeyID &keyid);
+bool add(nlohmann::json &obj, const char *name, const pgp::Fingerprint &fp);
+
+/** Append string to JSON array. */
+bool array_add(nlohmann::json &arr, const char *val);
+/** Append arbitrary JSON value to array. */
+bool array_add(nlohmann::json &arr, nlohmann::json val);
+
+/** Read string field. Returns false if missing or wrong-typed. */
+bool get_str(nlohmann::json &obj, const char *name, std::string &out, bool del = false);
+/** Read int field. */
+bool get_int(nlohmann::json &obj, const char *name, int &out, bool del = false);
+/** Read uint64 field. */
+bool get_uint64(nlohmann::json &obj, const char *name, uint64_t &out, bool del = false);
+/** Read string-array field. */
+bool get_str_arr(nlohmann::json &            obj,
+                 const char *                name,
+                 std::vector<std::string> &  out,
+                 bool                        del = false);
+
+/** Get a non-owning pointer to a sub-object, or nullptr if missing/wrong-typed. */
+nlohmann::json *get_obj(nlohmann::json &obj, const char *name);
+
+} // namespace json
 } // namespace rnp
 
 #endif
