@@ -1,0 +1,159 @@
+= Cross-compiling librnp
+
+This document describes how to cross-compile librnp to a target architecture
+that differs from the build host. The most common targets are
+`aarch64-linux-ohos` (OpenHarmony), `aarch64-linux-android`, `i686-w64-mingw32`
+(Windows via MinGW), and `arm-linux-gnueabihf` (ARM Linux).
+
+== Required CMake variables
+
+Regardless of target, three CMake variables control cross-compile behaviour:
+
+`CMAKE_TOOLCHAIN_FILE`::
+  Path to a toolchain file that sets `CMAKE_SYSTEM_NAME`, `CMAKE_SYSTEM_PROCESSOR`,
+  `CMAKE_C_COMPILER`, `CMAKE_CXX_COMPILER`, and (optionally) `CMAKE_SYSROOT`.
+  Most NDKs ship one (e.g. `ohos.toolchain.cmake` for OHOS).
+
+`CMAKE_SYSROOT`::
+  Path to the target's sysroot directory. Some toolchain files set this
+  implicitly; passing it explicitly is safer.
+
+`CMAKE_FIND_ROOT_PATH`::
+  List of root paths to search for headers/libraries. Set this to your
+  dependency install prefix so `find_package(Botan)` and
+  `find_package(JSON-C)` look inside the target sysroot, not the host.
+
+rnp's top-level `CMakeLists.txt` sets `CMAKE_FIND_ROOT_PATH_MODE_*` to `ONLY`
+for library/include/package searches when `CMAKE_CROSSCOMPILING` is true, so
+`find_path` / `find_library` will not accidentally pick up host system
+libraries. Build-time helper tools (run during configure) bypass the root path
+via `NO_CMAKE_FIND_ROOT_PATH` on the relevant calls.
+
+== Specifying dependencies explicitly
+
+When cross-compiling, the most reliable approach is to skip pkg-config entirely
+and pass each dependency's include/lib path explicitly:
+
+[source,console]
+----
+cmake ../rnp \
+  -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN \
+  -DCMAKE_SYSROOT=$SYSROOT \
+  -DCMAKE_FIND_ROOT_PATH=$DEPS_PREFIX \
+  -DCRYPTO_BACKEND=botan \
+  -DBOTAN_INCLUDE_DIR=$DEPS_PREFIX/include/botan-3 \
+  -DBOTAN_LIBRARY=$DEPS_PREFIX/lib/libbotan-3.a \
+  -DJSON-C_INCLUDE_DIR=$DEPS_PREFIX/include/json-c \
+  -DJSON-C_LIBRARY=$DEPS_PREFIX/lib/libjson-c.a \
+  -DBUILD_SHARED_LIBS=OFF \
+  -DBUILD_TESTING=OFF
+----
+
+rnp's `FindBotan.cmake` and `FindJSON-C.cmake` modules skip pkg-config
+automatically when `CMAKE_CROSSCOMPILING` is true. To force pkg-config use
+under cross-compile (e.g. you have a target-aware `pkg-config` binary),
+pass `-DBOTAN_USE_PKGCONFIG=ON` or `-DJSON-C_USE_PKGCONFIG=ON` and set
+`PKG_CONFIG_LIBDIR` / `PKG_CONFIG_SYSROOT_DIR` to point at the target root.
+
+== OpenHarmony (aarch64-linux-ohos)
+
+The OHOS NDK ships `ohos.toolchain.cmake`, which sets
+`CMAKE_SYSTEM_NAME=OHOS`. A typical build looks like:
+
+[source,console]
+----
+TOOLCHAIN=$OHOS_NDK_HOME/native/build/cmake/ohos.toolchain.cmake
+SYSROOT=$OHOS_NDK_HOME/native/sysroot
+
+# 1. Cross-build Botan 3 against the OHOS sysroot.
+cd Botan-3.6.1
+python3 ./configure.py \
+  --cc=clang \
+  --cc-abi-flags="--target=aarch64-linux-ohos --sysroot=$SYSROOT" \
+  --cc-bin="$OHOS_NDK_HOME/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=$SYSROOT" \
+  --build-targets=static \
+  --disable-shared-library \
+  --prefix=$DEPS/botan \
+  [..botan module list..]
+make -j && make install
+
+# 2. Cross-build json-c with the OHOS toolchain.
+cmake -S json-c -B json-c/build \
+  -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN -DOHOS_ARCH=arm64-v8a \
+  -DCMAKE_SYSROOT=$SYSROOT \
+  -DCMAKE_INSTALL_PREFIX=$DEPS/jsonc \
+  -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF
+cmake --build json-c/build && cmake --install json-c/build
+
+# 3. Cross-build librnp.
+cmake -S rnp -B rnp/build \
+  -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN -DOHOS_ARCH=arm64-v8a \
+  -DCMAKE_SYSROOT=$SYSROOT \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF -DENABLE_DOC=OFF \
+  -DCRYPTO_BACKEND=botan \
+  -DBOTAN_INCLUDE_DIR=$DEPS/botan/include/botan-3 \
+  -DBOTAN_LIBRARY=$DEPS/botan/lib/libbotan-3.a \
+  -DJSON-C_INCLUDE_DIR=$DEPS/jsonc/include/json-c \
+  -DJSON-C_LIBRARY=$DEPS/jsonc/lib/libjson-c.a
+cmake --build rnp/build -j
+----
+
+OHOS is musl-based; some POSIX header paths differ from glibc. If you hit
+header-not-found errors in pthread or iconv, check that your OHOS NDK version
+matches the sysroot you are pointing at.
+
+The OHOS toolchain may default `CMAKE_INSTALL_PREFIX` to `/usr` for sysroot
+staging. If you run `cmake --install` without `DESTDIR` or `--prefix`, the
+install step will try to write to `/usr/lib` on the host filesystem. Set
+`DESTDIR=/path/to/staging` or pass `--prefix` to `cmake --install`.
+
+== Android (aarch64-linux-android)
+
+The Android NDK ships `android.toolchain.cmake`. The same pattern as OHOS
+applies: pass explicit include/lib paths for Botan and json-c, and set
+`CMAKE_FIND_ROOT_PATH` to your dependency prefix.
+
+== Windows via MinGW (x86_64-w64-mingw32)
+
+Use a MinGW toolchain file. rnp's existing MinGW support (see the
+`windows-msys2` CI workflow) handles this case natively; no additional
+`CMAKE_CROSSCOMPILING` adjustments are needed.
+
+== Verifying the result
+
+After building, verify the produced archive has the expected target
+architecture:
+
+[source,console]
+----
+file build/src/lib/librnp.a
+# Should print something like: "current ar archive" with member objects
+# "ELF 64-bit LSB ... aarch64" for OHOS, "... x86-64" for MinGW, etc.
+
+# Verify one member object:
+OBJ=$(ar t build/src/lib/librnp.a | head -1)
+ar x build/src/lib/librnp.a "$OBJ"
+file "$OBJ"
+----
+
+== Troubleshooting
+
+`find_package(Botan)` finds the host botan::
+  You're hitting the host's pkg-config. Confirm
+  `CMAKE_CROSSCOMPILING=TRUE` (run `cmake -L` and grep). If true,
+  `FindBotan.cmake` should skip pkg-config automatically. If it doesn't,
+  set `BOTAN_USE_PKGCONFIG=OFF` explicitly. If you must use pkg-config,
+  set `PKG_CONFIG_LIBDIR` to a directory containing the target's `.pc`
+  files.
+
+`check_cxx_symbol_exists` fails for `BOTAN_HAS_*`::
+  The try-compile is missing the sysroot. rnp now passes
+  `--sysroot=${CMAKE_SYSROOT}` via `CMAKE_REQUIRED_FLAGS` automatically.
+  If your toolchain file does not set `CMAKE_SYSROOT`, set it explicitly
+  on the command line.
+
+Install step writes to `/usr/lib`::
+  Your toolchain file defaulted `CMAKE_INSTALL_PREFIX` to `/usr`. Run
+  `cmake --install build --prefix /your/staging/dir`, or set
+  `DESTDIR=/your/staging/dir` in the environment.
