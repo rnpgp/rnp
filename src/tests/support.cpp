@@ -672,70 +672,62 @@ lowercase(const std::string &str)
 }
 
 static bool
-jso_get_field(json_object *obj, json_object **fld, const std::string &name)
+jso_get_field(const nlohmann::json &obj, const nlohmann::json *&fld, const std::string &name)
 {
-    if (!obj || !json_object_is_type(obj, json_type_object)) {
+    if (!obj.is_object() || !obj.contains(name)) {
+        fld = nullptr;
         return false;
     }
-    return json_object_object_get_ex(obj, name.c_str(), fld);
+    fld = &obj[name];
+    return true;
 }
 
 bool
-check_json_field_str(json_object *obj, const std::string &field, const std::string &value)
+check_json_field_str(const nlohmann::json &obj, const std::string &field, const std::string &value)
 {
-    json_object *fld = NULL;
-    if (!jso_get_field(obj, &fld, field)) {
+    const nlohmann::json *fld = nullptr;
+    if (!jso_get_field(obj, fld, field)) {
         return false;
     }
-    if (!json_object_is_type(fld, json_type_string)) {
+    if (!fld->is_string()) {
         return false;
     }
-    const char *jsoval = json_object_get_string(fld);
-    return jsoval && (value == jsoval);
+    return fld->get_ref<const std::string &>() == value;
 }
 
 bool
-check_json_field_int(json_object *obj, const std::string &field, int value)
+check_json_field_int(const nlohmann::json &obj, const std::string &field, int value)
 {
-    json_object *fld = NULL;
-    if (!jso_get_field(obj, &fld, field)) {
+    const nlohmann::json *fld = nullptr;
+    if (!jso_get_field(obj, fld, field)) {
         return false;
     }
-    if (!json_object_is_type(fld, json_type_int)) {
+    if (!fld->is_number_integer()) {
         return false;
     }
-    return json_object_get_int(fld) == value;
+    return fld->get<int>() == value;
 }
 
 bool
-check_json_field_bool(json_object *obj, const std::string &field, bool value)
+check_json_field_bool(const nlohmann::json &obj, const std::string &field, bool value)
 {
-    json_object *fld = NULL;
-    if (!jso_get_field(obj, &fld, field)) {
+    const nlohmann::json *fld = nullptr;
+    if (!jso_get_field(obj, fld, field)) {
         return false;
     }
-    if (!json_object_is_type(fld, json_type_boolean)) {
+    if (!fld->is_boolean()) {
         return false;
     }
-    // 'json_object_get_boolean' returns 'json_bool' which is 'int' on Windows
-    // but bool on other platforms
-    return (json_object_get_boolean(fld) ? true : false) == value;
+    return fld->get<bool>() == value;
 }
 
 bool
-check_json_pkt_type(json_object *pkt, int tag)
+check_json_pkt_type(const nlohmann::json &pkt, int tag)
 {
-    if (!pkt || !json_object_is_type(pkt, json_type_object)) {
+    if (!pkt.is_object() || !pkt.contains("header") || !pkt["header"].is_object()) {
         return false;
     }
-    json_object *hdr = NULL;
-    if (!json_object_object_get_ex(pkt, "header", &hdr)) {
-        return false;
-    }
-    if (!json_object_is_type(hdr, json_type_object)) {
-        return false;
-    }
-    return check_json_field_int(hdr, "tag", tag);
+    return check_json_field_int(pkt["header"], "tag", tag);
 }
 
 rnp::Key *
