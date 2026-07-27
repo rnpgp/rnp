@@ -2308,9 +2308,9 @@ TEST_F(rnp_tests, test_ffi_key_export_customized_enarmor)
 
 TEST_F(rnp_tests, test_ffi_key_dump)
 {
-    rnp_ffi_t        ffi = NULL;
-    rnp_key_handle_t key = NULL;
-    char *           json = NULL;
+    rnp_ffi_t              ffi = NULL;
+    rnp_key_handle_t       key = NULL;
+    char *                 json = NULL;
     nlohmann::ordered_json jso;
 
     // setup FFI
@@ -2422,10 +2422,10 @@ TEST_F(rnp_tests, test_ffi_key_dump_edge_cases)
 
 TEST_F(rnp_tests, test_ffi_key_userid_dump_has_no_special_chars)
 {
-    rnp_ffi_t    ffi = NULL;
-    char *       json = NULL;
+    rnp_ffi_t              ffi = NULL;
+    char *                 json = NULL;
     nlohmann::ordered_json jso;
-    const char * trackers[] = {
+    const char *           trackers[] = {
       "userid\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f@rnp",
       "userid\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f@rnp"};
     // setup FFI
@@ -2469,9 +2469,9 @@ TEST_F(rnp_tests, test_ffi_key_userid_dump_has_no_special_chars)
 
 TEST_F(rnp_tests, test_ffi_pkt_dump)
 {
-    rnp_ffi_t    ffi = NULL;
-    rnp_input_t  input = NULL;
-    char *       json = NULL;
+    rnp_ffi_t              ffi = NULL;
+    rnp_input_t            input = NULL;
+    char *                 json = NULL;
     nlohmann::ordered_json jso;
 
     // setup FFI
@@ -2584,14 +2584,16 @@ TEST_F(rnp_tests, test_ffi_rsa_v3_dump)
     assert_true(rsapkt.is_object());
     /* check algorithm string */
     nlohmann::ordered_json fld;
-    assert_true((rsapkt.contains("algorithm.str") ? (fld = rsapkt["algorithm.str"], true) : false));
+    assert_true(
+      (rsapkt.contains("algorithm.str") ? (fld = rsapkt["algorithm.str"], true) : false));
     assert_true(!fld.is_null());
     const char *str = fld.get_ref<const std::string &>().c_str();
     assert_non_null(str);
     assert_string_equal(str, "RSA (Encrypt or Sign)");
     /* check fingerprint */
     fld = NULL;
-    assert_true((rsapkt.contains("fingerprint") ? (fld = rsapkt["fingerprint"], true) : false));
+    assert_true(
+      (rsapkt.contains("fingerprint") ? (fld = rsapkt["fingerprint"], true) : false));
     assert_true(!fld.is_null());
     str = fld.get_ref<const std::string &>().c_str();
     assert_non_null(str);
@@ -2988,8 +2990,8 @@ check_features(const char *type, const char *json, size_t count)
     }
     for (size_t i = 0; i < count; i++) {
         nlohmann::ordered_json val = features.at(i);
-        const char * str = val.get_ref<const std::string &>().c_str();
-        bool         supported = false;
+        const char *           str = val.get_ref<const std::string &>().c_str();
+        bool                   supported = false;
         if (!str || rnp_supports_feature(type, str, &supported) || !supported) {
             goto done;
         }
