@@ -203,6 +203,16 @@ dl_validate_key(rnp::ossl::evp::PKey &pkey, const pgp::mpi *x)
         return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
+#if defined(LIBRESSL_VERSION_NUMBER)
+    /* EVP_PKEY_param_check / EVP_PKEY_public_check are OpenSSL-internal APIs
+     * not exposed by LibreSSL or BoringSSL. rnp callers perform higher-level
+     * validation elsewhere, so on these backends we skip the lower-level
+     * checks and only run the manual private-key sanity check below. */
+    if (!x) {
+        return RNP_SUCCESS;
+    }
+    return dl_validate_secret_key(pkey, *x);
+#else
     int res = EVP_PKEY_param_check(ctx.get());
     if (res < 0) {
         RNP_LOG(
@@ -234,5 +244,6 @@ dl_validate_key(rnp::ossl::evp::PKey &pkey, const pgp::mpi *x)
         return RNP_SUCCESS;
     }
     return dl_validate_secret_key(pkey, *x);
+#endif
 #endif
 }
