@@ -25,3 +25,5 @@ ignore:
   - "src/examples"
   - "src/libsexpp"
   - "src/tests"
+# Vendored single-header nlohmann/json
+  - "src/lib/nlohmann"
