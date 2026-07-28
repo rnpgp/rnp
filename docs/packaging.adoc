@@ -92,6 +92,191 @@ source and consume it via `find_package(rnp)` or pkg-config as described
 above — with vcpkg's CMake toolchain, adding the rnp installation prefix to
 `CMAKE_PREFIX_PATH` is enough for `find_package(rnp)` to work.
 
+== Prebuilt static libraries (release assets)
+
+Each librnp GitHub release ships per-target static-library tarballs alongside
+the source tarball. Each tarball bundles `librnp.a` plus a curated static
+build of every transitive dependency (sexpp, Botan or OpenSSL, json-c, zlib,
+bzip2), so downstream consumers can link against librnp without compiling
+the C++ + Botan stack from source and without any system package
+dependencies.
+
+This is intended for build systems that cannot reach a system package
+manager — Cargo `--features vendored`, embedded cross-compile targets,
+Windows app vendors, and CI pipelines that pin a specific librnp version.
+For conventional Linux distro consumers, the system packages described
+above remain the recommended path.
+
+=== Asset naming
+
+Each tarball follows the convention:
+
+----
+rnp-v<version>-<target>-<backend>.tar.gz
+rnp-v<version>-<target>-<backend>.sha256
+----
+
+For example:
+
+----
+rnp-v0.18.1-x86_64-unknown-linux-gnu-botan.tar.gz
+rnp-v0.18.1-aarch64-apple-darwin-openssl.tar.gz
+----
+
+=== Available targets
+
+[cols="2,1,1,2", options="header"]
+|===
+| Target triple | Backend(s) | CI runner | Notes
+
+| `x86_64-unknown-linux-gnu`  | botan, openssl | `ubuntu-latest`     | glibc; broadest Linux compatibility
+| `aarch64-unknown-linux-gnu` | botan, openssl | `ubuntu-24.04-arm`  | glibc ARM64
+| `x86_64-unknown-linux-musl` | botan, openssl | `ubuntu-latest` (alpine container) | static libc; Alpine / Docker
+| `aarch64-unknown-linux-musl`| botan, openssl | `ubuntu-24.04-arm` (alpine container) | static libc ARM64
+| `x86_64-apple-darwin`       | botan, openssl | `macos-13`          | Intel; `MACOSX_DEPLOYMENT_TARGET=11.0`
+| `aarch64-apple-darwin`      | botan, openssl | `macos-14`          | Apple Silicon; `MACOSX_DEPLOYMENT_TARGET=12.0`
+| `x86_64-pc-windows-msvc`    | botan, openssl | `windows-latest`    | MSVC 2022, `/MT` static runtime, via vcpkg
+|===
+
+14 tarballs per release (7 target triples × 2 backends).
+
+=== Tarball layout
+
+----
+include/
+  rnp/             public FFI headers (rnp.h, rnp_err.h, rnp_export.h, rnp_ver.h)
+  botan-3/         (botan backend) or openssl/ (openssl backend)
+  json-c/
+  bzlib.h
+  zlib.h
+lib/
+  librnp.a
+  libsexpp.a
+  libbotan-3.a     (botan backend) or libcrypto.a + libssl.a (openssl backend)
+  libjson-c.a
+  libz.a
+  libbz2.a
+  cmake/rnp/       CMake config (find_package(rnp))
+  pkgconfig/       pkg-config files
+MANIFEST.txt       human-readable summary, dependency versions, link flags
+----
+
+NOTE: sexpp's headers are not included in the tarball. They are not needed
+by C API consumers (the public rnp FFI is pure C). C++ consumers that use
+rnp's internal C++ API additionally need sexpp's headers from a separate
+sexpp installation.
+
+=== Consuming a prebuilt tarball
+
+Extract the tarball anywhere on disk and point your build system at the
+`include/` and `lib/` directories.
+
+CMake:
+
+[source,cmake]
+--
+cmake_minimum_required(VERSION 3.18)
+project(example C CXX)
+
+# Unpack the tarball to /opt/rnp-prebuilt, then:
+set(rnp_PREBUILT_DIR /opt/rnp-prebuilt CACHE PATH "Path to rnp prebuilt bundle")
+list(APPEND CMAKE_PREFIX_PATH "${rnp_PREBUILT_DIR}")
+
+find_package(rnp REQUIRED)
+
+add_executable(example main.c)
+target_link_libraries(example PRIVATE rnp::librnp)
+--
+
+Or with raw compiler flags (see `MANIFEST.txt` inside the tarball for the
+exact list, since it depends on backend and target):
+
+[source,console]
+----
+tar xzf rnp-v0.18.1-aarch64-apple-darwin-botan.tar.gz
+cc -I rnp-v0.18.1-aarch64-apple-darwin-botan/include \
+   -L rnp-v0.18.1-aarch64-apple-darwin-botan/lib \
+   main.c -o example \
+   -lrnp -lsexpp -lbotan-3 -ljson-c -lz -lbz2 \
+   -lc++ -framework Security -framework CoreFoundation
+----
+
+=== Verifying integrity
+
+Each tarball ships with a `.sha256` sidecar:
+
+[source,console]
+----
+sha256sum -c rnp-v0.18.1-x86_64-unknown-linux-gnu-botan.sha256
+----
+
+When the project's release signing key is configured in CI (via the
+`RNP_RELEASE_GPG_KEY` and `RNP_RELEASE_GPG_PASSPHRASE` repository
+secrets), each tarball also ships with a `.asc` detached signature.
+Verify with the project's published signing key fingerprint:
+
+[source,console]
+----
+gpg --verify rnp-v0.18.1-x86_64-unknown-linux-gnu-botan.tar.gz.asc \
+             rnp-v0.18.1-x86_64-unknown-linux-gnu-botan.tar.gz
+----
+
+Tarballs without a sidecar `.asc` were published before signing was
+configured; rely on the `.sha256` instead.
+
+=== Reproducibility
+
+The tarball contents are reproducible to the extent the underlying
+compilers and libc allow:
+
+* `SOURCE_DATE_EPOCH=0` is exported for every dependency build, so
+  tools that embed build timestamps (gzip header, libtool archives,
+  Python bytecode) produce identical output across runs on the same
+  platform.
+* The gzip wrapper header is normalized via `GZIP=-n`.
+
+Two known sources of non-reproducibility remain:
+
+* `.a` archive members retain their per-object mtime, which `ar`
+  embeds in the archive index. GNU `ar -D` (deterministic mode) would
+  fix this; wiring it through CMake across every dep is follow-up.
+* Compiled object files embed the absolute build path in some debug
+  info sections. `-ffile-prefix-map=$WORK=.` would fix this; same
+  follow-up scope.
+
+Cross-platform reproducibility (Linux build == macOS build) is not
+achievable since the binary contents differ by definition.
+
+=== How the tarballs are built
+
+The build is driven by two scripts:
+
+* `ci/build_prebuilt.sh` — Linux glibc, Linux musl, macOS. Downloads
+  pinned versions of each dependency (zlib, bzip2, json-c, Botan or
+  OpenSSL), builds them as static libraries into a temporary prefix,
+  builds librnp against that prefix, and stages the resulting headers
+  and archives into the tarball layout shown above.
+* `ci/build_prebuilt.ps1` — Windows MSVC. Uses vcpkg's
+  `x64-windows-static` triplet to install the dependency stack, then
+  builds librnp against it via CMake.
+
+The matrix itself lives in `.github/workflows/prebuilt.yml`, a
+reusable workflow with three triggers:
+
+* `pull_request` — runs on PRs touching `ci/build_prebuilt.*` or
+  the workflow itself, so changes to the static-build machinery get
+  end-to-end validation before merge. Uploads the resulting tarballs
+  as workflow artifacts (downloadable from the PR checks page under
+  the `prebuilt-<target>-<backend>` artifact name) instead of
+  attaching to a release.
+* `workflow_call` — invoked by `release.yml` after the source tarball
+  is published. Attaches the resulting tarballs to the release.
+* `workflow_dispatch` — manual run against an existing release tag,
+  for re-building prebuilts for an older release without re-pushing
+  the tag.
+
+The Botan module set (Linux/macOS) is in `ci/botan3-pqc-modules`.
+
 == Embedding the sources
 
 rnp can also be built as part of your own CMake project with

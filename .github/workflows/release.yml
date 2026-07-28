@@ -80,3 +80,17 @@ jobs:
             artifacts/rnp-*.tar.gz artifacts/rnp-*.sha256 \
             --title "${RELEASE_TAG}" \
             --notes-file release-notes.md
+
+  # Build per-target static-library tarballs and attach them to the
+  # release. Delegated to the reusable prebuilt.yml workflow so the
+  # same matrix can be exercised on PRs (via the pull_request trigger
+  # in prebuilt.yml) without creating a real release.
+  prebuilt:
+    name: Build prebuilt static-library tarballs
+    needs: release
+    uses: ./.github/workflows/prebuilt.yml
+    with:
+      tag: ${{ env.RELEASE_TAG }}
+    secrets: inherit
+    permissions:
+      contents: write
