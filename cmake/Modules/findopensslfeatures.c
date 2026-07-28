@@ -97,10 +97,14 @@ int
 list_publickey()
 {
 #if OPENSSL_VERSION_NUMBER < 0x30000000L
-    for (size_t i = 0; i < EVP_PKEY_meth_get_count(); i++) {
-        const EVP_PKEY_METHOD *pmeth = EVP_PKEY_meth_get0(i);
+    /* Use the public EVP_PKEY_asn1_* API instead of the OpenSSL-internal
+     * EVP_PKEY_meth_* family. LibreSSL does not expose the meth family;
+     * the asn1 family is the documented public enumeration API and is
+     * present in OpenSSL 1.1.0+, OpenSSL 3.x, and LibreSSL. */
+    for (size_t i = 0; i < EVP_PKEY_asn1_get_count(); i++) {
+        const EVP_PKEY_ASN1_METHOD *ameth = EVP_PKEY_asn1_get0(i);
         int                    id = 0;
-        EVP_PKEY_meth_get0_info(&id, NULL, pmeth);
+        EVP_PKEY_asn1_get0_info(&id, NULL, NULL, NULL, NULL, ameth);
         printf("%s\n", OBJ_nid2ln(id));
     }
 #else
