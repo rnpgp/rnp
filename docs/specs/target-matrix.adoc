@@ -1,0 +1,55 @@
+= Target matrix policy
+
+== Tier definitions
+
+* **Tier 1** — blocks merge. Every tier-1 target must pass the full
+  prebuilt matrix (build + validate) on every PR that touches the
+  prebuilt machinery. A tier-1 failure prevents the PR from merging.
+* **Tier 2** — best-effort. Tested in CI but a failure doesn't block
+  merge; the maintainer investigates and either fixes or demotes.
+* **Tier 3** — on-request. Not in the default matrix; can be built
+  locally via `ci/build_prebuilt.sh` but is not shipped in releases.
+
+== Current matrix
+
+[cols="1,1,1,2", options="header"]
+|===
+| Target triple | Tier | Runner | Notes
+
+| `x86_64-unknown-linux-gnu`  | 1 | `ubuntu-latest`     | Broadest Linux compatibility.
+| `aarch64-unknown-linux-gnu` | 1 | `ubuntu-24.04-arm`  | ARM64 server.
+| `x86_64-apple-darwin`       | 1 | `macos-13`          | Intel; `MACOSX_DEPLOYMENT_TARGET=11.0`.
+| `aarch64-apple-darwin`      | 1 | `macos-14`          | Apple Silicon; `MACOSX_DEPLOYMENT_TARGET=12.0`.
+| `x86_64-pc-windows-msvc`    | 1 | `windows-latest`    | MSVC via vcpkg; `/MT` static runtime.
+| `x86_64-unknown-linux-musl` | 2 | `ubuntu-latest` (alpine) | Static libc; Alpine/Docker.
+| `aarch64-unknown-linux-musl`| 2 | `ubuntu-24.04-arm` (alpine) | Static libc ARM64; PR artifact upload skipped (JS-action limitation).
+|===
+
+== Support window
+
+* **Linux glibc**: built on the runner's system glibc (currently
+  Ubuntu 22.04/24.04). Consumers on older glibc (< 2.31) may need to
+  build from source.
+* **macOS**: N-2. Currently 12 (Monterey) + 13 (Ventura) + 14 (Sonoma)
+  for Apple Silicon; 11 (Big Sur) + 12 + 13 for Intel.
+* **Windows**: latest MSVC (VS 2025 on `windows-latest`).
+* **Linux musl**: latest Alpine `alpine:latest` at build time.
+
+== Adding a target
+
+To propose a new target:
+
+1. Create `ci/targets/<triple>.env` with all required fields (see
+   existing files for the template).
+2. Add a matrix entry in `.github/workflows/prebuilt.yml` under
+   `target:` with `triple`, `runner`, and `container`.
+3. Run `ci/test_prebuilt.sh` against a locally-built tarball and
+   confirm ALL CHECKS PASSED.
+4. Open a PR; a maintainer reviews and assigns a tier.
+
+== Deprecating a target
+
+1. Announce in `CHANGELOG.md` under the next release.
+2. Keep the target in CI for one release cycle (best-effort, tier 2).
+3. Remove from the matrix and delete `ci/targets/<triple>.env` in the
+   following release.

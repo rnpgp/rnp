@@ -1,0 +1,389 @@
+name: prebuilt
+
+# Builds per-target static-library tarballs of librnp + dependency stack.
+#
+# Triggered three ways:
+#
+#   * pull_request  -- runs on PRs touching the build scripts or this
+#                      workflow. Uploads the resulting tarballs as
+#                      workflow artifacts (under the "prebuilt" name)
+#                      instead of attaching to a release, so reviewers
+#                      can download and verify without a real release.
+#
+#   * workflow_call -- called from .github/workflows/release.yml after
+#                      the GitHub release exists. Uploads the tarballs
+#                      to that release as additional assets.
+#
+#   * workflow_dispatch -- manual run against an existing release tag
+#                          (useful for re-building prebuilts for an
+#                          older release without re-pushing the tag).
+#                          Uploads to the named release.
+
+on:
+  pull_request:
+    paths:
+      - 'ci/build_prebuilt.sh'
+      - 'ci/build_prebuilt.ps1'
+      - 'ci/botan3-modules'
+      - 'ci/botan3-pqc-modules'
+      - '.github/workflows/prebuilt.yml'
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Tag being released (e.g. v0.18.1)'
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to attach assets to (e.g. v0.18.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  # Cancel in-progress runs when a new push lands on the same PR or
+  # branch. Avoids CI waste from superseded pushes.
+  group: prebuilt-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # On PRs there is no real release tag; use a placeholder so the
+  # tarball name is still well-formed. The tarball contents come from
+  # the PR HEAD, not the placeholder. The placeholder uses `+` (semver
+  # build metadata) rather than `-` so the test parser's
+  # version/target split (which splits on `-`) stays unambiguous.
+  RELEASE_TAG: ${{ inputs.tag || 'v0.0.0+prtest' }}
+
+jobs:
+  prebuild:
+    name: ${{ matrix.target.triple }} / ${{ matrix.backend }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Single source of truth per target. Adding a target = adding
+        # one entry here. The cartesian product with `backend`
+        # (botan, openssl) below gives the full 14-job matrix.
+        # `container: ""` (empty string) means no container.
+        target:
+          # Linux glibc
+          - { triple: x86_64-unknown-linux-gnu,  runner: ubuntu-latest,    container: "" }
+          - { triple: aarch64-unknown-linux-gnu, runner: ubuntu-24.04-arm, container: "" }
+          # Linux musl (via alpine container)
+          - { triple: x86_64-unknown-linux-musl,  runner: ubuntu-latest,    container: alpine:latest }
+          - { triple: aarch64-unknown-linux-musl, runner: ubuntu-24.04-arm, container: alpine:latest }
+          # macOS
+          - { triple: x86_64-apple-darwin,        runner: macos-13,         container: "" }
+          - { triple: aarch64-apple-darwin,       runner: macos-14,         container: "" }
+          # Windows MSVC
+          - { triple: x86_64-pc-windows-msvc,     runner: windows-latest,   container: "" }
+        backend: [botan, openssl]
+    runs-on: ${{ matrix.target.runner }}
+    container: ${{ matrix.target.container }}
+    env:
+      RNP_ARTIFACT_DIR: ${{ github.workspace }}/artifacts
+    steps:
+      # Install build dependencies. Alpine doesn't ship git, so we
+      # have to apk-add it before checkout; the same apk call pulls
+      # the rest of the build deps the script will use. Glibc/macOS/
+      # Windows runners all have git preinstalled; the apt/brew steps
+      # below handle those.
+      - name: Install build dependencies (Linux glibc)
+        if: runner.os == 'Linux' && matrix.target.container == ''
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake python3 xz-utils pkg-config curl
+
+      - name: Install build dependencies (Linux musl / alpine)
+        if: runner.os == 'Linux' && matrix.target.container != ''
+        # git, bash, and util-linux are already installed by the
+        # pre-checkout step. Both calls are idempotent and cheap
+        # (apk caches).
+        run: |
+          apk add --no-cache \
+            git bash util-linux build-base cmake python3 perl linux-headers xz curl tar gzip \
+            coreutils pkgconf
+
+      - name: Install build dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake pkg-config python@3.12 xz
+          echo "$(brew --prefix python@3.12)/bin" >> "$GITHUB_PATH"
+
+      - name: Install build dependencies (Windows)
+        if: runner.os == 'Windows'
+        # The bash shell on windows-latest has Git for Windows' MinGW
+        # which is what ci/build_prebuilt.ps1 expects (PowerShell is
+        # not in PATH by default for shell: bash steps).
+        # VCPKG_ROOT is set so the script can install / locate vcpkg.
+        # MSVC is configured via microsoft/setup-msbuild below.
+        run: |
+          echo "VCPKG_ROOT=C:\vcpkg" >> "$GITHUB_ENV"
+          echo "shell available: $SHELL"
+          which pwsh || echo "pwsh not in PATH"
+
+      # Alpine containers don't ship git, and the musl+ARM64 jobs
+      # specifically can't use actions/checkout (a JS action that
+      # GitHub Actions refuses to run inside alpine on ARM64). And
+      # taiki-e/checkout-action silently ignores the `ref` and
+      # `submodules` inputs we need, so it can't check out a PR head
+      # or init submodules. The reliable workaround is a plain
+      # `git clone` -- works everywhere, no JS-action constraint.
+      # Glibc/macOS/Windows runners still use actions/checkout (more
+      # features, no alpine constraint).
+      - name: Pre-checkout setup (alpine containers only)
+        if: runner.os == 'Linux' && matrix.target.container != ''
+        # git is the only thing needed for the clone below; the other
+        # alpine deps are installed AFTER checkout so they don't slow
+        # down the cheap git clone.
+        run: |
+          apk add --no-cache git
+
+      - name: Checkout rnp (container)
+        if: matrix.target.container != ''
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -eux
+          # Container jobs run as a different uid than the host-side
+          # workspace owner; git 2.35+ refuses the repo without this.
+          # The container is ephemeral and destroyed after the job, so
+          # the '*' wildcard is safe here.
+          git config --global --add safe.directory '*'
+          ref="${{ inputs.tag || github.event.pull_request.head.sha || github.ref }}"
+          # Strip refs/tags/ or refs/heads/ so both tags and branch
+          # names resolve cleanly via `git fetch origin <ref>`.
+          ref="${ref#refs/tags/}"
+          ref="${ref#refs/heads/}"
+          # Refuse to proceed if the workspace has unexpected
+          # contents. The container workspace should be empty on a
+          # fresh job (GitHub Actions guarantees this); if it isn't,
+          # we want to know loudly, not silently destroy whatever is
+          # there.
+          shopt -s nullglob dotglob
+          existing=( "$(pwd)"/* )
+          shopt -u nullglob dotglob
+          if (( ${#existing[@]} > 0 )); then
+              echo "ERROR: workspace is not empty before container checkout:" >&2
+              printf '  %s\n' "${existing[@]}" >&2
+              exit 1
+          fi
+          git init .
+          git remote add origin "${{ github.event.repository.clone_url }}"
+          git fetch --depth 1 origin "$ref"
+          git checkout --force FETCH_HEAD
+          git submodule update --init --recursive --depth 1
+
+      - name: Checkout rnp (no container)
+        if: matrix.target.container == ''
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.event.pull_request.head.sha || github.ref }}
+          submodules: recursive
+
+      - name: Import release signing key (Linux/macOS)
+        if: runner.os != 'Windows'
+        env:
+          RNP_RELEASE_GPG_KEY: ${{ secrets.RNP_RELEASE_GPG_KEY }}
+          RNP_RELEASE_GPG_PASSPHRASE: ${{ secrets.RNP_RELEASE_GPG_PASSPHRASE }}
+        run: |
+          # No-op when the maintainer hasn't configured signing. Detecting
+          # via `if: secrets.X != ''` doesn't actually evaluate correctly
+          # in Actions, so we check inside the script.
+          if [ -z "$RNP_RELEASE_GPG_KEY" ]; then
+            echo "RNP_RELEASE_GPG_KEY is not configured; skipping GPG signing."
+            exit 0
+          fi
+          echo "$RNP_RELEASE_GPG_KEY" | gpg --batch --import \
+            --pinentry-mode loopback \
+            --passphrase "$RNP_RELEASE_GPG_PASSPHRASE"
+          key_id="$(gpg --batch --list-secret-keys --with-colons \
+            | awk -F: '/^sec:/ {print $5; exit}')"
+          echo "RNP_GPG_KEY_ID=$key_id" >> "$GITHUB_ENV"
+
+      - name: Import release signing key (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          RNP_RELEASE_GPG_KEY: ${{ secrets.RNP_RELEASE_GPG_KEY }}
+          RNP_RELEASE_GPG_PASSPHRASE: ${{ secrets.RNP_RELEASE_GPG_PASSPHRASE }}
+        run: |
+          if (-not $env:RNP_RELEASE_GPG_KEY) {
+            Write-Host 'RNP_RELEASE_GPG_KEY is not configured; skipping GPG signing.'
+            exit 0
+          }
+          $gpg = Get-Command gpg -ErrorAction SilentlyContinue
+          if (-not $gpg) {
+            Write-Host 'gpg not found in PATH (Git for Windows gpg is usually there); skipping.'
+            exit 0
+          }
+          $env:RNP_RELEASE_GPG_KEY | & $gpg.Source --batch --import `
+            --pinentry-mode loopback --passphrase $env:RNP_RELEASE_GPG_PASSPHRASE
+          $keyId = & $gpg.Source --batch --list-secret-keys --with-colons `
+            | Select-String -Pattern '^sec:' `
+            | ForEach-Object { ($_ -split ':')[4] } `
+            | Select-Object -First 1
+          if ($keyId) {
+            "RNP_GPG_KEY_ID=$keyId" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
+          }
+
+      # Restore caches. vcpkg's Windows dep builds take 20+ minutes
+      # uncached; the source-based dep builds on Linux/macOS take
+      # 5-10 minutes each. Key by target+backend+dep versions so a
+      # bump in prebuilt-versions.env invalidates cleanly.
+      - name: Restore dep build cache (Linux/macOS)
+        if: runner.os != 'Windows' && !(matrix.target.container != '' && matrix.target.triple == 'aarch64-unknown-linux-musl')
+        uses: actions/cache@v4
+        with:
+          # The build installs deps into $WORK/prefix. Cache the
+          # per-(target,backend,versions) prefix; skip if dep
+          # versions change.
+          path: ${{ github.workspace }}/work/prefix
+          key: deps-${{ matrix.target.triple }}-${{ matrix.backend }}-${{ hashFiles('ci/prebuilt-versions.env') }}
+          restore-keys: |
+            deps-${{ matrix.target.triple }}-${{ matrix.backend }}-
+
+      - name: Restore vcpkg cache (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: |
+            C:\vcpkg\installed
+            C:\vcpkg\buildtrees
+            C:\vcpkg\packages
+          key: vcpkg-${{ matrix.target.triple }}-${{ matrix.backend }}-${{ hashFiles('ci/build_prebuilt.ps1') }}
+          restore-keys: |
+            vcpkg-${{ matrix.target.triple }}-${{ matrix.backend }}-
+
+      - name: Restore ccache (Linux/macOS)
+        if: runner.os != 'Windows' && !(matrix.target.container != '' && matrix.target.triple == 'aarch64-unknown-linux-musl')
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-${{ matrix.target.triple }}-${{ matrix.backend }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ matrix.target.triple }}-${{ matrix.backend }}-
+
+      - name: Build prebuilt static libraries (Linux/macOS)
+        if: runner.os != 'Windows'
+        env:
+          CCACHE_DIR: ${{ github.workspace }}/.ccache
+        run: |
+          mkdir -p "$RNP_ARTIFACT_DIR" "$CCACHE_DIR"
+          # Install ccache if not already available; the build script
+          # auto-detects it via `command -v ccache` and wires it into
+          # CMake via CMAKE_*_COMPILER_LAUNCHER.
+          command -v ccache >/dev/null 2>&1 || {
+              if command -v apt-get >/dev/null; then
+                  sudo apt-get install -y --no-install-recommends ccache
+              elif command -v brew >/dev/null; then
+                  brew install ccache
+              fi
+          }
+          bash ci/build_prebuilt.sh "${{ matrix.backend }}" "${RELEASE_TAG}" "${{ matrix.target.triple }}" "${{ github.workspace }}/work"
+
+      - name: Setup MSVC (Windows)
+        if: runner.os == 'Windows'
+        # microsoft/setup-msbuild only exposes msbuild, not the full
+        # VS dev env. cmake's VS generator detection needs the env
+        # vars from vcvarsall.bat, so use ilammy/msvc-dev-cmd which
+        # sources them. Default arch=x64 matches our -A x64.
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Build prebuilt static libraries (Windows)
+        if: runner.os == 'Windows'
+        # Force bash (Git Bash on windows-latest) as the step shell so
+        # the $RNP_ARTIFACT_DIR env var resolves correctly. Without
+        # this, windows-latest defaults to pwsh, where env vars need
+        # the $env: prefix and bash-style $VAR is empty.
+        shell: bash
+        run: |
+          mkdir -p "$RNP_ARTIFACT_DIR"
+          pwsh -NoProfile -File "ci/build_prebuilt.ps1" \
+            -Backend '${{ matrix.backend }}' \
+            -Version "$RELEASE_TAG" \
+            -WorkDir "$(cygpath -w "${{ github.workspace }}\\work")"
+
+      - name: Compute sha256 of artifacts
+        shell: bash
+        run: |
+          cd "$RNP_ARTIFACT_DIR"
+          ls -la
+          sha256sum rnp-*.tar.gz || true
+
+      # Validate the produced tarball against the spec in
+      # docs/specs/tarball-layout.adoc. Runs on every matrix entry
+      # so a regression that ships a broken tarball fails CI before
+      # the artifact reaches the release or the PR review download.
+      - name: Validate tarball against spec
+        if: runner.os != 'Windows'
+        run: |
+          bash ci/test_prebuilt.sh "$RNP_ARTIFACT_DIR"/rnp-*.tar.gz
+
+      - name: Validate tarball structure (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          bash ci/test_prebuilt.sh --no-link "$RNP_ARTIFACT_DIR"/rnp-*.tar.gz
+
+      # PR runs upload artifacts so reviewers can download and verify.
+      # Production runs (workflow_call / workflow_dispatch) attach to
+      # the named GitHub release.
+      #
+      # PR-review split:
+      #   * actions/upload-artifact works everywhere EXCEPT alpine+
+      #     ARM64 containers (GitHub Actions JS-action restriction).
+      #   * alpine+ARM64 gets a notice instead; the matrix status is
+      #     the validation signal.
+      - name: Upload artifacts (PR review)
+        if: >-
+          github.event_name == 'pull_request' &&
+          !(matrix.target.container != '' && matrix.target.triple == 'aarch64-unknown-linux-musl')
+        uses: actions/upload-artifact@v4
+        with:
+          name: prebuilt-${{ matrix.target.triple }}-${{ matrix.backend }}
+          path: |
+            ${{ env.RNP_ARTIFACT_DIR }}/rnp-*.tar.gz
+            ${{ env.RNP_ARTIFACT_DIR }}/rnp-*.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Notice (aarch64-musl artifact not uploaded)
+        if: matrix.target.container != '' && matrix.target.triple == 'aarch64-unknown-linux-musl' && github.event_name == 'pull_request'
+        run: |
+          echo "::notice title=Prebuilt artifact not uploaded::actions/upload-artifact is a JS action and refuses to run inside alpine+ARM64 containers. The tarball was built successfully (see the build step's output); the matrix status above is the validation signal. To download, run ci/build_prebuilt.sh locally on aarch64 Linux."
+
+      - name: Upload artifacts to release (production)
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          files: |
+            ${{ env.RNP_ARTIFACT_DIR }}/rnp-*.tar.gz
+            ${{ env.RNP_ARTIFACT_DIR }}/rnp-*.sha256
+            ${{ env.RNP_ARTIFACT_DIR }}/rnp-*.asc
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Informational job: builds the same (target, backend) twice on the
+  # same runner and reports whether the tarballs are byte-identical.
+  # Always exits 0 (doesn't block merge). See ci/check_reproducibility.sh
+  # and docs/packaging.adoc "Reproducibility" for what's known to be
+  # non-reproducible.
+  reproducibility-check:
+    name: Reproducibility check
+    if: github.event_name == 'pull_request'
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          submodules: recursive
+      - run: brew install cmake pkg-config python@3.12 xz
+      - run: bash ci/check_reproducibility.sh openssl v0.0.0+prtest aarch64-apple-darwin

@@ -1,0 +1,167 @@
+= Prebuilt tarball layout spec
+
+This document is the contract that every prebuilt static-library
+tarball shipped from a librnp GitHub release must satisfy. It is the
+input to `ci/test_prebuilt.sh`, which mechanically asserts every
+requirement below.
+
+== Naming
+
+Tarball filename:
+
+----
+rnp-v<version>-<target>-<backend>.tar.gz
+----
+
+Where:
+
+* `<version>` is the librnp release tag, including the leading `v`
+  (e.g. `v0.18.1`). For PR-review runs the placeholder
+  `v0.0.0-pr-test` is used.
+* `<target>` is a Rust-style target triple from the matrix in
+  `.github/workflows/prebuilt.yml` (e.g.
+  `x86_64-unknown-linux-gnu`, `aarch64-apple-darwin`).
+* `<backend>` is one of `botan` or `openssl`.
+
+A sidecar `<filename>.sha256` MUST accompany every tarball. It uses
+the `sha256sum -c` format:
+
+----
+<64 hex chars>  <filename>
+----
+
+When GPG signing is configured (via the `RNP_RELEASE_GPG_KEY`
+repository secret), a detached signature `<filename>.asc` MUST also
+accompany every tarball.
+
+== Top-level layout
+
+The tarball extracts to a single top-level directory whose name
+matches the tarball filename without `.tar.gz`:
+
+----
+rnp-v<version>-<target>-<backend>/
+├── include/                  # required
+├── lib/                      # required
+├── MANIFEST.txt              # required
+└── MANIFEST.txt.asc          # optional; only when GPG signing is configured
+----
+
+== `include/`
+
+Required subdirectories:
+
+* `rnp/` -- the public librnp FFI headers. MUST contain at least:
+  ** `rnp.h`
+  ** `rnp_err.h`
+  ** `rnp_export.h`
+  ** `rnp_ver.h`
+* `botan-3/` (botan backend) or `openssl/` (openssl backend)
+* `json-c/`
+* `bzlib.h` (bzip2)
+* `zlib.h` (zlib)
+* `zconf.h` (zlib internal)
+
+== `lib/`
+
+Required static archives are declared per-backend in
+`ci/backends/<name>.env` (`BACKEND_LIB_NAMES`). The file extension
+(`.a` or `.lib`) comes from `ci/targets/<triple>.env`
+(`TARGET_ARCHIVE_EXT`). Both are read at build time and at test time
+from the same source of truth.
+
+Required subdirectories:
+
+* `cmake/rnp/` -- CMake config files. MUST contain at least:
+  ** `rnp-config.cmake`
+  ** `rnp-config-version.cmake`
+  ** `rnp-targets.cmake`
+* `pkgconfig/` -- pkg-config files. MUST contain at least:
+  ** `librnp.pc`
+
+== `lib/pkgconfig/librnp.pc`
+
+Must use `${pcfiledir}` (not absolute build paths) for all
+prefix-relative variables. After unpacking the tarball to any
+location, the following must succeed from a clean environment:
+
+----
+PKG_CONFIG_PATH=<bundle>/lib/pkgconfig pkg-config --cflags --static librnp
+PKG_CONFIG_PATH=<bundle>/lib/pkgconfig pkg-config --libs --static librnp
+----
+
+The output must NOT contain any path under `/tmp/`, `/home/`,
+`/Users/`, `D:\a\`, or any other build-host-specific prefix.
+
+== `MANIFEST.txt`
+
+Human-readable, must contain:
+
+* Target triple matching the filename.
+* Backend matching the filename.
+* Build host description (OS + arch).
+* A list of all directories/files in the tarball.
+* The link libraries required, in link order, for the target platform.
+  Authoritative values come from `ci/backends/<name>.env`
+  (`BACKEND_LINK_LIBS`) and `ci/targets/<triple>.env`
+  (`TARGET_PLATFORM_LINK`).
+* Source attribution (repo URL).
+* Dependency versions used.
+
+== Configuration files (single source of truth)
+
+The link flags, required archives, archive extension, platform link
+flags, CMake flags, and header directories are declared in:
+
+* `ci/backends/<name>.env` -- per-backend properties.
+* `ci/targets/<triple>.env` -- per-target properties.
+* `ci/prebuilt-versions.env` -- pinned dep versions.
+
+The build script (`ci/build_prebuilt.sh`), the PowerShell build script
+(`ci/build_prebuilt.ps1`), and the validator (`ci/test_prebuilt.sh`)
+all read from these files. They cannot drift because there is exactly
+one source of truth per property.
+
+See link:backends.adoc[Backends policy] and
+link:target-matrix.adoc[Target matrix policy] for the contracts each
+config file must satisfy.
+
+== Linkability
+
+A minimal C program:
+
+[source,c]
+----
+#include <rnp/rnp.h>
+#include <rnp/rnp_err.h>
+
+int main(void) {
+    rnp_ffi_t ffi = NULL;
+    rnp_result_t r = rnp_ffi_create(&ffi, "GPG", "GPG");
+    if (r != RNP_SUCCESS) return 1;
+    rnp_ffi_destroy(ffi);
+    return 0;
+}
+----
+
+Must compile, link, and run successfully against the tarball, using
+only the headers in `include/` and the static archives in `lib/`,
+plus the standard system runtime libraries (`-lc++` on macOS,
+`-lpthread -ldl` on Linux, MSVC runtime on Windows).
+
+== Out of scope
+
+The following are explicitly NOT part of this spec:
+
+Reproducibility (byte-identical output across runs) is documented
+separately in `docs/packaging.adoc` ("Reproducibility" section) and is
+best-effort. A `reproducibility-check` CI job on every PR reports the
+diff via `ci/check_reproducibility.sh`. It is NOT asserted by
+`ci/test_prebuilt.sh`.
+* Cross-platform ABI compatibility (Linux tarball links on macOS).
+  Each target is self-contained; cross-target compatibility is the
+  consumer's responsibility.
+* sexpp public headers. sexpp is a transitive link-time dependency
+  only; its headers are not in the tarball because librnp's C API
+  is pure C. C++ consumers that use rnp's internal C++ API
+  additionally need sexpp's headers from a separate installation.

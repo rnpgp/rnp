@@ -1,0 +1,67 @@
+= Backends policy
+
+== What a backend is
+
+A *backend* is a crypto library that librnp's OpenSSL-family backend
+code is configured against at build time via
+`-DCRYPTO_BACKEND=<name>`. The backend provides public-key algorithms,
+symmetric ciphers, hash functions, and RNG that librnp uses
+internally.
+
+== Current backends
+
+[cols="1,1,1,2", options="header"]
+|===
+| Backend | Tier | Dep source | Notes
+
+| `botan`   | 1 | source tarball (Linux/macOS), vcpkg (Windows) | Default. Supports PQC via Botan 3 PQ modules.
+| `openssl` | 1 | source tarball (Linux/macOS), vcpkg (Windows) | PQC gated off (`openssl_nope(ENABLE_PQC, ...)`).
+|===
+
+== Backend requirements
+
+A backend must:
+
+* Ship a static-library form (`.a` or `.lib`).
+* Expose the algorithms rnp's CMake feature-detection probes for
+  (see `src/lib/CMakeLists.txt` `_openssl_required_features`).
+* Support the public OpenSSL 1.1 API (no internal APIs like
+  `EVP_PKEY_meth_*` — see issue #2440).
+* Build with `-fPIC` so the static archive can be linked into a
+  shared library downstream.
+* Pass `ci/test_prebuilt.sh` end-to-end (compile, link, run
+  `rnp_ffi_create()`).
+
+== Backend config file
+
+Each backend has a config file at `ci/backends/<name>.env` declaring:
+
+* `BACKEND_DESCRIPTION` — human-readable name.
+* `BACKEND_DEPS` — extra deps to install (beyond common bzip2+zlib+json-c).
+* `BACKEND_CMAKE_FLAGS` — CMake flags for the rnp configure step.
+* `BACKEND_HEADERS_DIR` — subdirectory under `include/` for backend headers.
+* `BACKEND_LINK_LIBS` — Unix link flags (space-separated).
+* `BACKEND_WINDOWS_LINK_LIBS` — MSVC link flags (space-separated).
+* `BACKEND_LIB_NAMES` — required static archives (comma-separated).
+* `BACKEND_WINDOWS_LIB_NAMES` — same for Windows (`.lib` extension).
+
+The build scripts, the test, and the MANIFEST.txt generator all read
+from this file. Single source of truth per backend.
+
+== Adding a backend
+
+1. Create `ci/backends/<name>.env` with all required fields.
+2. Add `backend: [<name>]` to the matrix in `prebuilt.yml` if the
+   backend should ship prebuilt.
+3. Ensure the backend's build function exists in
+   `ci/build_prebuilt.sh` (e.g. `build_<name>()`) or is handled by
+   vcpkg on Windows.
+4. Run `ci/test_prebuilt.sh` against a locally-built tarball.
+5. Open a PR; a maintainer reviews and assigns a tier.
+
+== Deprecating a backend
+
+1. Announce in `CHANGELOG.md`.
+2. Remove from the matrix in `prebuilt.yml`.
+3. Delete `ci/backends/<name>.env`.
+4. Clean up any backend-specific build functions.

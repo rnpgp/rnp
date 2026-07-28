@@ -8,7 +8,7 @@ cast128
 cbc
 cfb
 crc24
-curve25519
+x25519
 des
 dl_algo
 dl_group
@@ -17,6 +17,12 @@ eax
 ecc_key
 ecdh
 ecdsa
+pcurves_secp192r1
+pcurves_secp256k1
+pcurves_secp256r1
+pcurves_secp384r1
+pcurves_secp521r1
+pcurves_sm2p256v1
 ed25519
 elgamal
 eme_pkcs1
