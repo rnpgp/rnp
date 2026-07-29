@@ -205,9 +205,18 @@ Set-Content -Path (Join-Path $Staging 'MANIFEST.txt') -Value $manifest -Encoding
 # for v1 (see build_prebuilt.sh comment for details).
 $Tarball = Join-Path $ArtifactDir "$TarballName.tar.gz"
 Write-Host "=== packaging ==="
+# Use Windows native tar.exe (C:\Windows\System32\tar.exe, preinstalled
+# on Windows 10 1803+ and Windows Server 2019+). The MSYS2 tar from
+# Git for Windows that comes first in PATH can't write to Windows-
+# style paths like D:\...; it expects POSIX /d/... and the path
+# conversion is unreliable. Native tar handles both path styles.
+$WinTar = Join-Path $env:WINDIR 'System32\tar.exe'
+if (-not (Test-Path $WinTar)) {
+    throw "Windows native tar.exe not found at $WinTar"
+}
 Push-Location $WorkDir
 try {
-    & tar -czf $Tarball $TarballName
+    & $WinTar -czf $Tarball $TarballName
     if ($LASTEXITCODE -ne 0) { throw "tar failed" }
 } finally {
     Pop-Location
