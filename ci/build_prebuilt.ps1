@@ -113,7 +113,13 @@ try {
         "-DCRYPTO_BACKEND=$Backend",
         "-DCMAKE_PREFIX_PATH=$Prefix",
         "-DCMAKE_TOOLCHAIN_FILE=$VcpkgDir\scripts\buildsystems\vcpkg.cmake",
-        "-DVCPKG_TARGET_TRIPLET=$Triplet"
+        "-DVCPKG_TARGET_TRIPLET=$Triplet",
+        # vcpkg's x64-windows-static triplet compiles every dep with
+        # /MT (static MSVC runtime). Match it on the rnp build so the
+        # .lib files link cleanly -- Botan's allocator (and any other
+        # dep that touches runtime internals directly) otherwise
+        # triggers LNK2038 runtime-library mismatch.
+        '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded'
     )
     if ($Backend -eq 'botan') {
         $cmakeArgs += '-DENABLE_PQC=ON'
