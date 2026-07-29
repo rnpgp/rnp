@@ -113,11 +113,7 @@ try {
         "-DCRYPTO_BACKEND=$Backend",
         "-DCMAKE_PREFIX_PATH=$Prefix",
         "-DCMAKE_TOOLCHAIN_FILE=$VcpkgDir\scripts\buildsystems\vcpkg.cmake",
-        "-DVCPKG_TARGET_TRIPLET=$Triplet",
-        # OpenSSL static on Windows needs system libs (Crypt32,
-        # Ws2_32, etc.) that the findopensslfeatures detection tool
-        # doesn't link automatically. Pass them globally.
-        '-DCMAKE_EXE_LINKER_FLAGS=Crypt32.lib Ws2_32.lib Advapi32.lib User32.lib'
+        "-DVCPKG_TARGET_TRIPLET=$Triplet"
     )
     if ($Backend -eq 'botan') {
         $cmakeArgs += '-DENABLE_PQC=ON'
