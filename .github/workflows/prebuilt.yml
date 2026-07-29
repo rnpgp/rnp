@@ -179,7 +179,7 @@ jobs:
 
       - name: Checkout rnp (no container)
         if: matrix.target.container == ''
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.event.pull_request.head.sha || github.ref }}
           submodules: recursive
@@ -236,7 +236,7 @@ jobs:
       # bump in prebuilt-versions.env invalidates cleanly.
       - name: Restore dep build cache (Linux/macOS)
         if: runner.os != 'Windows' && !(matrix.target.container != '' && matrix.target.triple == 'aarch64-unknown-linux-musl')
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           # The build installs deps into $WORK/prefix. Cache the
           # per-(target,backend,versions) prefix; skip if dep
@@ -248,7 +248,7 @@ jobs:
 
       - name: Restore vcpkg cache (Windows)
         if: runner.os == 'Windows'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             C:\vcpkg\installed
@@ -260,7 +260,7 @@ jobs:
 
       - name: Restore ccache (Linux/macOS)
         if: runner.os != 'Windows' && !(matrix.target.container != '' && matrix.target.triple == 'aarch64-unknown-linux-musl')
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/.ccache
           key: ccache-${{ matrix.target.triple }}-${{ matrix.backend }}-${{ github.sha }}
@@ -348,7 +348,7 @@ jobs:
         if: >-
           github.event_name == 'pull_request' &&
           !(matrix.target.container != '' && matrix.target.triple == 'aarch64-unknown-linux-musl')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: prebuilt-${{ matrix.target.triple }}-${{ matrix.backend }}
           path: |
@@ -364,7 +364,7 @@ jobs:
 
       - name: Upload artifacts to release (production)
         if: github.event_name != 'pull_request'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           files: |
@@ -385,7 +385,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           submodules: recursive
