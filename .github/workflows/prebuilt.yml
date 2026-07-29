@@ -328,8 +328,12 @@ jobs:
       - name: Validate tarball structure (Windows)
         if: runner.os == 'Windows'
         shell: bash
+        # $RNP_ARTIFACT_DIR is a Windows-style path (e.g.
+        # D:\a\rnp\rnp/artifacts). Convert to POSIX so the MSYS2 tar
+        # inside test_prebuilt.sh can open the tarball.
         run: |
-          bash ci/test_prebuilt.sh --no-link "$RNP_ARTIFACT_DIR"/rnp-*.tar.gz
+          posix_dir="$(cygpath -u "$RNP_ARTIFACT_DIR")"
+          bash ci/test_prebuilt.sh --no-link "$posix_dir"/rnp-*.tar.gz
 
       # PR runs upload artifacts so reviewers can download and verify.
       # Production runs (workflow_call / workflow_dispatch) attach to
