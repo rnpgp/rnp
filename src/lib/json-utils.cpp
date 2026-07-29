@@ -35,7 +35,7 @@ namespace json {
  * type predicate, otherwise nullptr. */
 static nlohmann::ordered_json *
 get_field(nlohmann::ordered_json &obj,
-          const char *            name,
+          const char             *name,
           bool (*pred)(const nlohmann::ordered_json &))
 {
     if (!obj.is_object() || !obj.contains(name)) {
@@ -179,8 +179,8 @@ get_uint64(nlohmann::ordered_json &obj, const char *name, uint64_t &out, bool de
 }
 
 bool
-get_str_arr(nlohmann::ordered_json &  obj,
-            const char *              name,
+get_str_arr(nlohmann::ordered_json   &obj,
+            const char               *name,
             std::vector<std::string> &out,
             bool                      del)
 {
@@ -219,39 +219,45 @@ dump_pretty(const nlohmann::ordered_json &jso)
     std::string raw = jso.dump(2);
     std::string out;
     out.reserve(raw.size());
-    bool in_string = false;
-    bool escaped = false;
-    for (size_t i = 0; i < raw.size(); i++) {
+    bool   in_string = false;
+    bool   escaped = false;
+    size_t i = 0;
+    while (i < raw.size()) {
         char c = raw[i];
         if (escaped) {
             out.push_back(c);
             escaped = false;
+            i++;
             continue;
         }
         if (in_string) {
             if (c == '\\') {
                 escaped = true;
                 out.push_back(c);
+                i++;
                 continue;
             }
             if (c == '"') {
                 in_string = false;
             }
             out.push_back(c);
+            i++;
             continue;
         }
         if (c == '"') {
             in_string = true;
             out.push_back(c);
+            i++;
             continue;
         }
         /* structural colon followed by space → drop the space */
         if (c == ':' && i + 1 < raw.size() && raw[i + 1] == ' ') {
             out.push_back(':');
-            i++; /* skip the space */
+            i += 2; /* skip the colon and its trailing space */
             continue;
         }
         out.push_back(c);
+        i++;
     }
     return out;
 }
