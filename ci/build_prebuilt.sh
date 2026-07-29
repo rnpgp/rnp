@@ -28,10 +28,48 @@
 
 set -euxo pipefail
 
-BACKEND="${1:?usage: build_prebuilt.sh <botan|openssl> <version> <target> [workdir]}"
-VERSION="${2:?missing version (e.g. v0.18.1)}"
-TARGET="${3:?missing target triple (e.g. x86_64-unknown-linux-gnu)}"
-WORK="${4:-$(pwd)/prebuilt-work}"
+# Two invocation modes:
+#
+#   build_prebuilt.sh deps <target> [workdir]
+#       Phase 1 (called by the build-deps CI job): build the common
+#       deps (zlib, bzip2, json-c) into $WORK/prefix and stop. The
+#       workflow uploads that prefix as an artifact so both per-backend
+#       rnp jobs can reuse it without rebuilding.
+#
+#   build_prebuilt.sh rnp <backend> <version> <target> [workdir]
+#       Phase 2 (called by the build-rnp CI job): expects deps already
+#       installed in $WORK/prefix. Builds the backend (botan/openssl),
+#       then rnp, then packages the tarball.
+#
+#   build_prebuilt.sh <backend> <version> <target> [workdir]
+#       Backward-compat single-pass mode (no subcommand): builds
+#       everything from scratch. Used for local testing without the
+#       CI orchestration.
+MODE=""
+case "${1:-}" in
+    deps)
+        MODE="deps"
+        shift
+        TARGET="${1:?usage: build_prebuilt.sh deps <target> [workdir]}"
+        WORK="${2:-$(pwd)/prebuilt-work}"
+        BACKEND="_deps_only"   # not used in deps mode, but sourced config requires a value
+        VERSION="deps-only"    # ditto
+        ;;
+    rnp)
+        MODE="rnp"
+        shift
+        BACKEND="${1:?usage: build_prebuilt.sh rnp <botan|openssl> <version> <target> [workdir]}"
+        VERSION="${2:?missing version (e.g. v0.18.1)}"
+        TARGET="${3:?missing target triple (e.g. x86_64-unknown-linux-gnu)}"
+        WORK="${4:-$(pwd)/prebuilt-work}"
+        ;;
+    *)
+        BACKEND="${1:?usage: build_prebuilt.sh [<backend> <version> <target> [workdir]] | [deps <target>] | [rnp <backend> <version> <target>]}"
+        VERSION="${2:?missing version (e.g. v0.18.1)}"
+        TARGET="${3:?missing target triple (e.g. x86_64-unknown-linux-gnu)}"
+        WORK="${4:-$(pwd)/prebuilt-work}"
+        ;;
+esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RNP_SRC="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -78,15 +116,19 @@ source "${SCRIPT_DIR}/prebuilt-versions.env"
 : "${BOTAN_VERSION:?missing in prebuilt-versions.env}"
 : "${OPENSSL_VERSION:?missing in prebuilt-versions.env}"
 
-BACKEND_CONFIG="${SCRIPT_DIR}/backends/${BACKEND}.env"
-if [[ ! -f "$BACKEND_CONFIG" ]]; then
-    echo "ERROR: unknown backend '$BACKEND' -- expected config at $BACKEND_CONFIG" >&2
-    echo "  Valid backends:" >&2
-    (cd "${SCRIPT_DIR}/backends" && find . -maxdepth 1 -name '*.env' -exec sh -c 'for f; do echo "    $(basename "$f" .env)"; done' _ {} +) >&2
-    exit 1
+# Backend config is only needed in rnp and single-pass mode; deps mode
+# builds no backend-specific code.
+if [[ "$MODE" != "deps" ]]; then
+    BACKEND_CONFIG="${SCRIPT_DIR}/backends/${BACKEND}.env"
+    if [[ ! -f "$BACKEND_CONFIG" ]]; then
+        echo "ERROR: unknown backend '$BACKEND' -- expected config at $BACKEND_CONFIG" >&2
+        echo "  Valid backends:" >&2
+        (cd "${SCRIPT_DIR}/backends" && find . -maxdepth 1 -name '*.env' -exec sh -c 'for f; do echo "    $(basename "$f" .env)"; done' _ {} +) >&2
+        exit 1
+    fi
+    # shellcheck disable=SC1090
+    source "$BACKEND_CONFIG"
 fi
-# shellcheck disable=SC1090
-source "$BACKEND_CONFIG"
 
 TARGET_CONFIG="${SCRIPT_DIR}/targets/${TARGET}.env"
 if [[ ! -f "$TARGET_CONFIG" ]]; then
@@ -455,12 +497,44 @@ EOF
     ls -la "$RNP_ARTIFACT_DIR/$tarball_name.tar.gz"
 }
 
-build_zlib
-build_bzip2
-build_jsonc
-case "$BACKEND" in
-    botan)   build_botan ;;
-    openssl) build_openssl ;;
+case "$MODE" in
+    deps)
+        # Phase 1: common deps only. Backend and rnp builds belong to
+        # the per-backend Phase 2 jobs, which download this prefix.
+        build_zlib
+        build_bzip2
+        build_jsonc
+        echo
+        echo "=== Phase 1 (deps) complete: $PREFIX ==="
+        ls -la "$PREFIX/lib/"
+        ;;
+    rnp)
+        # Phase 2: deps already in $PREFIX (restored from the Phase 1
+        # artifact). Build only the backend + rnp + package.
+        if [ ! -f "$PREFIX/lib/libz.a" ]; then
+            echo "ERROR: rnp mode expects deps in $PREFIX/lib/ (missing libz.a)." >&2
+            echo "       Did the build-deps phase upload/extract correctly?" >&2
+            exit 1
+        fi
+        case "$BACKEND" in
+            botan)   build_botan ;;
+            openssl) build_openssl ;;
+            *) echo "ERROR: unknown backend '$BACKEND'" >&2; exit 1 ;;
+        esac
+        build_rnp
+        package
+        ;;
+    *)
+        # Backward-compat single-pass mode.
+        build_zlib
+        build_bzip2
+        build_jsonc
+        case "$BACKEND" in
+            botan)   build_botan ;;
+            openssl) build_openssl ;;
+            *) echo "ERROR: unknown backend '$BACKEND'" >&2; exit 1 ;;
+        esac
+        build_rnp
+        package
+        ;;
 esac
-build_rnp
-package
