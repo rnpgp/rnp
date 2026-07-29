@@ -157,9 +157,17 @@ echo "PASS include/json-c/"
 # 5. Required static archives
 # ---------------------------------------------------------------------------
 # Archive extension comes from the target config (.a on Unix,
-# .lib on Windows). BACKEND_LIB_NAMES is comma-separated.
+# .lib on Windows). The lib-name list is OS-specific: Unix backends use
+# lib<name>.a (BACKEND_LIB_NAMES); Windows uses vcpkg-style names like
+# zs.lib / bz2.lib (BACKEND_WINDOWS_LIB_NAMES) which differ from the
+# Unix names because vcpkg renames some libraries.
 ARCHIVE_EXT="$TARGET_ARCHIVE_EXT"
-IFS=',' read -ra _names <<< "$BACKEND_LIB_NAMES"
+if [[ "$TARGET_OS" == "windows" ]]; then
+    _lib_list="${BACKEND_WINDOWS_LIB_NAMES}"
+else
+    _lib_list="${BACKEND_LIB_NAMES}"
+fi
+IFS=',' read -ra _names <<< "$_lib_list"
 REQUIRED_LIBS=()
 for n in "${_names[@]}"; do
     # BACKEND_LIB_NAMES uses the "lib<name>" form on Unix and "<name>"
