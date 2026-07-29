@@ -70,7 +70,7 @@ fi
 # Adding a backend or target = adding a file; no edits to this script.
 # ---------------------------------------------------------------------------
 
-# shellcheck source=prebuilt-versions.env
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/prebuilt-versions.env"
 : "${ZLIB_VERSION:?missing in prebuilt-versions.env}"
 : "${BZIP2_VERSION:?missing in prebuilt-versions.env}"
@@ -85,7 +85,7 @@ if [[ ! -f "$BACKEND_CONFIG" ]]; then
     (cd "${SCRIPT_DIR}/backends" && find . -maxdepth 1 -name '*.env' -exec sh -c 'for f; do echo "    $(basename "$f" .env)"; done' _ {} +) >&2
     exit 1
 fi
-# shellcheck source=backends/botan.env
+# shellcheck disable=SC1090
 source "$BACKEND_CONFIG"
 
 TARGET_CONFIG="${SCRIPT_DIR}/targets/${TARGET}.env"
@@ -95,7 +95,7 @@ if [[ ! -f "$TARGET_CONFIG" ]]; then
     (cd "${SCRIPT_DIR}/targets" && find . -maxdepth 1 -name '*.env' -exec sh -c 'for f; do echo "    $(basename "$f" .env)"; done' _ {} +) >&2
     exit 1
 fi
-# shellcheck source=targets/x86_64-apple-darwin.env
+# shellcheck disable=SC1090
 source "$TARGET_CONFIG"
 
 # ---------------------------------------------------------------------------
@@ -147,7 +147,7 @@ mkdir -p "$RNP_ARTIFACT_DIR"
 
 # Source the GPG signing helper. sign_file() is called in package()
 # for both MANIFEST.txt and the tarball.
-# shellcheck source=lib/sign.sh
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib/sign.sh"
 
 # Download a URL to a destination file, skipping if already present.
