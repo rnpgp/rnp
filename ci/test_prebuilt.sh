@@ -117,9 +117,9 @@ echo "PASS top-level layout has include/ lib/ MANIFEST.txt"
 # here; the test has zero `case "$BACKEND" in` or
 # `case "$TARGET" in` branches.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=backends/botan.env
+# shellcheck disable=SC1090
 source "${SCRIPT_DIR}/backends/${BACKEND}.env"
-# shellcheck source=targets/x86_64-apple-darwin.env
+# shellcheck disable=SC1090
 source "${SCRIPT_DIR}/targets/${TARGET}.env"
 
 # ---------------------------------------------------------------------------
