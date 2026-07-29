@@ -99,7 +99,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: true
           lfs: true
@@ -111,7 +111,7 @@ jobs:
           mkdir -p ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
 
       - name: vcpkg cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           key: vcpkg-${{ hashFiles('vcpkg.version') }}-${{ matrix.arch.triplet }}-${{ matrix.toolset }}-${{ matrix.backend }}
@@ -129,7 +129,7 @@ jobs:
 
       - name: Upload vcpkg logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vcpkg-error-logs
           path: |
