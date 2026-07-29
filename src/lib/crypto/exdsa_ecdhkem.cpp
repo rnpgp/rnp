@@ -47,6 +47,7 @@
 #include "string.h"
 #include "utils.h"
 #include <cassert>
+#include <botan/ec_group.h>
 
 ec_key_t::~ec_key_t()
 {
