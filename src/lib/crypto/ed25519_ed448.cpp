@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
+ * are permitted that the following conditions are met:
  *
  * 1.  Redistributions of source code must retain the above copyright notice,
  *     this list of conditions and the following disclaimer.
@@ -12,41 +12,44 @@
  *     this list of conditions and the following disclaimer in the documentation
  *     and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "ed25519_ed448.h"
 #include "logging.h"
 #include "utils.h"
 
-#include <botan/pubkey.h>
-#include <botan/ed25519.h>
-#if defined(ENABLE_CRYPTO_REFRESH)
-#include <botan/ed448.h>
-#endif
+#include <botan/ffi.h>
+#include "botan_utils.hpp"
 #include <cassert>
+#include <string.h>
 
 rnp_result_t
 generate_ed25519_native(rnp::RNG *            rng,
                         std::vector<uint8_t> &privkey,
                         std::vector<uint8_t> &pubkey)
 {
-    Botan::Ed25519_PrivateKey private_key(*(rng->obj()));
-    const size_t              key_len = 32;
-    auto                      priv_pub = Botan::unlock(private_key.raw_private_key_bits());
-    assert(priv_pub.size() == 2 * key_len);
-    privkey = std::vector<uint8_t>(priv_pub.begin(), priv_pub.begin() + key_len);
-    pubkey = std::vector<uint8_t>(priv_pub.begin() + key_len, priv_pub.end());
-
+    rnp::botan::Privkey private_key;
+    if (botan_privkey_create(&private_key.get(), "Ed25519", NULL, rng->handle())) {
+        return RNP_ERROR_GENERIC;
+    }
+    /* botan returns the 32-byte seed followed by the 32-byte public key */
+    uint8_t key_bits[64];
+    if (botan_privkey_ed25519_get_privkey(private_key.get(), key_bits)) {
+        return RNP_ERROR_GENERIC;
+    }
+    const size_t key_len = 32;
+    privkey.assign(key_bits, key_bits + key_len);
+    pubkey.assign(key_bits + key_len, key_bits + 2 * key_len);
     return RNP_SUCCESS;
 }
 
@@ -57,10 +60,24 @@ ed25519_sign_native(rnp::RNG *                  rng,
                     const uint8_t *             hash,
                     size_t                      hash_len)
 {
-    Botan::Ed25519_PrivateKey priv_key(Botan::secure_vector<uint8_t>(key.begin(), key.end()));
-    auto                      signer = Botan::PK_Signer(priv_key, *(rng->obj()), "Pure");
-    sig_out = signer.sign_message(hash, hash_len, *(rng->obj()));
-
+    if (key.size() != 32) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    rnp::botan::Privkey priv_key;
+    if (botan_privkey_load_ed25519(&priv_key.get(), key.data())) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    rnp::botan::op::Sign signer;
+    if (botan_pk_op_sign_create(&signer.get(), priv_key.get(), "Pure", 0) ||
+        botan_pk_op_sign_update(signer.get(), hash, hash_len)) {
+        return RNP_ERROR_SIGNING_FAILED;
+    }
+    uint8_t buf[64];
+    size_t  sig_len = sizeof(buf);
+    if (botan_pk_op_sign_finish(signer.get(), rng->handle(), buf, &sig_len)) {
+        return RNP_ERROR_SIGNING_FAILED;
+    }
+    sig_out.assign(buf, buf + sig_len);
     return RNP_SUCCESS;
 }
 
@@ -70,26 +87,43 @@ ed25519_verify_native(const std::vector<uint8_t> &sig,
                       const uint8_t *             hash,
                       size_t                      hash_len)
 {
-    Botan::Ed25519_PublicKey pub_key(key);
-    auto                     verifier = Botan::PK_Verifier(pub_key, "Pure");
-    if (verifier.verify_message(hash, hash_len, sig.data(), sig.size())) {
-        return RNP_SUCCESS;
+    if (key.size() != 32) {
+        return RNP_ERROR_BAD_PARAMETERS;
     }
-    return RNP_ERROR_VERIFICATION_FAILED;
+    rnp::botan::Pubkey pub_key;
+    if (botan_pubkey_load_ed25519(&pub_key.get(), key.data())) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    rnp::botan::op::Verify verifier;
+    if (botan_pk_op_verify_create(&verifier.get(), pub_key.get(), "Pure", 0) ||
+        botan_pk_op_verify_update(verifier.get(), hash, hash_len)) {
+        return RNP_ERROR_SIGNATURE_INVALID;
+    }
+    if (botan_pk_op_verify_finish(verifier.get(), sig.data(), sig.size())) {
+        return RNP_ERROR_SIGNATURE_INVALID;
+    }
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
 ed25519_validate_key_native(rnp::RNG *rng, const pgp_ed25519_key_t *key, bool secret)
 {
-    Botan::Ed25519_PublicKey pub_key(key->pub);
-    if (!pub_key.check_key(*(rng->obj()), false)) {
+    if (key->pub.size() != 32) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    rnp::botan::Pubkey pub_key;
+    if (botan_pubkey_load_ed25519(&pub_key.get(), key->pub.data()) ||
+        botan_pubkey_check_key(pub_key.get(), rng->handle(), 0)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     if (secret) {
-        Botan::Ed25519_PrivateKey priv_key(
-          Botan::secure_vector<uint8_t>(key->priv.begin(), key->priv.end()));
-        if (!priv_key.check_key(*(rng->obj()), false)) {
+        if (key->priv.size() != 32) {
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        rnp::botan::Privkey priv_key;
+        if (botan_privkey_load_ed25519(&priv_key.get(), key->priv.data()) ||
+            botan_privkey_check_key(priv_key.get(), rng->handle(), 0)) {
             return RNP_ERROR_SIGNING_FAILED;
         }
     }
@@ -103,14 +137,24 @@ generate_ed448_native(rnp::RNG *            rng,
                       std::vector<uint8_t> &privkey,
                       std::vector<uint8_t> &pubkey)
 {
-    Botan::Ed448_PrivateKey private_key(*(rng->obj()));
-    const size_t            key_len = 57;
-    auto                    priv = Botan::unlock(private_key.raw_private_key_bits());
-    assert(priv.size() == key_len);
-    auto pub = private_key.public_key_bits();
-    assert(pub.size() == key_len);
-    privkey = std::vector<uint8_t>(priv.begin(), priv.begin() + key_len);
-    pubkey = std::vector<uint8_t>(pub.begin(), pub.begin() + key_len);
+    rnp::botan::Privkey private_key;
+    if (botan_privkey_create(&private_key.get(), "Ed448", NULL, rng->handle())) {
+        return RNP_ERROR_GENERIC;
+    }
+    uint8_t priv[57];
+    if (botan_privkey_ed448_get_privkey(private_key.get(), priv)) {
+        return RNP_ERROR_GENERIC;
+    }
+    rnp::botan::Pubkey pub_key;
+    if (botan_privkey_export_pubkey(&pub_key.get(), private_key.get())) {
+        return RNP_ERROR_GENERIC;
+    }
+    uint8_t pub[57];
+    if (botan_pubkey_ed448_get_pubkey(pub_key.get(), pub)) {
+        return RNP_ERROR_GENERIC;
+    }
+    privkey.assign(priv, priv + 57);
+    pubkey.assign(pub, pub + 57);
     return RNP_SUCCESS;
 }
 
@@ -121,9 +165,24 @@ ed448_sign_native(rnp::RNG *                  rng,
                   const uint8_t *             hash,
                   size_t                      hash_len)
 {
-    Botan::Ed448_PrivateKey priv_key(Botan::secure_vector<uint8_t>(key.begin(), key.end()));
-    auto                    signer = Botan::PK_Signer(priv_key, *(rng->obj()), "Pure");
-    sig_out = signer.sign_message(hash, hash_len, *(rng->obj()));
+    if (key.size() != 57) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    rnp::botan::Privkey priv_key;
+    if (botan_privkey_load_ed448(&priv_key.get(), key.data())) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    rnp::botan::op::Sign signer;
+    if (botan_pk_op_sign_create(&signer.get(), priv_key.get(), "Pure", 0) ||
+        botan_pk_op_sign_update(signer.get(), hash, hash_len)) {
+        return RNP_ERROR_SIGNING_FAILED;
+    }
+    uint8_t buf[114];
+    size_t  sig_len = sizeof(buf);
+    if (botan_pk_op_sign_finish(signer.get(), rng->handle(), buf, &sig_len)) {
+        return RNP_ERROR_SIGNING_FAILED;
+    }
+    sig_out.assign(buf, buf + sig_len);
     return RNP_SUCCESS;
 }
 
@@ -133,25 +192,42 @@ ed448_verify_native(const std::vector<uint8_t> &sig,
                     const uint8_t *             hash,
                     size_t                      hash_len)
 {
-    Botan::Ed448_PublicKey pub_key(key);
-    auto                   verifier = Botan::PK_Verifier(pub_key, "Pure");
-    if (verifier.verify_message(hash, hash_len, sig.data(), sig.size())) {
-        return RNP_SUCCESS;
+    if (key.size() != 57) {
+        return RNP_ERROR_BAD_PARAMETERS;
     }
-    return RNP_ERROR_VERIFICATION_FAILED;
+    rnp::botan::Pubkey pub_key;
+    if (botan_pubkey_load_ed448(&pub_key.get(), key.data())) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    rnp::botan::op::Verify verifier;
+    if (botan_pk_op_verify_create(&verifier.get(), pub_key.get(), "Pure", 0) ||
+        botan_pk_op_verify_update(verifier.get(), hash, hash_len)) {
+        return RNP_ERROR_SIGNATURE_INVALID;
+    }
+    if (botan_pk_op_verify_finish(verifier.get(), sig.data(), sig.size())) {
+        return RNP_ERROR_SIGNATURE_INVALID;
+    }
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
 ed448_validate_key_native(rnp::RNG *rng, const pgp_ed448_key_t *key, bool secret)
 {
-    Botan::Ed448_PublicKey pub_key(key->pub);
-    if (!pub_key.check_key(*(rng->obj()), false)) {
+    if (key->pub.size() != 57) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    rnp::botan::Pubkey pub_key;
+    if (botan_pubkey_load_ed448(&pub_key.get(), key->pub.data()) ||
+        botan_pubkey_check_key(pub_key.get(), rng->handle(), 0)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     if (secret) {
-        Botan::Ed448_PrivateKey priv_key(
-          Botan::secure_vector<uint8_t>(key->priv.begin(), key->priv.end()));
-        if (!priv_key.check_key(*(rng->obj()), false)) {
+        if (key->priv.size() != 57) {
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        rnp::botan::Privkey priv_key;
+        if (botan_privkey_load_ed448(&priv_key.get(), key->priv.data()) ||
+            botan_privkey_check_key(priv_key.get(), rng->handle(), 0)) {
             return RNP_ERROR_SIGNING_FAILED;
         }
     }

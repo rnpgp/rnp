@@ -35,9 +35,6 @@
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 #include "x25519_x448.h"
 #include "ed25519_ed448.h"
-#include "botan_utils.hpp"
-#include "botan/bigint.h"
-#include "botan/ecdh.h"
 #endif
 #include <cassert>
 
@@ -195,19 +192,46 @@ ec_generate_generic_native(rnp::RNG *            rng,
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    auto         ec_desc = pgp::ec::Curve::get(curve);
-    const size_t curve_order = ec_desc->bytes();
+    auto ec_desc = pgp::ec::Curve::get(curve);
+    if (!ec_desc) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    const size_t field_size = ec_desc->bytes();
 
-    Botan::ECDH_PrivateKey privkey_botan(*(rng->obj()),
-                                         Botan::EC_Group::from_name(ec_desc->botan_name));
+    rnp::botan::Privkey pr_key;
+    if (botan_privkey_create(&pr_key.get(), "ECDH", ec_desc->botan_name, rng->handle())) {
+        return RNP_ERROR_KEY_GENERATION;
+    }
+    rnp::botan::Pubkey pu_key;
+    if (botan_privkey_export_pubkey(&pu_key.get(), pr_key.get())) {
+        return RNP_ERROR_KEY_GENERATION;
+    }
 
-    // pubkey: 0x04 || X || Y
-    pubkey = Botan::unlock(privkey_botan.public_point().xy_bytes());
-    pubkey.insert(pubkey.begin(), 0x04);
+    rnp::bn px;
+    rnp::bn py;
+    rnp::bn bx;
+    if (!px || !py || !bx) {
+        RNP_LOG("Allocation failed");
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    if (botan_pubkey_get_field(px.get(), pu_key.get(), "public_x") ||
+        botan_pubkey_get_field(py.get(), pu_key.get(), "public_y") ||
+        botan_privkey_get_field(bx.get(), pr_key.get(), "x")) {
+        return RNP_ERROR_KEY_GENERATION;
+    }
+    if ((px.bytes() > field_size) || (py.bytes() > field_size)) {
+        RNP_LOG("Key generation failed");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
 
-    privkey = std::vector<uint8_t>(curve_order);
-    privkey_botan.private_value().serialize_to(privkey); // zero-pads to the given size
-
+    /* pubkey: 0x04 || X || Y, coordinates zero-padded to the field size */
+    pubkey.resize(2 * field_size + 1);
+    pubkey[0] = 0x04;
+    px.bin(&pubkey[1 + field_size - px.bytes()]);
+    py.bin(&pubkey[1 + 2 * field_size - py.bytes()]);
+    /* privkey: secret scalar, zero-padded to the field size */
+    privkey.assign(field_size, 0);
+    bx.bin(&privkey[field_size - bx.bytes()]);
     return RNP_SUCCESS;
 }
 
