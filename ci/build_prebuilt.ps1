@@ -68,7 +68,7 @@ $Triplet = 'x64-windows-static'
 # temp dir so no vcpkg.json from the repo root interferes with
 # classic-mode detection. This is the same pattern rnp's own
 # windows-native.yml CI uses successfully.
-$Packages = @('bzip2', 'zlib', 'json-c')
+$Packages = @('bzip2', 'zlib', 'json-c', 'getopt', 'dirent')
 if ($Backend -eq 'botan') {
     $Packages += 'botan'
 } else {
