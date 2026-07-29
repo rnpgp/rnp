@@ -82,7 +82,7 @@ BACKEND_CONFIG="${SCRIPT_DIR}/backends/${BACKEND}.env"
 if [[ ! -f "$BACKEND_CONFIG" ]]; then
     echo "ERROR: unknown backend '$BACKEND' -- expected config at $BACKEND_CONFIG" >&2
     echo "  Valid backends:" >&2
-    (cd "${SCRIPT_DIR}/backends" && ls -- ./*.env 2>/dev/null | sed 's|.*/||;s|\.env$||;s|^|    |') >&2
+    (cd "${SCRIPT_DIR}/backends" && find . -maxdepth 1 -name '*.env' -exec sh -c 'for f; do echo "    $(basename "$f" .env)"; done' _ {} +) >&2
     exit 1
 fi
 # shellcheck source=backends/botan.env
@@ -92,7 +92,7 @@ TARGET_CONFIG="${SCRIPT_DIR}/targets/${TARGET}.env"
 if [[ ! -f "$TARGET_CONFIG" ]]; then
     echo "ERROR: unknown target '$TARGET' -- expected config at $TARGET_CONFIG" >&2
     echo "  Valid targets:" >&2
-    (cd "${SCRIPT_DIR}/targets" && ls -- ./*.env 2>/dev/null | sed 's|.*/||;s|\.env$||;s|^|    |') >&2
+    (cd "${SCRIPT_DIR}/targets" && find . -maxdepth 1 -name '*.env' -exec sh -c 'for f; do echo "    $(basename "$f" .env)"; done' _ {} +) >&2
     exit 1
 fi
 # shellcheck source=targets/x86_64-apple-darwin.env

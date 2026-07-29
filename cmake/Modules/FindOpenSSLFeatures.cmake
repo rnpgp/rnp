@@ -82,11 +82,16 @@ target_link_libraries(findopensslfeatures PRIVATE OpenSSL::Crypto)\n\
 if (OpenSSL::applink)\n\
   target_link_libraries(findopensslfeatures PRIVATE OpenSSL::applink)\n\
 endif(OpenSSL::applink)\n\
-if(CMAKE_CROSSCOMPILING_EMULATOR)\n\
-  # Static-link the helper so the emulator (e.g. qemu-user) doesn't need the\n\
-  # target's shared libs discoverable at its sysroot lookup paths.\n\
-  target_link_options(findopensslfeatures PRIVATE -static)\n\
-endif(CMAKE_CROSSCOMPILING_EMULATOR)\n"
+if (OpenSSL::applink)
+  target_link_libraries(findopensslfeatures PRIVATE OpenSSL::applink)
+endif(OpenSSL::applink)
+if(CMAKE_CROSSCOMPILING_EMULATOR)
+  target_link_options(findopensslfeatures PRIVATE -static)
+endif(CMAKE_CROSSCOMPILING_EMULATOR)
+if (WIN32 AND NOT MINGW)
+  target_link_libraries(findopensslfeatures PRIVATE Crypt32 Ws2_32 Advapi32 User32)
+endif(WIN32 AND NOT MINGW)
+"
 )
 
 set(MKF ${MKF} "-DCMAKE_BUILD_TYPE=Release" "-DOPENSSL_ROOT_DIR=${OPENSSL_INCLUDE_DIR}/..")
