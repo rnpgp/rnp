@@ -35,7 +35,7 @@ namespace json {
  * type predicate, otherwise nullptr. */
 static nlohmann::ordered_json *
 get_field(nlohmann::ordered_json &obj,
-          const char             *name,
+          const char *            name,
           bool (*pred)(const nlohmann::ordered_json &))
 {
     if (!obj.is_object() || !obj.contains(name)) {
@@ -179,8 +179,8 @@ get_uint64(nlohmann::ordered_json &obj, const char *name, uint64_t &out, bool de
 }
 
 bool
-get_str_arr(nlohmann::ordered_json   &obj,
-            const char               *name,
+get_str_arr(nlohmann::ordered_json &  obj,
+            const char *              name,
             std::vector<std::string> &out,
             bool                      del)
 {
