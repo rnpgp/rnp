@@ -66,7 +66,12 @@ Key::generate_x25519(rnp::RNG &rng)
 
     /* botan returns key in little-endian, while mpi is big-endian */
     rnp::secure_array<uint8_t, 32> keyle;
+#if BOTAN_VERSION_CODE >= BOTAN_VERSION_CODE_FOR(3, 6, 0)
+    rnp_botan_view_buf keyle_vb{keyle.data(), keyle.size()};
+    if (botan_privkey_view_raw(pr_key.get(), &keyle_vb, rnp_botan_view_bin)) {
+#else
     if (botan_privkey_x25519_get_privkey(pr_key.get(), keyle.data())) {
+#endif
         return RNP_ERROR_KEY_GENERATION;
     }
     x.resize(32);
@@ -79,7 +84,12 @@ Key::generate_x25519(rnp::RNG &rng)
     }
 
     p.resize(33);
+#if BOTAN_VERSION_CODE >= BOTAN_VERSION_CODE_FOR(3, 6, 0)
+    rnp_botan_view_buf pub_vb{&p[1], 32};
+    if (botan_pubkey_view_raw(pu_key.get(), &pub_vb, rnp_botan_view_bin)) {
+#else
     if (botan_pubkey_x25519_get_pubkey(pu_key.get(), &p[1])) {
+#endif
         return RNP_ERROR_KEY_GENERATION;
     }
     p[0] = 0x40;

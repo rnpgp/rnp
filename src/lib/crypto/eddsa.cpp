@@ -100,7 +100,12 @@ generate(rnp::RNG &rng, ec::Key &key)
     }
 
     uint8_t key_bits[64];
+#if BOTAN_VERSION_CODE >= BOTAN_VERSION_CODE_FOR(3, 6, 0)
+    rnp_botan_view_buf key_bits_vb{key_bits, 64};
+    if (botan_privkey_view_raw(eddsa.get(), &key_bits_vb, rnp_botan_view_bin)) {
+#else
     if (botan_privkey_ed25519_get_privkey(eddsa.get(), key_bits)) {
+#endif
         return RNP_ERROR_GENERIC;
     }
 

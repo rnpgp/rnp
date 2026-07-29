@@ -87,6 +87,16 @@ class LogStop {
         RNP_LOG(msg, idhex.c_str());                                                    \
     } while (0)
 
+/* Like RNP_LOG_KEY, but for keys known to be non-null (e.g. the address of a
+ * reference). Avoids the null check, which would otherwise trip
+ * -Wnonnull-compare on a provably non-null pointer. */
+#define RNP_LOG_KEY_NN(msg, key)                                                        \
+    do {                                                                                \
+        auto keyid = (key)->keyid();                                                    \
+        auto idhex = bin_to_hex(keyid.data(), keyid.size(), rnp::HexFormat::Lowercase); \
+        RNP_LOG(msg, idhex.c_str());                                                    \
+    } while (0)
+
 #if defined(ENABLE_PQC_DBG_LOG)
 
 #define RNP_LOG_FD_NO_POS_INFO(fd, ...)    \

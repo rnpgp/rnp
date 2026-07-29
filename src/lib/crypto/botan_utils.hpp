@@ -28,8 +28,34 @@
 #define RNP_BOTAN_UTILS_HPP_
 
 #include <botan/ffi.h>
+#include <botan/build.h>
+#include <botan/version.h>
+#include <cstring>
 #include "mpi.hpp"
 #include "utils.h"
+
+/* Destination descriptor for the Botan >= 3.6 view-style FFI helpers
+ * (botan_privkey_view_raw / botan_pubkey_view_raw), which replace the
+ * per-algorithm botan_{privkey,pubkey}_*_get_* helpers deprecated since
+ * Botan 3.x. The callback refuses to copy when the viewed length does not
+ * match the caller's expectation, so a fixed-size buffer cannot overrun. */
+struct rnp_botan_view_buf {
+    uint8_t *data;
+    size_t   size;
+};
+
+extern "C" {
+static inline int
+rnp_botan_view_bin(botan_view_ctx ctx, const uint8_t *data, size_t len)
+{
+    auto *vb = static_cast<rnp_botan_view_buf *>(ctx);
+    if (len != vb->size) {
+        return -1;
+    }
+    std::memcpy(vb->data, data, len);
+    return 0;
+}
+}
 
 /* Self-destructing wrappers around the Botan's FFI objects */
 namespace rnp {
