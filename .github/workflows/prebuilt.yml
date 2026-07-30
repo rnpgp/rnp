@@ -235,7 +235,14 @@ jobs:
 
       # Upload the dep prefix as an artifact. Both backend rnp jobs
       # for this target download it instead of rebuilding.
+      # Skipped on alpine+ARM64: GitHub Actions refuses to run JS
+      # actions (cache, upload-artifact, etc.) in alpine containers
+      # on ARM64 runners. The build-deps job still runs and produces
+      # a usable prefix; the corresponding build-rnp entry falls back
+      # to building deps inline via the rnp script's self-healing
+      # path.
       - name: Upload deps artifact
+        if: matrix.target.container == '' || matrix.target.triple != 'aarch64-unknown-linux-musl'
         uses: actions/upload-artifact@v7
         with:
           name: deps-${{ matrix.target.triple }}
@@ -394,8 +401,12 @@ jobs:
 
       # Unix only: restore the deps artifact from Phase 1 so the rnp
       # build finds zlib+bzip2+json-c in $prefix without rebuilding.
+      # Skipped on alpine+ARM64 (no Phase 1 artifact was uploaded
+      # because GitHub Actions refuses JS actions in alpine+ARM64
+      # containers). The rnp script's self-healing path builds deps
+      # inline for that one target.
       - name: Download deps artifact (Unix)
-        if: runner.os != 'Windows'
+        if: runner.os != 'Windows' && (matrix.target.container == '' || matrix.target.triple != 'aarch64-unknown-linux-musl')
         uses: actions/download-artifact@v8
         with:
           name: deps-${{ matrix.target.triple }}

@@ -509,12 +509,18 @@ case "$MODE" in
         ls -la "$PREFIX/lib/"
         ;;
     rnp)
-        # Phase 2: deps already in $PREFIX (restored from the Phase 1
-        # artifact). Build only the backend + rnp + package.
+        # Phase 2: deps expected in $PREFIX (restored from the Phase 1
+        # artifact). If they aren't there — e.g. because the deps fan-
+        # out couldn't run on this target (alpine+ARM64 disallows JS
+        # actions, so build-deps neither cached nor uploaded an
+        # artifact) — build the common deps inline as a fallback. This
+        # is the same work the monolithic single-pass mode does, so
+        # the cost is identical to the no-fan-out baseline.
         if [ ! -f "$PREFIX/lib/libz.a" ]; then
-            echo "ERROR: rnp mode expects deps in $PREFIX/lib/ (missing libz.a)." >&2
-            echo "       Did the build-deps phase upload/extract correctly?" >&2
-            exit 1
+            echo "WARNING: $PREFIX/lib/libz.a missing; building common deps inline." >&2
+            build_zlib
+            build_bzip2
+            build_jsonc
         fi
         case "$BACKEND" in
             botan)   build_botan ;;
