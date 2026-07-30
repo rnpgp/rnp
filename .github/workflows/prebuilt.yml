@@ -145,7 +145,10 @@ jobs:
     runs-on: ${{ matrix.target.runner }}
     container: ${{ matrix.target.container }}
     env:
-      RNP_ARTIFACT_DIR: ${{ github.workspace }}/artifacts
+      # Job-level default; bash steps override to $GITHUB_WORKSPACE
+      # for container-correctness. JS actions read this (host path)
+      # and the container mount makes the two equivalent.
+      RNP_ARTIFACT_DIR: ${{ github.workspace }}/work/artifacts
     steps:
       - name: Install build dependencies (Linux glibc)
         if: runner.os == 'Linux' && matrix.target.container == ''
@@ -218,9 +221,15 @@ jobs:
             deps-${{ matrix.target.triple }}-
 
       - name: Build common deps (zlib, bzip2, json-c)
-        env:
-          CCACHE_DIR: ${{ github.workspace }}/.ccache
         run: |
+          # Inside containers, $GITHUB_WORKSPACE points at the mount
+          # root (e.g. /__w/rnp/rnp), while ${{ github.workspace }}
+          # in expressions resolves to the host-side path that isn't
+          # visible from the container. Always use $GITHUB_WORKSPACE
+          # for paths the build writes to so they land on the mount
+          # and are visible to the JS actions that read them.
+          export CCACHE_DIR="$GITHUB_WORKSPACE/.ccache"
+          export RNP_ARTIFACT_DIR="$GITHUB_WORKSPACE/work/artifacts"
           mkdir -p "$RNP_ARTIFACT_DIR" "$CCACHE_DIR"
           command -v ccache >/dev/null 2>&1 || {
               if command -v apt-get >/dev/null; then
@@ -231,7 +240,7 @@ jobs:
           }
           bash ci/build_prebuilt.sh deps \
             "${{ matrix.target.triple }}" \
-            "${{ github.workspace }}/work"
+            "$GITHUB_WORKSPACE/work"
 
       # Upload the dep prefix as an artifact. Both backend rnp jobs
       # for this target download it instead of rebuilding.
@@ -269,7 +278,10 @@ jobs:
     runs-on: ${{ matrix.target.runner }}
     container: ${{ matrix.target.container }}
     env:
-      RNP_ARTIFACT_DIR: ${{ github.workspace }}/artifacts
+      # Job-level default; bash steps override to $GITHUB_WORKSPACE
+      # for container-correctness. JS actions read this (host path)
+      # and the container mount makes the two equivalent.
+      RNP_ARTIFACT_DIR: ${{ github.workspace }}/work/artifacts
     steps:
       - name: Install build dependencies (Linux glibc)
         if: runner.os == 'Linux' && matrix.target.container == ''
@@ -414,15 +426,17 @@ jobs:
 
       - name: Build rnp + package (Linux/macOS)
         if: runner.os != 'Windows'
-        env:
-          CCACHE_DIR: ${{ github.workspace }}/.ccache
         run: |
+          # See build-deps step for why $GITHUB_WORKSPACE is used
+          # instead of ${{ github.workspace }} here.
+          export CCACHE_DIR="$GITHUB_WORKSPACE/.ccache"
+          export RNP_ARTIFACT_DIR="$GITHUB_WORKSPACE/work/artifacts"
           mkdir -p "$RNP_ARTIFACT_DIR" "$CCACHE_DIR"
           bash ci/build_prebuilt.sh rnp \
             "${{ matrix.backend }}" \
             "${RELEASE_TAG}" \
             "${{ matrix.target.triple }}" \
-            "${{ github.workspace }}/work"
+            "$GITHUB_WORKSPACE/work"
 
       - name: Setup MSVC (Windows)
         if: runner.os == 'Windows'
