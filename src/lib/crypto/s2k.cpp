@@ -44,7 +44,6 @@
 #ifdef CRYPTO_BACKEND_BOTAN
 #if defined(ENABLE_CRYPTO_REFRESH)
 #include "botan/bigint.h"
-#include <botan/pwdhash.h>
 #include <cmath>
 #endif
 #include <botan/ffi.h>
@@ -127,15 +126,17 @@ pgp_s2k_argon2(uint8_t *      out,
         return -1;
     }
 
-    try {
-        auto pwdhash_fam = Botan::PasswordHashFamily::create_or_throw("Argon2id");
-
-        std::unique_ptr<Botan::PasswordHash> pwhash =
-          pwdhash_fam->from_params(((size_t) 1) << encoded_m, t, p);
-        pwhash->derive_key(
-          out, output_len, password, std::strlen(password), salt, argon2_salt_size);
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
+    if (botan_pwdhash("Argon2id",
+                      ((size_t) 1) << encoded_m,
+                      t,
+                      p,
+                      out,
+                      output_len,
+                      password,
+                      std::strlen(password),
+                      salt,
+                      argon2_salt_size)) {
+        RNP_LOG("Argon2 key derivation failed");
         return -1;
     }
     return 0;
