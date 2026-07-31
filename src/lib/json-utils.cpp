@@ -28,187 +28,239 @@
 #include "logging.h"
 #include "crypto/mem.h"
 
-/* Shortcut function to add field checking it for null to avoid allocation failure.
-   Please note that it deallocates val on failure. */
-bool
-json_add(json_object *obj, const char *name, json_object *val)
-{
-    if (!val) {
-        return false;
-    }
-    // TODO: in JSON-C 0.13 json_object_object_add returns bool instead of void
-    json_object_object_add(obj, name, val);
-    if (!json_object_object_get_ex(obj, name, NULL)) {
-        json_object_put(val);
-        return false;
-    }
+namespace rnp {
+namespace json {
 
+/* Internal helper: pull a pointer to a field if it exists and matches the
+ * type predicate, otherwise nullptr. */
+static nlohmann::ordered_json *
+get_field(nlohmann::ordered_json &obj,
+          const char *            name,
+          bool (*pred)(const nlohmann::ordered_json &))
+{
+    if (!obj.is_object() || !obj.contains(name)) {
+        return nullptr;
+    }
+    nlohmann::ordered_json *field = &obj[name];
+    if (!pred(*field)) {
+        return nullptr;
+    }
+    return field;
+}
+
+bool
+add(nlohmann::ordered_json &obj, const char *name, const char *value)
+{
+    obj[name] = value;
     return true;
 }
 
 bool
-json_add(json_object *obj, const char *name, const char *value)
+add(nlohmann::ordered_json &obj, const char *name, const char *value, size_t len)
 {
-    return json_add(obj, name, json_object_new_string(value));
+    obj[name] = std::string(value, len);
+    return true;
 }
 
 bool
-json_add(json_object *obj, const char *name, bool value)
+add(nlohmann::ordered_json &obj, const char *name, const std::string &value)
 {
-    return json_add(obj, name, json_object_new_boolean(value));
+    obj[name] = value;
+    return true;
 }
 
 bool
-json_add(json_object *obj, const char *name, int value)
+add(nlohmann::ordered_json &obj, const char *name, bool value)
 {
-    return json_add(obj, name, json_object_new_int(value));
+    obj[name] = value;
+    return true;
 }
 
 bool
-json_add(json_object *obj, const char *name, uint64_t value)
+add(nlohmann::ordered_json &obj, const char *name, int value)
 {
-#if (JSON_C_MAJOR_VERSION == 0) && (JSON_C_MINOR_VERSION < 14)
-    return json_add(obj, name, json_object_new_int64(value));
-#else
-    return json_add(obj, name, json_object_new_uint64(value));
-#endif
+    obj[name] = value;
+    return true;
 }
 
 bool
-json_add(json_object *obj, const char *name, const char *value, size_t len)
+add(nlohmann::ordered_json &obj, const char *name, uint64_t value)
 {
-    return json_add(obj, name, json_object_new_string_len(value, len));
+    obj[name] = value;
+    return true;
 }
 
 bool
-json_add(json_object *obj, const char *name, const std::string &value)
-{
-    return json_add(obj, name, json_object_new_string_len(value.data(), value.size()));
-}
-
-bool
-json_add_hex(json_object *obj, const char *name, const uint8_t *val, size_t val_len)
+add_hex(nlohmann::ordered_json &obj, const char *name, const uint8_t *val, size_t val_len)
 {
     if (val_len > 1024 * 1024) {
         RNP_LOG("too large json hex field: %zu", val_len);
         val_len = 1024 * 1024;
     }
-
-    return json_add(obj, name, bin_to_hex(val, val_len, rnp::HexFormat::Lowercase));
-}
-
-bool
-json_add_hex(json_object *obj, const char *name, const std::vector<uint8_t> &vec)
-{
-    return json_add_hex(obj, name, vec.data(), vec.size());
-}
-
-bool
-json_add(json_object *obj, const char *name, const pgp::KeyID &keyid)
-{
-    return json_add_hex(obj, name, keyid.data(), keyid.size());
-}
-
-bool
-json_add(json_object *obj, const char *name, const pgp::Fingerprint &fp)
-{
-    return json_add_hex(obj, name, fp.data(), fp.size());
-}
-
-bool
-json_array_add(json_object *obj, const char *val)
-{
-    return json_array_add(obj, json_object_new_string(val));
-}
-
-bool
-json_array_add(json_object *obj, json_object *val)
-{
-    if (!val) {
-        return false;
-    }
-    if (json_object_array_add(obj, val)) {
-        json_object_put(val);
-        return false;
-    }
+    obj[name] = bin_to_hex(val, val_len, rnp::HexFormat::Lowercase);
     return true;
 }
 
-static json_object *
-json_get_field(json_object *obj, const char *name, json_type type)
+bool
+add_hex(nlohmann::ordered_json &obj, const char *name, const std::vector<uint8_t> &vec)
 {
-    json_object *res = NULL;
-    if (!json_object_object_get_ex(obj, name, &res) || !json_object_is_type(res, type)) {
-        return NULL;
-    }
-    return res;
+    return add_hex(obj, name, vec.data(), vec.size());
 }
 
 bool
-json_get_str(json_object *obj, const char *name, std::string &value, bool del)
+add(nlohmann::ordered_json &obj, const char *name, const pgp::KeyID &keyid)
 {
-    auto str = json_get_field(obj, name, json_type_string);
-    if (!str) {
+    return add_hex(obj, name, keyid.data(), keyid.size());
+}
+
+bool
+add(nlohmann::ordered_json &obj, const char *name, const pgp::Fingerprint &fp)
+{
+    return add_hex(obj, name, fp.data(), fp.size());
+}
+
+bool
+array_add(nlohmann::ordered_json &arr, const char *val)
+{
+    arr.push_back(val);
+    return true;
+}
+
+bool
+array_add(nlohmann::ordered_json &arr, nlohmann::ordered_json val)
+{
+    arr.push_back(std::move(val));
+    return true;
+}
+
+bool
+get_str(nlohmann::ordered_json &obj, const char *name, std::string &out, bool del)
+{
+    auto *field =
+      get_field(obj, name, [](const nlohmann::ordered_json &v) { return v.is_string(); });
+    if (!field) {
         return false;
     }
-    value = json_object_get_string(str);
+    out = field->get_ref<const std::string &>();
     if (del) {
-        json_object_object_del(obj, name);
+        obj.erase(name);
     }
     return true;
 }
 
 bool
-json_get_int(json_object *obj, const char *name, int &value, bool del)
+get_int(nlohmann::ordered_json &obj, const char *name, int &out, bool del)
 {
-    auto num = json_get_field(obj, name, json_type_int);
-    if (!num) {
+    auto *field = get_field(
+      obj, name, [](const nlohmann::ordered_json &v) { return v.is_number_integer(); });
+    if (!field) {
         return false;
     }
-    value = json_object_get_int(num);
+    out = field->get<int>();
     if (del) {
-        json_object_object_del(obj, name);
+        obj.erase(name);
     }
     return true;
 }
 
 bool
-json_get_uint64(json_object *obj, const char *name, uint64_t &value, bool del)
+get_uint64(nlohmann::ordered_json &obj, const char *name, uint64_t &out, bool del)
 {
-    auto num = json_get_field(obj, name, json_type_int);
-    if (!num) {
+    auto *field =
+      get_field(obj, name, [](const nlohmann::ordered_json &v) { return v.is_number(); });
+    if (!field) {
         return false;
     }
-    value = (uint64_t) json_object_get_int64(num);
+    out = field->get<uint64_t>();
     if (del) {
-        json_object_object_del(obj, name);
+        obj.erase(name);
     }
     return true;
 }
 
 bool
-json_get_str_arr(json_object *obj, const char *name, std::vector<std::string> &value, bool del)
+get_str_arr(nlohmann::ordered_json &  obj,
+            const char *              name,
+            std::vector<std::string> &out,
+            bool                      del)
 {
-    auto arr = json_get_field(obj, name, json_type_array);
+    auto *arr =
+      get_field(obj, name, [](const nlohmann::ordered_json &v) { return v.is_array(); });
     if (!arr) {
         return false;
     }
-    value.clear();
-    for (size_t i = 0; i < (size_t) json_object_array_length(arr); i++) {
-        json_object *item = json_object_array_get_idx(arr, i);
-        if (!json_object_is_type(item, json_type_string)) {
+    out.clear();
+    for (const auto &item : *arr) {
+        if (!item.is_string()) {
             return false;
         }
-        value.push_back(json_object_get_string(item));
+        out.push_back(item.get_ref<const std::string &>());
     }
     if (del) {
-        json_object_object_del(obj, name);
+        obj.erase(name);
     }
     return true;
 }
 
-json_object *
-json_get_obj(json_object *obj, const char *name)
+nlohmann::ordered_json *
+get_obj(nlohmann::ordered_json &obj, const char *name)
 {
-    return json_get_field(obj, name, json_type_object);
+    return get_field(obj, name, [](const nlohmann::ordered_json &v) { return v.is_object(); });
 }
+
+std::string
+dump_pretty(const nlohmann::ordered_json &jso)
+{
+    /* nlohmann::ordered_json::dump(2) produces 2-space indent but with `": ` after
+     * keys. json-c uses `":` (no space). Walk the dumped string and remove
+     * the space after structural colons (colons that follow an unescaped
+     * closing quote of a key). Inside-string `":` is part of a value and
+     * is left untouched because the preceding quote is escaped (`\"`). */
+    std::string raw = jso.dump(2);
+    std::string out;
+    out.reserve(raw.size());
+    bool   in_string = false;
+    bool   escaped = false;
+    size_t i = 0;
+    while (i < raw.size()) {
+        char c = raw[i];
+        if (escaped) {
+            out.push_back(c);
+            escaped = false;
+            i++;
+            continue;
+        }
+        if (in_string) {
+            if (c == '\\') {
+                escaped = true;
+                out.push_back(c);
+                i++;
+                continue;
+            }
+            if (c == '"') {
+                in_string = false;
+            }
+            out.push_back(c);
+            i++;
+            continue;
+        }
+        if (c == '"') {
+            in_string = true;
+            out.push_back(c);
+            i++;
+            continue;
+        }
+        /* structural colon followed by space → drop the space */
+        if (c == ':' && i + 1 < raw.size() && raw[i + 1] == ' ') {
+            out.push_back(':');
+            i += 2; /* skip the colon and its trailing space */
+            continue;
+        }
+        out.push_back(c);
+        i++;
+    }
+    return out;
+}
+
+} // namespace json
+} // namespace rnp

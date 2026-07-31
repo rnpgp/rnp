@@ -376,10 +376,6 @@ jobs:
           wget https://github.com/Kitware/CMake/releases/download/v3.12.0/cmake-3.12.0-Linux-x86_64.sh -O cmake/cmake.sh
           sudo sh cmake/cmake.sh --skip-license --prefix=/usr/local
 
-# el8, el9, fr35, fr36 provide json-c-devel (version 12+)
-      - name: Setup json-c
-        run: sudo yum -y install json-c-devel
-
       - name: Run packaging tests
         run:  |
           chmod +x ci/tests/pk-tests.sh

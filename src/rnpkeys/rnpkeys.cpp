@@ -198,7 +198,7 @@ import_keys(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
 
     do {
         /* load keys one-by-one */
-        char        *results = NULL;
+        char *       results = NULL;
         rnp_result_t ret = rnp_import_keys(rnp->ffi, input, flags, &results);
         if (ret == RNP_ERROR_EOF) {
             res = true;
@@ -216,28 +216,28 @@ import_keys(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
         }
 
         // print information about imported key(s)
-        json_object *jso = json_tokener_parse(results);
-        rnp_buffer_destroy(results);
-        if (!jso) {
+        nlohmann::ordered_json jso;
+        try {
+            jso = nlohmann::ordered_json::parse(results);
+        } catch (const nlohmann::ordered_json::parse_error &) {
+            rnp_buffer_destroy(results);
             ERR_MSG("invalid key import resulting JSON");
             break;
         }
-        json_object *keys = NULL;
-        if (!json_object_object_get_ex(jso, "keys", &keys)) {
+        rnp_buffer_destroy(results);
+        if (!jso.is_object() || !jso.contains("keys") || !jso["keys"].is_array()) {
             ERR_MSG("invalid key import JSON contents");
-            json_object_put(jso);
             break;
         }
-        processed_keys += json_object_array_length(keys);
-        for (size_t idx = 0; idx < (size_t) json_object_array_length(keys); idx++) {
-            json_object     *keyinfo = json_object_array_get_idx(keys, idx);
+        processed_keys += jso["keys"].size();
+        for (auto &keyinfo : jso["keys"]) {
             rnp_key_handle_t key = NULL;
-            if (!keyinfo) {
-                continue;
-            }
-            std::string pub_status = json_obj_get_str(keyinfo, "public");
-            std::string sec_status = json_obj_get_str(keyinfo, "secret");
-            const char *fphex = json_obj_get_str(keyinfo, "fingerprint");
+            std::string      pub_status = keyinfo.value("public", "");
+            std::string      sec_status = keyinfo.value("secret", "");
+            const char *     fphex =
+              keyinfo.contains("fingerprint") && keyinfo["fingerprint"].is_string() ?
+                     keyinfo["fingerprint"].get_ptr<const std::string *>()->c_str() :
+                     nullptr;
 
             if (pub_status == "new") {
                 new_pub_keys.insert(fphex);
@@ -265,7 +265,6 @@ import_keys(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
             cli_rnp_print_key_info(stdout, rnp->ffi, key, true, false);
             rnp_key_handle_destroy(key);
         }
-        json_object_put(jso);
     } while (1);
 
     // print statistics
@@ -295,34 +294,34 @@ import_keys(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
 static bool
 import_sigs(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
 {
-    bool         res = false;
-    char        *results = NULL;
-    json_object *jso = NULL;
-    json_object *sigs = NULL;
-    int          unknown_sigs = 0;
-    int          new_sigs = 0;
-    int          old_sigs = 0;
+    bool                    res = false;
+    char *                  results = NULL;
+    nlohmann::ordered_json  jso;
+    nlohmann::ordered_json *sigs = nullptr;
+    int                     unknown_sigs = 0;
+    int                     new_sigs = 0;
+    int                     old_sigs = 0;
 
     if (rnp_import_signatures(rnp->ffi, input, 0, &results)) {
         ERR_MSG("Failed to import signatures from %s", inname.c_str());
         goto done;
     }
     // print information about imported signature(s)
-    jso = json_tokener_parse(results);
-    if (!jso || !json_object_object_get_ex(jso, "sigs", &sigs)) {
+    try {
+        jso = nlohmann::ordered_json::parse(results);
+    } catch (const nlohmann::ordered_json::parse_error &) {
         ERR_MSG("Invalid signature import result");
         goto done;
     }
+    if (!jso.is_object() || !jso.contains("sigs") || !jso["sigs"].is_array()) {
+        ERR_MSG("Invalid signature import result");
+        goto done;
+    }
+    sigs = &jso["sigs"];
 
-    for (size_t idx = 0; idx < (size_t) json_object_array_length(sigs); idx++) {
-        json_object *siginfo = json_object_array_get_idx(sigs, idx);
-        if (!siginfo) {
-            continue;
-        }
-        const char *status = json_obj_get_str(siginfo, "public");
-        std::string pub_status = status ? status : "unknown";
-        status = json_obj_get_str(siginfo, "secret");
-        std::string sec_status = status ? status : "unknown";
+    for (auto &siginfo : *sigs) {
+        std::string pub_status = siginfo.value("public", "unknown");
+        std::string sec_status = siginfo.value("secret", "unknown");
 
         if ((pub_status == "new") || (sec_status == "new")) {
             new_sigs++;
@@ -347,7 +346,6 @@ import_sigs(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
     }
     res = true;
 done:
-    json_object_put(jso);
     rnp_buffer_destroy(results);
     return res;
 }

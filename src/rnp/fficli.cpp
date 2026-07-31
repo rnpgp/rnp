@@ -371,16 +371,16 @@ end:
 
 static bool
 ffi_pass_callback_stdin(rnp_ffi_t        ffi,
-                        void            *app_ctx,
+                        void *           app_ctx,
                         rnp_key_handle_t key,
-                        const char      *pgp_context,
+                        const char *     pgp_context,
                         char             buf[],
                         size_t           buf_len)
 {
-    char      *keyid = NULL;
+    char *     keyid = NULL;
     char       target[64] = {0};
     char       prompt[128] = {0};
-    char      *buffer = NULL;
+    char *     buffer = NULL;
     bool       ok = false;
     bool       protect = false;
     bool       add_subkey = false;
@@ -489,9 +489,9 @@ done:
 
 static bool
 ffi_pass_callback_file(rnp_ffi_t        ffi,
-                       void            *app_ctx,
+                       void *           app_ctx,
                        rnp_key_handle_t key,
-                       const char      *pgp_context,
+                       const char *     pgp_context,
                        char             buf[],
                        size_t           buf_len)
 {
@@ -509,9 +509,9 @@ ffi_pass_callback_file(rnp_ffi_t        ffi,
 
 static bool
 ffi_pass_callback_string(rnp_ffi_t        ffi,
-                         void            *app_ctx,
+                         void *           app_ctx,
                          rnp_key_handle_t key,
-                         const char      *pgp_context,
+                         const char *     pgp_context,
                          char             buf[],
                          size_t           buf_len)
 {
@@ -530,7 +530,7 @@ ffi_pass_callback_string(rnp_ffi_t        ffi,
 
 static void
 ffi_key_callback(rnp_ffi_t   ffi,
-                 void       *app_ctx,
+                 void *      app_ctx,
                  const char *identifier_type,
                  const char *identifier,
                  bool        secret)
@@ -776,7 +776,7 @@ cli_rnp_t::load_keyring(bool secret)
         return true;
     }
 
-    const char  *format = secret ? secformat().c_str() : pubformat().c_str();
+    const char * format = secret ? secformat().c_str() : pubformat().c_str();
     uint32_t     flags = secret ? RNP_LOAD_SAVE_SECRET_KEYS : RNP_LOAD_SAVE_PUBLIC_KEYS;
     rnp_result_t ret = rnp_load_keys(ffi, format, keyin, flags);
     if (ret) {
@@ -884,7 +884,7 @@ bool
 cli_rnp_t::get_protection(rnpffi::Key &key,
                           std::string &hash,
                           std::string &cipher,
-                          size_t      &iterations)
+                          size_t &     iterations)
 {
     try {
         if (!key.is_protected()) {
@@ -1048,7 +1048,7 @@ cli_rnp_t::add_new_subkey(const std::string &key)
     bool              res = false;
     rnp_op_generate_t genkey = NULL;
     rnp_key_handle_t  subkey = NULL;
-    char             *password = NULL;
+    char *            password = NULL;
 
     if (keys.size() > 1) {
         ERR_MSG("Ambiguous input: too many keys found for '%s'.", key.c_str());
@@ -1166,13 +1166,12 @@ cli_rnp_t::edit_key(const std::string &key)
 }
 
 const char *
-json_obj_get_str(json_object *obj, const char *key)
+json_obj_get_str(const nlohmann::ordered_json &obj, const char *key)
 {
-    json_object *fld = NULL;
-    if (!json_object_object_get_ex(obj, key, &fld)) {
+    if (!obj.contains(key) || !obj[key].is_string()) {
         return NULL;
     }
-    return json_object_get_string(fld);
+    return obj[key].get_ptr<const std::string *>()->c_str();
 }
 
 static char *
@@ -1346,7 +1345,7 @@ cli_rnp_print_sig_info(FILE *fp, rnp_ffi_t ffi, rnp_signature_handle_t sig)
     (void) rnp_signature_get_key_fprint(sig, &keyfp);
     (void) rnp_signature_get_keyid(sig, &keyid);
 
-    char            *signer_uid = NULL;
+    char *           signer_uid = NULL;
     rnp_key_handle_t signer = NULL;
     if (keyfp) {
         /* Fingerprint lookup is faster */
@@ -1367,7 +1366,7 @@ cli_rnp_print_sig_info(FILE *fp, rnp_ffi_t ffi, rnp_signature_handle_t sig)
     /* signer's userid */
     fprintf(fp, " %s", signer_uid ? signer_uid : "[unknown]");
     /* signature validity */
-    const char  *valmsg = NULL;
+    const char * valmsg = NULL;
     rnp_result_t validity = rnp_signature_is_valid(sig, 0);
     switch (validity) {
     case RNP_SUCCESS:
@@ -1939,7 +1938,7 @@ error:
 
 bool
 cli_rnp_t::keys_matching(std::vector<rnp_key_handle_t> &keys,
-                         const std::string             &str,
+                         const std::string &            str,
                          int                            flags)
 {
     rnpffi::FFI ffiobj(ffi, false);
@@ -1971,7 +1970,7 @@ cli_rnp_t::keys_matching(std::vector<rnp_key_handle_t> &keys,
 }
 
 bool
-cli_rnp_t::keys_matching(std::vector<rnp_key_handle_t>  &keys,
+cli_rnp_t::keys_matching(std::vector<rnp_key_handle_t> & keys,
                          const std::vector<std::string> &strs,
                          int                             flags)
 {
@@ -2805,7 +2804,7 @@ done:
 
 static bool
 cli_rnp_encrypt_and_sign(const rnp_cfg &cfg,
-                         cli_rnp_t     *rnp,
+                         cli_rnp_t *    rnp,
                          rnp_input_t    input,
                          rnp_output_t   output)
 {
@@ -3075,7 +3074,7 @@ cli_rnp_print_signatures(cli_rnp_t *rnp, const std::vector<rnp_op_verify_signatu
     unsigned    invalidc = 0;
     unsigned    unknownc = 0;
     std::string title = "UNKNOWN signature";
-    FILE       *resfp = rnp->resfp;
+    FILE *      resfp = rnp->resfp;
 
     for (auto sig : sigs) {
         rnp_result_t status = rnp_op_verify_signature_get_status(sig);
@@ -3330,26 +3329,31 @@ cli_rnp_print_praise(void)
 void
 cli_rnp_print_feature(FILE *fp, const char *type, const char *printed_type)
 {
-    char  *result = NULL;
-    size_t count;
+    char *result = NULL;
     if (rnp_supported_features(type, &result) != RNP_SUCCESS) {
         ERR_MSG("Failed to list supported features: %s", type);
+        rnp_buffer_destroy(result);
         return;
     }
-    json_object *jso = json_tokener_parse(result);
-    if (!jso) {
+    try {
+        nlohmann::ordered_json jso = nlohmann::ordered_json::parse(result);
+        if (!jso.is_array()) {
+            ERR_MSG("Failed to parse JSON with features: %s", type);
+            rnp_buffer_destroy(result);
+            return;
+        }
+        fprintf(fp, "%s: ", printed_type);
+        size_t count = jso.size();
+        for (size_t idx = 0; idx < count; idx++) {
+            fprintf(fp,
+                    " %s%s",
+                    jso[idx].get_ref<const std::string &>().c_str(),
+                    idx < count - 1 ? "," : "");
+        }
+        fputs("\n", fp);
+        fflush(fp);
+    } catch (const nlohmann::ordered_json::parse_error &) {
         ERR_MSG("Failed to parse JSON with features: %s", type);
-        goto done;
     }
-    fprintf(fp, "%s: ", printed_type);
-    count = json_object_array_length(jso);
-    for (size_t idx = 0; idx < count; idx++) {
-        json_object *val = json_object_array_get_idx(jso, idx);
-        fprintf(fp, " %s%s", json_object_get_string(val), idx < count - 1 ? "," : "");
-    }
-    fputs("\n", fp);
-    fflush(fp);
-    json_object_put(jso);
-done:
     rnp_buffer_destroy(result);
 }

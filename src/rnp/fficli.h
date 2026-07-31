@@ -35,7 +35,7 @@
 #include "rnp/rnpcpp.hpp"
 #include "config.h"
 #include "rnpcfg.h"
-#include "json.h"
+#include <nlohmann/json.hpp>
 
 enum class Operation { EncryptOrSign, Verify, Enarmor, Dearmor, Dump };
 
@@ -51,19 +51,19 @@ class cli_rnp_t {
     bool get_protection(rnpffi::Key &key,
                         std::string &hash,
                         std::string &cipher,
-                        size_t      &iterations);
+                        size_t &     iterations);
     bool check_cv25519_bits(rnpffi::Key &key, rnpffi::String &prot_password, bool &tweaked);
 
   public:
     rnp_ffi_t   ffi{};
-    FILE       *resfp{};      /* where to put result messages, defaults to stdout */
-    FILE       *passfp{};     /* file pointer for password input */
-    FILE       *userio_in{};  /* file pointer for user's inputs */
-    FILE       *userio_out{}; /* file pointer for user's outputs */
+    FILE *      resfp{};      /* where to put result messages, defaults to stdout */
+    FILE *      passfp{};     /* file pointer for password input */
+    FILE *      userio_in{};  /* file pointer for user's inputs */
+    FILE *      userio_out{}; /* file pointer for user's outputs */
     int         pswdtries{};  /* number of password tries, -1 for unlimited */
     size_t      reuse_password_for_subkey{}; // count of subkeys
     std::string reuse_primary_fprint;
-    char       *reused_password{};
+    char *      reused_password{};
     bool        hidden_msg{}; /* true if hidden recipient message was displayed */
 
     static int ret_code(bool success);
@@ -153,7 +153,7 @@ class cli_rnp_t {
      * @return true if operation succeeds and at least one key is found for each search string,
      * or false otherwise.
      */
-    bool keys_matching(std::vector<rnp_key_handle_t>  &keys,
+    bool keys_matching(std::vector<rnp_key_handle_t> & keys,
                        const std::vector<std::string> &strs,
                        int                             flags);
 
@@ -167,7 +167,7 @@ class cli_rnp_t {
      */
     std::unique_ptr<rnpffi::Key> key_matching(const std::string &str,
                                               int                flags,
-                                              size_t            *count = nullptr);
+                                              size_t *           count = nullptr);
 };
 
 typedef enum cli_search_flags_t {
@@ -201,9 +201,9 @@ bool cli_cfg_set_keystore_info(rnp_cfg &cfg);
  *                needed.
  * @return rnp_input_t object or NULL if operation failed.
  */
-rnp_input_t cli_rnp_input_from_specifier(cli_rnp_t         &rnp,
+rnp_input_t cli_rnp_input_from_specifier(cli_rnp_t &        rnp,
                                          const std::string &spec,
-                                         bool              *is_path);
+                                         bool *             is_path);
 
 /**
  * @brief Create output object from the specifier, which may represent:
@@ -215,7 +215,7 @@ rnp_input_t cli_rnp_input_from_specifier(cli_rnp_t         &rnp,
  * @param discard just discard output
  * @return rnp_output_t  or NULL if operation failed.
  */
-rnp_output_t cli_rnp_output_to_specifier(cli_rnp_t         &rnp,
+rnp_output_t cli_rnp_output_to_specifier(cli_rnp_t &        rnp,
                                          const std::string &spec,
                                          bool               discard = false);
 
@@ -271,7 +271,7 @@ bool cli_rnp_set_cipher(rnp_cfg &cfg, const std::string &cipher);
 
 void clear_key_handles(std::vector<rnp_key_handle_t> &keys);
 
-const char *json_obj_get_str(json_object *obj, const char *key);
+const char *json_obj_get_str(const nlohmann::ordered_json &obj, const char *key);
 
 #ifdef _WIN32
 bool rnp_win_substitute_cmdline_args(int *argc, char ***argv);

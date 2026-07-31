@@ -30,8 +30,7 @@ find_package(BZip2 REQUIRED)
 find_package(ZLIB REQUIRED)
 
 # required packages
-find_package(JSON-C 0.11 REQUIRED)
-if(ENABLE_CRYPTO_REFRESH AND CRYPTO_BACKEND_BOTAN)
+if(ENABLE_CRYPTO_REFRESH)
   find_package(Botan 3.6.0 REQUIRED)
   set(CRYPTO_BACKEND_BOTAN3 1)
 else()
@@ -488,13 +487,14 @@ target_include_directories(librnp-obj
     "$<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/lib>"
     "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/common>"
     "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
+    "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/lib/nlohmann>"
     "$<INSTALL_INTERFACE:include>"
   PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${PROJECT_SOURCE_DIR}/src"
     "${SEXPP_INCLUDE_DIRS}"
 )
-target_link_libraries(librnp-obj PRIVATE JSON-C::JSON-C)
+target_link_libraries(librnp-obj PRIVATE)
 if (CRYPTO_BACKEND_BOTAN)
   target_link_libraries(librnp-obj PRIVATE Botan::Botan)
 elseif (CRYPTO_BACKEND_OPENSSL)
@@ -698,12 +698,12 @@ install(EXPORT rnp-targets
 )
 
 # Find modules shipped with rnp: the exported rnp targets reference the
-# imported targets they define (Botan::Botan, JSON-C::JSON-C), and
-# rnp-config.cmake uses them to resolve those dependencies downstream.
+# imported targets they define (Botan::Botan), and rnp-config.cmake uses
+# them to resolve those dependencies downstream.
 # Some CI jobs delete the bundled modules to exercise the botan-config.cmake
 # path, so only install the ones that are actually present.
 set(_rnp_find_modules "")
-foreach(_module FindBotan.cmake FindJSON-C.cmake)
+foreach(_module FindBotan.cmake)
   if(EXISTS "${PROJECT_SOURCE_DIR}/cmake/Modules/${_module}")
     list(APPEND _rnp_find_modules "${PROJECT_SOURCE_DIR}/cmake/Modules/${_module}")
   endif()

@@ -77,20 +77,24 @@ TEST_F(rnp_tests, test_ffi_keygen_json_pair)
     assert_non_null(results);
 
     // parse the results JSON
-    json_object *parsed_results = json_tokener_parse(results);
-    assert_non_null(parsed_results);
+    nlohmann::ordered_json parsed_results = nlohmann::ordered_json::parse(results);
+    assert_true(!parsed_results.is_null());
     rnp_buffer_destroy(results);
     results = NULL;
     // get a handle for the primary
     rnp_key_handle_t primary = NULL;
     {
-        json_object *jsokey = NULL;
-        assert_int_equal(true, json_object_object_get_ex(parsed_results, "primary", &jsokey));
-        assert_non_null(jsokey);
-        json_object *jsogrip = NULL;
-        assert_int_equal(true, json_object_object_get_ex(jsokey, "grip", &jsogrip));
-        assert_non_null(jsogrip);
-        const char *grip = json_object_get_string(jsogrip);
+        nlohmann::ordered_json *jsokey = nullptr;
+        assert_int_equal(true,
+                         (parsed_results.contains("primary") ?
+                            (jsokey = &parsed_results["primary"], true) :
+                            false));
+        assert_true(!jsokey->is_null());
+        nlohmann::ordered_json jsogrip;
+        assert_int_equal(
+          true, (jsokey->contains("grip") ? (jsogrip = (*jsokey)["grip"], true) : false));
+        assert_true(!jsogrip.is_null());
+        const char *grip = jsogrip.get_ref<const std::string &>().c_str();
         assert_non_null(grip);
         assert_rnp_success(rnp_locate_key(ffi, "grip", grip, &primary));
         assert_non_null(primary);
@@ -98,19 +102,22 @@ TEST_F(rnp_tests, test_ffi_keygen_json_pair)
     // get a handle for the sub
     rnp_key_handle_t sub = NULL;
     {
-        json_object *jsokey = NULL;
-        assert_int_equal(true, json_object_object_get_ex(parsed_results, "sub", &jsokey));
-        assert_non_null(jsokey);
-        json_object *jsogrip = NULL;
-        assert_int_equal(true, json_object_object_get_ex(jsokey, "grip", &jsogrip));
-        assert_non_null(jsogrip);
-        const char *grip = json_object_get_string(jsogrip);
+        nlohmann::ordered_json *jsokey = nullptr;
+        assert_int_equal(
+          true,
+          (parsed_results.contains("sub") ? (jsokey = &parsed_results["sub"], true) : false));
+        assert_true(!jsokey->is_null());
+        nlohmann::ordered_json jsogrip;
+        assert_int_equal(
+          true, (jsokey->contains("grip") ? (jsogrip = (*jsokey)["grip"], true) : false));
+        assert_true(!jsogrip.is_null());
+        const char *grip = jsogrip.get_ref<const std::string &>().c_str();
         assert_non_null(grip);
         assert_rnp_success(rnp_locate_key(ffi, "grip", grip, &sub));
         assert_non_null(sub);
     }
     // cleanup
-    json_object_put(parsed_results);
+    /* json_object_put removed: parsed_results */
 
     // check the key counts
     assert_rnp_failure(rnp_get_public_key_count(NULL, &count));
@@ -157,20 +164,24 @@ TEST_F(rnp_tests, test_ffi_keygen_json_pair_dsa_elg)
     assert_non_null(results);
 
     // parse the results JSON
-    json_object *parsed_results = json_tokener_parse(results);
-    assert_non_null(parsed_results);
+    nlohmann::ordered_json parsed_results = nlohmann::ordered_json::parse(results);
+    assert_true(!parsed_results.is_null());
     rnp_buffer_destroy(results);
     results = NULL;
     // get a handle for the primary
     rnp_key_handle_t primary = NULL;
     {
-        json_object *jsokey = NULL;
-        assert_int_equal(true, json_object_object_get_ex(parsed_results, "primary", &jsokey));
-        assert_non_null(jsokey);
-        json_object *jsogrip = NULL;
-        assert_int_equal(true, json_object_object_get_ex(jsokey, "grip", &jsogrip));
-        assert_non_null(jsogrip);
-        const char *grip = json_object_get_string(jsogrip);
+        nlohmann::ordered_json *jsokey = nullptr;
+        assert_int_equal(true,
+                         (parsed_results.contains("primary") ?
+                            (jsokey = &parsed_results["primary"], true) :
+                            false));
+        assert_true(!jsokey->is_null());
+        nlohmann::ordered_json jsogrip;
+        assert_int_equal(
+          true, (jsokey->contains("grip") ? (jsogrip = (*jsokey)["grip"], true) : false));
+        assert_true(!jsogrip.is_null());
+        const char *grip = jsogrip.get_ref<const std::string &>().c_str();
         assert_non_null(grip);
         assert_rnp_success(rnp_locate_key(ffi, "grip", grip, &primary));
         assert_non_null(primary);
@@ -178,19 +189,22 @@ TEST_F(rnp_tests, test_ffi_keygen_json_pair_dsa_elg)
     // get a handle for the sub
     rnp_key_handle_t sub = NULL;
     {
-        json_object *jsokey = NULL;
-        assert_int_equal(true, json_object_object_get_ex(parsed_results, "sub", &jsokey));
-        assert_non_null(jsokey);
-        json_object *jsogrip = NULL;
-        assert_int_equal(true, json_object_object_get_ex(jsokey, "grip", &jsogrip));
-        assert_non_null(jsogrip);
-        const char *grip = json_object_get_string(jsogrip);
+        nlohmann::ordered_json *jsokey = nullptr;
+        assert_int_equal(
+          true,
+          (parsed_results.contains("sub") ? (jsokey = &parsed_results["sub"], true) : false));
+        assert_true(!jsokey->is_null());
+        nlohmann::ordered_json jsogrip;
+        assert_int_equal(
+          true, (jsokey->contains("grip") ? (jsogrip = (*jsokey)["grip"], true) : false));
+        assert_true(!jsogrip.is_null());
+        const char *grip = jsogrip.get_ref<const std::string &>().c_str();
         assert_non_null(grip);
         assert_rnp_success(rnp_locate_key(ffi, "grip", grip, &sub));
         assert_non_null(sub);
     }
     // cleanup
-    json_object_put(parsed_results);
+    /* json_object_put removed: parsed_results */
 
     // check the key counts
     assert_rnp_success(rnp_get_public_key_count(ffi, &count));
@@ -234,26 +248,30 @@ TEST_F(rnp_tests, test_ffi_keygen_json_primary)
     assert_non_null(results);
 
     // parse the results JSON
-    json_object *parsed_results = json_tokener_parse(results);
-    assert_non_null(parsed_results);
+    nlohmann::ordered_json parsed_results = nlohmann::ordered_json::parse(results);
+    assert_true(!parsed_results.is_null());
     rnp_buffer_destroy(results);
     results = NULL;
     // get a handle for the primary
     rnp_key_handle_t primary = NULL;
     {
-        json_object *jsokey = NULL;
-        assert_int_equal(true, json_object_object_get_ex(parsed_results, "primary", &jsokey));
-        assert_non_null(jsokey);
-        json_object *jsogrip = NULL;
-        assert_int_equal(true, json_object_object_get_ex(jsokey, "grip", &jsogrip));
-        assert_non_null(jsogrip);
-        const char *grip = json_object_get_string(jsogrip);
+        nlohmann::ordered_json *jsokey = nullptr;
+        assert_int_equal(true,
+                         (parsed_results.contains("primary") ?
+                            (jsokey = &parsed_results["primary"], true) :
+                            false));
+        assert_true(!jsokey->is_null());
+        nlohmann::ordered_json jsogrip;
+        assert_int_equal(
+          true, (jsokey->contains("grip") ? (jsogrip = (*jsokey)["grip"], true) : false));
+        assert_true(!jsogrip.is_null());
+        const char *grip = jsogrip.get_ref<const std::string &>().c_str();
         assert_non_null(grip);
         assert_rnp_success(rnp_locate_key(ffi, "grip", grip, &primary));
         assert_non_null(primary);
     }
     // cleanup
-    json_object_put(parsed_results);
+    /* json_object_put removed: parsed_results */
     parsed_results = NULL;
 
     // check the key counts
@@ -293,27 +311,31 @@ TEST_F(rnp_tests, test_ffi_keygen_json_sub)
     assert_int_equal(1, count);
 
     // parse the results JSON
-    json_object *parsed_results = json_tokener_parse(results);
-    assert_non_null(parsed_results);
+    nlohmann::ordered_json parsed_results = nlohmann::ordered_json::parse(results);
+    assert_true(!parsed_results.is_null());
     rnp_buffer_destroy(results);
     results = NULL;
     // get a handle+grip for the primary
     rnp_key_handle_t primary = NULL;
     char *           primary_grip = NULL;
     {
-        json_object *jsokey = NULL;
-        assert_int_equal(true, json_object_object_get_ex(parsed_results, "primary", &jsokey));
-        assert_non_null(jsokey);
-        json_object *jsogrip = NULL;
-        assert_int_equal(true, json_object_object_get_ex(jsokey, "grip", &jsogrip));
-        assert_non_null(jsogrip);
-        primary_grip = strdup(json_object_get_string(jsogrip));
+        nlohmann::ordered_json *jsokey = nullptr;
+        assert_int_equal(true,
+                         (parsed_results.contains("primary") ?
+                            (jsokey = &parsed_results["primary"], true) :
+                            false));
+        assert_true(!jsokey->is_null());
+        nlohmann::ordered_json jsogrip;
+        assert_int_equal(
+          true, (jsokey->contains("grip") ? (jsogrip = (*jsokey)["grip"], true) : false));
+        assert_true(!jsogrip.is_null());
+        primary_grip = strdup(jsogrip.get_ref<const std::string &>().c_str());
         assert_non_null(primary_grip);
         assert_rnp_success(rnp_locate_key(ffi, "grip", primary_grip, &primary));
         assert_non_null(primary);
     }
     // cleanup
-    json_object_put(parsed_results);
+    /* json_object_put removed: parsed_results */
     parsed_results = NULL;
 
     // load our JSON template
@@ -321,22 +343,23 @@ TEST_F(rnp_tests, test_ffi_keygen_json_sub)
     // modify our JSON
     {
         // parse
-        json_object *jso = json_tokener_parse(json.c_str());
-        assert_non_null(jso);
+        nlohmann::ordered_json jso = nlohmann::ordered_json::parse(json.c_str());
+        assert_true(!jso.is_null());
         // find the relevant fields
-        json_object *jsosub = NULL;
-        json_object *jsoprimary = NULL;
-        assert_true(json_object_object_get_ex(jso, "sub", &jsosub));
-        assert_non_null(jsosub);
-        assert_true(json_object_object_get_ex(jsosub, "primary", &jsoprimary));
-        assert_non_null(jsoprimary);
+        nlohmann::ordered_json *jsosub = nullptr;
+        nlohmann::ordered_json *jsoprimary = nullptr;
+        assert_true((jso.contains("sub") ? (jsosub = &jso["sub"], true) : false));
+        assert_true(!jsosub->is_null());
+        assert_true(
+          (jsosub->contains("primary") ? (jsoprimary = &(*jsosub)["primary"], true) : false));
+        assert_true(!jsoprimary->is_null());
         // replace the placeholder grip with the correct one
-        json_object_object_del(jsoprimary, "grip");
-        json_object_object_add(jsoprimary, "grip", json_object_new_string(primary_grip));
-        assert_int_equal(1, json_object_object_length(jsoprimary));
-        json = json_object_to_json_string_ext(jso, JSON_C_TO_STRING_PRETTY);
+        jsoprimary->erase("grip");
+        (*jsoprimary)["grip"] = primary_grip;
+        assert_int_equal(1, jsoprimary->size());
+        json = jso.dump(4);
         assert_false(json.empty());
-        json_object_put(jso);
+        /* json_object_put removed: jso */
     }
     // cleanup
     rnp_buffer_destroy(primary_grip);
@@ -347,26 +370,29 @@ TEST_F(rnp_tests, test_ffi_keygen_json_sub)
     assert_non_null(results);
 
     // parse the results JSON
-    parsed_results = json_tokener_parse(results);
-    assert_non_null(parsed_results);
+    parsed_results = nlohmann::ordered_json::parse(results);
+    assert_true(!parsed_results.is_null());
     rnp_buffer_destroy(results);
     results = NULL;
     // get a handle for the sub
     rnp_key_handle_t sub = NULL;
     {
-        json_object *jsokey = NULL;
-        assert_int_equal(true, json_object_object_get_ex(parsed_results, "sub", &jsokey));
-        assert_non_null(jsokey);
-        json_object *jsogrip = NULL;
-        assert_int_equal(true, json_object_object_get_ex(jsokey, "grip", &jsogrip));
-        assert_non_null(jsogrip);
-        const char *grip = json_object_get_string(jsogrip);
+        nlohmann::ordered_json *jsokey = nullptr;
+        assert_int_equal(
+          true,
+          (parsed_results.contains("sub") ? (jsokey = &parsed_results["sub"], true) : false));
+        assert_true(!jsokey->is_null());
+        nlohmann::ordered_json jsogrip;
+        assert_int_equal(
+          true, (jsokey->contains("grip") ? (jsogrip = (*jsokey)["grip"], true) : false));
+        assert_true(!jsogrip.is_null());
+        const char *grip = jsogrip.get_ref<const std::string &>().c_str();
         assert_non_null(grip);
         assert_rnp_success(rnp_locate_key(ffi, "grip", grip, &sub));
         assert_non_null(sub);
     }
     // cleanup
-    json_object_put(parsed_results);
+    /* json_object_put removed: parsed_results */
     parsed_results = NULL;
 
     // check the key counts
@@ -2014,27 +2040,31 @@ TEST_F(rnp_tests, test_ffi_keygen_json_sub_pass_required)
     assert_int_equal(1, count);
 
     // parse the results JSON
-    json_object *parsed_results = json_tokener_parse(results);
-    assert_non_null(parsed_results);
+    nlohmann::ordered_json parsed_results = nlohmann::ordered_json::parse(results);
+    assert_true(!parsed_results.is_null());
     rnp_buffer_destroy(results);
     results = NULL;
     // get a handle+grip for the primary
     rnp_key_handle_t primary = NULL;
     char *           primary_grip = NULL;
     {
-        json_object *jsokey = NULL;
-        assert_int_equal(true, json_object_object_get_ex(parsed_results, "primary", &jsokey));
-        assert_non_null(jsokey);
-        json_object *jsogrip = NULL;
-        assert_int_equal(true, json_object_object_get_ex(jsokey, "grip", &jsogrip));
-        assert_non_null(jsogrip);
-        primary_grip = strdup(json_object_get_string(jsogrip));
+        nlohmann::ordered_json *jsokey = nullptr;
+        assert_int_equal(true,
+                         (parsed_results.contains("primary") ?
+                            (jsokey = &parsed_results["primary"], true) :
+                            false));
+        assert_true(!jsokey->is_null());
+        nlohmann::ordered_json jsogrip;
+        assert_int_equal(
+          true, (jsokey->contains("grip") ? (jsogrip = (*jsokey)["grip"], true) : false));
+        assert_true(!jsogrip.is_null());
+        primary_grip = strdup(jsogrip.get_ref<const std::string &>().c_str());
         assert_non_null(primary_grip);
         assert_rnp_success(rnp_locate_key(ffi, "grip", primary_grip, &primary));
         assert_non_null(primary);
     }
     // cleanup
-    json_object_put(parsed_results);
+    /* json_object_put removed: parsed_results */
     parsed_results = NULL;
 
     // protect+lock the primary key
@@ -2048,22 +2078,23 @@ TEST_F(rnp_tests, test_ffi_keygen_json_sub_pass_required)
     // modify our JSON
     {
         // parse
-        json_object *jso = json_tokener_parse(json.c_str());
-        assert_non_null(jso);
+        nlohmann::ordered_json jso = nlohmann::ordered_json::parse(json.c_str());
+        assert_true(!jso.is_null());
         // find the relevant fields
-        json_object *jsosub = NULL;
-        json_object *jsoprimary = NULL;
-        assert_true(json_object_object_get_ex(jso, "sub", &jsosub));
-        assert_non_null(jsosub);
-        assert_true(json_object_object_get_ex(jsosub, "primary", &jsoprimary));
-        assert_non_null(jsoprimary);
+        nlohmann::ordered_json *jsosub = nullptr;
+        nlohmann::ordered_json *jsoprimary = nullptr;
+        assert_true((jso.contains("sub") ? (jsosub = &jso["sub"], true) : false));
+        assert_true(!jsosub->is_null());
+        assert_true(
+          (jsosub->contains("primary") ? (jsoprimary = &(*jsosub)["primary"], true) : false));
+        assert_true(!jsoprimary->is_null());
         // replace the placeholder grip with the correct one
-        json_object_object_del(jsoprimary, "grip");
-        json_object_object_add(jsoprimary, "grip", json_object_new_string(primary_grip));
-        assert_int_equal(1, json_object_object_length(jsoprimary));
-        json = json_object_to_json_string_ext(jso, JSON_C_TO_STRING_PRETTY);
+        jsoprimary->erase("grip");
+        (*jsoprimary)["grip"] = primary_grip;
+        assert_int_equal(1, jsoprimary->size());
+        json = jso.dump(4);
         assert_false(json.empty());
-        json_object_put(jso);
+        /* json_object_put removed: jso */
     }
     // cleanup
     rnp_buffer_destroy(primary_grip);
@@ -2086,26 +2117,29 @@ TEST_F(rnp_tests, test_ffi_keygen_json_sub_pass_required)
     assert_non_null(results);
 
     // parse the results JSON
-    parsed_results = json_tokener_parse(results);
-    assert_non_null(parsed_results);
+    parsed_results = nlohmann::ordered_json::parse(results);
+    assert_true(!parsed_results.is_null());
     rnp_buffer_destroy(results);
     results = NULL;
     // get a handle for the sub
     rnp_key_handle_t sub = NULL;
     {
-        json_object *jsokey = NULL;
-        assert_int_equal(true, json_object_object_get_ex(parsed_results, "sub", &jsokey));
-        assert_non_null(jsokey);
-        json_object *jsogrip = NULL;
-        assert_int_equal(true, json_object_object_get_ex(jsokey, "grip", &jsogrip));
-        assert_non_null(jsogrip);
-        const char *grip = json_object_get_string(jsogrip);
+        nlohmann::ordered_json *jsokey = nullptr;
+        assert_int_equal(
+          true,
+          (parsed_results.contains("sub") ? (jsokey = &parsed_results["sub"], true) : false));
+        assert_true(!jsokey->is_null());
+        nlohmann::ordered_json jsogrip;
+        assert_int_equal(
+          true, (jsokey->contains("grip") ? (jsogrip = (*jsokey)["grip"], true) : false));
+        assert_true(!jsogrip.is_null());
+        const char *grip = jsogrip.get_ref<const std::string &>().c_str();
         assert_non_null(grip);
         assert_rnp_success(rnp_locate_key(ffi, "grip", grip, &sub));
         assert_non_null(sub);
     }
     // cleanup
-    json_object_put(parsed_results);
+    /* json_object_put removed: parsed_results */
     parsed_results = NULL;
 
     // check the key counts
@@ -2132,8 +2166,8 @@ TEST_F(rnp_tests, test_ffi_keygen_json_sub_pass_required)
  *  @param field the field to retrieve. The format is "first.second.third".
  *  @return a pointer to the located json object, or NULL
  **/
-static json_object *
-get_json_obj(json_object *jso, const char *field)
+static nlohmann::ordered_json
+get_json_obj(nlohmann::ordered_json jso, const char *field)
 {
     const char *start = field;
     char        buf[32];
@@ -2142,13 +2176,13 @@ get_json_obj(json_object *jso, const char *field)
         const char *end = strchr(start, '.');
         size_t      len = end ? (end - start) : strlen(start);
         if (len >= sizeof(buf)) {
-            return NULL;
+            return nlohmann::ordered_json();
         }
         memcpy(buf, start, len);
         buf[len] = '\0';
 
-        if (!json_object_object_get_ex(jso, buf, &jso)) {
-            return NULL;
+        if (!(jso.contains(buf) ? (jso = jso[buf], true) : false)) {
+            return nlohmann::ordered_json();
         }
 
         start = end ? end + 1 : NULL;
@@ -2165,14 +2199,14 @@ get_json_obj(json_object *jso, const char *field)
  */
 TEST_F(rnp_tests, test_ffi_key_to_json)
 {
-    rnp_ffi_t        ffi = NULL;
-    char *           pub_format = NULL;
-    char *           pub_path = NULL;
-    char *           sec_format = NULL;
-    char *           sec_path = NULL;
-    rnp_key_handle_t key = NULL;
-    char *           json = NULL;
-    json_object *    jso = NULL;
+    rnp_ffi_t              ffi = NULL;
+    char *                 pub_format = NULL;
+    char *                 pub_path = NULL;
+    char *                 sec_format = NULL;
+    char *                 sec_path = NULL;
+    rnp_key_handle_t       key = NULL;
+    char *                 json = NULL;
+    nlohmann::ordered_json jso;
 
     // detect the formats+paths
     assert_rnp_success(rnp_detect_homedir_info(
@@ -2200,64 +2234,63 @@ TEST_F(rnp_tests, test_ffi_key_to_json)
     assert_rnp_success(rnp_key_to_json(key, 0xff, &json));
     assert_non_null(json);
     // parse it back in
-    jso = json_tokener_parse(json);
-    assert_non_null(jso);
+    jso = nlohmann::ordered_json::parse(json);
+    assert_true(!jso.is_null());
     // validate some properties
-    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "type")), "ECDSA"));
-    assert_int_equal(json_object_get_int(get_json_obj(jso, "length")), 256);
+    assert_true(rnp::str_case_eq(
+      get_json_obj(jso, "type").get_ref<const std::string &>().c_str(), "ECDSA"));
+    assert_int_equal(get_json_obj(jso, "length").get<int>(), 256);
+    assert_true(rnp::str_case_eq(
+      get_json_obj(jso, "curve").get_ref<const std::string &>().c_str(), "NIST P-256"));
+    assert_true(rnp::str_case_eq(
+      get_json_obj(jso, "keyid").get_ref<const std::string &>().c_str(), "0E33FD46FF10F19C"));
     assert_true(
-      rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "curve")), "NIST P-256"));
-    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "keyid")),
-                                 "0E33FD46FF10F19C"));
-    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "fingerprint")),
-                                 "B6B5E497A177551ECB8862200E33FD46FF10F19C"));
-    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "grip")),
-                                 "20A48B3C61525DCDF8B3B9D82C6BBCF4D8BFB5E5"));
-    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "revoked")), false);
-    assert_int_equal(json_object_get_int64(get_json_obj(jso, "creation time")), 1511313500);
-    assert_int_equal(json_object_get_int64(get_json_obj(jso, "expiration")), 0);
+      rnp::str_case_eq(get_json_obj(jso, "fingerprint").get_ref<const std::string &>().c_str(),
+                       "B6B5E497A177551ECB8862200E33FD46FF10F19C"));
+    assert_true(
+      rnp::str_case_eq(get_json_obj(jso, "grip").get_ref<const std::string &>().c_str(),
+                       "20A48B3C61525DCDF8B3B9D82C6BBCF4D8BFB5E5"));
+    assert_int_equal(get_json_obj(jso, "revoked").get<bool>(), false);
+    assert_int_equal(get_json_obj(jso, "creation time").get<int64_t>(), 1511313500);
+    assert_int_equal(get_json_obj(jso, "expiration").get<int64_t>(), 0);
     // usage
-    assert_int_equal(json_object_array_length(get_json_obj(jso, "usage")), 2);
+    assert_int_equal(get_json_obj(jso, "usage").size(), 2);
     assert_true(rnp::str_case_eq(
-      json_object_get_string(json_object_array_get_idx(get_json_obj(jso, "usage"), 0)),
-      "sign"));
+      get_json_obj(jso, "usage").at(0).get_ref<const std::string &>().c_str(), "sign"));
     assert_true(rnp::str_case_eq(
-      json_object_get_string(json_object_array_get_idx(get_json_obj(jso, "usage"), 1)),
-      "certify"));
+      get_json_obj(jso, "usage").at(1).get_ref<const std::string &>().c_str(), "certify"));
     // primary key grip
-    assert_null(get_json_obj(jso, "primary key grip"));
+    assert_true(get_json_obj(jso, "primary key grip").is_null());
     // subkey grips
-    assert_int_equal(json_object_array_length(get_json_obj(jso, "subkey grips")), 1);
+    assert_int_equal(get_json_obj(jso, "subkey grips").size(), 1);
     assert_true(rnp::str_case_eq(
-      json_object_get_string(json_object_array_get_idx(get_json_obj(jso, "subkey grips"), 0)),
+      get_json_obj(jso, "subkey grips").at(0).get_ref<const std::string &>().c_str(),
       "FFFA72FC225214DC712D0127172EE13E88AF93B4"));
     // public key
-    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "public key.present")), true);
-    assert_true(
-      rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "public key.mpis.point")),
-                       "04B0C6F2F585C1EEDF805C4492CB683839D5EAE6246420780F063D558"
-                       "A33F607876BE6F818A665722F8204653CC4DCFAD4F4765521AC8A6E9F"
-                       "793CEBAE8600BEEF"));
-    // secret key
-    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.present")), true);
-    assert_true(
-      rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "secret key.mpis.x")),
-                       "46DE93CA439735F36B9CF228F10D8586DA824D88BBF4E24566D5312D061802C8"));
-    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.locked")), false);
-    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.protected")),
-                     false);
-    // userids
-    assert_int_equal(json_object_array_length(get_json_obj(jso, "userids")), 1);
+    assert_int_equal(get_json_obj(jso, "public key.present").get<bool>(), true);
     assert_true(rnp::str_case_eq(
-      json_object_get_string(json_object_array_get_idx(get_json_obj(jso, "userids"), 0)),
-      "test0"));
+      get_json_obj(jso, "public key.mpis.point").get_ref<const std::string &>().c_str(),
+      "04B0C6F2F585C1EEDF805C4492CB683839D5EAE6246420780F063D558"
+      "A33F607876BE6F818A665722F8204653CC4DCFAD4F4765521AC8A6E9F"
+      "793CEBAE8600BEEF"));
+    // secret key
+    assert_int_equal(get_json_obj(jso, "secret key.present").get<bool>(), true);
+    assert_true(rnp::str_case_eq(
+      get_json_obj(jso, "secret key.mpis.x").get_ref<const std::string &>().c_str(),
+      "46DE93CA439735F36B9CF228F10D8586DA824D88BBF4E24566D5312D061802C8"));
+    assert_int_equal(get_json_obj(jso, "secret key.locked").get<bool>(), false);
+    assert_int_equal(get_json_obj(jso, "secret key.protected").get<bool>(), false);
+    // userids
+    assert_int_equal(get_json_obj(jso, "userids").size(), 1);
+    assert_true(rnp::str_case_eq(
+      get_json_obj(jso, "userids").at(0).get_ref<const std::string &>().c_str(), "test0"));
     // signatures
-    assert_int_equal(json_object_array_length(get_json_obj(jso, "signatures")), 1);
-    json_object *jsosig = json_object_array_get_idx(get_json_obj(jso, "signatures"), 0);
-    assert_int_equal(json_object_get_int(get_json_obj(jsosig, "userid")), 0);
+    assert_int_equal(get_json_obj(jso, "signatures").size(), 1);
+    nlohmann::ordered_json jsosig = get_json_obj(jso, "signatures").at(0);
+    assert_int_equal(get_json_obj(jsosig, "userid").get<int>(), 0);
     // TODO: other properties of signature
     // cleanup
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     rnp_key_handle_destroy(key);
     key = NULL;
     rnp_buffer_destroy(json);
@@ -2270,60 +2303,62 @@ TEST_F(rnp_tests, test_ffi_key_to_json)
     assert_rnp_success(rnp_key_to_json(key, 0xff, &json));
     assert_non_null(json);
     // parse it back in
-    jso = json_tokener_parse(json);
-    assert_non_null(jso);
+    jso = nlohmann::ordered_json::parse(json);
+    assert_true(!jso.is_null());
     // validate some properties
-    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "type")), "ECDH"));
-    assert_int_equal(json_object_get_int(get_json_obj(jso, "length")), 256);
+    assert_true(rnp::str_case_eq(
+      get_json_obj(jso, "type").get_ref<const std::string &>().c_str(), "ECDH"));
+    assert_int_equal(get_json_obj(jso, "length").get<int>(), 256);
+    assert_true(rnp::str_case_eq(
+      get_json_obj(jso, "curve").get_ref<const std::string &>().c_str(), "NIST P-256"));
+    assert_true(rnp::str_case_eq(
+      get_json_obj(jso, "keyid").get_ref<const std::string &>().c_str(), "074131BC8D16C5C9"));
     assert_true(
-      rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "curve")), "NIST P-256"));
-    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "keyid")),
-                                 "074131BC8D16C5C9"));
-    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "fingerprint")),
-                                 "481E6A41B10ECD71A477DB02074131BC8D16C5C9"));
+      rnp::str_case_eq(get_json_obj(jso, "fingerprint").get_ref<const std::string &>().c_str(),
+                       "481E6A41B10ECD71A477DB02074131BC8D16C5C9"));
     // ECDH-specific
+    assert_true(rnp::str_case_eq(
+      get_json_obj(jso, "kdf hash").get_ref<const std::string &>().c_str(), "SHA256"));
+    assert_true(rnp::str_case_eq(
+      get_json_obj(jso, "key wrap cipher").get_ref<const std::string &>().c_str(), "AES128"));
     assert_true(
-      rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "kdf hash")), "SHA256"));
-    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "key wrap cipher")),
-                                 "AES128"));
-    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "grip")),
-                                 "FFFA72FC225214DC712D0127172EE13E88AF93B4"));
-    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "revoked")), false);
-    assert_int_equal(json_object_get_int64(get_json_obj(jso, "creation time")), 1511313500);
-    assert_int_equal(json_object_get_int64(get_json_obj(jso, "expiration")), 0);
+      rnp::str_case_eq(get_json_obj(jso, "grip").get_ref<const std::string &>().c_str(),
+                       "FFFA72FC225214DC712D0127172EE13E88AF93B4"));
+    assert_int_equal(get_json_obj(jso, "revoked").get<bool>(), false);
+    assert_int_equal(get_json_obj(jso, "creation time").get<int64_t>(), 1511313500);
+    assert_int_equal(get_json_obj(jso, "expiration").get<int64_t>(), 0);
     // usage
-    assert_int_equal(json_object_array_length(get_json_obj(jso, "usage")), 1);
+    assert_int_equal(get_json_obj(jso, "usage").size(), 1);
     assert_true(rnp::str_case_eq(
-      json_object_get_string(json_object_array_get_idx(get_json_obj(jso, "usage"), 0)),
-      "encrypt"));
+      get_json_obj(jso, "usage").at(0).get_ref<const std::string &>().c_str(), "encrypt"));
     // primary key grip
-    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "primary key grip")),
-                                 "20A48B3C61525DCDF8B3B9D82C6BBCF4D8BFB5E5"));
-    // subkey grips
-    assert_null(get_json_obj(jso, "subkey grips"));
-    // public key
-    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "public key.present")), true);
     assert_true(rnp::str_case_eq(
-      json_object_get_string(get_json_obj(jso, "public key.mpis.point")),
+      get_json_obj(jso, "primary key grip").get_ref<const std::string &>().c_str(),
+      "20A48B3C61525DCDF8B3B9D82C6BBCF4D8BFB5E5"));
+    // subkey grips
+    assert_true(get_json_obj(jso, "subkey grips").is_null());
+    // public key
+    assert_int_equal(get_json_obj(jso, "public key.present").get<bool>(), true);
+    assert_true(rnp::str_case_eq(
+      get_json_obj(jso, "public key.mpis.point").get_ref<const std::string &>().c_str(),
       "04E2746BA4D180011B17A6909EABDBF2F3733674FBE00B20A3B857C2597233651544150B"
       "896BCE7DCDF47C49FC1E12D5AD86384D26336A48A18845940A3F65F502"));
     // secret key
-    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.present")), true);
-    assert_true(
-      rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "secret key.mpis.x")),
-                       "DF8BEB7272117AD7AFE2B7E882453113059787FBC785C82F78624EE7EF2117FB"));
-    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.locked")), false);
-    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.protected")),
-                     false);
+    assert_int_equal(get_json_obj(jso, "secret key.present").get<bool>(), true);
+    assert_true(rnp::str_case_eq(
+      get_json_obj(jso, "secret key.mpis.x").get_ref<const std::string &>().c_str(),
+      "DF8BEB7272117AD7AFE2B7E882453113059787FBC785C82F78624EE7EF2117FB"));
+    assert_int_equal(get_json_obj(jso, "secret key.locked").get<bool>(), false);
+    assert_int_equal(get_json_obj(jso, "secret key.protected").get<bool>(), false);
     // userids
-    assert_null(get_json_obj(jso, "userids"));
+    assert_true(get_json_obj(jso, "userids").is_null());
     // signatures
-    assert_int_equal(json_object_array_length(get_json_obj(jso, "signatures")), 1);
-    jsosig = json_object_array_get_idx(get_json_obj(jso, "signatures"), 0);
-    assert_null(get_json_obj(jsosig, "userid"));
+    assert_int_equal(get_json_obj(jso, "signatures").size(), 1);
+    jsosig = get_json_obj(jso, "signatures").at(0);
+    assert_true(get_json_obj(jsosig, "userid").is_null());
     // TODO: other properties of signature
     // cleanup
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     rnp_key_handle_destroy(key);
     rnp_buffer_destroy(json);
 
@@ -2777,19 +2812,19 @@ TEST_F(rnp_tests, test_ffi_key_export)
 }
 
 static bool
-check_import_keys_ex(rnp_ffi_t     ffi,
-                     json_object **jso,
-                     uint32_t      flags,
-                     rnp_input_t   input,
-                     size_t        rescount,
-                     size_t        pubcount,
-                     size_t        seccount)
+check_import_keys_ex(rnp_ffi_t               ffi,
+                     nlohmann::ordered_json *jso,
+                     uint32_t                flags,
+                     rnp_input_t             input,
+                     size_t                  rescount,
+                     size_t                  pubcount,
+                     size_t                  seccount)
 {
-    bool         res = false;
-    char *       keys = NULL;
-    size_t       keycount = 0;
-    json_object *keyarr = NULL;
-    *jso = NULL;
+    bool                   res = false;
+    char *                 keys = NULL;
+    size_t                 keycount = 0;
+    nlohmann::ordered_json keyarr;
+    *jso = nlohmann::ordered_json();
 
     if (rnp_import_keys(ffi, input, flags, &keys)) {
         goto done;
@@ -2804,26 +2839,26 @@ check_import_keys_ex(rnp_ffi_t     ffi,
         goto done;
     }
 
-    *jso = json_tokener_parse(keys);
+    *jso = nlohmann::ordered_json::parse(keys);
     if (!jso) {
         goto done;
     }
-    if (!json_object_is_type(*jso, json_type_object)) {
+    if (!jso->is_object()) {
         goto done;
     }
-    if (!json_object_object_get_ex(*jso, "keys", &keyarr)) {
+    if (!(jso->contains("keys") ? (keyarr = (*jso)["keys"], true) : false)) {
         goto done;
     }
-    if (!json_object_is_type(keyarr, json_type_array)) {
+    if (!keyarr.is_array()) {
         goto done;
     }
-    if ((size_t) json_object_array_length(keyarr) != rescount) {
+    if ((size_t) keyarr.size() != rescount) {
         goto done;
     }
     res = true;
 done:
     if (!res) {
-        json_object_put(*jso);
+        (void) (*jso); /* removed */
         *jso = NULL;
     }
     rnp_buffer_destroy(keys);
@@ -2831,12 +2866,12 @@ done:
 }
 
 static bool
-check_import_keys(rnp_ffi_t     ffi,
-                  json_object **jso,
-                  const char *  keypath,
-                  size_t        rescount,
-                  size_t        pubcount,
-                  size_t        seccount)
+check_import_keys(rnp_ffi_t               ffi,
+                  nlohmann::ordered_json *jso,
+                  const char *            keypath,
+                  size_t                  rescount,
+                  size_t                  pubcount,
+                  size_t                  seccount)
 {
     rnp_input_t input = NULL;
 
@@ -2856,42 +2891,42 @@ check_import_keys(rnp_ffi_t     ffi,
 
 static bool
 check_key_status(
-  json_object *jso, size_t idx, const char *pub, const char *sec, const char *fp)
+  nlohmann::ordered_json jso, size_t idx, const char *pub, const char *sec, const char *fp)
 {
-    if (!jso) {
+    if (jso.is_null()) {
         return false;
     }
-    if (!json_object_is_type(jso, json_type_object)) {
+    if (!jso.is_object()) {
         return false;
     }
-    json_object *keys = NULL;
-    if (!json_object_object_get_ex(jso, "keys", &keys)) {
+    nlohmann::ordered_json keys;
+    if (!(jso.contains("keys") ? (keys = jso["keys"], true) : false)) {
         return false;
     }
-    if (!json_object_is_type(keys, json_type_array)) {
+    if (!keys.is_array()) {
         return false;
     }
-    json_object *key = json_object_array_get_idx(keys, idx);
-    if (!json_object_is_type(key, json_type_object)) {
+    nlohmann::ordered_json key = keys.at(idx);
+    if (!key.is_object()) {
         return false;
     }
-    json_object *fld = NULL;
-    if (!json_object_object_get_ex(key, "public", &fld)) {
+    nlohmann::ordered_json fld;
+    if (!(key.contains("public") ? (fld = key["public"], true) : false)) {
         return false;
     }
-    if (strcmp(json_object_get_string(fld), pub) != 0) {
+    if (strcmp(fld.get_ref<const std::string &>().c_str(), pub) != 0) {
         return false;
     }
-    if (!json_object_object_get_ex(key, "secret", &fld)) {
+    if (!(key.contains("secret") ? (fld = key["secret"], true) : false)) {
         return false;
     }
-    if (strcmp(json_object_get_string(fld), sec) != 0) {
+    if (strcmp(fld.get_ref<const std::string &>().c_str(), sec) != 0) {
         return false;
     }
-    if (!json_object_object_get_ex(key, "fingerprint", &fld)) {
+    if (!(key.contains("fingerprint") ? (fld = key["fingerprint"], true) : false)) {
         return false;
     }
-    if (strcmp(json_object_get_string(fld), fp) != 0) {
+    if (strcmp(fld.get_ref<const std::string &>().c_str(), fp) != 0) {
         return false;
     }
     return true;
@@ -2932,36 +2967,36 @@ TEST_F(rnp_tests, test_ffi_keys_import)
     assert_int_equal(keycount, 3);
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
     // import just a public key without subkeys
-    json_object *jso = NULL;
+    nlohmann::ordered_json jso;
     assert_true(check_import_keys(
       ffi, &jso, "data/test_stream_key_merge/key-pub-just-key.pgp", 1, 1, 0));
     assert_true(
       check_key_status(jso, 0, "new", "none", "090bd712a1166be572252c3c9747d2a6b3a63124"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     // import just subkey 1
     assert_true(check_import_keys(
       ffi, &jso, "data/test_stream_key_merge/key-pub-just-subkey-1.pgp", 1, 2, 0));
     assert_true(
       check_key_status(jso, 0, "new", "none", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     // import just subkey 2 without sigs
     assert_true(check_import_keys(
       ffi, &jso, "data/test_stream_key_merge/key-pub-just-subkey-2-no-sigs.pgp", 1, 3, 0));
     assert_true(
       check_key_status(jso, 0, "new", "none", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     // import subkey 2 with sigs
     assert_true(check_import_keys(
       ffi, &jso, "data/test_stream_key_merge/key-pub-just-subkey-2.pgp", 1, 3, 0));
     assert_true(
       check_key_status(jso, 0, "updated", "none", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     // import first uid
     assert_true(
       check_import_keys(ffi, &jso, "data/test_stream_key_merge/key-pub-uid-1.pgp", 1, 3, 0));
     assert_true(
       check_key_status(jso, 0, "updated", "none", "090bd712a1166be572252c3c9747d2a6b3a63124"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     // import the whole key
     assert_true(
       check_import_keys(ffi, &jso, "data/test_stream_key_merge/key-pub.pgp", 3, 3, 0));
@@ -2971,19 +3006,19 @@ TEST_F(rnp_tests, test_ffi_keys_import)
       jso, 1, "unchanged", "none", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
     assert_true(check_key_status(
       jso, 2, "unchanged", "none", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     // import the first secret subkey
     assert_true(check_import_keys(
       ffi, &jso, "data/test_stream_key_merge/key-sec-just-subkey-1.pgp", 1, 3, 1));
     assert_true(check_key_status(
       jso, 0, "unchanged", "new", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     // import the second secret subkey
     assert_true(check_import_keys(
       ffi, &jso, "data/test_stream_key_merge/key-sec-just-subkey-2-no-sigs.pgp", 1, 3, 2));
     assert_true(check_key_status(
       jso, 0, "unchanged", "new", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     // import the whole secret key
     assert_true(
       check_import_keys(ffi, &jso, "data/test_stream_key_merge/key-sec.pgp", 3, 3, 3));
@@ -2993,7 +3028,7 @@ TEST_F(rnp_tests, test_ffi_keys_import)
       jso, 1, "unchanged", "unchanged", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
     assert_true(check_key_status(
       jso, 2, "unchanged", "unchanged", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     // cleanup
     rnp_ffi_destroy(ffi);
 }
@@ -3004,14 +3039,14 @@ TEST_F(rnp_tests, test_ffi_elgamal4096)
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     /* load public key */
-    json_object *jso = NULL;
+    nlohmann::ordered_json jso;
     assert_true(
       check_import_keys(ffi, &jso, "data/test_key_edge_cases/key-eg-4096-pub.pgp", 2, 2, 0));
     assert_true(
       check_key_status(jso, 0, "new", "none", "6541db10cdfcdba89db2dffea8f0408eb3369d8e"));
     assert_true(
       check_key_status(jso, 1, "new", "none", "c402a09b74acd0c11efc0527a3d630b457a0b15b"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     /* load secret key */
     assert_true(
       check_import_keys(ffi, &jso, "data/test_key_edge_cases/key-eg-4096-sec.pgp", 2, 2, 2));
@@ -3019,7 +3054,7 @@ TEST_F(rnp_tests, test_ffi_elgamal4096)
       jso, 0, "unchanged", "new", "6541db10cdfcdba89db2dffea8f0408eb3369d8e"));
     assert_true(check_key_status(
       jso, 1, "unchanged", "new", "c402a09b74acd0c11efc0527a3d630b457a0b15b"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     // cleanup
     rnp_ffi_destroy(ffi);
 }
@@ -3370,7 +3405,7 @@ TEST_F(rnp_tests, test_ffi_iterated_key_import)
     /* two primary keys with attached subkeys in binary keyring */
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
-    json_object *jso = NULL;
+    nlohmann::ordered_json jso;
     assert_true(check_import_keys_ex(ffi, &jso, flags, input, 4, 4, 0));
     assert_true(
       check_key_status(jso, 0, "new", "none", "e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a"));
@@ -3380,7 +3415,7 @@ TEST_F(rnp_tests, test_ffi_iterated_key_import)
       check_key_status(jso, 2, "new", "none", "c5b15209940a7816a7af3fb51d7e8a5393c997a8"));
     assert_true(
       check_key_status(jso, 3, "new", "none", "5cd46d2a0bd0b8cfe0b130ae8a05b89fad5aded1"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
 
     assert_true(check_import_keys_ex(ffi, &jso, flags, input, 3, 7, 0));
     assert_true(
@@ -3389,7 +3424,7 @@ TEST_F(rnp_tests, test_ffi_iterated_key_import)
       check_key_status(jso, 1, "new", "none", "a3e94de61a8cb229413d348e54505a936a4a970e"));
     assert_true(
       check_key_status(jso, 2, "new", "none", "57f8ed6e5c197db63c60ffaf326ef111425d14a5"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
 
     char *results = NULL;
     assert_int_equal(RNP_ERROR_EOF, rnp_import_keys(ffi, input, flags, &results));
@@ -3406,7 +3441,7 @@ TEST_F(rnp_tests, test_ffi_iterated_key_import)
       check_key_status(jso, 1, "new", "none", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
     assert_true(
       check_key_status(jso, 2, "new", "none", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
 
     assert_true(check_import_keys_ex(ffi, &jso, flags, input, 3, 3, 3));
     assert_true(check_key_status(
@@ -3415,7 +3450,7 @@ TEST_F(rnp_tests, test_ffi_iterated_key_import)
       jso, 1, "unchanged", "new", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
     assert_true(check_key_status(
       jso, 2, "unchanged", "new", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
 
     assert_int_equal(RNP_ERROR_EOF, rnp_import_keys(ffi, input, flags, &results));
     assert_null(results);
@@ -3434,7 +3469,7 @@ TEST_F(rnp_tests, test_ffi_iterated_key_import)
       check_key_status(jso, 2, "new", "none", "c5b15209940a7816a7af3fb51d7e8a5393c997a8"));
     assert_true(
       check_key_status(jso, 3, "new", "none", "5cd46d2a0bd0b8cfe0b130ae8a05b89fad5aded1"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
 
     assert_true(check_import_keys_ex(ffi, &jso, flags, input, 3, 7, 0));
     assert_true(
@@ -3443,7 +3478,7 @@ TEST_F(rnp_tests, test_ffi_iterated_key_import)
       check_key_status(jso, 1, "new", "none", "a3e94de61a8cb229413d348e54505a936a4a970e"));
     assert_true(
       check_key_status(jso, 2, "new", "none", "57f8ed6e5c197db63c60ffaf326ef111425d14a5"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
 
     results = NULL;
     assert_int_equal(RNP_ERROR_EOF, rnp_import_keys(ffi, input, flags, &results));
@@ -3561,12 +3596,12 @@ TEST_F(rnp_tests, test_ffi_key_import_edge_cases)
     rnp_input_destroy(input);
 
     /* key with empty uid - must succeed */
-    json_object *jso = NULL;
+    nlohmann::ordered_json jso;
     assert_true(
       check_import_keys(ffi, &jso, "data/test_key_edge_cases/key-empty-uid.pgp", 1, 1, 0));
     assert_true(
       check_key_status(jso, 0, "new", "none", "753d5b947e9a2b2e01147c1fc972affd358bf887"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
 
     /* key with experimental signature subpackets - must succeed and append uid and signature
      */
@@ -3574,7 +3609,7 @@ TEST_F(rnp_tests, test_ffi_key_import_edge_cases)
       ffi, &jso, "data/test_key_edge_cases/key-subpacket-101-110.pgp", 1, 1, 0));
     assert_true(
       check_key_status(jso, 0, "updated", "none", "753d5b947e9a2b2e01147c1fc972affd358bf887"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
 
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "C972AFFD358BF887", &key));
