@@ -73,8 +73,7 @@ TEST_F(rnp_tests, rnpkeys_exportkey_autocrypt)
      * and an encryption subkey 8a05b89fad5aded1). */
     cli_rnp_t rnp = {};
     int       pipefd[2] = {-1, -1};
-    assert_true(
-      setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, "data/keyrings/1", pipefd));
+    assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, "data/keyrings/1", pipefd));
     assert_true(rnp.load_keyrings(false));
 
     /* Export with explicit keyid filter and userid, verify output is valid. */
