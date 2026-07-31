@@ -44,10 +44,10 @@
 
 static bool
 getpasscb_once(rnp_ffi_t        ffi,
-               void *           app_ctx,
+               void            *app_ctx,
                rnp_key_handle_t key,
-               const char *     pgp_context,
-               char *           buf,
+               const char      *pgp_context,
+               char            *buf,
                size_t           buf_len)
 {
     const char **pass = (const char **) app_ctx;
@@ -65,13 +65,13 @@ getpasscb_once(rnp_ffi_t        ffi,
 
 static bool
 getpasscb_inc(rnp_ffi_t        ffi,
-              void *           app_ctx,
+              void            *app_ctx,
               rnp_key_handle_t key,
-              const char *     pgp_context,
-              char *           buf,
+              const char      *pgp_context,
+              char            *buf,
               size_t           buf_len)
 {
-    int *       num = (int *) app_ctx;
+    int        *num = (int *) app_ctx;
     std::string pass = "pass" + std::to_string(*num);
     (*num)++;
     strncpy(buf, pass.c_str(), buf_len - 1);
@@ -83,14 +83,14 @@ typedef struct key_tbl_t {
     const uint8_t *key_data;
     size_t         key_data_size;
     bool           secret;
-    const char *   keyid;
-    const char *   grip;
-    const char *   userids[TBL_MAX_USERIDS + 1];
+    const char    *keyid;
+    const char    *grip;
+    const char    *userids[TBL_MAX_USERIDS + 1];
 } key_tbl_t;
 
 static void
 tbl_getkeycb(rnp_ffi_t   ffi,
-             void *      app_ctx,
+             void       *app_ctx,
              const char *identifier_type,
              const char *identifier,
              bool        secret)
@@ -138,7 +138,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
     rnp_input_t      input = NULL;
     rnp_output_t     output = NULL;
     rnp_op_encrypt_t op = NULL;
-    const char *     plaintext = "data1";
+    const char      *plaintext = "data1";
 
     // setup FFI
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -603,7 +603,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk)
     rnp_input_t      input = NULL;
     rnp_output_t     output = NULL;
     rnp_op_encrypt_t op = NULL;
-    const char *     plaintext = "data1";
+    const char      *plaintext = "data1";
 
     // setup FFI
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -712,7 +712,7 @@ TEST_F(rnp_tests, test_ffi_select_deprecated_ciphers)
     rnp_input_t      input = NULL;
     rnp_output_t     output = NULL;
     rnp_op_encrypt_t op = NULL;
-    const char *     plaintext = "data1";
+    const char      *plaintext = "data1";
 
     // setup FFI
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -867,10 +867,10 @@ TEST_F(rnp_tests, test_ffi_select_deprecated_ciphers)
 
 static bool
 first_key_password_provider(rnp_ffi_t        ffi,
-                            void *           app_ctx,
+                            void            *app_ctx,
                             rnp_key_handle_t key,
-                            const char *     pgp_context,
-                            char *           buf,
+                            const char      *pgp_context,
+                            char            *buf,
                             size_t           buf_len)
 {
     if (!key) {
@@ -891,7 +891,7 @@ TEST_F(rnp_tests, test_ffi_decrypt_pk_unlocked)
     rnp_input_t      input = NULL;
     rnp_output_t     output = NULL;
     rnp_op_encrypt_t op = NULL;
-    const char *     plaintext = "data1";
+    const char      *plaintext = "data1";
 
     // setup FFI
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -1022,7 +1022,7 @@ TEST_F(rnp_tests, test_ffi_pqc_gen_enc_sign)
         rnp_input_t      input = NULL;
         rnp_output_t     output = NULL;
         rnp_op_encrypt_t op = NULL;
-        const char *     plaintext = "data1";
+        const char      *plaintext = "data1";
         assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
         assert_rnp_success(rnp_generate_key_ex(ffi,
                                                pk_algs.first.c_str(),
@@ -1446,7 +1446,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
     rnp_input_t      input = NULL;
     rnp_output_t     output = NULL;
     rnp_op_encrypt_t op = NULL;
-    const char *     plaintext = "data1";
+    const char      *plaintext = "data1";
 
     // setup FFI
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -1562,10 +1562,10 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_key_provider)
     rnp_input_t      input = NULL;
     rnp_output_t     output = NULL;
     rnp_op_encrypt_t op = NULL;
-    const char *     plaintext = "data1";
-    uint8_t *        primary_sec_key_data = NULL;
+    const char      *plaintext = "data1";
+    uint8_t         *primary_sec_key_data = NULL;
     size_t           primary_sec_size = 0;
-    uint8_t *        sub_sec_key_data = NULL;
+    uint8_t         *sub_sec_key_data = NULL;
     size_t           sub_sec_size = 0;
 
     /* first, let's generate some encrypted data */
@@ -1691,7 +1691,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_and_sign)
     rnp_output_t            output = NULL;
     rnp_op_encrypt_t        op = NULL;
     rnp_op_sign_signature_t signsig = NULL;
-    const char *            plaintext = "data1";
+    const char             *plaintext = "data1";
     rnp_key_handle_t        key = NULL;
     const uint32_t          issued = 1516211899;   // Unix epoch, nowish
     const uint32_t          expires = 1000000000;  // expires later
@@ -1880,7 +1880,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_and_sign)
     size_t                    sig_count;
     uint32_t                  sig_create;
     uint32_t                  sig_expires;
-    char *                    hname = NULL;
+    char                     *hname = NULL;
 
     assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sig_count));
     assert_int_equal(sig_count, 2);
@@ -1953,7 +1953,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_subkey_selection)
     rnp_input_t      input = NULL;
     rnp_output_t     output = NULL;
     rnp_op_encrypt_t op = NULL;
-    const char *     plaintext = "data1";
+    const char      *plaintext = "data1";
 
     /* check whether a latest subkey is selected for encryption */
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -2166,8 +2166,7 @@ TEST_F(rnp_tests, test_ffi_decrypt_hidden_recipient_used_recipient)
 
     rnp_op_verify_t verify = NULL;
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
-    assert_rnp_success(
-      rnp_op_verify_set_flags(verify, RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT));
+    assert_rnp_success(rnp_op_verify_set_flags(verify, RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT));
     assert_rnp_success(rnp_op_verify_execute(verify));
 
     /* Without the PR's patch, used_recipient->keyid would be all-zero
@@ -2200,7 +2199,8 @@ TEST_F(rnp_tests, test_ffi_encrypt_no_wrap)
     rnp_input_t input = NULL;
     assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.signed"));
     rnp_output_t output = NULL;
-    assert_rnp_success(rnp_output_to_path(&output, "encrypted"));    rnp_op_encrypt_t op = NULL;
+    assert_rnp_success(rnp_output_to_path(&output, "encrypted"));
+    rnp_op_encrypt_t op = NULL;
     assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key0-uid2", &key));
