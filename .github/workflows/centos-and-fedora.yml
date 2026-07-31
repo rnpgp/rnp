@@ -196,7 +196,15 @@ jobs:
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
           export PATH="$PWD/build/src/lib:$PATH"
           chown -R rnpuser:rnpuser $PWD
-          exec su rnpuser -c "ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure"
+          # Some minimal Fedora rawhide containers don't install util-linux,
+          # so `su` is missing. Fall back to `sudo -u` which every
+          # container in this matrix installs explicitly.
+          # See rnpgp/rnp-ci-containers#24.
+          if command -v su > /dev/null 2>&1; then
+            exec su rnpuser -c "ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure"
+          else
+            exec sudo -u rnpuser ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure
+          fi
 
       - name: Coverage
         if: env.BUILD_MODE == 'coverage'
