@@ -107,7 +107,7 @@ jobs:
           cmake -B build   -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}}   \
                            -DCRYPTO_BACKEND=${{ matrix.backend.name }}    \
                            -DDOWNLOAD_GTEST=ON                            \
-                           -DCMAKE_BUILD_TYPE=Release  .
+                           -DCMAKE_BUILD_TYPE=Release -DENABLE_DOC=Off .
 
       - name: Build
         run: cmake --build build --parallel ${{ env.CORES }}
