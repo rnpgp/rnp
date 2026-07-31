@@ -2298,7 +2298,7 @@ password_sequence_cb(rnp_ffi_t        ffi,
                      char *           buf,
                      size_t           buf_len)
 {
-    auto *seq = static_cast<password_sequence *>(app_ctx);
+    auto *             seq = static_cast<password_sequence *>(app_ctx);
     const std::string &pw =
       (seq->idx < seq->passwords.size()) ? seq->passwords[seq->idx++] : seq->final_password;
     if (pw.size() >= buf_len) {
@@ -2327,8 +2327,8 @@ password_cancel_cb(rnp_ffi_t        ffi,
 
 TEST_F(rnp_tests, test_ffi_decrypt_password_retry)
 {
-    /* Verify the password retry in init_encrypted_src:
-     *   - up to RNP_PASSWORD_MAX_ATTEMPTS tries per candidate key / symmetric password
+    /* Verify the password retry in init_encrypted_src for the symmetric path:
+     *   - up to RNP_PASSWORD_MAX_ATTEMPTS tries per symmetric password
      *   - provider cancellation exits immediately (no retry)
      *   - wrong-then-right succeeds
      *   - all-wrong fails
@@ -2340,8 +2340,7 @@ TEST_F(rnp_tests, test_ffi_decrypt_password_retry)
     /* Encrypt a message with a known password. */
     rnp_op_encrypt_t op = NULL;
     rnp_input_t      input = NULL;
-    assert_rnp_success(
-      rnp_input_from_memory(&input, (const uint8_t *) "payload", 7, false));
+    assert_rnp_success(rnp_input_from_memory(&input, (const uint8_t *) "payload", 7, false));
     rnp_output_t output = NULL;
     assert_rnp_success(rnp_output_to_memory(&output, 0));
     assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
@@ -2357,8 +2356,8 @@ TEST_F(rnp_tests, test_ffi_decrypt_password_retry)
     /* Helper macros to keep the three cases readable. */
 #define ATTEMPT_DECRYPT(cb, cb_ctx)                                           \
     do {                                                                      \
-        rnp_input_t  _in = NULL;                                              \
-        rnp_output_t _out = NULL;                                             \
+        rnp_input_t     _in = NULL;                                           \
+        rnp_output_t    _out = NULL;                                          \
         rnp_op_verify_t _verify = NULL;                                       \
         assert_rnp_success(rnp_input_from_memory(&_in, buf, buf_len, false)); \
         assert_rnp_success(rnp_output_to_null(&_out));                        \
