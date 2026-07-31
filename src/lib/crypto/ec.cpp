@@ -32,12 +32,13 @@
 #include "utils.h"
 #include "mem.h"
 #include "botan_utils.hpp"
+#include "botan/ec_group.h"
+#include "botan/ecdh.h"
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 #include "x25519_x448.h"
 #include "ed25519_ed448.h"
 #include "botan_utils.hpp"
 #include "botan/bigint.h"
-#include "botan/ecdh.h"
 #endif
 #include <cassert>
 
@@ -185,7 +186,7 @@ is_generic_prime_curve(pgp_curve_t curve)
 }
 
 static rnp_result_t
-ec_generate_generic_native(rnp::RNG *            rng,
+ec_generate_generic_native(rnp::RNG             *rng,
                            std::vector<uint8_t> &privkey,
                            std::vector<uint8_t> &pubkey,
                            pgp_curve_t           curve)
@@ -212,7 +213,7 @@ ec_generate_generic_native(rnp::RNG *            rng,
 }
 
 rnp_result_t
-ec_generate_native(rnp::RNG *            rng,
+ec_generate_native(rnp::RNG             *rng,
                    std::vector<uint8_t> &privkey,
                    std::vector<uint8_t> &pubkey,
                    pgp_curve_t           curve)
