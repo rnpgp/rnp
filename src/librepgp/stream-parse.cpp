@@ -2277,10 +2277,9 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
 }
 
 #define MAX_HIDDEN_TRIES 64
-/* Number of password attempts before giving up on a wrong password. Applies to
- * both the secret-key decrypt path (per candidate key) and the symmetric
- * decryption path. A password provider that returns false (user cancellation)
- * exits the retry loop immediately at either site. */
+/* Number of password attempts before giving up on a wrong password during
+ * symmetric (password-only) decryption. A password provider that returns
+ * false (user cancellation) exits the retry loop immediately. */
 #define RNP_PASSWORD_MAX_ATTEMPTS 3
 
 static rnp_result_t
@@ -2386,15 +2385,8 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             }
             /* Decrypt key */
             rnp::KeyLocker seclock(*seckey);
-            int            attempts = RNP_PASSWORD_MAX_ATTEMPTS;
-            while (attempts--) {
-                if (seckey->unlock(*handler->password_provider, PGP_OP_DECRYPT)) {
-                    errcode = RNP_SUCCESS;
-                    break;
-                }
+            if (!seckey->unlock(*handler->password_provider, PGP_OP_DECRYPT)) {
                 errcode = RNP_ERROR_BAD_PASSWORD;
-            }
-            if (errcode == RNP_ERROR_BAD_PASSWORD) {
                 continue;
             }
 
