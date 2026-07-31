@@ -124,11 +124,15 @@ def _redact_sensitive_args(params):
 
 def run_proc_windows(proc, params, stdin=None):
     exe = os.path.basename(proc)
-    # test special quote cases 
-    params = list(map(lambda st: st.replace('"', '\\"'), params))
-    # We need to escape empty parameters/ones with spaces with quotes
-    params = tuple(map(lambda st: st if (st and not any(x in st for x in [' ','\r','\t'])) else '"%s"' % st, [exe] + params))
-    logging.debug((proc + ' ' + ' '.join(_redact_sensitive_args(params))).strip())
+    # Redact on the raw params so values are masked before the Windows quoting
+    # below wraps whitespace-containing args (otherwise '"--password=x y"' leaks).
+    redacted = _redact_sensitive_args(list(params))
+    def _win_quote(items):
+        items = list(map(lambda st: st.replace('"', '\\"'), items))
+        # escape empty parameters/ones with spaces with quotes
+        return tuple(map(lambda st: st if (st and not any(x in st for x in [' ','\r','\t'])) else '"%s"' % st, items))
+    logging.debug((proc + ' ' + ' '.join(_win_quote([exe] + redacted))).strip())
+    params = _win_quote([exe] + list(params))
     logging.debug('Working directory: ' + os.getcwd())
     sys.stdout.flush()
 
