@@ -119,10 +119,21 @@ jobs:
           # Full cartesian product (target × backend), wrapped under
           # a `target` key so matrix consumers read
           # matrix.target.triple / matrix.target.runner / etc.
+          #
+          # Excluded: x86_64-pc-windows-msvc + botan. vcpkg's botan port
+          # for the x64-windows-static triplet produces a .lib whose
+          # headers still mark the C FFI symbols (botan_block_cipher_*,
+          # botan_rng_*, etc.) with __declspec(dllimport), so the MSVC
+          # linker emits 17 unresolved __imp_botan_* externals when rnp
+          # links statically. Fixing it needs either an upstream vcpkg
+          # port fix or a from-source Botan build on Windows; both are
+          # tracked as follow-up. The Windows + openssl tarball covers
+          # the primary Windows use case in the meantime.
           rnp_matrix=$(jq -c \
             '. as $ts
              | ["botan","openssl"] as $bs
-             | [ $ts[] | . as $t | $bs[] | {target: $t, backend: .} ]' \
+             | [ $ts[] | . as $t | $bs[] | {target: $t, backend: .} ]
+             | [.[] | select((.target.triple == "x86_64-pc-windows-msvc") and (.backend == "botan") | not)]' \
             /tmp/targets.json)
 
           echo "unix_targets=$unix_targets" >> "$GITHUB_OUTPUT"

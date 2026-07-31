@@ -134,10 +134,10 @@ rnp-v0.18.1-aarch64-apple-darwin-openssl.tar.gz
 | `x86_64-unknown-linux-musl` | botan, openssl | `ubuntu-latest` (alpine container) | static libc; Alpine / Docker
 | `aarch64-unknown-linux-musl`| botan, openssl | `ubuntu-24.04-arm` (alpine container) | static libc ARM64
 | `aarch64-apple-darwin`      | botan, openssl | `macos-14`          | Apple Silicon; `MACOSX_DEPLOYMENT_TARGET=12.0`
-| `x86_64-pc-windows-msvc`    | botan, openssl | `windows-latest`    | MSVC 2022, `/MT` static runtime, via vcpkg
+| `x86_64-pc-windows-msvc`    | openssl        | `windows-latest`    | MSVC 2022, `/MT` static runtime, via vcpkg
 |===
 
-12 tarballs per release (6 target triples × 2 backends).
+11 tarballs per release. Windows + botan is not currently shipped: vcpkg's botan port for the x64-windows-static triplet declares the C FFI symbols with `__declspec(dllimport)`, so the MSVC linker emits unresolved `__imp_botan_*` externals when rnp links statically. Fixing it needs an upstream vcpkg port change or a from-source Botan build on Windows; tracked as follow-up.
 
 === Tarball layout
 
