@@ -117,7 +117,9 @@ jobs:
 
       - name: Test
         run: |
+          # Permission/access tests must run as a non-root user; the container defaults to root.
+          adduser -D -h /home/rnp -s /bin/sh rnp 2>/dev/null || true
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
-          export PATH="$PWD/build/src/lib:$PATH"
-          ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure
+          chown -R rnp "$GITHUB_WORKSPACE"
+          su rnp -s /bin/sh -c "cd \"$GITHUB_WORKSPACE\" && PATH=\"$PWD/build/src/lib:\$PATH\" ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure"
