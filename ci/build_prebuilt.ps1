@@ -70,7 +70,11 @@ $Triplet = 'x64-windows-static'
 # windows-native.yml CI uses successfully.
 $Packages = @('bzip2', 'zlib', 'json-c', 'getopt', 'dirent')
 if ($Backend -eq 'botan') {
-    $Packages += 'botan'
+    # rnp uses Botan's C FFI API (botan_block_cipher_*, botan_rng_*, etc.)
+    # which is a compile-time module in Botan. vcpkg's default botan port
+    # omits it; enable explicitly so the FFI symbols land in the static
+    # archive and the rnp link step resolves them.
+    $Packages += 'botan[ffi]'
 } else {
     $Packages += 'openssl'
 }
