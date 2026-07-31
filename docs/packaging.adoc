@@ -133,12 +133,11 @@ rnp-v0.18.1-aarch64-apple-darwin-openssl.tar.gz
 | `aarch64-unknown-linux-gnu` | botan, openssl | `ubuntu-24.04-arm`  | glibc ARM64
 | `x86_64-unknown-linux-musl` | botan, openssl | `ubuntu-latest` (alpine container) | static libc; Alpine / Docker
 | `aarch64-unknown-linux-musl`| botan, openssl | `ubuntu-24.04-arm` (alpine container) | static libc ARM64
-| `x86_64-apple-darwin`       | botan, openssl | `macos-13`          | Intel; `MACOSX_DEPLOYMENT_TARGET=11.0`
 | `aarch64-apple-darwin`      | botan, openssl | `macos-14`          | Apple Silicon; `MACOSX_DEPLOYMENT_TARGET=12.0`
 | `x86_64-pc-windows-msvc`    | botan, openssl | `windows-latest`    | MSVC 2022, `/MT` static runtime, via vcpkg
 |===
 
-14 tarballs per release (7 target triples × 2 backends).
+12 tarballs per release (6 target triples × 2 backends).
 
 === Tarball layout
 

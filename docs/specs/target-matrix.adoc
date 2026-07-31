@@ -18,7 +18,6 @@
 
 | `x86_64-unknown-linux-gnu`  | 1 | `ubuntu-latest`     | Broadest Linux compatibility.
 | `aarch64-unknown-linux-gnu` | 1 | `ubuntu-24.04-arm`  | ARM64 server.
-| `x86_64-apple-darwin`       | 1 | `macos-13`          | Intel; `MACOSX_DEPLOYMENT_TARGET=11.0`.
 | `aarch64-apple-darwin`      | 1 | `macos-14`          | Apple Silicon; `MACOSX_DEPLOYMENT_TARGET=12.0`.
 | `x86_64-pc-windows-msvc`    | 1 | `windows-latest`    | MSVC via vcpkg; `/MT` static runtime.
 | `x86_64-unknown-linux-musl` | 2 | `ubuntu-latest` (alpine) | Static libc; Alpine/Docker.
