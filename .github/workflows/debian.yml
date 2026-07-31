@@ -52,7 +52,8 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - { container: 'debian-10-i386',  cpu: 'i386',   backend: 'botan'   }
+          # Debian 10 EOL — dropped per #2420.
+          # - { container: 'debian-10-i386',  cpu: 'i386',   backend: 'botan'   }
           - { container: 'debian-11-i386',  cpu: 'i386',   backend: 'botan'   }
           - { container: 'debian-11-i386',  cpu: 'i386',   backend: 'openssl' }
           - { container: 'debian-11-amd64', cpu: 'x86_64', backend: 'botan'   }
@@ -63,6 +64,8 @@ jobs:
           - { container: 'debian-13-amd64', cpu: 'x86_64', backend: 'openssl' }
           - { container: 'debian-13-amd64', cpu: 'x86_64', backend: 'botan3', pqc: 'On' }
           - { container: 'debian-13-i386',  cpu: 'i386',   backend: 'botan3', pqc: 'On' }
+          # Debian sid — botan 3.12.0 system per @remicollet #2420.
+          - { container: 'debian-sid-amd64', cpu: 'x86_64', backend: 'botan3' }
         env:
           - { CC: 'gcc',   CXX: 'g++'     }
           - { CC: 'clang', CXX: 'clang++' }
