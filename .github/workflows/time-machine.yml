@@ -193,4 +193,4 @@ jobs:
           export PATH="$PWD/build/src/lib:$PATH"
           chown -R rnpuser:rnpuser $PWD
           echo Running tests for "$(LD_PRELOAD=/usr/lib64/faketime/libfaketime.so.1 date)"
-          exec su rnpuser -c "LD_PRELOAD=/usr/lib64/faketime/libfaketime.so.1 ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure"
+          exec su rnpuser -c "LD_PRELOAD=/usr/lib64/faketime/libfaketime.so.1 ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure -E '_slow$'"

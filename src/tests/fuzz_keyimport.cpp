@@ -51,7 +51,13 @@ TEST_F(rnp_tests, test_fuzz_keyimport)
 
     data = file_to_vec(DATA_PATH "leak_371b211d7e9cf9857befcf06c7da74835e249ee7");
     assert_int_equal(keyimport_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
+}
 
-    data = file_to_vec(DATA_PATH "timeout-9c10372fe9ebdcdb0b6e275d05f8af4f4e3d6051");
+/* 182KB timeout-regression corpus from oss-fuzz. Split from test_fuzz_keyimport
+ * because it takes ~1 minute on slower CPUs. CI excludes *_slow tests on per-PR
+ * runs; see test_fuzz_keyring_slow for the same pattern. */
+TEST_F(rnp_tests, test_fuzz_keyimport_slow)
+{
+    auto data = file_to_vec(DATA_PATH "timeout-9c10372fe9ebdcdb0b6e275d05f8af4f4e3d6051");
     assert_int_equal(keyimport_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
 }
