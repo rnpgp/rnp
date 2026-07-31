@@ -32,12 +32,13 @@
 #include "utils.h"
 #include "mem.h"
 #include "botan_utils.hpp"
+#include "botan/ec_group.h"
+#include "botan/ecdh.h"
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 #include "x25519_x448.h"
 #include "ed25519_ed448.h"
 #include "botan_utils.hpp"
 #include "botan/bigint.h"
-#include "botan/ecdh.h"
 #endif
 #include <cassert>
 

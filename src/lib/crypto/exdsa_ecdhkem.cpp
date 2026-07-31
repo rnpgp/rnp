@@ -42,6 +42,9 @@
 #include "ec.h"
 #include "types.h"
 #include "logging.h"
+#include "botan/bigint.h"
+#include "botan/ec_group.h"
+#include "botan/ecdh.h"
 #include "string.h"
 #include "utils.h"
 #include <cassert>
