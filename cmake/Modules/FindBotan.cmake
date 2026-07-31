@@ -106,7 +106,9 @@ if(NOT _hints_include AND PC_BOTAN_INCLUDEDIR)
   list(APPEND _hints_include ${PC_BOTAN_INCLUDEDIR} ${PC_BOTAN_INCLUDE_DIRS})
   list(APPEND _hints_lib ${PC_BOTAN_LIBDIR} ${PC_BOTAN_LIBRARY_DIRS})
 endif()
-if(DEFINED BOTAN_ROOT_DIR)
+# When hints were set from BOTAN_ROOT_DIR (env var) or CMAKE_FIND_ROOT_PATH
+# (cross-compile), restrict find_path/find_library to those hints only.
+if(_hints_include)
   set(_no_def_path "NO_DEFAULT_PATH")
 endif()
 
