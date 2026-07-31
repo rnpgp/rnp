@@ -1,0 +1,121 @@
+# Copyright (c) 2026 [Ribose Inc](https://www.ribose.com).
+# All rights reserved.
+# This file is a part of rnp
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES, LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+name: alpine
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+      - 'version.txt'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/alpine.yml'
+  pull_request:
+    paths:
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - 'src/lib/CMakeLists.txt'
+      - 'src/libsexpp/CMakeLists.txt'
+      - '.github/workflows/alpine.yml'
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
+
+env:
+  CORES: 2
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+  LC_LANG: C.UTF-8
+  RNP_LOG_CONSOLE: 1
+
+jobs:
+  tests:
+    name: ${{ matrix.image.container }} [CC ${{ matrix.env.CC }}; backend ${{ matrix.image.backend }}; GnuPG system-shipped]
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          # Alpine edge -- botan 3.12.0 system per @remicollet #2420.
+          - { container: 'alpine-edge-amd64', backend: 'botan3' }
+        env:
+          - { CC: 'gcc',   CXX: 'g++'     }
+          - { CC: 'clang', CXX: 'clang++' }
+
+    container: ghcr.io/rnpgp/ci-rnp-${{ matrix.image.container }}
+
+    env: ${{ matrix.env }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup environment
+        shell: bash
+        run: |
+          # Alpine uses BusyBox by default; ensure bash is available for the build.
+          apk add --no-cache bash build-base cmake ninja bzip2-dev zlib-dev json-c-dev botan3-dev gnupg gtest-dev || true
+
+          addgroup -S rnpuser 2>/dev/null || true
+          adduser -S -G rnpuser rnpuser 2>/dev/null || true
+
+      - name: Configure
+        shell: bash
+        run: |
+          set -eux
+          cmake -B build                                           \
+                -DBUILD_SHARED_LIBS=ON                             \
+                -DCRYPTO_BACKEND=${{ matrix.image.backend }}       \
+                -DDOWNLOAD_GTEST=ON                                \
+                -DCMAKE_BUILD_TYPE=Release                         \
+                -DCMAKE_CXX_FLAGS_RELEASE="-UNDEBUG"               \
+                -DCMAKE_C_FLAGS_RELEASE="-UNDEBUG"                 \
+                .
+
+      - name: Build
+        run: cmake --build build --parallel ${{ env.CORES }}
+
+      - name: Test
+        run: |
+          mkdir -p "build/Testing/Temporary"
+          cp "cmake/CTestCostData.txt" "build/Testing/Temporary" || true
+          export PATH="$PWD/build/src/lib:$PATH"
+          chown -R rnpuser:rnpuser $PWD
+          su rnpuser -c "ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure"
