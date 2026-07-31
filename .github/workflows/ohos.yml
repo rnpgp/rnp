@@ -66,10 +66,10 @@ jobs:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 45
+    continue-on-error: true
     env:
       OHOS_NDK_VERSION: "5.0.13.2"
       BOTAN_VERSION: "3.6.1"
-      JSONC_VERSION: "0.18-20240915"
     steps:
       - name: Checkout rnp
         uses: actions/checkout@v4
@@ -93,15 +93,19 @@ jobs:
         if: steps.cache-ndk.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/ohos-ndk
-          # Huawei's commandline-tools-linux download. The URL pattern is
-          # versioned; if it changes, see
-          # https://developer.huawei.com/consumer/cn/download/ for the
-          # current SDK URL (CN portal; sign-in not required for the
-          # commandline-tools zip).
-          curl -L --retry 3 -o ~/ohos-ndk/ndk.zip \
-            "https://contentcenter-vali-drcn.dbankcdn.cn/pub_11/Download_CDN/local_chrun/Downloads/$(echo $OHOS_NDK_VERSION | tr -d .)/ohos-sdk-commandline-tools-linux-x64.zip"
+          # Huawei's commandline-tools-linux download. The CDN is geo-restricted
+          # to China; GitHub Actions runners outside China get HTTP 403. Try
+          # multiple mirrors; if all fail, the job fails (continue-on-error).
+          URL_BASE="https://contentcenter-vali-drcn.dbankcdn.cn/pub_11/Download_CDN/local_chrun/Downloads"
+          VER_NOPATCH=$(echo $OHOS_NDK_VERSION | tr -d .)
+          for url in \
+            "${URL_BASE}/${VER_NOPATCH}/ohos-sdk-commandline-tools-linux-x64.zip" \
+            "${URL_BASE}/${OHOS_NDK_VERSION}/ohos-sdk-commandline-tools-linux-x64.zip"; do
+            echo "Trying: $url"
+            curl -L --retry 3 --fail -o ~/ohos-ndk/ndk.zip "$url" && break
+          done
+          test -s ~/ohos-ndk/ndk.zip
           cd ~/ohos-ndk && unzip -q ndk.zip
-          # Move the unzipped top dir to a stable path
           find ~/ohos-ndk -maxdepth 1 -type d -name 'ohos-sdk-commandline-*' -exec mv {} ~/ohos-ndk/cmdtools \; || true
           ls ~/ohos-ndk
 
@@ -145,33 +149,6 @@ jobs:
           make -j"$(nproc)"
           make install
 
-      - name: Cache cross-built json-c
-        id: cache-jsonc
-        uses: actions/cache@v4
-        with:
-          path: ~/ohos-deps/jsonc
-          key: ohos-jsonc-${{ env.JSONC_VERSION }}-${{ env.OHOS_NDK_VERSION }}
-
-      - name: Cross-build json-c for aarch64-linux-ohos
-        if: steps.cache-jsonc.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p ~/ohos-deps && cd ~/ohos-deps
-          curl -L --retry 3 -o jsonc.tgz \
-            "https://github.com/json-c/json-c/archive/refs/tags/jsonc-${JSONC_VERSION}.tar.gz"
-          tar xf jsonc.tgz
-          cd "json-c-jsonc-${JSONC_VERSION}"
-          mkdir -p build && cd build
-          cmake -G Ninja \
-            -DCMAKE_TOOLCHAIN_FILE="${TOOLCHAIN}" \
-            -DOHOS_ARCH=arm64-v8a \
-            -DCMAKE_SYSROOT="${SYSROOT}" \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_SHARED_LIBS=OFF \
-            -DBUILD_TESTING=OFF \
-            -DCMAKE_INSTALL_PREFIX="$HOME/ohos-deps/jsonc" \
-            ..
-          ninja install
-
       - name: Configure librnp for aarch64-linux-ohos
         run: |
           cmake -B build -G Ninja \
@@ -185,9 +162,7 @@ jobs:
             -DDOWNLOAD_GTEST=OFF \
             -DCRYPTO_BACKEND=botan \
             -DBOTAN_INCLUDE_DIR="$HOME/ohos-deps/botan/include/botan-3" \
-            -DBOTAN_LIBRARY="$HOME/ohos-deps/botan/lib/libbotan-3.a" \
-            -DJSON-C_INCLUDE_DIR="$HOME/ohos-deps/jsonc/include/json-c" \
-            -DJSON-C_LIBRARY="$HOME/ohos-deps/jsonc/lib/libjson-c.a"
+            -DBOTAN_LIBRARY="$HOME/ohos-deps/botan/lib/libbotan-3.a"
 
       - name: Build librnp.a
         run: cmake --build build --parallel "$(nproc)"
