@@ -57,21 +57,28 @@
 #   Set to the root directory of the Botan installation.
 #
 
-# use pkg-config to get the directories and then use these values
-# in the find_path() and find_library() calls
-
-find_package(PkgConfig QUIET)
+# Use pkg-config to discover Botan on the host. When cross-compiling, pkg-config's
+# compiled-in paths point at the host root and would discover host-installed botan
+# even when CMAKE_FIND_ROOT_PATH is set; we therefore default to skipping it.
+# Callers who want pkg-config-driven discovery under cross-compile can force it on
+# with -DBOTAN_USE_PKGCONFIG=ON and set PKG_CONFIG_LIBDIR / PKG_CONFIG_SYSROOT_DIR.
+option(BOTAN_USE_PKGCONFIG "Use pkg-config to discover Botan" OFF)
+if(NOT BOTAN_USE_PKGCONFIG AND NOT CMAKE_CROSSCOMPILING)
+  find_package(PkgConfig QUIET)
+endif()
 
 # Search for the version 2 first unless version 3 requested
 if(NOT "${Botan_FIND_VERSION_MAJOR}" EQUAL "3")
-  pkg_check_modules(PC_BOTAN QUIET botan-2)
+  if(PKG_CONFIG_FOUND)
+    pkg_check_modules(PC_BOTAN QUIET botan-2)
+  endif()
   set(_suffixes "botan-2" "botan-3")
   set(_names "botan-2" "libbotan-2" "botan-3" "libbotan-3")
 else()
   set(_suffixes "botan-3")
   set(_names "botan-3" "libbotan-3")
 endif()
-if(NOT PC_BOTAN_FOUND)
+if(PKG_CONFIG_FOUND AND NOT PC_BOTAN_FOUND)
   pkg_check_modules(PC_BOTAN QUIET botan-3)
 endif()
 
@@ -83,12 +90,25 @@ if(DEFINED ENV{BOTAN_ROOT_DIR})
   list(APPEND _hints_include "$ENV{BOTAN_ROOT_DIR}/include")
   list(APPEND _hints_lib "$ENV{BOTAN_ROOT_DIR}/lib")
 endif()
+# When cross-compiling, prepend CMAKE_FIND_ROOT_PATH entries so find_path /
+# find_library look inside the target sysroot.
+if(CMAKE_CROSSCOMPILING)
+  foreach(_root ${CMAKE_FIND_ROOT_PATH})
+    list(APPEND _hints_include "${_root}/include")
+    list(APPEND _hints_lib "${_root}/lib")
+  endforeach()
+  # Avoid host system paths (/usr, /usr/local, /lib) when cross-compiling.
+  set(_no_system_path "NO_CMAKE_SYSTEM_PATH")
+endif()
 
-# Append PC_* stuff only if BOTAN_ROOT_DIR is not specified
-if(NOT _hints_include)
+# Append PC_* stuff only if BOTAN_ROOT_DIR is not specified and pkg-config ran
+if(NOT _hints_include AND PC_BOTAN_INCLUDEDIR)
   list(APPEND _hints_include ${PC_BOTAN_INCLUDEDIR} ${PC_BOTAN_INCLUDE_DIRS})
   list(APPEND _hints_lib ${PC_BOTAN_LIBDIR} ${PC_BOTAN_LIBRARY_DIRS})
-else()
+endif()
+# When hints were set from BOTAN_ROOT_DIR (env var) or CMAKE_FIND_ROOT_PATH
+# (cross-compile), restrict find_path/find_library to those hints only.
+if(_hints_include)
   set(_no_def_path "NO_DEFAULT_PATH")
 endif()
 
@@ -99,6 +119,7 @@ find_path(BOTAN_INCLUDE_DIR
     ${_hints_include}
   PATH_SUFFIXES ${_suffixes}
   ${_no_def_path}
+  ${_no_system_path}
 )
 
 # find the library
@@ -108,6 +129,7 @@ if(MSVC)
     HINTS
       ${_hints_lib}
     ${_no_def_path}
+    ${_no_system_path}
   )
 else()
   find_library(BOTAN_LIBRARY
@@ -116,6 +138,7 @@ else()
     HINTS
       ${_hints_lib}
     ${_no_def_path}
+    ${_no_system_path}
   )
 endif()
 

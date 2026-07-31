@@ -1,0 +1,190 @@
+# Copyright (c) 2026 [Ribose Inc](https://www.ribose.com).
+# All rights reserved.
+# This file is a part of rnp
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+# Smoke test: cross-compile librnp + dependencies to aarch64-linux-ohos
+# (OpenHarmony). No test execution -- OHOS binaries cannot run on Linux CI
+# runners without QEMU, which is out of scope. The check is "did the static
+# archive link cleanly with the OHOS sysroot, and does 'file' confirm the
+# expected target architecture?"
+
+name: ohos
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/ohos.yml'
+  pull_request:
+    paths:
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - 'src/lib/CMakeLists.txt'
+      - 'src/libsexpp/CMakeLists.txt'
+      - '.github/workflows/ohos.yml'
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
+
+jobs:
+  aarch64-ohos-smoke:
+    name: aarch64-linux-ohos cross-compile (Botan backend)
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    timeout-minutes: 45
+    continue-on-error: true
+    env:
+      OHOS_NDK_VERSION: "5.0.13.2"
+      BOTAN_VERSION: "3.6.1"
+    steps:
+      - name: Checkout rnp
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: Install host build deps
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install cmake ninja-build python3 bzip2 libbz2-dev zlib1g-dev
+
+      - name: Cache OHOS NDK
+        id: cache-ndk
+        uses: actions/cache@v4
+        with:
+          path: ~/ohos-ndk
+          key: ohos-ndk-${{ env.OHOS_NDK_VERSION }}-linux-x64
+
+      - name: Download OHOS NDK (commandline-tools)
+        if: steps.cache-ndk.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/ohos-ndk
+          # Huawei's commandline-tools-linux download. The CDN is geo-restricted
+          # to China; GitHub Actions runners outside China get HTTP 403. Try
+          # multiple mirrors; if all fail, the job fails (continue-on-error).
+          URL_BASE="https://contentcenter-vali-drcn.dbankcdn.cn/pub_11/Download_CDN/local_chrun/Downloads"
+          VER_NOPATCH=$(echo $OHOS_NDK_VERSION | tr -d .)
+          for url in \
+            "${URL_BASE}/${VER_NOPATCH}/ohos-sdk-commandline-tools-linux-x64.zip" \
+            "${URL_BASE}/${OHOS_NDK_VERSION}/ohos-sdk-commandline-tools-linux-x64.zip"; do
+            echo "Trying: $url"
+            curl -L --retry 3 --fail -o ~/ohos-ndk/ndk.zip "$url" && break
+          done
+          test -s ~/ohos-ndk/ndk.zip
+          cd ~/ohos-ndk && unzip -q ndk.zip
+          find ~/ohos-ndk -maxdepth 1 -type d -name 'ohos-sdk-commandline-*' -exec mv {} ~/ohos-ndk/cmdtools \; || true
+          ls ~/ohos-ndk
+
+      - name: Locate OHOS toolchain & sysroot
+        id: ohos-paths
+        run: |
+          NDK_ROOT="$HOME/ohos-ndk/cmdtools/sdk"
+          echo "NDK_ROOT=$NDK_ROOT" >> $GITHUB_ENV
+          TOOLCHAIN=$(find "$NDK_ROOT" -name 'ohos.toolchain.cmake' | head -1)
+          SYSROOT=$(find "$NDK_ROOT" -type d -name 'aarch64-linux-ohos' -path '*sysroot*' | head -1)
+          echo "TOOLCHAIN=$TOOLCHAIN" >> $GITHUB_ENV
+          echo "SYSROOT=$SYSROOT" >> $GITHUB_ENV
+          echo "OHOS_NDK_HOME=$NDK_ROOT" >> $GITHUB_ENV
+          test -n "$TOOLCHAIN" && test -n "$SYSROOT"
+
+      - name: Cache cross-built Botan
+        id: cache-botan
+        uses: actions/cache@v4
+        with:
+          path: ~/ohos-deps/botan
+          key: ohos-botan-${{ env.BOTAN_VERSION }}-${{ env.OHOS_NDK_VERSION }}
+
+      - name: Cross-build Botan 3 for aarch64-linux-ohos
+        if: steps.cache-botan.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/ohos-deps && cd ~/ohos-deps
+          curl -L --retry 3 -o botan.tgz \
+            "https://botan.randombit.net/releases/Botan-${BOTAN_VERSION}.tar.xz"
+          tar xf botan.tgz
+          cd "Botan-${BOTAN_VERSION}"
+          python3 ./configure.py \
+            --cc=clang \
+            --cc-abi-flags="--target=aarch64-linux-ohos --sysroot=${SYSROOT}" \
+            --cc-bin="${OHOS_NDK_HOME}/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=${SYSROOT}" \
+            --build-targets=static \
+            --without-documentation \
+            --disable-shared-library \
+            --minimized-build \
+            --enable-modules="aes,aes_ni,auto_rng,bigint,block,blowfish,camellia,cast128,cbc,cfb,chacha,chacha20poly1305,checksum,crc24,des,dl_group,dsa,ecc_group,ecdh,ecdsa,eddsa,ed25519,elgamal,eme_pkcs1,emsa_pkcs1,gcm,getentropy,ghash,hash,hex,hmac,hmac_drbg,idea,kdf,md5,mem_pool,ocb,pgp_s2k,pk_pad,pkcs_enc,rfc3394,rsa,sha1,sha2_32,sha2_64,sha3,sm2,sm3,sm4,sp800_56a,system_rng,twofish,x25519,x448,ed448,hkdf,kyber,dilithium,sphincsplus,sha3_512" \
+            --prefix="$HOME/ohos-deps/botan"
+          make -j"$(nproc)"
+          make install
+
+      - name: Configure librnp for aarch64-linux-ohos
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="${TOOLCHAIN}" \
+            -DOHOS_ARCH=arm64-v8a \
+            -DCMAKE_SYSROOT="${SYSROOT}" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DBUILD_TESTING=OFF \
+            -DENABLE_DOC=OFF \
+            -DDOWNLOAD_GTEST=OFF \
+            -DCRYPTO_BACKEND=botan \
+            -DBOTAN_INCLUDE_DIR="$HOME/ohos-deps/botan/include/botan-3" \
+            -DBOTAN_LIBRARY="$HOME/ohos-deps/botan/lib/libbotan-3.a"
+
+      - name: Build librnp.a
+        run: cmake --build build --parallel "$(nproc)"
+
+      - name: Verify archive architecture
+        run: |
+          file build/src/lib/librnp.a
+          # The thin archive should contain aarch64-linux-ohos objects.
+          ar t build/src/lib/librnp.a | head -5
+          # Extract one object and verify its arch matches.
+          OBJ=$(ar t build/src/lib/librnp.a | head -1)
+          ar x build/src/lib/librnp.a "$OBJ"
+          file "$OBJ" | tee /dev/stderr | grep -q 'ELF 64-bit LSB.*aarch64'
+
+      - name: Upload librnp artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: librnp-aarch64-linux-ohos
+          path: |
+            build/src/lib/librnp.a
+            build/src/lib/rnp/rnp_export.h
+            build/src/lib/version.h
+            include/rnp/rnp.h
+            include/rnp/rnp_err.h
+          retention-days: 14

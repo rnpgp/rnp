@@ -5,6 +5,9 @@ Binaries that will be installed:
 * `rnp`
 * `rnpkeys`
 
+For cross-compiling librnp to a target architecture (OpenHarmony, Android,
+MinGW, ARM Linux, etc.), see link:installation/cross-compile.html[Cross-compiling librnp].
+
 
 == On NixOS or Nix package manager
 
