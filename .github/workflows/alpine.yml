@@ -93,8 +93,11 @@ jobs:
           # Alpine uses BusyBox by default; ensure bash is available for the build.
           apk add --no-cache bash build-base cmake ninja bzip2-dev zlib-dev json-c-dev botan3-dev gnupg gtest-dev || true
 
+          # Create rnpuser with an explicit login shell -- BusyBox adduser defaults to
+          # /bin/false which makes `su rnpuser -c ...` fail with "This account is not
+          # available."
           addgroup -S rnpuser 2>/dev/null || true
-          adduser -S -G rnpuser rnpuser 2>/dev/null || true
+          adduser -S -G rnpuser -s /bin/sh rnpuser 2>/dev/null || true
 
       - name: Configure
         shell: bash
@@ -118,4 +121,5 @@ jobs:
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary" || true
           export PATH="$PWD/build/src/lib:$PATH"
           chown -R rnpuser:rnpuser $PWD
-          su rnpuser -c "ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure"
+          # BusyBox su requires explicit shell even when the user has one set.
+          su -s /bin/sh rnpuser -c "ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure"
