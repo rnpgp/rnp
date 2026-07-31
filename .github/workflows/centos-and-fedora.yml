@@ -44,6 +44,7 @@ jobs:
     name: ${{ matrix.image.name }} [CC ${{ matrix.env.CC }}; backend ${{ matrix.image.backend }} ${{ matrix.image.botan_ver }}; gpg ${{ matrix.image.gpg_ver }}; build ${{ matrix.env.BUILD_MODE }}; SM2 ${{ matrix.image.sm2 }}; IDEA ${{ matrix.image.idea }}]
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    continue-on-error: ${{ matrix.image.allow_failure || false }}
     strategy:
       fail-fast: false
       matrix:
@@ -59,37 +60,38 @@ jobs:
 # Any other version has to be built explicitly !
 # Pls refer to https://github.com/rnpgp/rnp-ci-containers#readme for more image details
         image:
-          # === Active legs (using currently-built containers) ===
+          # === Botan 2.x coverage (per @remicollet #2420: RHEL/CentOS/Fedora ship botan2 2.12.1-2.19.5) ===
           - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
           - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'Botan', botan_ver: 'system',   sm2: Off, gpg_ver: 'lts'    }
-          - { name: 'Fedora 39', container: 'fedora-39-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
-          - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
-          - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'Botan', botan_ver: 'head',               gpg_ver: 'system' }
+          - { name: 'Fedora 43', container: 'fedora-43-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
+          # === Botan 3.x coverage (per @remicollet #2420: Fedora 44+ and rawhide ship botan3 3.9.0+) ===
+          # Fedora 44 ships both botan2 (default) and botan3 -- test both.
+          - { name: 'Fedora 44', container: 'fedora-44-amd64', backend: 'Botan',  botan_ver: 'system',            gpg_ver: 'system' }
+          - { name: 'Fedora 44', container: 'fedora-44-amd64', backend: 'Botan3', botan_ver: 'system',            gpg_ver: 'system' }
+          - { name: 'Fedora rawhide', container: 'fedora-rawhide-amd64', backend: 'Botan', botan_ver: 'system',    gpg_ver: 'system' }
+          # === Upstream Botan head -- catches breakage like the BOTAN_UNUSED removal ===
+          # Marked allow-failure since Botan HEAD may be broken upstream (not rnp's bug);
+          # the leg still runs to surface upstream regressions but doesn't block PRs.
+          - { name: 'Fedora 40 head', container: 'fedora-40-amd64', backend: 'Botan', botan_ver: 'head',          gpg_ver: 'system', allow_failure: true }
+          # === OpenSSL backend ===
           - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'OpenSSL',           gpg_ver: 'lts'    }
-          - { name: 'Fedora 39', container: 'fedora-39-amd64', backend: 'OpenSSL',           gpg_ver: 'system' }
-          - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'OpenSSL',           gpg_ver: 'system' }
+          - { name: 'Fedora 43', container: 'fedora-43-amd64', backend: 'OpenSSL',           gpg_ver: 'system' }
+          - { name: 'Fedora 44', container: 'fedora-44-amd64', backend: 'OpenSSL',           gpg_ver: 'system' }
           - { name: 'RHEL 8',    container: 'redhat-8-ubi',    backend: 'OpenSSL',           gpg_ver: 'system' }
           - { name: 'RHEL 9',    container: 'redhat-9-ubi',    backend: 'OpenSSL',           gpg_ver: 'system' }
-          # === Target legs per distro maintainer feedback (#2420) ===
-          # These require container images that don't exist yet in
-          # rnpgp/rnp-ci-containers. Uncomment as containers are built.
-          # Versions per @remicollet's #2420 survey:
-          #   - Fedora 43: botan2 2.19.5
-          #   - Fedora 44: botan2 2.19.5 + botan3 3.9.0
-          #   - Fedora rawhide (F45): botan3 3.11.1
-          #   - openSUSE Tumbleweed: botan3 3.11.x
-          #   - Debian sid: botan3 3.12.0
-          #   - Alpine edge: botan3 3.12.0
-          # Dropped per #2420 (no current distro ships these):
-          #   - botan_ver: '3.1.1'  (was: Fedora 40 from-source)
-          #   - botan_ver: '3.3.0'  (was: Fedora 40 Coverage from-source)
-          #   - botan_ver: '3.6.0'  (was: Fedora 40 from-source, pqc: On)
-          # - { name: 'Fedora 43', container: 'fedora-43-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
-          # - { name: 'Fedora 44', container: 'fedora-44-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
-          # - { name: 'Fedora rawhide', container: 'fedora-rawhide-amd64', backend: 'Botan', botan_ver: 'system',    gpg_ver: 'system' }
-          # - { name: 'openSUSE TW', container: 'opensuse-tumbleweed-amd64', backend: 'Botan', botan_ver: 'system',  gpg_ver: 'system' }
-          # - { name: 'Debian sid', container: 'debian-sid-amd64', backend: 'Botan', botan_ver: 'system',           gpg_ver: 'system' }
-          # - { name: 'Alpine edge', container: 'alpine-edge-amd64', backend: 'Botan', botan_ver: 'system',          gpg_ver: 'system' }
+          # === Dropped per #2420 ===
+          # EOL distros (replaced by F43/F44 above):
+          #   - Fedora 39 system / OpenSSL
+          #   - Fedora 40 system / OpenSSL (F40 container retained for head from-source leg)
+          # From-source legs for versions no current distro ships:
+          #   - botan_ver: '3.1.1'  (Fedora 40 from-source)
+          #   - botan_ver: '3.3.0'  (Fedora 40 Coverage from-source -- pre-built in container, kept as Coverage leg below)
+          #   - botan_ver: '3.6.0'  (Fedora 40 from-source, pqc: On)
+          # Target legs pending workflow reorganization (Debian sid / openSUSE TW / Alpine edge
+          # belong in debian.yml / opensuse.yml / new alpine.yml, not centos-and-fedora.yml):
+          #   - Debian sid:    container 'debian-sid-amd64'         -> botan 3.12.0 (system)
+          #   - openSUSE TW:   container 'opensuse-tumbleweed-amd64' -> botan 3.11.x (system)
+          #   - Alpine edge:   container 'alpine-edge-amd64'        -> botan 3.12.0 (system)
 
         include:
           # Coverage report for Botan 2.x backend
