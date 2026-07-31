@@ -28,6 +28,8 @@
 #include "exdsa_ecdhkem.h"
 #include <botan/secmem.h>
 #include <botan/pubkey.h>
+#include <botan/bigint.h>
+#include <botan/ec_group.h>
 #include <botan/ecdh.h>
 #include <botan/ecdsa.h>
 #include <botan/ed25519.h>
@@ -54,7 +56,7 @@ ec_key_t::ec_key_t(pgp_curve_t curve) : curve_(curve)
 {
 }
 
-ecdh_kem_public_key_t::ecdh_kem_public_key_t(uint8_t *   key_buf,
+ecdh_kem_public_key_t::ecdh_kem_public_key_t(uint8_t    *key_buf,
                                              size_t      key_buf_len,
                                              pgp_curve_t curve)
     : ec_key_t(curve), key_(std::vector<uint8_t>(key_buf, key_buf + key_buf_len))
@@ -65,7 +67,7 @@ ecdh_kem_public_key_t::ecdh_kem_public_key_t(std::vector<uint8_t> key, pgp_curve
 {
 }
 
-ecdh_kem_private_key_t::ecdh_kem_private_key_t(uint8_t *   key_buf,
+ecdh_kem_private_key_t::ecdh_kem_private_key_t(uint8_t    *key_buf,
                                                size_t      key_buf_len,
                                                pgp_curve_t curve)
     : ec_key_t(curve), key_(key_buf, key_buf + key_buf_len)
@@ -77,7 +79,7 @@ ecdh_kem_private_key_t::ecdh_kem_private_key_t(std::vector<uint8_t> key, pgp_cur
 }
 
 static Botan::ECDH_PrivateKey
-ecdh_kem_privkey_from_bytes(rnp::RNG *     rng,
+ecdh_kem_privkey_from_bytes(rnp::RNG      *rng,
                             const uint8_t *key_data,
                             size_t         key_size,
                             pgp_curve_t    curve)
@@ -150,7 +152,7 @@ ecdh_kem_private_key_t::get_pubkey_encoded(rnp::RNG *rng) const
 }
 
 rnp_result_t
-ecdh_kem_public_key_t::encapsulate(rnp::RNG *            rng,
+ecdh_kem_public_key_t::encapsulate(rnp::RNG             *rng,
                                    std::vector<uint8_t> &ciphertext,
                                    std::vector<uint8_t> &symmetric_key) const
 {
@@ -190,9 +192,9 @@ ecdh_kem_public_key_t::encapsulate(rnp::RNG *            rng,
 }
 
 rnp_result_t
-ecdh_kem_private_key_t::decapsulate(rnp::RNG *                  rng,
+ecdh_kem_private_key_t::decapsulate(rnp::RNG                   *rng,
                                     const std::vector<uint8_t> &ciphertext,
-                                    std::vector<uint8_t> &      plaintext)
+                                    std::vector<uint8_t>       &plaintext)
 {
     switch (curve_) {
     case PGP_CURVE_25519: {
@@ -247,7 +249,7 @@ exdsa_public_key_t::exdsa_public_key_t(std::vector<uint8_t> key, pgp_curve_t cur
 {
 }
 
-exdsa_private_key_t::exdsa_private_key_t(uint8_t *   key_buf,
+exdsa_private_key_t::exdsa_private_key_t(uint8_t    *key_buf,
                                          size_t      key_buf_len,
                                          pgp_curve_t curve)
     : ec_key_t(curve), key_(key_buf, key_buf + key_buf_len)
@@ -275,7 +277,7 @@ ec_key_t::generate_exdsa_key_pair(rnp::RNG *rng, exdsa_key_t *out, pgp_curve_t c
 }
 
 static Botan::ECDSA_PrivateKey
-exdsa_privkey_from_bytes(rnp::RNG *     rng,
+exdsa_privkey_from_bytes(rnp::RNG      *rng,
                          const uint8_t *key_data,
                          size_t         key_size,
                          pgp_curve_t    curve)
@@ -297,9 +299,9 @@ exdsa_pubkey_from_bytes(const std::vector<uint8_t> &key, pgp_curve_t curve)
 
 /* NOTE hash_alg unused for Ed/X curves */
 rnp_result_t
-exdsa_private_key_t::sign(rnp::RNG *            rng,
+exdsa_private_key_t::sign(rnp::RNG             *rng,
                           std::vector<uint8_t> &sig_out,
-                          const uint8_t *       hash,
+                          const uint8_t        *hash,
                           size_t                hash_len,
                           pgp_hash_alg_t        hash_alg) const
 {
@@ -323,7 +325,7 @@ exdsa_private_key_t::sign(rnp::RNG *            rng,
 
 rnp_result_t
 exdsa_public_key_t::verify(const std::vector<uint8_t> &sig,
-                           const uint8_t *             hash,
+                           const uint8_t              *hash,
                            size_t                      hash_len,
                            pgp_hash_alg_t              hash_alg) const
 {
