@@ -59,18 +59,37 @@ jobs:
 # Any other version has to be built explicitly !
 # Pls refer to https://github.com/rnpgp/rnp-ci-containers#readme for more image details
         image:
+          # === Active legs (using currently-built containers) ===
           - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
           - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'Botan', botan_ver: 'system',   sm2: Off, gpg_ver: 'lts'    }
           - { name: 'Fedora 39', container: 'fedora-39-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
           - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
-          - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'Botan', botan_ver: '3.1.1',              gpg_ver: 'system' }
           - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'Botan', botan_ver: 'head',               gpg_ver: 'system' }
-          - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'Botan', botan_ver: '3.6.0',    pqc: On,  gpg_ver: 'system' }
           - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'OpenSSL',           gpg_ver: 'lts'    }
           - { name: 'Fedora 39', container: 'fedora-39-amd64', backend: 'OpenSSL',           gpg_ver: 'system' }
           - { name: 'Fedora 40', container: 'fedora-40-amd64', backend: 'OpenSSL',           gpg_ver: 'system' }
           - { name: 'RHEL 8',    container: 'redhat-8-ubi',    backend: 'OpenSSL',           gpg_ver: 'system' }
           - { name: 'RHEL 9',    container: 'redhat-9-ubi',    backend: 'OpenSSL',           gpg_ver: 'system' }
+          # === Target legs per distro maintainer feedback (#2420) ===
+          # These require container images that don't exist yet in
+          # rnpgp/rnp-ci-containers. Uncomment as containers are built.
+          # Versions per @remicollet's #2420 survey:
+          #   - Fedora 43: botan2 2.19.5
+          #   - Fedora 44: botan2 2.19.5 + botan3 3.9.0
+          #   - Fedora rawhide (F45): botan3 3.11.1
+          #   - openSUSE Tumbleweed: botan3 3.11.x
+          #   - Debian sid: botan3 3.12.0
+          #   - Alpine edge: botan3 3.12.0
+          # Dropped per #2420 (no current distro ships these):
+          #   - botan_ver: '3.1.1'  (was: Fedora 40 from-source)
+          #   - botan_ver: '3.3.0'  (was: Fedora 40 Coverage from-source)
+          #   - botan_ver: '3.6.0'  (was: Fedora 40 from-source, pqc: On)
+          # - { name: 'Fedora 43', container: 'fedora-43-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
+          # - { name: 'Fedora 44', container: 'fedora-44-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
+          # - { name: 'Fedora rawhide', container: 'fedora-rawhide-amd64', backend: 'Botan', botan_ver: 'system',    gpg_ver: 'system' }
+          # - { name: 'openSUSE TW', container: 'opensuse-tumbleweed-amd64', backend: 'Botan', botan_ver: 'system',  gpg_ver: 'system' }
+          # - { name: 'Debian sid', container: 'debian-sid-amd64', backend: 'Botan', botan_ver: 'system',           gpg_ver: 'system' }
+          # - { name: 'Alpine edge', container: 'alpine-edge-amd64', backend: 'Botan', botan_ver: 'system',          gpg_ver: 'system' }
 
         include:
           # Coverage report for Botan 2.x backend
@@ -131,21 +150,18 @@ jobs:
         if:   matrix.image.gpg_ver == 'head'
         run:  /opt/tools/tools.sh build_and_install_gpg head
 
-      - name: Build botan head
+      - name: Cache botan head build
         if:   matrix.image.botan_ver == 'head'
+        id:   cache-botan-head
+        uses: actions/cache@v4
+        with:
+          path: /opt/botan/head
+          key:  botan-head-${{ matrix.image.container }}-${{ github.run_id }}
+
+      - name: Build botan head
+        if:   matrix.image.botan_ver == 'head' && steps.cache-botan-head.outputs.cache-hit != 'true'
         run: |
           /opt/tools/tools.sh build_and_install_botan head
-
-      - name: Build botan 3.6.0
-        if:   matrix.image.botan_ver == '3.6.0'
-        run: |
-          # full build is required: crypto-refresh needs ed448/x448/argon2,
-          # which are missing from the containers' minimized module lists
-          git clone --depth 1 --branch 3.6.0 https://github.com/randombit/botan botan-build
-          cd botan-build
-          ./configure.py --prefix=/opt/botan/3.6.0
-          make -j$(nproc)
-          make install
 
       - name: Configure
         run: |
