@@ -64,7 +64,7 @@ jobs:
   run:
     name: clang-tidy (clang-${{ matrix.clang }}, ${{ matrix.backend }})
     runs-on: ubuntu-latest
-    container: ubuntu:24.04
+    container: ghcr.io/rnpgp/ci-rnp-debian-sid-amd64
     strategy:
       fail-fast: false
       matrix:
@@ -112,9 +112,14 @@ jobs:
 
       - name: Summarise clang-tidy findings
         if: always()
+        continue-on-error: true
         run: |
           echo "## clang-tidy summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          if [ ! -f clang-tidy.log ]; then
+            echo "_Build did not produce clang-tidy.log (configure or build step may have failed)._" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
           total=$(grep -cE "warning: .* \[" clang-tidy.log || echo 0)
           echo "Total findings: **${total}**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
