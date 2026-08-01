@@ -122,6 +122,37 @@ def _redact_sensitive_args(params):
         redacted.append(param)
     return redacted
 
+def _extract_password_values(params):
+    # Collect password/passphrase values from params so they can be redacted
+    # from process output before logging. Returns a list of str values.
+    passwords = []
+    get_next = False
+    for param in params:
+        if isinstance(param, bytes):
+            param = param.decode('utf-8', errors='replace')
+        if get_next:
+            passwords.append(param)
+            get_next = False
+            continue
+        for opt in ('--password', '--passphrase'):
+            prefix = opt + '='
+            if param.startswith(prefix):
+                passwords.append(param[len(prefix):])
+                break
+        else:
+            if param in ('--password', '--passphrase'):
+                get_next = True
+    return passwords
+
+def _redact_output(text, params):
+    # Replace known password values in process output before logging.
+    if not text:
+        return text
+    for pw in _extract_password_values(params):
+        if pw and len(pw) > 0:
+            text = text.replace(pw, '***')
+    return text
+
 def run_proc_windows(proc, params, stdin=None):
     exe = os.path.basename(proc)
     # Redact on the raw params so values are masked before the Windows quoting
@@ -206,10 +237,10 @@ def run_proc_windows(proc, params, stdin=None):
     os.unlink(stderr_path)
     if stdin: 
         os.unlink(stdin_path)
-    if passfo: 
+    if passfo:
         os.unlink(pass_path)
-    logging.debug(err.strip())
-    logging.debug(out.strip())
+    logging.debug(_redact_output(err.strip(), params))
+    logging.debug(_redact_output(out.strip(), params))
     return (retcode, out, err)
 
 if sys.version_info >= (3,):
@@ -235,8 +266,8 @@ def run_proc(proc, params, stdin=None):
                     universal_newlines=True)
     output, errout = process.communicate(stdin)
     retcode = process.poll()
-    logging.debug(errout.strip())
-    logging.debug(output.strip())
+    logging.debug(_redact_output(errout.strip(), params))
+    logging.debug(_redact_output(output.strip(), params))
 
     return (retcode, output, errout)
 
