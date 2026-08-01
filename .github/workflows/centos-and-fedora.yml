@@ -134,6 +134,11 @@ jobs:
       - name: Build botan head
         if:   matrix.image.botan_ver == 'head'
         run: |
+          # Botan HEAD removed the BOTAN_UNUSED macro but still references it
+          # in ffi_cert_ext.cpp and other FFI source files. Define it to
+          # nothing so the from-source build succeeds. Remove this shim once
+          # upstream Botan fixes the inconsistency.
+          export CXXFLAGS='-DBOTAN_UNUSED(...)='
           /opt/tools/tools.sh build_and_install_botan head
 
       - name: Build botan 3.6.0
