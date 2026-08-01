@@ -87,6 +87,13 @@ jobs:
         with:
           submodules: true
 
+      - name: Setup ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ matrix.image.container }}-${{ matrix.env.CC }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-${{ matrix.image.container }}-${{ matrix.env.CC }}-
       - name: Setup environment
         shell: bash
         run: |
@@ -107,6 +114,7 @@ jobs:
                 -DBUILD_SHARED_LIBS=ON                             \
                 -DCRYPTO_BACKEND=${{ matrix.image.backend }}       \
                 -DDOWNLOAD_GTEST=ON                                \
+                ${RNP_CCACHE_LAUNCHER:-}                           \
                 -DCMAKE_BUILD_TYPE=Release                         \
                 -DCMAKE_CXX_FLAGS_RELEASE="-UNDEBUG"               \
                 -DCMAKE_C_FLAGS_RELEASE="-UNDEBUG"                 \
