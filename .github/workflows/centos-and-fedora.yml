@@ -122,6 +122,13 @@ jobs:
         with:
           submodules: true  
 
+      - name: Setup ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ matrix.image.container }}-${{ matrix.env.CC }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-${{ matrix.image.container }}-${{ matrix.env.CC }}-
       - name: Setup environment
         run: |
           set -o errexit -o pipefail -o noclobber -o nounset
@@ -140,6 +147,15 @@ jobs:
 
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
 
+          # Use ccache if available (container-agnostic: falls back gracefully)
+          if command -v ccache >/dev/null 2>&1; then
+            ccache --set-config=max_size=500M 2>/dev/null || true
+            ccache --set-config=compression=true 2>/dev/null || true
+            echo "CCACHE_DIR=$HOME/.ccache" >> $GITHUB_ENV
+            echo "RNP_CCACHE_LAUNCHER=-DCMAKE_CXX_COMPILER_LAUNCHER=ccache" >> $GITHUB_ENV
+          else
+            echo "RNP_CCACHE_LAUNCHER=" >> $GITHUB_ENV
+          fi
           useradd rnpuser
           printf "\nrnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
           printf "\nrnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
@@ -180,6 +196,7 @@ jobs:
           cmake -B build                                           \
                 -DBUILD_SHARED_LIBS=${{ env.SHARED_LIBS }}         \
                 -DDOWNLOAD_GTEST=ON                                \
+                ${RNP_CCACHE_LAUNCHER:-}                           \
                 -DCMAKE_BUILD_TYPE=Release                         \
                 -DCRYPTO_BACKEND=${{ matrix.image.backend }}       \
                 ${sm2_opt:-} ${idea_opt:-} ${two_opt:-} ${blow_opt:-} ${rmd_opt:-} ${bp_opt:-} ${pqc_opt[@]:-} ${cov_opt:-} ${san_opt:-} .
