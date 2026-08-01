@@ -340,22 +340,24 @@ HOME(const std::string &sdir)
 #ifdef _WIN32
     std::string home;
     wchar_t     wcsidlprf[MAX_PATH];
-    /* Prefer USERPROFILE (set by Windows on user logon; overridable by users).
-     * Fall back to SHGetFolderPathW(CSIDL_PROFILE), the documented way to look
-     * up the user's profile directory when the env var is absent. */
-    wchar_t *wuserprf = _wgetenv(L"USERPROFILE");
-    if (wuserprf != NULL) {
-        home = wstr_to_utf8(wuserprf);
-    } else if (SHGetFolderPathW(NULL, CSIDL_PROFILE, NULL, SHGFP_TYPE_CURRENT, wcsidlprf) ==
-               S_OK) {
-        home = wstr_to_utf8(wcsidlprf);
+    /* On Windows, respect the HOME env var if set (git, ssh, bash and many
+     * other CLI tools do the same). Fall back to USERPROFILE (set by Windows
+     * on user logon), then to SHGetFolderPathW(CSIDL_PROFILE). */
+    wchar_t *whome = _wgetenv(L"HOME");
+    if (whome != NULL) {
+        home = wstr_to_utf8(whome);
+    } else {
+        wchar_t *wuserprf = _wgetenv(L"USERPROFILE");
+        if (wuserprf != NULL) {
+            home = wstr_to_utf8(wuserprf);
+        } else if (SHGetFolderPathW(
+                     NULL, CSIDL_PROFILE, NULL, SHGFP_TYPE_CURRENT, wcsidlprf) == S_OK) {
+            home = wstr_to_utf8(wcsidlprf);
+        }
     }
 #else
     const char *home = getenv("HOME");
     if (!home) {
-        /* TODO: switch to getpwuid_r when rnp goes thread-safe.
-         * getpwuid is not reentrant; safe today because rnp's home-dir lookup
-         * is single-threaded, but the constraint should be documented. */
         struct passwd *pwd = getpwuid(getuid());
         home = pwd ? pwd->pw_dir : "";
     }
