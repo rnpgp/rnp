@@ -61,7 +61,7 @@ concurrency:
 # Alpine uses musl libc, not glibc. Some rnp code paths (notably the
 # error-number string tables, passwd-related paths, and the more pedantic
 # warnings-as-errors compilers) behave differently. We test the current
-# Alpine stable (3.21) and edge in parallel.
+# Alpine stable (3.23) and edge in parallel.
 jobs:
   tests:
     name: alpine:${{ matrix.alpine }} [CC ${{ matrix.env.CC }}; ${{ matrix.backend.name }}]
@@ -71,9 +71,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        alpine: [ '3.21', 'edge' ]
+        alpine: [ '3.23', 'edge' ]
         backend:
-          - { name: 'botan',   package: 'botan-dev' }
+          - { name: 'botan',   package: 'botan3-dev' }
           - { name: 'openssl', package: 'openssl-dev' }
         env:
           - { CC: gcc,   CXX: g++ }
@@ -93,7 +93,7 @@ jobs:
         run: |
           apk add --no-cache \
               build-base cmake clang ninja \
-              git bash perl \
+              git bash perl python3 \
               zlib-dev bzip2-dev json-c-dev \
               ${{ matrix.backend.package }} \
               gpg gpgme-dev
