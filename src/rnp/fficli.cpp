@@ -2038,10 +2038,25 @@ rnp_cfg_set_ks_info(rnp_cfg &cfg)
         defhomedir = true;
     }
 
-    /* Check whether $HOME or homedir exists */
+    /* Check whether $HOME or homedir exists and is writable */
     struct stat st;
-    if (rnp_stat(homedir.c_str(), &st) || rnp_access(homedir.c_str(), R_OK | W_OK)) {
-        ERR_MSG("Home directory '%s' does not exist or is not writable!", homedir.c_str());
+    if (rnp_stat(homedir.c_str(), &st)) {
+        /* Directory does not exist */
+        if (!defhomedir) {
+            ERR_MSG("Home directory '%s' does not exist or is not writable!",
+                    homedir.c_str());
+            return false;
+        }
+        /* Auto-detected home dir may not exist in minimal environments
+         * (CI containers where HOME is unset and getpwuid returns a
+         * non-existent path). Warn but continue — the operation will
+         * report a meaningful error if it needs the keystore. */
+        ERR_MSG("Home directory '%s' does not exist or is not writable!",
+                homedir.c_str());
+    } else if (rnp_access(homedir.c_str(), R_OK | W_OK)) {
+        /* Directory exists but is not writable */
+        ERR_MSG("Home directory '%s' does not exist or is not writable!",
+                homedir.c_str());
         return false;
     }
 
@@ -2057,7 +2072,10 @@ rnp_cfg_set_ks_info(rnp_cfg &cfg)
         if (!rnp::path::exists(homedir, true) && RNP_MKDIR(homedir.c_str(), 0700) == -1 &&
             errno != EEXIST) {
             ERR_MSG("Cannot mkdir '%s' errno = %d", homedir.c_str(), errno);
-            return false;
+            /* Don't abort for auto-detected dirs — the parent may not exist
+             * in minimal environments (CI containers). Keystore setup below
+             * will report "Keyring directory is empty" and the operation
+             * proceeds without keys. */
         }
     }
 
