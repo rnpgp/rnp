@@ -27,7 +27,7 @@ jobs:
           submodules: true
       - uses: DoozyX/clang-format-lint-action@v0.20
         with:
-          clangFormatVersion: 11.0.0
+          clangFormatVersion: 11.0.1
   shellcheck:
     runs-on: ubuntu-latest
     steps:
