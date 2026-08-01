@@ -121,4 +121,4 @@ Everyone participating in this project is expected to follow the
 
 By contributing, you agree that your changes are licensed under the
 project's license (the same BSD-2-Clause + LGPL-2.1 split that the rest
-of rnp uses; see `LICENSE` and `LICENSE.LESSer`).
+of rnp uses; see `LICENSE` and `LICENSE.LESSER`).
