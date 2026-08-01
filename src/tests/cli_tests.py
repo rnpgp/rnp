@@ -3283,6 +3283,17 @@ class Misc(unittest.TestCase):
         # In all other cases
         # check that botan or openssl executable binary exists in PATH
             backend_prog_ext = shutil.which(backend_prog)
+            # Distro packages install botan2 and botan3 as separate binaries
+            # (botan2, botan3); the plain `botan` symlink may point at either.
+            # If rnp was built against botan 3.x but PATH's `botan` is botan2
+            # (or vice versa), look up the versioned binary that matches.
+            if backend_prog == 'botan' and backend_prog_ext is not None:
+                rnp_botan_major = match.group(1).split('.')[0]
+                versioned = 'botan' + rnp_botan_major
+                if versioned != 'botan':
+                    versioned_ext = shutil.which(versioned)
+                    if versioned_ext is not None:
+                        backend_prog_ext = versioned_ext
 
         if backend_prog_ext is None:
             return
