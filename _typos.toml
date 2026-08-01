@@ -25,6 +25,7 @@ FO = "FO"
 claus = "claus"
 desig = "desig"
 CNA = "CNA"
+Sur = "Sur"
 
 [files]
 extend-exclude = [

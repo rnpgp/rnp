@@ -36,6 +36,7 @@
 #include <errno.h>
 #else
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #endif // !_MSC_VER
@@ -118,6 +119,13 @@ rnp_fdopen(int fildes, const char *mode)
 #ifdef _WIN32
     return _fdopen(fildes, mode);
 #else
+    /* glibc's fdopen() catches bad fds via the underlying lseek(); musl's
+     * fdopen() only fails on actual I/O, leaving callers with a half-
+     * initialised FILE* on Alpine and other musl-based systems. Validate
+     * the fd up front so behaviour matches across libcs. */
+    if (fcntl(fildes, F_GETFD) == -1) {
+        return NULL;
+    }
     return fdopen(fildes, mode);
 #endif
 }
