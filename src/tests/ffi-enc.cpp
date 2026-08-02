@@ -2461,7 +2461,8 @@ TEST_F(rnp_tests, test_ffi_decrypt_password_retry)
 #undef ATTEMPT_DECRYPT
 
     rnp_output_destroy(output);
-=======
+}
+
 /* Assert that encrypt and key-export operations do not leak plaintext or
  * passphrase material in their output. Per docs/develop/testing-crypto-paths.adoc.
  * A regression in any of these would indicate the encryption pipeline is
