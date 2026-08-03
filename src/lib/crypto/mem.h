@@ -34,6 +34,7 @@
 #include <botan/secmem.h>
 #include <botan/ffi.h>
 #elif defined(CRYPTO_BACKEND_OPENSSL)
+#include <cstdlib>
 #include <openssl/crypto.h>
 #endif
 #include "str-utils.h"
