@@ -84,9 +84,9 @@ static rnp::Key *get_key_prefer_public(rnp_key_handle_t handle);
 static rnp::Key *get_key_require_secret(rnp_key_handle_t handle);
 
 static bool rnp_password_cb_bounce(const pgp_password_ctx_t *ctx,
-                                   char                     *password,
+                                   char *                    password,
                                    size_t                    password_size,
-                                   void                     *userdata_void);
+                                   void *                    userdata_void);
 
 static rnp_result_t rnp_dump_src_to_json(pgp_source_t &src, uint32_t flags, char **result);
 
@@ -106,7 +106,7 @@ find_key(rnp_ffi_t             ffi,
          const rnp::KeySearch &search,
          bool                  secret,
          bool                  try_key_provider,
-         rnp::Key             *after = nullptr)
+         rnp::Key *            after = nullptr)
 {
     auto      ks = secret ? ffi->secring : ffi->pubring;
     rnp::Key *key = ks->search(search, after);
@@ -764,9 +764,9 @@ operation_description(uint8_t op)
 
 static bool
 rnp_password_cb_bounce(const pgp_password_ctx_t *ctx,
-                       char                     *password,
+                       char *                    password,
                        size_t                    password_size,
-                       void                     *userdata_void)
+                       void *                    userdata_void)
 {
     rnp_ffi_t ffi = (rnp_ffi_t) userdata_void;
 
@@ -1134,7 +1134,7 @@ try {
         ret = json_array_add_id_str(features, compress_alg_map, z_alg_supported);
     } else if (rnp::str_case_eq(type, RNP_FEATURE_CURVE)) {
         for (pgp_curve_t curve = PGP_CURVE_NIST_P_256; curve < PGP_CURVE_MAX;
-             curve = (pgp_curve_t) (curve + 1)) {
+             curve = (pgp_curve_t)(curve + 1)) {
             auto desc = pgp::ec::Curve::get(curve);
             if (!desc) {
                 return RNP_ERROR_BAD_STATE; // LCOV_EXCL_LINE
@@ -1283,9 +1283,9 @@ rnp_get_security_rule(rnp_ffi_t   ffi,
                       const char *type,
                       const char *name,
                       uint64_t    time,
-                      uint32_t   *flags,
-                      uint64_t   *from,
-                      uint32_t   *level)
+                      uint32_t *  flags,
+                      uint64_t *  from,
+                      uint32_t *  level)
 try {
     if (!ffi || !type || !name || !level) {
         return RNP_ERROR_NULL_POINTER;
@@ -1348,7 +1348,7 @@ rnp_remove_security_rule(rnp_ffi_t   ffi,
                          uint32_t    level,
                          uint32_t    flags,
                          uint64_t    from,
-                         size_t     *removed)
+                         size_t *    removed)
 try {
     if (!ffi) {
         return RNP_ERROR_NULL_POINTER;
@@ -1669,8 +1669,8 @@ key_status_to_str(pgp_key_import_status_t status)
 }
 
 static rnp_result_t
-add_key_status(json_object            *keys,
-               const rnp::Key         *key,
+add_key_status(json_object *           keys,
+               const rnp::Key *        key,
                pgp_key_import_status_t pub,
                pgp_key_import_status_t sec)
 {
@@ -1750,7 +1750,7 @@ try {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     rnp::JSONObject jsowrap(jsores);
-    json_object    *jsokeys = json_object_new_array();
+    json_object *   jsokeys = json_object_new_array();
     if (!json_add(jsores, "keys", jsokeys)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
@@ -1809,8 +1809,8 @@ sig_status_to_str(pgp_sig_import_status_t status)
 }
 
 static rnp_result_t
-add_sig_status(json_object            *sigs,
-               const rnp::Key         *signer,
+add_sig_status(json_object *           sigs,
+               const rnp::Key *        signer,
                pgp_sig_import_status_t pub,
                pgp_sig_import_status_t sec)
 {
@@ -1867,7 +1867,7 @@ try {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     rnp::JSONObject jsowrap(jsores);
-    json_object    *jsosigs = json_object_new_array();
+    json_object *   jsosigs = json_object_new_array();
     if (!json_add(jsores, "sigs", jsosigs)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
@@ -1875,8 +1875,8 @@ try {
     for (auto &sig : sigs) {
         pgp_sig_import_status_t pub_status = PGP_SIG_IMPORT_STATUS_UNKNOWN;
         pgp_sig_import_status_t sec_status = PGP_SIG_IMPORT_STATUS_UNKNOWN;
-        auto                   *pkey = ffi->pubring->import_signature(sig, &pub_status);
-        auto                   *skey = ffi->secring->import_signature(sig, &sec_status);
+        auto *                  pkey = ffi->pubring->import_signature(sig, &pub_status);
+        auto *                  skey = ffi->secring->import_signature(sig, &sec_status);
         sigret = add_sig_status(jsosigs, pkey ? pkey : skey, pub_status, sec_status);
         if (sigret) {
             return sigret; // LCOV_EXCL_LINE
@@ -2142,10 +2142,10 @@ input_closer_bounce(pgp_source_t *src)
 }
 
 rnp_result_t
-rnp_input_from_callback(rnp_input_t        *input,
+rnp_input_from_callback(rnp_input_t *       input,
                         rnp_input_reader_t *reader,
                         rnp_input_closer_t *closer,
-                        void               *app_ctx)
+                        void *              app_ctx)
 try {
     // checks
     if (!input || !reader) {
@@ -2402,10 +2402,10 @@ try {
 FFI_GUARD
 
 rnp_result_t
-rnp_output_to_callback(rnp_output_t        *output,
+rnp_output_to_callback(rnp_output_t *       output,
                        rnp_output_writer_t *writer,
                        rnp_output_closer_t *closer,
-                       void                *app_ctx)
+                       void *               app_ctx)
 try {
     // checks
     if (!output || !writer) {
@@ -2457,8 +2457,8 @@ static rnp_result_t
 rnp_op_add_signature(rnp_ffi_t                 ffi,
                      rnp_op_sign_signatures_t &signatures,
                      rnp_key_handle_t          key,
-                     rnp_ctx_t                &ctx,
-                     rnp_op_sign_signature_t  *sig)
+                     rnp_ctx_t &               ctx,
+                     rnp_op_sign_signature_t * sig)
 {
     if (!key) {
         return RNP_ERROR_NULL_POINTER;
@@ -2694,10 +2694,10 @@ FFI_GUARD
 
 rnp_result_t
 rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
-                            const char      *password,
-                            const char      *s2k_hash,
+                            const char *     password,
+                            const char *     s2k_hash,
                             size_t           iterations,
-                            const char      *s2k_cipher)
+                            const char *     s2k_cipher)
 try {
     // checks
     if (!op) {
@@ -3194,9 +3194,9 @@ rnp_verify_src_provider(pgp_parse_handler_t *handler, pgp_source_t *src)
 };
 
 static bool
-rnp_verify_dest_provider(pgp_parse_handler_t     *handler,
-                         pgp_dest_t             **dst,
-                         bool                    *closedst,
+rnp_verify_dest_provider(pgp_parse_handler_t *    handler,
+                         pgp_dest_t **            dst,
+                         bool *                   closedst,
                          const pgp_literal_hdr_t *lithdr)
 {
     rnp_op_verify_t op = (rnp_op_verify_t) handler->param;
@@ -3211,7 +3211,7 @@ rnp_verify_dest_provider(pgp_parse_handler_t     *handler,
 
 static void
 recipient_handle_from_pk_sesskey(rnp_recipient_handle_st &handle,
-                                 const pgp_pk_sesskey_t  &sesskey)
+                                 const pgp_pk_sesskey_t & sesskey)
 {
     handle.keyid = sesskey.key_id;
     handle.palg = sesskey.alg;
@@ -3234,7 +3234,7 @@ symenc_handle_from_sk_sesskey(rnp_symenc_handle_st &handle, const pgp_sk_sesskey
 static void
 rnp_verify_on_recipients(const std::vector<pgp_pk_sesskey_t> &recipients,
                          const std::vector<pgp_sk_sesskey_t> &passwords,
-                         void                                *param)
+                         void *                               param)
 {
     rnp_op_verify_t op = (rnp_op_verify_t) param;
     /* store only top-level encrypted stream recipients info for now */
@@ -3723,7 +3723,7 @@ FFI_GUARD
 
 rnp_result_t
 rnp_op_verify_signature_get_handle(rnp_op_verify_signature_t sig,
-                                   rnp_signature_handle_t   *handle)
+                                   rnp_signature_handle_t *  handle)
 try {
     if (!sig || !handle) {
         return RNP_ERROR_NULL_POINTER;
@@ -3773,8 +3773,8 @@ FFI_GUARD
 
 rnp_result_t
 rnp_op_verify_signature_get_times(rnp_op_verify_signature_t sig,
-                                  uint32_t                 *create,
-                                  uint32_t                 *expires)
+                                  uint32_t *                create,
+                                  uint32_t *                expires)
 try {
     if (create) {
         *create = sig->sig_pkt.creation();
@@ -3812,7 +3812,7 @@ FFI_GUARD
 static rnp_result_t
 rnp_locate_key_int(rnp_ffi_t             ffi,
                    const rnp::KeySearch &locator,
-                   rnp_key_handle_t     *handle,
+                   rnp_key_handle_t *    handle,
                    bool                  require_secret = false)
 {
     // search pubring
@@ -3835,8 +3835,8 @@ rnp_locate_key_int(rnp_ffi_t             ffi,
 
 rnp_result_t
 rnp_locate_key(rnp_ffi_t         ffi,
-               const char       *identifier_type,
-               const char       *identifier,
+               const char *      identifier_type,
+               const char *      identifier,
                rnp_key_handle_t *handle)
 try {
     // checks
@@ -3871,7 +3871,7 @@ try {
 
     // handle flags
     bool           armored = extract_flag(flags, RNP_KEY_EXPORT_ARMORED);
-    rnp::Key      *key = nullptr;
+    rnp::Key *     key = nullptr;
     rnp::KeyStore *store = nullptr;
     if (flags & RNP_KEY_EXPORT_PUBLIC) {
         extract_flag(flags, RNP_KEY_EXPORT_PUBLIC);
@@ -3948,7 +3948,7 @@ FFI_GUARD
 rnp_result_t
 rnp_key_export_autocrypt(rnp_key_handle_t key,
                          rnp_key_handle_t subkey,
-                         const char      *uid,
+                         const char *     uid,
                          rnp_output_t     output,
                          uint32_t         flags)
 try {
@@ -4027,8 +4027,8 @@ rnp_key_get_revoker(rnp_key_handle_t key)
 static bool
 fill_revocation_reason(rnp_ffi_t        ffi,
                        rnp::Revocation &revinfo,
-                       const char      *code,
-                       const char      *reason)
+                       const char *     code,
+                       const char *     reason)
 {
     revinfo = {};
     if (code && !str_to_revocation_type(code, &revinfo.code)) {
@@ -4047,11 +4047,11 @@ fill_revocation_reason(rnp_ffi_t        ffi,
 
 static rnp_result_t
 rnp_key_get_revocation(rnp_ffi_t            ffi,
-                       rnp::Key            *key,
-                       rnp::Key            *revoker,
-                       const char          *hash,
-                       const char          *code,
-                       const char          *reason,
+                       rnp::Key *           key,
+                       rnp::Key *           revoker,
+                       const char *         hash,
+                       const char *         code,
+                       const char *         reason,
                        pgp::pkt::Signature &sig)
 {
     if (!hash) {
@@ -4085,9 +4085,9 @@ rnp_result_t
 rnp_key_export_revocation(rnp_key_handle_t key,
                           rnp_output_t     output,
                           uint32_t         flags,
-                          const char      *hash,
-                          const char      *code,
-                          const char      *reason)
+                          const char *     hash,
+                          const char *     code,
+                          const char *     reason)
 try {
     if (!key || !key->ffi || !output) {
         return RNP_ERROR_NULL_POINTER;
@@ -4261,11 +4261,11 @@ FFI_GUARD
 
 static void
 report_signature_removal(rnp_ffi_t             ffi,
-                         const rnp::Key       &key,
+                         const rnp::Key &      key,
                          rnp_key_signatures_cb sigcb,
-                         void                 *app_ctx,
-                         rnp::Signature       &keysig,
-                         bool                 &remove)
+                         void *                app_ctx,
+                         rnp::Signature &      keysig,
+                         bool &                remove)
 {
     if (!sigcb) {
         return;
@@ -4335,11 +4335,11 @@ signature_needs_removal(rnp_ffi_t       ffi,
 
 static void
 remove_key_signatures(rnp_ffi_t             ffi,
-                      rnp::Key             &pub,
-                      rnp::Key             *sec,
+                      rnp::Key &            pub,
+                      rnp::Key *            sec,
                       uint32_t              flags,
                       rnp_key_signatures_cb sigcb,
-                      void                 *app_ctx)
+                      void *                app_ctx)
 {
     pgp::SigIDs sigs;
 
@@ -4365,7 +4365,7 @@ rnp_result_t
 rnp_key_remove_signatures(rnp_key_handle_t      handle,
                           uint32_t              flags,
                           rnp_key_signatures_cb sigcb,
-                          void                 *app_ctx)
+                          void *                app_ctx)
 try {
     if (!handle) {
         return RNP_ERROR_NULL_POINTER;
@@ -4541,9 +4541,9 @@ parse_protection(json_object *jso, rnp_key_protection_params_t &protection)
 }
 
 static bool
-parse_keygen_common_fields(json_object                 *jso,
-                           uint8_t                     &usage,
-                           uint32_t                    &expiry,
+parse_keygen_common_fields(json_object *                jso,
+                           uint8_t &                    usage,
+                           uint32_t &                   expiry,
                            rnp_key_protection_params_t &prot)
 {
     /* Key/subkey usage flags */
@@ -4579,8 +4579,8 @@ parse_keygen_common_fields(json_object                 *jso,
 
 static std::unique_ptr<rnp::KeygenParams>
 parse_keygen_primary(rnp_ffi_t                    ffi,
-                     json_object                 *jso,
-                     rnp::CertParams             &cert,
+                     json_object *                jso,
+                     rnp::CertParams &            cert,
                      rnp_key_protection_params_t &prot)
 {
     /* Parse keygen params first */
@@ -4614,8 +4614,8 @@ parse_keygen_primary(rnp_ffi_t                    ffi,
 
 static std::unique_ptr<rnp::KeygenParams>
 parse_keygen_sub(rnp_ffi_t                    ffi,
-                 json_object                 *jso,
-                 rnp::BindingParams          &binding,
+                 json_object *                jso,
+                 rnp::BindingParams &         binding,
                  rnp_key_protection_params_t &prot)
 {
     /* Parse keygen params first */
@@ -4671,9 +4671,9 @@ gen_json_grips(char **result, const rnp::Key *primary, const rnp::Key *sub)
 
 static rnp_result_t
 gen_json_primary_key(rnp_ffi_t                    ffi,
-                     json_object                 *jsoparams,
+                     json_object *                jsoparams,
                      rnp_key_protection_params_t &prot,
-                     pgp::Fingerprint            &fp,
+                     pgp::Fingerprint &           fp,
                      bool                         protect)
 {
     rnp::CertParams cert;
@@ -4706,9 +4706,9 @@ gen_json_primary_key(rnp_ffi_t                    ffi,
 
 static rnp_result_t
 gen_json_subkey(rnp_ffi_t         ffi,
-                json_object      *jsoparams,
-                rnp::Key         &prim_pub,
-                rnp::Key         &prim_sec,
+                json_object *     jsoparams,
+                rnp::Key &        prim_pub,
+                rnp::Key &        prim_sec,
                 pgp::Fingerprint &fp)
 {
     rnp::BindingParams          binding;
@@ -4753,7 +4753,7 @@ try {
 
     // parse the JSON
     json_tokener_error error;
-    json_object       *jso = json_tokener_parse_verbose(json, &error);
+    json_object *      jso = json_tokener_parse_verbose(json, &error);
     if (!jso) {
         // syntax error or some other issue
         FFI_LOG(ffi, "Invalid JSON: %s", json_tokener_error_desc(error));
@@ -4793,8 +4793,8 @@ try {
     }
 
     // generate primary key
-    rnp::Key                   *prim_pub = nullptr;
-    rnp::Key                   *prim_sec = nullptr;
+    rnp::Key *                  prim_pub = nullptr;
+    rnp::Key *                  prim_sec = nullptr;
     rnp_key_protection_params_t prim_prot = {};
     pgp::Fingerprint            fp;
     if (jsoprimary) {
@@ -4870,14 +4870,14 @@ FFI_GUARD
 
 rnp_result_t
 rnp_generate_key_ex(rnp_ffi_t         ffi,
-                    const char       *key_alg,
-                    const char       *sub_alg,
+                    const char *      key_alg,
+                    const char *      sub_alg,
                     uint32_t          key_bits,
                     uint32_t          sub_bits,
-                    const char       *key_curve,
-                    const char       *sub_curve,
-                    const char       *userid,
-                    const char       *password,
+                    const char *      key_curve,
+                    const char *      sub_curve,
+                    const char *      userid,
+                    const char *      password,
                     rnp_key_handle_t *key)
 try {
     rnp_op_generate_t op = NULL;
@@ -4970,8 +4970,8 @@ rnp_result_t
 rnp_generate_key_rsa(rnp_ffi_t         ffi,
                      uint32_t          bits,
                      uint32_t          subbits,
-                     const char       *userid,
-                     const char       *password,
+                     const char *      userid,
+                     const char *      password,
                      rnp_key_handle_t *key)
 try {
     return rnp_generate_key_ex(ffi,
@@ -4991,8 +4991,8 @@ rnp_result_t
 rnp_generate_key_dsa_eg(rnp_ffi_t         ffi,
                         uint32_t          bits,
                         uint32_t          subbits,
-                        const char       *userid,
-                        const char       *password,
+                        const char *      userid,
+                        const char *      password,
                         rnp_key_handle_t *key)
 try {
     return rnp_generate_key_ex(ffi,
@@ -5010,9 +5010,9 @@ FFI_GUARD
 
 rnp_result_t
 rnp_generate_key_ec(rnp_ffi_t         ffi,
-                    const char       *curve,
-                    const char       *userid,
-                    const char       *password,
+                    const char *      curve,
+                    const char *      userid,
+                    const char *      password,
                     rnp_key_handle_t *key)
 try {
     return rnp_generate_key_ex(
@@ -5022,8 +5022,8 @@ FFI_GUARD
 
 rnp_result_t
 rnp_generate_key_25519(rnp_ffi_t         ffi,
-                       const char       *userid,
-                       const char       *password,
+                       const char *      userid,
+                       const char *      password,
                        rnp_key_handle_t *key)
 try {
     return rnp_generate_key_ex(ffi,
@@ -5041,8 +5041,8 @@ FFI_GUARD
 
 rnp_result_t
 rnp_generate_key_sm2(rnp_ffi_t         ffi,
-                     const char       *userid,
-                     const char       *password,
+                     const char *      userid,
+                     const char *      password,
                      rnp_key_handle_t *key)
 try {
     return rnp_generate_key_ex(
@@ -5144,7 +5144,7 @@ rnp_result_t
 rnp_op_generate_subkey_create(rnp_op_generate_t *op,
                               rnp_ffi_t          ffi,
                               rnp_key_handle_t   primary,
-                              const char        *alg)
+                              const char *       alg)
 try {
     if (!op || !ffi || !alg || !primary) {
         return RNP_ERROR_NULL_POINTER;
@@ -5668,8 +5668,8 @@ key_get_uid_at(rnp::Key *key, size_t idx, char **uid)
 
 rnp_result_t
 rnp_key_add_uid(rnp_key_handle_t handle,
-                const char      *uid,
-                const char      *hash,
+                const char *     uid,
+                const char *     hash,
                 uint32_t         expiration,
                 uint8_t          key_flags,
                 bool             primary)
@@ -5874,8 +5874,8 @@ FFI_GUARD
 
 static rnp_result_t
 rnp_key_return_signature(rnp_ffi_t               ffi,
-                         rnp::Key               *key,
-                         rnp::Signature         *subsig,
+                         rnp::Key *              key,
+                         rnp::Signature *        subsig,
                          rnp_signature_handle_t *sig)
 {
     try {
@@ -5921,8 +5921,8 @@ FFI_GUARD
 
 static rnp_result_t
 create_key_signature(rnp_ffi_t               ffi,
-                     rnp::Key               &sigkey,
-                     rnp::Key               &tgkey,
+                     rnp::Key &              sigkey,
+                     rnp::Key &              tgkey,
                      uint32_t                uid,
                      rnp_signature_handle_t &sig,
                      pgp_sig_type_t          type)
@@ -5995,7 +5995,7 @@ FFI_GUARD
 rnp_result_t
 rnp_key_certification_create(rnp_key_handle_t        signer,
                              rnp_uid_handle_t        uid,
-                             const char             *type,
+                             const char *            type,
                              rnp_signature_handle_t *sig)
 try {
     if (!signer || !uid || !sig) {
@@ -6231,8 +6231,8 @@ FFI_GUARD
 
 rnp_result_t
 rnp_key_signature_set_revocation_reason(rnp_signature_handle_t sig,
-                                        const char            *code,
-                                        const char            *reason)
+                                        const char *           code,
+                                        const char *           reason)
 try {
     if (!sig) {
         return RNP_ERROR_NULL_POINTER;
@@ -6512,7 +6512,7 @@ FFI_GUARD
 rnp_result_t
 rnp_signature_subpacket_at(rnp_signature_handle_t handle,
                            size_t                 idx,
-                           rnp_sig_subpacket_t   *subpkt)
+                           rnp_sig_subpacket_t *  subpkt)
 try {
     if (!handle || !subpkt) {
         return RNP_ERROR_NULL_POINTER;
@@ -6530,7 +6530,7 @@ rnp_signature_subpacket_find(rnp_signature_handle_t handle,
                              uint8_t                type,
                              bool                   hashed,
                              size_t                 skip,
-                             rnp_sig_subpacket_t   *subpkt)
+                             rnp_sig_subpacket_t *  subpkt)
 try {
     if (!handle || !subpkt) {
         return RNP_ERROR_NULL_POINTER;
@@ -6542,9 +6542,9 @@ FFI_GUARD
 
 rnp_result_t
 rnp_signature_subpacket_info(rnp_sig_subpacket_t subpkt,
-                             uint8_t            *type,
-                             bool               *hashed,
-                             bool               *critical)
+                             uint8_t *           type,
+                             bool *              hashed,
+                             bool *              critical)
 try {
     if (!subpkt) {
         return RNP_ERROR_NULL_POINTER;
@@ -7173,7 +7173,7 @@ FFI_GUARD
 
 rnp_result_t
 rnp_key_get_default_key(rnp_key_handle_t  primary_key,
-                        const char       *usage,
+                        const char *      usage,
                         uint32_t          flags,
                         rnp_key_handle_t *default_key)
 try {
@@ -7284,7 +7284,7 @@ try {
     if (!handle || !curve) {
         return RNP_ERROR_NULL_POINTER;
     }
-    auto       *key = get_key_prefer_public(handle);
+    auto *      key = get_key_prefer_public(handle);
     pgp_curve_t _curve = key->curve();
     if (_curve == PGP_CURVE_UNKNOWN) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -7564,7 +7564,7 @@ try {
     }
 
     rnp::KeyFingerprintSearch search(pkey->primary_fp());
-    auto                     *prim_sec = find_key(key->ffi, search, true, true);
+    auto *                    prim_sec = find_key(key->ffi, search, true, true);
     if (!prim_sec) {
         FFI_LOG(key->ffi, "Primary secret key not found.");
         return RNP_ERROR_KEY_NOT_FOUND;
@@ -7658,7 +7658,7 @@ try {
     }
 
     const pgp_s2k_t &s2k = key->sec->pkt().sec_protection.s2k;
-    const char      *res = "Unknown";
+    const char *     res = "Unknown";
     if (s2k.usage == PGP_S2KU_NONE) {
         res = "None";
     }
@@ -7846,10 +7846,10 @@ FFI_GUARD
 
 rnp_result_t
 rnp_key_protect(rnp_key_handle_t handle,
-                const char      *password,
-                const char      *cipher,
-                const char      *cipher_mode,
-                const char      *hash,
+                const char *     password,
+                const char *     cipher,
+                const char *     cipher_mode,
+                const char *     hash,
                 size_t           iterations)
 try {
     rnp_key_protection_params_t protection = {};
@@ -7878,7 +7878,7 @@ try {
     if (!key) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
-    pgp_key_pkt_t    *decrypted_key = NULL;
+    pgp_key_pkt_t *   decrypted_key = NULL;
     const std::string pass = password;
     if (key->encrypted()) {
         pgp_password_ctx_t ctx(PGP_OP_PROTECT, key);
@@ -8053,7 +8053,7 @@ static rnp_result_t
 add_json_mpis(json_object *jso, ...)
 {
     va_list      ap;
-    const char  *name;
+    const char * name;
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
     va_start(ap, jso);
@@ -8231,10 +8231,10 @@ add_json_sig_mpis(json_object *jso, const pgp::pkt::Signature *sig)
 }
 
 static bool
-add_json_array_lookup(json_object         *jso,
+add_json_array_lookup(json_object *        jso,
                       std::vector<uint8_t> vals,
-                      const char          *name,
-                      const id_str_pair   *map)
+                      const char *         name,
+                      const id_str_pair *  map)
 {
     if (vals.empty()) {
         return true;
@@ -8655,7 +8655,7 @@ FFI_GUARD
 static rnp_result_t
 rnp_dump_src_to_json(pgp_source_t &src, uint32_t flags, char **result)
 {
-    json_object         *jso = NULL;
+    json_object *        jso = NULL;
     rnp::DumpContextJson dumpctx(src, &jso);
 
     dumpctx.set_dump_mpi(extract_flag(flags, RNP_JSON_DUMP_MPI));
@@ -8838,7 +8838,7 @@ key_iter_get_item(const rnp_identifier_iterator_t it)
 rnp_result_t
 rnp_identifier_iterator_create(rnp_ffi_t                  ffi,
                                rnp_identifier_iterator_t *it,
-                               const char                *identifier_type)
+                               const char *               identifier_type)
 try {
     // checks
     if (!ffi || !it || !identifier_type) {

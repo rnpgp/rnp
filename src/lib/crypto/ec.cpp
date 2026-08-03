@@ -186,7 +186,7 @@ is_generic_prime_curve(pgp_curve_t curve)
 }
 
 static rnp_result_t
-ec_generate_generic_native(rnp::RNG             *rng,
+ec_generate_generic_native(rnp::RNG *            rng,
                            std::vector<uint8_t> &privkey,
                            std::vector<uint8_t> &pubkey,
                            pgp_curve_t           curve)
@@ -213,7 +213,7 @@ ec_generate_generic_native(rnp::RNG             *rng,
 }
 
 rnp_result_t
-ec_generate_native(rnp::RNG             *rng,
+ec_generate_native(rnp::RNG *            rng,
                    std::vector<uint8_t> &privkey,
                    std::vector<uint8_t> &pubkey,
                    pgp_curve_t           curve)

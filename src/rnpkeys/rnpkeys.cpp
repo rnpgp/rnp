@@ -198,7 +198,7 @@ import_keys(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
 
     do {
         /* load keys one-by-one */
-        char        *results = NULL;
+        char *       results = NULL;
         rnp_result_t ret = rnp_import_keys(rnp->ffi, input, flags, &results);
         if (ret == RNP_ERROR_EOF) {
             res = true;
@@ -230,7 +230,7 @@ import_keys(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
         }
         processed_keys += json_object_array_length(keys);
         for (size_t idx = 0; idx < (size_t) json_object_array_length(keys); idx++) {
-            json_object     *keyinfo = json_object_array_get_idx(keys, idx);
+            json_object *    keyinfo = json_object_array_get_idx(keys, idx);
             rnp_key_handle_t key = NULL;
             if (!keyinfo) {
                 continue;
@@ -296,7 +296,7 @@ static bool
 import_sigs(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
 {
     bool         res = false;
-    char        *results = NULL;
+    char *       results = NULL;
     json_object *jso = NULL;
     json_object *sigs = NULL;
     int          unknown_sigs = 0;
