@@ -29,8 +29,8 @@
 
 #include "file-utils.h"
 #include "config.h"
-#ifdef _MSC_VER
 #include <stdlib.h>
+#ifdef _MSC_VER
 #include <stdio.h>
 #include "uniwin.h"
 #include <errno.h>
