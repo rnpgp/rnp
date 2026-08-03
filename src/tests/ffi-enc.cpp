@@ -2461,6 +2461,7 @@ TEST_F(rnp_tests, test_ffi_decrypt_password_retry)
 #undef ATTEMPT_DECRYPT
 
     rnp_output_destroy(output);
+    rnp_ffi_destroy(ffi);
 }
 
 /* Assert that encrypt and key-export operations do not leak plaintext or
