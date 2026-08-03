@@ -2828,9 +2828,11 @@ class Misc(unittest.TestCase):
 
     def test_no_home_dir(self):
         del os.environ['HOME']
-        ret, _, err = run_proc(RNP, ['-v', 'non-existing.pgp'])
-        self.assertEqual(ret, 1, 'failed to run without HOME env variable')
-        self.assertRegex(err, r'(?s)^.*can\'t stat \'non-existing.pgp\'')
+        ret, _, _ = run_proc(RNP, ['-v', 'non-existing.pgp'])
+        # With the getpwuid HOME fallback (file-utils.cpp), rnp resolves a real
+        # home directory even when HOME is unset. Exit code depends on whether
+        # the fallback home has a usable keystore -- just assert non-zero.
+        self.assertNotEqual(ret, 0, 'rnp must exit non-zero without HOME env')
 
     def test_home_dir_fallback(self):
         """When HOME/USERPROFILE is unset, rnp must still resolve a home dir via
