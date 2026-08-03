@@ -81,7 +81,7 @@ typedef struct pgp_dest_compressed_param_t {
     pgp_dest_packet_param_t pkt;
     pgp_compression_type_t  alg;
     union {
-        z_stream  z;
+        z_stream z;
 #ifdef HAVE_BZLIB_H
         bz_stream bz;
 #endif
