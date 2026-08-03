@@ -3075,7 +3075,7 @@ cli_rnp_print_signatures(cli_rnp_t *rnp, const std::vector<rnp_op_verify_signatu
     unsigned    invalidc = 0;
     unsigned    unknownc = 0;
     std::string title = "UNKNOWN signature";
-    FILE       *resfp = rnp->resfp;
+    FILE *      resfp = rnp->resfp;
 
     for (auto sig : sigs) {
         rnp_result_t status = rnp_op_verify_signature_get_status(sig);
@@ -3330,7 +3330,7 @@ cli_rnp_print_praise(void)
 void
 cli_rnp_print_feature(FILE *fp, const char *type, const char *printed_type)
 {
-    char *result = NULL;
+    char * result = NULL;
     size_t count;
     if (rnp_supported_features(type, &result) != RNP_SUCCESS) {
         ERR_MSG("Failed to list supported features: %s", type);
