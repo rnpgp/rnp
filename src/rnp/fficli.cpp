@@ -3330,7 +3330,7 @@ cli_rnp_print_praise(void)
 void
 cli_rnp_print_feature(FILE *fp, const char *type, const char *printed_type)
 {
-    char  *result = NULL;
+    char *result = NULL;
     size_t count;
     if (rnp_supported_features(type, &result) != RNP_SUCCESS) {
         ERR_MSG("Failed to list supported features: %s", type);
