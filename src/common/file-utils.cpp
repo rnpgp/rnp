@@ -343,9 +343,9 @@ HOME(const std::string &sdir)
     /* On Windows, respect the HOME env var if set (git, ssh, bash and many
      * other CLI tools do the same). Fall back to USERPROFILE (set by Windows
      * on user logon), then to SHGetFolderPathW(CSIDL_PROFILE). */
-    wchar_t *whome = _wgetenv(L"HOME");
-    if (whome != NULL) {
-        home = wstr_to_utf8(whome);
+    wchar_t *w_home_env = _wgetenv(L"HOME");
+    if (w_home_env != NULL) {
+        home = wstr_to_utf8(w_home_env);
     } else {
         wchar_t *wuserprf = _wgetenv(L"USERPROFILE");
         if (wuserprf != NULL) {

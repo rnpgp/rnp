@@ -2043,20 +2043,17 @@ rnp_cfg_set_ks_info(rnp_cfg &cfg)
     if (rnp_stat(homedir.c_str(), &st)) {
         /* Directory does not exist */
         if (!defhomedir) {
-            ERR_MSG("Home directory '%s' does not exist or is not writable!",
-                    homedir.c_str());
+            ERR_MSG("Home directory '%s' does not exist or is not writable!", homedir.c_str());
             return false;
         }
         /* Auto-detected home dir may not exist in minimal environments
          * (CI containers where HOME is unset and getpwuid returns a
          * non-existent path). Warn but continue — the operation will
          * report a meaningful error if it needs the keystore. */
-        ERR_MSG("Home directory '%s' does not exist or is not writable!",
-                homedir.c_str());
+        ERR_MSG("Home directory '%s' does not exist or is not writable!", homedir.c_str());
     } else if (rnp_access(homedir.c_str(), R_OK | W_OK)) {
         /* Directory exists but is not writable */
-        ERR_MSG("Home directory '%s' does not exist or is not writable!",
-                homedir.c_str());
+        ERR_MSG("Home directory '%s' does not exist or is not writable!", homedir.c_str());
         return false;
     }
 
