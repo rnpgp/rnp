@@ -2578,3 +2578,244 @@ TEST_F(rnp_tests, test_no_plaintext_leakage)
 
     rnp_ffi_destroy(ffi);
 }
+TEST_F(rnp_tests, test_ffi_entropy_encoding_roundtrip)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* Round-trip with all defaults: 256-bit entropy, hex alphabet,
+     * 16 data groups of 4 chars + 1 checksum line. */
+    char *structured = NULL;
+    char *flat = NULL;
+    assert_rnp_success(rnp_entropy_encode_human_readable(ffi, NULL, &structured, &flat));
+    assert_non_null(structured);
+    assert_non_null(flat);
+    /* Flat form is 64 hex chars (256 bits / 4 bits per char) */
+    assert_int_equal(strlen(flat), 64);
+
+    /* Decode and check the flat form round-trips exactly. */
+    char *decoded_flat = NULL;
+    assert_rnp_success(rnp_entropy_decode_human_readable(structured, NULL, &decoded_flat));
+    assert_non_null(decoded_flat);
+    assert_string_equal(decoded_flat, flat);
+    rnp_buffer_destroy(decoded_flat);
+
+    /* Validate the checksum. */
+    assert_rnp_success(rnp_entropy_encoding_validate(structured, NULL));
+
+    /* Tamper with the structured form: flip one alphabet character
+     * in a data group's payload. The checksum must catch it. */
+    std::string tampered(structured);
+    for (size_t i = 1; i < tampered.size(); i++) {
+        if (tampered[i] == '0') {
+            tampered[i] = '1';
+            break;
+        }
+        if (tampered[i] == '1') {
+            tampered[i] = '0';
+            break;
+        }
+    }
+    assert_rnp_failure(
+      rnp_entropy_decode_human_readable(tampered.c_str(), NULL, &decoded_flat));
+    assert_rnp_failure(rnp_entropy_encoding_validate(tampered.c_str(), NULL));
+
+    rnp_buffer_destroy(structured);
+    rnp_buffer_destroy(flat);
+
+    /* Custom alphabet: handwriting-friendly hex (0-9, then 6 distinct letters) */
+    rnp_entropy_encoding_params_t params = {};
+    params.alphabet = "0123456789HKNPWX";
+    params.entropy_bits = 256;
+    params.group_size = 4;
+    structured = NULL;
+    flat = NULL;
+    assert_rnp_success(rnp_entropy_encode_human_readable(ffi, &params, &structured, &flat));
+    assert_non_null(structured);
+    assert_non_null(flat);
+    /* All chars in the flat form must be from the custom alphabet. */
+    std::string fstr(flat);
+    for (char c : fstr) {
+        bool in_alpha = false;
+        for (char a : std::string("0123456789HKNPWX")) {
+            if (c == a) {
+                in_alpha = true;
+                break;
+            }
+        }
+        assert_true(in_alpha);
+    }
+    decoded_flat = NULL;
+    assert_rnp_success(rnp_entropy_decode_human_readable(structured, &params, &decoded_flat));
+    assert_string_equal(decoded_flat, flat);
+    rnp_buffer_destroy(structured);
+    rnp_buffer_destroy(flat);
+    rnp_buffer_destroy(decoded_flat);
+
+    /* Re-enter groups out of order; should still decode correctly via group IDs. */
+    /* Build a new structured form, then shuffle it. */
+    params.alphabet = "0123456789HKNPWX";
+    structured = NULL;
+    flat = NULL;
+    assert_rnp_success(rnp_entropy_encode_human_readable(ffi, &params, &structured, &flat));
+    /* The structured form has 17 groups: 1 checksum + 16 data, separated by spaces. */
+    std::string original(structured);
+    std::vector<std::string> groups;
+    {
+        size_t start = 0;
+        while (start <= original.size()) {
+            size_t pos = original.find(' ', start);
+            if (pos == std::string::npos) {
+                groups.push_back(original.substr(start));
+                break;
+            }
+            groups.push_back(original.substr(start, pos - start));
+            start = pos + 1;
+        }
+    }
+    /* Keep the checksum (first group) in place, swap two data groups. */
+    if (groups.size() >= 3) {
+        std::swap(groups[1], groups[2]);
+    }
+    std::string reordered;
+    for (size_t i = 0; i < groups.size(); i++) {
+        if (i > 0) {
+            reordered += ' ';
+        }
+        reordered += groups[i];
+    }
+    decoded_flat = NULL;
+    assert_rnp_success(
+      rnp_entropy_decode_human_readable(reordered.c_str(), &params, &decoded_flat));
+    assert_string_equal(decoded_flat, flat);
+    rnp_buffer_destroy(structured);
+    rnp_buffer_destroy(flat);
+    rnp_buffer_destroy(decoded_flat);
+
+    /* Invalid params: alphabet with non-power-of-2 size. */
+    rnp_entropy_encoding_params_t bad = {};
+    bad.alphabet = "ABC"; /* 3 chars, not a power of 2 */
+    bad.entropy_bits = 256;
+    bad.group_size = 4;
+    assert_rnp_failure(rnp_entropy_encode_human_readable(ffi, &bad, &structured, &flat));
+
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_backup_archive_roundtrip)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* Generate an RSA keypair for the keys-to-backup, and a separate
+     * signing keypair + encryption keypair for the archive envelope. */
+    auto gen_key = [&](const char *userid, const char *usage) -> rnp_key_handle_t {
+        rnp_op_generate_t op = NULL;
+        rnp_key_handle_t  key = NULL;
+        EXPECT_EQ(RNP_SUCCESS, rnp_op_generate_create(&op, ffi, "RSA"));
+        EXPECT_EQ(RNP_SUCCESS, rnp_op_generate_set_bits(op, 2048));
+        if (userid) {
+            EXPECT_EQ(RNP_SUCCESS, rnp_op_generate_set_userid(op, userid));
+        }
+        if (usage) {
+            EXPECT_EQ(RNP_SUCCESS, rnp_op_generate_add_usage(op, usage));
+        }
+        EXPECT_EQ(RNP_SUCCESS, rnp_op_generate_execute(op));
+        EXPECT_EQ(RNP_SUCCESS, rnp_op_generate_get_key(op, &key));
+        rnp_op_generate_destroy(op);
+        return key;
+    };
+
+    rnp_key_handle_t backup_key = gen_key("backed-up <bu@example.com>", "sign");
+    rnp_key_handle_t signing_key = gen_key("signer <signer@example.com>", "sign");
+    rnp_key_handle_t encryption_key = gen_key("encryptor <enc@example.com>", "encrypt");
+
+    /* Create the backup archive. */
+    rnp_output_t archive_out = NULL;
+    assert_rnp_success(rnp_output_to_memory(&archive_out, 0));
+    rnp_key_handle_t keys_to_backup[] = {backup_key};
+    assert_rnp_success(rnp_backup_archive_create(ffi,
+                                                  keys_to_backup,
+                                                  1,
+                                                  signing_key,
+                                                  encryption_key,
+                                                  NULL,
+                                                  archive_out));
+
+    /* Read the archive bytes. */
+    uint8_t *archive_bytes = NULL;
+    size_t   archive_len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(archive_out, &archive_bytes, &archive_len, false));
+    assert_true(archive_len > 0);
+
+    /* Save to a file for re-input. */
+    FILE *f = fopen("backup.archive", "wb");
+    assert_non_null(f);
+    assert_int_equal(fwrite(archive_bytes, 1, archive_len, f), archive_len);
+    fclose(f);
+    rnp_output_destroy(archive_out);
+
+    /* Load the archive into a fresh FFI (simulating device loss).
+     * The signing key's PUBLIC component and the encryption key's SECRET
+     * component are needed. First export them. */
+    rnp_output_t enc_sec_out = NULL;
+    assert_rnp_success(rnp_output_to_path(&enc_sec_out, "enc_sec.asc"));
+    assert_rnp_success(
+      rnp_key_export(encryption_key, enc_sec_out,
+                     RNP_KEY_EXPORT_SECRET | RNP_KEY_EXPORT_SUBKEYS | RNP_KEY_EXPORT_ARMORED));
+    rnp_output_destroy(enc_sec_out);
+    rnp_output_t sign_pub_out = NULL;
+    assert_rnp_success(rnp_output_to_path(&sign_pub_out, "sign_pub.asc"));
+    assert_rnp_success(
+      rnp_key_export(signing_key, sign_pub_out,
+                     RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_SUBKEYS | RNP_KEY_EXPORT_ARMORED));
+    rnp_output_destroy(sign_pub_out);
+
+    rnp_ffi_t ffi2 = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi2, "GPG", "GPG"));
+    /* Import the encryption secret key and signing public key. */
+    rnp_input_t in = NULL;
+    assert_rnp_success(rnp_input_from_path(&in, "enc_sec.asc"));
+    assert_rnp_success(rnp_import_keys(ffi2, in, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    rnp_input_destroy(in);
+    assert_rnp_success(rnp_input_from_path(&in, "sign_pub.asc"));
+    assert_rnp_success(rnp_import_keys(ffi2, in, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    rnp_input_destroy(in);
+
+    /* Locate the loaded keys by userid. */
+    rnp_key_handle_t decryption_key2 = NULL;
+    assert_rnp_success(rnp_locate_key(ffi2, "userid", "encryptor <enc@example.com>", &decryption_key2));
+    assert_non_null(decryption_key2);
+    rnp_key_handle_t signing_pub2 = NULL;
+    assert_rnp_success(rnp_locate_key(ffi2, "userid", "signer <signer@example.com>", &signing_pub2));
+    assert_non_null(signing_pub2);
+
+    /* Load the archive. */
+    rnp_input_t archive_in = NULL;
+    assert_rnp_success(rnp_input_from_path(&archive_in, "backup.archive"));
+    assert_rnp_success(
+      rnp_backup_archive_load(ffi2, archive_in, decryption_key2, signing_pub2));
+    rnp_input_destroy(archive_in);
+
+    /* Verify the backed-up key is now present in ffi2. */
+    rnp_key_handle_t recovered = NULL;
+    assert_rnp_success(rnp_locate_key(ffi2, "userid", "backed-up <bu@example.com>", &recovered));
+    assert_non_null(recovered);
+    bool is_secret = false;
+    assert_rnp_success(rnp_key_have_secret(recovered, &is_secret));
+    assert_true(is_secret);
+
+    rnp_key_handle_destroy(recovered);
+    rnp_key_handle_destroy(signing_pub2);
+    rnp_key_handle_destroy(decryption_key2);
+    rnp_ffi_destroy(ffi2);
+
+    rnp_key_handle_destroy(backup_key);
+    rnp_key_handle_destroy(signing_key);
+    rnp_key_handle_destroy(encryption_key);
+    rnp_ffi_destroy(ffi);
+
+    unlink("backup.archive");
+    unlink("enc_sec.asc");
+    unlink("sign_pub.asc");
+}
