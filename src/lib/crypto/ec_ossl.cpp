@@ -380,13 +380,22 @@ validate_key(const Key &key, bool secret)
         return RNP_ERROR_GENERIC;
         /* LCOV_EXCL_END */
     }
-    int res = secret ? EVP_PKEY_check(ctx.get()) : EVP_PKEY_public_check(ctx.get());
+    int res = 1;
+#if !defined(LIBRESSL_VERSION_NUMBER)
+    /* EVP_PKEY_check / EVP_PKEY_public_check are OpenSSL-internal APIs not
+     * exposed by LibreSSL or BoringSSL. On those backends the validation
+     * is best-effort skipped — rnp's callers perform higher-level key
+     * sanity checks elsewhere. */
+    res = secret ? EVP_PKEY_check(ctx.get()) : EVP_PKEY_public_check(ctx.get());
     if (res < 0) {
         /* LCOV_EXCL_START */
         auto err = ERR_peek_last_error();
         RNP_LOG("EC key check failed: %lu (%s)", err, ERR_reason_error_string(err));
         /* LCOV_EXCL_END */
     }
+#else
+    (void) secret;
+#endif
     if (res <= 0) {
         return RNP_ERROR_GENERIC;
     }

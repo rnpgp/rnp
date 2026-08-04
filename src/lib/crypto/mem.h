@@ -69,12 +69,15 @@ template <typename T> class ossl_allocator {
             return nullptr;
         }
 
+        T *ptr = nullptr;
+#if !defined(LIBRESSL_VERSION_NUMBER)
         /* attempt to use OpenSSL secure alloc */
-        T *ptr = static_cast<T *>(OPENSSL_secure_zalloc(n * sizeof(T)));
+        ptr = static_cast<T *>(OPENSSL_secure_zalloc(n * sizeof(T)));
         if (ptr) {
             return ptr;
         }
-        /* fallback to std::alloc if failed */
+#endif
+        /* fallback to std::alloc if secure heap is unavailable or disabled */
         ptr = static_cast<T *>(std::calloc(n, sizeof(T)));
         if (!ptr)
             throw std::bad_alloc();
@@ -87,10 +90,12 @@ template <typename T> class ossl_allocator {
         if (!p) {
             return;
         }
+#if !defined(LIBRESSL_VERSION_NUMBER)
         if (CRYPTO_secure_allocated(p)) {
             OPENSSL_secure_clear_free(p, n * sizeof(T));
             return;
         }
+#endif
         OPENSSL_cleanse(p, n * sizeof(T));
         std::free(p);
     }
