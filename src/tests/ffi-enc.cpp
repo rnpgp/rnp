@@ -27,6 +27,7 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <algorithm>
 
 #include <rnp/rnp.h>
 #include "rnp_tests.h"
@@ -130,6 +131,24 @@ tbl_getkeycb(rnp_ffi_t   ffi,
         assert_rnp_success(rnp_input_destroy(input));
         input = NULL;
     }
+}
+
+// Portable byte search (memmem is POSIX-only, not available on MSVC).
+static const void *
+portable_memmem(const void *haystack, size_t haystacklen, const void *needle, size_t needlelen)
+{
+    if (needlelen == 0 || haystacklen < needlelen) {
+        return NULL;
+    }
+    auto h = static_cast<const uint8_t *>(haystack);
+    auto n = static_cast<const uint8_t *>(needle);
+    auto end = h + haystacklen - needlelen + 1;
+    for (auto p = h; p < end; p++) {
+        if (memcmp(p, n, needlelen) == 0) {
+            return p;
+        }
+    }
+    return NULL;
 }
 
 TEST_F(rnp_tests, test_ffi_encrypt_pass)
@@ -2482,8 +2501,8 @@ TEST_F(rnp_tests, test_no_plaintext_leakage)
     /* --- Case 1: symmetric (password) encryption must not contain plaintext --- */
     {
         rnp_input_t input = NULL;
-        assert_rnp_success(rnp_input_from_memory(
-          &input, (const uint8_t *) MARKER, strlen(MARKER), false));
+        assert_rnp_success(
+          rnp_input_from_memory(&input, (const uint8_t *) MARKER, strlen(MARKER), false));
         rnp_output_t output = NULL;
         assert_rnp_success(rnp_output_to_memory(&output, 0));
         rnp_op_encrypt_t op = NULL;
@@ -2499,15 +2518,15 @@ TEST_F(rnp_tests, test_no_plaintext_leakage)
         assert_non_null(buf);
         assert_true(len > 0);
         /* The marker MUST NOT appear in the encrypted output. */
-        assert_null(memmem(buf, len, MARKER, strlen(MARKER)));
+        assert_null(portable_memmem(buf, len, MARKER, strlen(MARKER)));
         rnp_output_destroy(output);
     }
 
     /* --- Case 2: public-key encryption must not contain plaintext --- */
     {
         rnp_input_t input = NULL;
-        assert_rnp_success(rnp_input_from_memory(
-          &input, (const uint8_t *) MARKER, strlen(MARKER), false));
+        assert_rnp_success(
+          rnp_input_from_memory(&input, (const uint8_t *) MARKER, strlen(MARKER), false));
         rnp_output_t output = NULL;
         assert_rnp_success(rnp_output_to_memory(&output, 0));
         rnp_op_encrypt_t op = NULL;
@@ -2525,7 +2544,7 @@ TEST_F(rnp_tests, test_no_plaintext_leakage)
         assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
         assert_non_null(buf);
         assert_true(len > 0);
-        assert_null(memmem(buf, len, MARKER, strlen(MARKER)));
+        assert_null(portable_memmem(buf, len, MARKER, strlen(MARKER)));
         rnp_output_destroy(output);
     }
 
@@ -2545,15 +2564,15 @@ TEST_F(rnp_tests, test_no_plaintext_leakage)
         assert_non_null(buf);
         assert_true(len > 0);
         /* The passphrase MUST NOT appear in the exported key material. */
-        assert_null(memmem(buf, len, "password", 8));
+        assert_null(portable_memmem(buf, len, "password", 8));
         rnp_output_destroy(output);
     }
 
     /* --- Case 4: detached signature must not contain the plaintext --- */
     {
         rnp_input_t input = NULL;
-        assert_rnp_success(rnp_input_from_memory(
-          &input, (const uint8_t *) MARKER, strlen(MARKER), false));
+        assert_rnp_success(
+          rnp_input_from_memory(&input, (const uint8_t *) MARKER, strlen(MARKER), false));
         rnp_output_t output = NULL;
         assert_rnp_success(rnp_output_to_memory(&output, 0));
         rnp_op_sign_t op = NULL;
@@ -2572,7 +2591,7 @@ TEST_F(rnp_tests, test_no_plaintext_leakage)
         assert_non_null(buf);
         assert_true(len > 0);
         /* Detached signature MUST NOT contain the plaintext. */
-        assert_null(memmem(buf, len, MARKER, strlen(MARKER)));
+        assert_null(portable_memmem(buf, len, MARKER, strlen(MARKER)));
         rnp_output_destroy(output);
     }
 
