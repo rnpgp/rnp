@@ -280,7 +280,7 @@ KeyStore::add_subkey(Key &srckey, Key *oldkey)
         /* check for the weird case when same subkey has different primary keys */
         if (srckey.has_primary_fp() && oldkey->has_primary_fp() &&
             (srckey.primary_fp() != oldkey->primary_fp())) {
-            RNP_LOG_KEY("Warning: different primary keys for subkey %s", &srckey);
+            RNP_LOG_KEY_NN("Warning: different primary keys for subkey %s", &srckey);
             auto *srcprim = get_key(srckey.primary_fp());
             if (srcprim && (srcprim != primary)) {
                 srcprim->remove_subkey_fp(srckey.fp());
@@ -288,7 +288,7 @@ KeyStore::add_subkey(Key &srckey, Key *oldkey)
         }
         /* in case we already have key let's merge it in */
         if (!oldkey->merge(srckey, primary)) {
-            RNP_LOG_KEY("failed to merge subkey %s", &srckey);
+            RNP_LOG_KEY_NN("failed to merge subkey %s", &srckey);
             RNP_LOG_KEY("primary key is %s", primary);
             return NULL;
         }
@@ -303,7 +303,7 @@ KeyStore::add_subkey(Key &srckey, Key *oldkey)
             }
         } catch (const std::exception &e) {
             /* LCOV_EXCL_START */
-            RNP_LOG_KEY("key %s copying failed", &srckey);
+            RNP_LOG_KEY_NN("key %s copying failed", &srckey);
             RNP_LOG_KEY("primary key is %s", primary);
             RNP_LOG("%s", e.what());
             if (oldkey) {
@@ -320,7 +320,7 @@ KeyStore::add_subkey(Key &srckey, Key *oldkey)
         oldkey->validate_subkey(primary, secctx);
     }
     if (!oldkey->refresh_data(primary, secctx)) {
-        RNP_LOG_KEY("Failed to refresh subkey %s data", &srckey);
+        RNP_LOG_KEY_NN("Failed to refresh subkey %s data", &srckey);
         RNP_LOG_KEY("primary key is %s", primary);
     }
     return oldkey;
@@ -343,7 +343,7 @@ KeyStore::add_key(Key &srckey)
 
     if (added_key) {
         if (!added_key->merge(srckey)) {
-            RNP_LOG_KEY("failed to merge key %s", &srckey);
+            RNP_LOG_KEY_NN("failed to merge key %s", &srckey);
             return NULL;
         }
     } else {
@@ -358,7 +358,7 @@ KeyStore::add_key(Key &srckey)
             }
         } catch (const std::exception &e) {
             /* LCOV_EXCL_START */
-            RNP_LOG_KEY("key %s copying failed", &srckey);
+            RNP_LOG_KEY_NN("key %s copying failed", &srckey);
             RNP_LOG("%s", e.what());
             if (added_key) {
                 keys.pop_back();
@@ -373,7 +373,7 @@ KeyStore::add_key(Key &srckey)
     if (!disable_validation && !added_key->validated()) {
         added_key->revalidate(*this);
     } else if (!added_key->refresh_data(secctx)) {
-        RNP_LOG_KEY("Failed to refresh key %s data", &srckey);
+        RNP_LOG_KEY_NN("Failed to refresh key %s data", &srckey);
     }
     /* Revalidate non-self revocations for all keys in keyring, as added_key key could be a
      * revoker. Should not be time-consuming as `validate_desig_revokes()` has early exit. */

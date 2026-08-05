@@ -29,9 +29,45 @@
 #include "types.h"
 #include "ecdh_utils.h"
 #include "kem_combiner.hpp"
-#include <botan/rfc3394.h>
-#include <botan/symkey.h>
+#include "botan_utils.hpp"
+#include <botan/ffi.h>
 #include <cassert>
+#include <cstdio>
+
+/* AES key wrap (RFC 3394) with the KEK length selecting the AES variant. */
+static rnp_result_t
+aes_kw_enc(const std::vector<uint8_t> &kek,
+           const uint8_t *             in,
+           size_t                      in_len,
+           std::vector<uint8_t> &      out)
+{
+    char name[16];
+    snprintf(name, sizeof(name), "AES-%zu", 8 * kek.size());
+    out.resize(in_len + 8);
+    size_t out_len = out.size();
+    if (botan_nist_kw_enc(name, 0, in, in_len, kek.data(), kek.size(), out.data(), &out_len)) {
+        return RNP_ERROR_ENCRYPT_FAILED;
+    }
+    out.resize(out_len);
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+aes_kw_dec(const std::vector<uint8_t> &kek,
+           const uint8_t *             in,
+           size_t                      in_len,
+           std::vector<uint8_t> &      out)
+{
+    char name[16];
+    snprintf(name, sizeof(name), "AES-%zu", 8 * kek.size());
+    out.resize(in_len);
+    size_t out_len = out.size();
+    if (botan_nist_kw_dec(name, 0, in, in_len, kek.data(), kek.size(), out.data(), &out_len)) {
+        return RNP_ERROR_DECRYPT_FAILED;
+    }
+    out.resize(out_len);
+    return RNP_SUCCESS;
+}
 
 pgp_kyber_ecdh_composite_key_t::~pgp_kyber_ecdh_composite_key_t()
 {
@@ -354,19 +390,17 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(
                                    ecdh_encapsulated_keyshare,
                                    ecdh_kyber_pub_key.get_ecdh_encoded(),
                                    pk_alg());
-    Botan::SymmetricKey kek(kek_vec);
 
     // Compute sessionKey := AESKeyUnwrap(KEK, C) with AES-256 as per [RFC3394], aborting if
     // the 64 bit integrity check fails
-    Botan::secure_vector<uint8_t> tmp_out;
-    try {
-        tmp_out =
-          Botan::rfc3394_keyunwrap(Botan::secure_vector<uint8_t>(enc->wrapped_sesskey.begin(),
-                                                                 enc->wrapped_sesskey.end()),
-                                   kek);
-    } catch (const std::exception &e) {
-        RNP_LOG("Keyunwrap failed: %s", e.what());
-        return RNP_ERROR_DECRYPT_FAILED;
+    std::vector<uint8_t> tmp_out;
+    res = aes_kw_dec(kek_vec,
+                     enc->wrapped_sesskey.data(),
+                     enc->wrapped_sesskey.size(),
+                     tmp_out);
+    if (res != RNP_SUCCESS) {
+        RNP_LOG("Keyunwrap failed");
+        return res == RNP_ERROR_DECRYPT_FAILED ? RNP_ERROR_DECRYPT_FAILED : res;
     }
 
     if (*out_len < tmp_out.size()) {
