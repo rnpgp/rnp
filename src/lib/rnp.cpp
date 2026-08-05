@@ -1186,6 +1186,17 @@ get_feature_sec_value(
         return true;
     }
 
+    if (rnp::str_case_eq(stype, RNP_FEATURE_PK_ALG)) {
+        type = rnp::FeatureType::PublicKey;
+        pgp_pubkey_alg_t alg = PGP_PKA_NOTHING;
+        if (sname && !str_to_pubkey_alg(sname, &alg)) {
+            FFI_LOG(ffi, "Unknown public key algorithm: %s", sname);
+            return false;
+        }
+        value = alg;
+        return true;
+    }
+
     FFI_LOG(ffi, "Unsupported feature type: %s", stype);
     return false;
 }
@@ -1393,6 +1404,21 @@ success:
     if (removed) {
         *removed = rules - ffi->profile().size();
     }
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_is_fips_mode_enabled(rnp_ffi_t ffi, size_t *enabled)
+try {
+    if (!ffi || !enabled) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+#if defined(RNP_FIPS_MODE)
+    *enabled = 1;
+#else
+    *enabled = 0;
+#endif
     return RNP_SUCCESS;
 }
 FFI_GUARD

@@ -5837,6 +5837,76 @@ TEST_F(rnp_tests, test_ffi_set_log_fd)
     close(file_fd);
 }
 
+TEST_F(rnp_tests, test_ffi_fips_mode_query)
+{
+    /* Querying FIPS mode must always succeed and must reflect the compile-time
+     * setting only (RNP_FIPS_MODE). The default test build does not define it,
+     * so the query must report 0. NULL ffi / NULL out are rejected. */
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    size_t enabled = 99;
+    assert_rnp_failure(rnp_is_fips_mode_enabled(NULL, &enabled));
+    assert_rnp_failure(rnp_is_fips_mode_enabled(ffi, NULL));
+    assert_rnp_success(rnp_is_fips_mode_enabled(ffi, &enabled));
+#if defined(RNP_FIPS_MODE)
+    assert_int_equal(enabled, 1);
+#else
+    assert_int_equal(enabled, 0);
+#endif
+
+    rnp_ffi_destroy(ffi);
+}
+
+#if defined(RNP_FIPS_MODE)
+/* When the library is built with -DENABLE_FIPS_MODE=On, the default
+ * SecurityProfile must mark non-FIPS algorithms as Disabled. This
+ * test only runs in FIPS builds (where the rules exist). Each case
+ * queries a single feature via rnp_get_security_rule and checks the
+ * level is PROHIBITED (Disabled).
+ *
+ * Only algorithms the FFI knows about are queried — TWOFISH and SM4
+ * are excluded because the OpenSSL backend doesn't compile them in. */
+TEST_F(rnp_tests, test_ffi_fips_mode_default_rules)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    struct {
+        const char *type;
+        const char *name;
+    } disabled[] = {
+      {RNP_FEATURE_SYMM_ALG, "CAST5"},
+      {RNP_FEATURE_SYMM_ALG, "IDEA"},
+      {RNP_FEATURE_SYMM_ALG, "BLOWFISH"},
+      {RNP_FEATURE_HASH_ALG, "MD5"},
+      {RNP_FEATURE_HASH_ALG, "SHA1"},
+      {RNP_FEATURE_HASH_ALG, "RIPEMD160"},
+      {RNP_FEATURE_PK_ALG, "EDDSA"},
+      {RNP_FEATURE_PK_ALG, "ELGAMAL"},
+    };
+
+    for (auto &entry : disabled) {
+        uint32_t level = 99;
+        uint64_t from = 999;
+        uint32_t flags = 99;
+        assert_rnp_success(rnp_get_security_rule(
+          ffi, entry.type, entry.name, 0, &flags, &from, &level));
+        assert_int_equal(level, RNP_SECURITY_PROHIBITED);
+    }
+
+    /* Sanity check: AES-256 must remain available (not Disabled). */
+    uint32_t aes_level = 99;
+    uint64_t aes_from = 999;
+    uint32_t aes_flags = 99;
+    assert_rnp_success(rnp_get_security_rule(
+      ffi, RNP_FEATURE_SYMM_ALG, "AES256", 0, &aes_flags, &aes_from, &aes_level));
+    assert_int_equal(aes_level, RNP_SECURITY_DEFAULT);
+
+    rnp_ffi_destroy(ffi);
+}
+#endif
+
 TEST_F(rnp_tests, test_ffi_security_profile)
 {
     rnp_ffi_t ffi = NULL;

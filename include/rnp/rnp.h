@@ -623,6 +623,26 @@ RNP_API rnp_result_t rnp_remove_security_rule(rnp_ffi_t   ffi,
                                               size_t *    removed);
 
 /**
+ * @brief Query whether the library was built with FIPS-compliant defaults.
+ *
+ * FIPS mode is a compile-time choice (cmake -DENABLE_FIPS_MODE=On) that
+ * tightens the default security profile: non-FIPS-approved algorithms are
+ * marked as Disabled in the default SecurityProfile, and only the OpenSSL
+ * backend is allowed. This function returns whether that build switch was
+ * set; it does not reflect any runtime modifications to the security profile.
+ *
+ * See docs/security.adoc for the certification boundary and limitations.
+ * rnp is a consumer of OpenSSL's FIPS provider module, not a validated
+ * module itself.
+ *
+ * @param ffi initialized FFI structure, cannot be NULL.
+ * @param enabled on success, set to 1 if the library was built with
+ *                ENABLE_FIPS_MODE=On, 0 otherwise.
+ * @return RNP_SUCCESS on success.
+ */
+RNP_API rnp_result_t rnp_is_fips_mode_enabled(rnp_ffi_t ffi, size_t *enabled);
+
+/**
  * @brief Request password via configured FFI's callback
  *
  * @param ffi initialized FFI structure
