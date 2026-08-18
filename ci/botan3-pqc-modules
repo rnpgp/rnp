@@ -57,7 +57,9 @@ sp800_56a
 twofish
 x448
 kyber
+ml_kem
 dilithium
+ml_dsa
 sphincsplus_sha2
 sphincsplus_shake
 hkdf
