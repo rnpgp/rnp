@@ -26,6 +26,7 @@ claus = "claus"
 desig = "desig"
 CNA = "CNA"
 Sur = "Sur"
+Collet = "Collet"
 
 [files]
 extend-exclude = [
