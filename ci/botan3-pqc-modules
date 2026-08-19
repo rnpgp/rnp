@@ -17,6 +17,7 @@ dl_group
 dsa
 eax
 ecc_key
+legacy_ec_point
 ecdh
 ecdsa
 pcurves_secp192r1
