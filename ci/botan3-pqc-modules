@@ -62,5 +62,7 @@ dilithium
 ml_dsa
 sphincsplus_sha2
 sphincsplus_shake
+slh_dsa_sha2
+slh_dsa_shake
 hkdf
 kmac

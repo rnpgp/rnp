@@ -233,7 +233,18 @@ if(CRYPTO_BACKEND_BOTAN)
   resolve_feature_state(ENABLE_TWOFISH "TWOFISH")
   resolve_feature_state(ENABLE_IDEA "IDEA")
   resolve_feature_state(ENABLE_CRYPTO_REFRESH "HKDF;ED448;X448;ARGON2")
-  resolve_feature_state(ENABLE_PQC "HKDF;DILITHIUM;KYBER;SPHINCS_PLUS_WITH_SHA2;SPHINCS_PLUS_WITH_SHAKE")
+  # The PQC code paths use the FIPS 203/204/205 APIs (KyberMode::ML_KEM_*,
+  # DilithiumMode::ML_DSA_*, SLH_DSA_*), which Botan activates via the
+  # ml_kem/ml_dsa/slh_dsa_* modules — not the legacy kyber/dilithium/
+  # sphincsplus_* ones. Check the corresponding BOTAN_HAS_* defines so a
+  # minimized Botan without those modules disables PQC at configure time
+  # instead of failing the build (all of them exist since Botan 3.6.0,
+  # the minimum for ENABLE_CRYPTO_REFRESH).
+  if(Botan_VERSION VERSION_GREATER_EQUAL 3.6.0)
+    resolve_feature_state(ENABLE_PQC "HKDF;ML_KEM;ML_DSA;SLH_DSA_WITH_SHA2;SLH_DSA_WITH_SHAKE")
+  else()
+    resolve_feature_state(ENABLE_PQC "HKDF;DILITHIUM;KYBER;SPHINCS_PLUS_WITH_SHA2;SPHINCS_PLUS_WITH_SHAKE")
+  endif()
   resolve_feature_state(ENABLE_BLOWFISH "BLOWFISH")
   resolve_feature_state(ENABLE_CAST5 "CAST_128")
   resolve_feature_state(ENABLE_RIPEMD160 "RIPEMD_160")

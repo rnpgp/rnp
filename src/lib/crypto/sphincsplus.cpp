@@ -26,51 +26,43 @@
  */
 
 #include "sphincsplus.h"
-#include <botan/sphincsplus.h>
+#include <botan/slh_dsa.h>
 #include <botan/pubkey.h>
 #include <cassert>
 #include "logging.h"
 #include "types.h"
 
-// Use the legacy Sphincs_* names from <botan/sphincsplus.h> rather than the
-// SLH_DSA_* aliases from <botan/slh_dsa.h>. ci/botan3-pqc-modules enables the
-// legacy sphincsplus_sha2/sphincsplus_shake module names (available in Botan
-// 3.6-3.12+), and Botan's Sphincs_Parameters::is_available() only activates:
-//   - SLHDSA* parameter sets when the slh_dsa_* modules are built, and
-//   - Sphincs* parameter sets when the sphincsplus_* modules are built.
-// Using the legacy spelling makes minimized builds work on every supported
-// Botan, while full system Botan builds activate both.
 namespace {
-Botan::Sphincs_Parameter_Set
+Botan::SLH_DSA_Parameter_Set
 rnp_sphincsplus_alg_to_botan_param(pgp_pubkey_alg_t alg)
 {
     switch (alg) {
     case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
-        return Botan::Sphincs_Parameter_Set::Sphincs128Fast;
+        return Botan::SLH_DSA_Parameter_Set::SLHDSA128Fast;
     case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
-        return Botan::Sphincs_Parameter_Set::Sphincs128Small;
+        return Botan::SLH_DSA_Parameter_Set::SLHDSA128Small;
     case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
-        return Botan::Sphincs_Parameter_Set::Sphincs256Small;
+        return Botan::SLH_DSA_Parameter_Set::SLHDSA256Small;
     default:
         RNP_LOG("invalid algorithm ID given");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 }
 
-Botan::SphincsPlus_PublicKey
+Botan::SLH_DSA_PublicKey
 sphincsplus_pubkey_from_bytes(const std::vector<uint8_t> &key_encoded, pgp_pubkey_alg_t alg)
 {
-    return Botan::SphincsPlus_PublicKey(key_encoded,
-                                        rnp_sphincsplus_alg_to_botan_param(alg),
-                                        Botan::Sphincs_Hash_Type::Shake256);
+    return Botan::SLH_DSA_PublicKey(key_encoded,
+                                    rnp_sphincsplus_alg_to_botan_param(alg),
+                                    Botan::SLH_DSA_Hash_Type::Shake256);
 }
 
-Botan::SphincsPlus_PrivateKey
+Botan::SLH_DSA_PrivateKey
 sphincsplus_privkey_from_bytes(const uint8_t *key_data, size_t key_size, pgp_pubkey_alg_t alg)
 {
     Botan::secure_vector<uint8_t> priv_sv(key_data, key_data + key_size);
-    return Botan::SphincsPlus_PrivateKey(
-      priv_sv, rnp_sphincsplus_alg_to_botan_param(alg), Botan::Sphincs_Hash_Type::Shake256);
+    return Botan::SLH_DSA_PrivateKey(
+      priv_sv, rnp_sphincsplus_alg_to_botan_param(alg), Botan::SLH_DSA_Hash_Type::Shake256);
 }
 } // namespace
 
@@ -136,9 +128,9 @@ pgp_sphincsplus_public_key_t::verify(const pgp_sphincsplus_signature_t *sig,
 std::pair<pgp_sphincsplus_public_key_t, pgp_sphincsplus_private_key_t>
 sphincsplus_generate_keypair(rnp::RNG *rng, pgp_pubkey_alg_t alg)
 {
-    Botan::SphincsPlus_PrivateKey priv_key(*rng->obj(),
-                                           rnp_sphincsplus_alg_to_botan_param(alg),
-                                           Botan::Sphincs_Hash_Type::Shake256);
+    Botan::SLH_DSA_PrivateKey priv_key(*rng->obj(),
+                                       rnp_sphincsplus_alg_to_botan_param(alg),
+                                       Botan::SLH_DSA_Hash_Type::Shake256);
 
     std::unique_ptr<Botan::Public_Key> pub_key = priv_key.public_key();
     Botan::secure_vector<uint8_t>      priv_bits = priv_key.private_key_bits();
