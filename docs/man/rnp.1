@@ -1,0 +1,700 @@
+'\" t
+.\"     Title: rnp
+.\"    Author: RNP
+.\" Generator: Asciidoctor 2.0.26
+.\"      Date: 2026-08-01
+.\"    Manual: RNP Manual
+.\"    Source: RNP 0.18.1
+.\"  Language: English
+.\"
+.TH "RNP" "1" "2026-08-01" "RNP 0.18.1" "RNP Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+RNP \- OpenPGP\-compatible signatures and encryption.
+.SH "SYNOPSIS"
+.sp
+\fBrnp\fP [\fI\-\-homedir\fP \fIdir\fP] [\fIOPTIONS\fP] \fICOMMAND\fP [\fIINPUT_FILE\fP, .\|.\|.] .\|.\|.
+.SH "DESCRIPTION"
+.sp
+The \fIrnp\fP command\-line utility is part of the \fIRNP\fP suite and
+provides OpenPGP signing and encryption functionality
+compliant with IETF RFC 4880.
+.sp
+\fIrnp\fP does not allow manipulation of keys or keyrings \(em please use \fIrnpkeys(1)\fP for that purpose.
+.SS "BASICS"
+.sp
+By default, \fBrnp\fP will apply a \fICOMMAND\fP, additionally configured with \fIOPTIONS\fP,
+to all \fIINPUT_FILE\fP(s) or \fIstdin\fP if no \fIINPUT_FILE\fP is given.
+There are some special cases for \fIINPUT_FILE\fP :
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\fI\-\fP (dash) substitutes to \fIstdin\fP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+env:VARIABLE_NAME substitutes to the contents of environment variable VARIABLE_NAME
+.RE
+.sp
+Depending on the input, output may be written:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+if \fB\-\-output\fP option is given output is written to the path specified (or to the \fBstdout\fP if \fB\-\fP is used)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+to the \fIINPUT_FILE\fP with a removed or added file extension (\fI.pgp\fP, \fI.gpg\fP, \fI.asc\fP, \fI.sig\fP), depending on operation.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+to the \fIstdout\fP if input was read from the \fIstdin\fP.
+.RE
+.sp
+If output file already exists, it will \fBnot\fP be overwritten, unless \fB\-\-overwrite\fP option is given.
+.sp
+Without the \fB\-\-armor\fP option, output will be in binary.
+.sp
+If \fICOMMAND\fP requires public or private keys, \fBrnp\fP will look for the keyrings in \fB~/.rnp\fP. The options \fB\-\-homedir\fP and \fB\-\-keyfile\fP override this (see below).
+.sp
+If \fICOMMAND\fP needs a password, \fBrnp\fP will ask for it via \fBstdin\fP or \fBtty\fP,
+unless the \fB\-\-password\fP or \fB\-\-pass\-fd\fP option was specified.
+.SH "COMMANDS"
+.SS "INFORMATIONAL"
+.sp
+\fB\-h\fP, \fB\-\-help\fP
+.RS 4
+Displays a short help message. No options are expected.
+.RE
+.sp
+\fB\-V\fP, \fB\-\-version\fP
+.RS 4
+Displays version information. No options are expected.
+.RE
+.SS "ENCRYPTION AND SIGNING"
+.sp
+\fB\-e\fP, \fB\-\-encrypt\fP
+.RS 4
+Encrypt data with public key(s), and optionally sign, if the \fB\-\-sign\fP command is added.
+.br
+.sp
+You would likely want to specify one or more \fB\-\-recipient\fP(s) or pick a \fB\-\-cipher\fP (instead of the default).
+.sp
+Additional options:
+.sp
+\fB\-\-recipient\fP
+.RS 4
+Specify one or more recipients.
+.RE
+.sp
+\fB\-\-cipher\fP
+.RS 4
+Select a specific cipher.
+.RE
+.sp
+\fB\-z 0..9\fP, \fB\-\-zlib\fP, \fB\-\-zip\fP, \fB\-\-bzip\fP
+.RS 4
+Select a compression algorithm and level.
+.RE
+.sp
+\fB\-\-armor\fP
+.RS 4
+Output ASCII data instead of binary via the \fB\-\-armor\fP option. If the input file is \fIfile.ext\fP, and \fB\-\-output\fP is not specified, then the data will be written (depending on \fB\-\-armor\fP option) to \fIfile.ext.pgp\fP or \fIfile.ext.asc\fP.
+.br
+.RE
+.sp
+\fB\-\-no\-wrap\fP
+.RS 4
+Do not wrap the output in a literal data packet. This could be used to encrypt a file which is already signed or encrypted.
+By default this would also disable compression, use option \fB\-z\fP to override.
+.RE
+.sp
+\fB\-\-overwrite\fP
+.RS 4
+If the destination file already exists, and the \fB\-\-overwrite\fP option is not given, the caller will be asked for the permission to overwrite or to provide a new file name. Please see the \fBOPTIONS\fP section for more information.
+.RE
+.RE
+.sp
+\fB\-c\fP, \fB\-\-symmetric\fP
+.RS 4
+Encrypt data with password(s).
+.br
+.sp
+Can be combined with the commands \fB\-\-encrypt\fP and \fB\-\-sign\fP.
+.sp
+Options that apply to the \fB\-\-encrypt\fP command also apply here.
+.sp
+Additional options:
+.sp
+\fB\-\-passwords\fP
+.RS 4
+Encryption to multiple passwords is possible with \fB\-\-passwords\fP option. Each password would be asked via stdin/tty unless \fB\-\-password\fP or \fB\-\-pass\-fd\fP is specified.
+.br
+.RE
+.RE
+.sp
+\fB\-s\fP, \fB\-\-sign\fP
+.RS 4
+Digitally sign data, using one or more secret keys you own.
+.br
+.sp
+Public\-key or password\-based encryption may be added via the \fB\-\-encrypt\fP and \fB\-\-symmetric\fP commands.
+.br
+.sp
+Additional options:
+.sp
+\fB\-u\fP, \fB\-\-userid\fP
+.RS 4
+By default, the first secret key you own will be selected for signing. Apply this option to select a different key or to use multiple keys.
+.RE
+.sp
+\fB\-\-detach\fP
+.RS 4
+By default, the signature is stored together with signed data. This option detaches the data signature to a separate file (\fIfile.ext.sig\fP).
+.RE
+.sp
+\fB\-\-hash\fP
+.RS 4
+You may want to use \fB\-\-hash\fP option to override default hash algorithm settings. As with encryption, output may be converted to ascii via the \fB\-\-armor\fP option.
+.br
+.sp
+Compression options also apply here. Since the secret key is usually stored encrypted, you will be asked for the password to decrypt it via \fIstdin\fP/\fItty\fP unless \fB\-\-password\fP or \fB\-\-pass\-fd\fP is specified.
+.RE
+.sp
+\fB\-\-allow\-weak\-hash\fP
+.RS 4
+Allow usage of a weak hash algorithm.
+.RE
+.sp
+\fB\-\-allow\-sha1\-key\-sigs\fP
+.RS 4
+Allow usage of a SHA\-1 key signatures.
+.RE
+.RE
+.sp
+\fB\-\-clearsign\fP
+.RS 4
+Digitally sign text data, producing human\-readable output with the signature attached.
+.br
+.sp
+In this mode, data cannot be additionally encrypted or compressed.
+.sp
+Other signing options, \fB\-\-hash\fP, \fB\-u\fP, \fB\-\-password\fP, can still be used here.
+.RE
+.SS "DECRYPTION AND VERIFICATION"
+.sp
+\fB\-d\fP, \fB\-\-decrypt\fP
+.RS 4
+Decrypt and verify data from the \fIINPUT_FILE\fP or stdin.
+.br
+.sp
+If the data is signed, signature verification information will be printed to \fIstdout\fP/\fItty\fP.
+.sp
+Additional options:
+.sp
+\fB\-\-output\fP
+.RS 4
+Override the default output selection with a file name or stdout specifier (\fB\fI\-\fP\fP). For the default output path selection see the \fBBASICS\fP section.
+.RE
+.sp
+\fB\-\-password\fP, \fB\-\-pass\-fd\fP
+.RS 4
+Depending on encryption options, you may be asked for the password of one of your secret keys, or for the encryption password. These options override that behavior such that you can input the password through automated means.
+.RE
+.RE
+.sp
+\fB\-v\fP, \fB\-\-verify\fP
+.RS 4
+Verify signature(s) without writing embedded data out, if any (unless option \fI\-\-output\fP is specified).
+.br
+.sp
+To verify the detached signature of a file \fIfile.ext\fP, the detached signature file in the file name pattern of \fIfile.ext.sig\fP or \fIfile.ext.asc\fP must exist.
+.br
+.sp
+Also you may use option \fB\-\-source\fP to specify the exact source for the signed data.
+.br
+.sp
+If data is encrypted, you may be asked for password as in the \fB\-\-decrypt\fP command.
+.RE
+.SS "OTHER COMMANDS"
+.sp
+\fB\-\-list\-packets\fP
+.RS 4
+Show detailed information about the OpenPGP data in \fIINPUT_FILE\fP or stdin.
+Useful for curiosity, troubleshooting or debugging.
+.br
+.sp
+Additional options can be used:
+.sp
+\fB\-\-json\fP
+.RS 4
+output JSON data instead of human\-readable information
+.RE
+.sp
+\fB\-\-grips\fP
+.RS 4
+print out key fingerprints and grips
+.RE
+.sp
+\fB\-\-mpi\fP
+.RS 4
+print out all MPI values
+.RE
+.sp
+\fB\-\-raw\fP
+.RS 4
+print raw, hex\-encoded packets too
+.RE
+.RE
+.sp
+\fB\-\-enarmor\fP[=\fImsg\fP|\fIpubkey\fP|\fIseckey\fP|\fIsign\fP]
+.RS 4
+Convert binary data to the ASCII\-armored as per OpenPGP standard.
+This includes the \f(CR\-\-\-\-\-BEGIN PGP MESSAGE\-\-\-\-\-\fP header and footer,
+and Base64\-encoded data.
+.br
+.sp
+Output for \fIfile.ext\fP will be written to \fIfile.ext.asc\fP (if it does not exist)
+or to \fIstdout\fP.
+.br
+.sp
+The following OpenPGP headers may be specified:
+.sp
+\fBmsg\fP (default)
+.RS 4
+\fI\-\-\-\-\-BEGIN PGP MESSAGE\-\-\-\-\-\fP
+.RE
+.sp
+\fBpubkey\fP
+.RS 4
+\fI\-\-\-\-\-BEGIN PGP PUBLIC KEY BLOCK\-\-\-\-\-\fP
+.RE
+.sp
+\fBseckey\fP
+.RS 4
+\fI\-\-\-\-\-BEGIN PGP SECRET KEY BLOCK\-\-\-\-\-\fP
+.RE
+.sp
+\fBsign\fP
+.RS 4
+\fI\-\-\-\-\-BEGIN PGP SIGNATURE\-\-\-\-\-\fP
+.RE
+.sp
+Additional options:
+.sp
+\fB\-\-overwrite\fP
+.RS 4
+Forcefully overwrite existing destination file if it exists.
+.RE
+.sp
+\fB\-\-output\fP
+.RS 4
+Specify destination file path.
+.RE
+.RE
+.sp
+\fB\-\-dearmor\fP
+.RS 4
+Attempts to convert data from an armored format to the binary format.
+.br
+.sp
+The \fIfile.ext.asc\fP output file would be written to \fIfile.ext\fP.
+If the destination file already exists, it will prompt the user
+for a new filename.
+.sp
+Additional options:
+.sp
+\fB\-\-overwrite\fP
+.RS 4
+Forcefully overwrite existing destination file if it exists.
+.RE
+.sp
+\fB\-\-output\fP
+.RS 4
+Specify destination file path.
+.RE
+.RE
+.SH "OPTIONS"
+.sp
+\fB\-\-home\fP, \fB\-\-homedir\fP \fIDIR\fP
+.RS 4
+Change homedir (where RNP looks for keyrings) to the specified value.
+.br
+.sp
+The default homedir is \fI~/.rnp\fP .
+.RE
+.sp
+\fB\-f\fP, \fB\-\-keyfile\fP \fIPATH\fP
+.RS 4
+Instead of loading keyrings, use key(s) from the file specified.
+.RE
+.sp
+\fB\-u\fP, \fB\-\-userid\fP \fIKEY\fP
+.RS 4
+Specify one or more signing keys, searching for it via the given value \fIKEY\fP.
+See \fBrnpkeys(1)\fP on how to find valid values.
+.RE
+.sp
+\fB\-r\fP, \fB\-\-recipient\fP \fIKEY\fP
+.RS 4
+Add the message recipient, i.e. the public key to which message will be encrypted to.
+See \fBrnpkeys(1)\fP on how to find valid values.
+.RE
+.sp
+\fB\-\-armor\fP, \fB\-\-ascii\fP
+.RS 4
+Apply ASCII armoring to the output, so that the resulting output
+can be transferred as plain text.
+.br
+.sp
+See IETF RFC 4880 for more details.
+.RE
+.sp
+\fB\-\-detach\fP, \fB\-\-detached\fP
+.RS 4
+Create a detached signature.
+.RE
+.sp
+\fB\-\-output\fP \fIPATH\fP
+.RS 4
+Write data processing related output to the file specified.
+.br
+.sp
+If not specified, the output filename will be guessed from
+the input filename/extension or the command will prompt the user
+via \fIstdin\fP/\fItty\fP.
+.RE
+.sp
+\fB\-\-overwrite\fP
+.RS 4
+Overwrite already existing files without prompt.
+.RE
+.sp
+\fB\-\-source\fP
+.RS 4
+Specify signed data for the detached signature verification (\fI\-\fP and \fIenv:\fP substitutions may be used here).
+.br
+.RE
+.sp
+\fB\-\-hash\fP \fIALGORITHM\fP
+.RS 4
+Set hash algorithm which to be used for signing and derivation
+of the encryption key from a password.
+.br
+.sp
+The default value is \fISHA256\fP.
+.RE
+.sp
+\fB\-\-cipher\fP \fIALGORITHM\fP
+.RS 4
+Set the symmetric algorithm used during encryption.
+.br
+.sp
+The default value is \fIAES256\fP.
+.RE
+.sp
+\fB\-\-aead\fP [\fIEAX\fP, \fIOCB\fP]
+.RS 4
+Enable AEAD encryption and select algorithm to be used.
+Warning: EAX mode is deprecated and should not be used.
+.RE
+.sp
+\fB\-\-aead\-chunk\-bits\fP \fIBITS\fP
+.RS 4
+Change AEAD chunk size bits, from 0 to 16 (actual chunk size would be 1 << (6 + bits)). See OpenPGP documentation for the details.
+.br
+.RE
+.sp
+\fB\-\-zip\fP, \fB\-\-zlib\fP, \fB\-\-bzip2\fP
+.RS 4
+Select corresponding algorithm to compress data with.
+Please refer to IETF RFC 4880 for details.
+.RE
+.sp
+\fB\-z\fP \fI0..9\fP
+.RS 4
+Set compression level for the compression algorithms.
+.br
+.sp
+\fB9\fP is the highest compression level, where \fB0\fP disables compression.
+.sp
+The default value is \fB6\fP.
+.RE
+.sp
+\fB\-\-pass\-fd\fP \fIFD\fP
+.RS 4
+Specify a file descriptor to read passwords from instead of from \fIstdin\fP/\fItty\fP.
+.br
+.sp
+Useful for automated or non\-interactive sessions.
+.RE
+.sp
+\fB\-\-password\fP \fIPASSWORD\fP
+.RS 4
+Use the specified password when it is needed.
+.br
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Warning
+.ps -1
+.br
+.sp
+Not recommended for production use due to potential security issues.
+Use \fB\-\-pass\-fd\fP for batch operations instead.
+.sp .5v
+.RE
+.RE
+.sp
+\fB\-\-passwords\fP \fICOUNT\fP
+.RS 4
+Set the number of passwords for \fB\-\-symmetric\fP encryption.
+.br
+.sp
+While not commonly used, you may encrypt a message to any reasonable number of passwords.
+.RE
+.sp
+\fB\-\-creation\fP \fITIME\fP
+.RS 4
+Override signature creation time.
+.br
+.sp
+By default, creation time is set to the current local computer time.
+.br
+.sp
+\fBTIME\fP could be specified in the ISO 8601\-1:2019 date format (\fIyyyy\-mm\-dd\fP), or in the UNIX timestamp format.
+.RE
+.sp
+\fB\-\-expiration\fP \fITIME\fP
+.RS 4
+Set signature expiration time, counting from the creation time.
+.br
+.sp
+By default, signatures do not expire.
+.br
+.sp
+A specific expiration time can be specified as:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+expiration date in the ISO 8601:2019 date format (\fIyyyy\-mm\-dd\fP); or
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+hours/days/months/years since creation time with the syntax of \fI20h\fP/\fI30d\fP/\fI1m\fP/\fI1y\fP;
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+number of seconds.
+.RE
+.RE
+.sp
+\fB\-\-keystore\-format\fP \fIGPG\fP|\fIKBX\fP|\fIG10\fP|\fIG21\fP
+.RS 4
+Set keystore format.
+.br
+.sp
+RNP automatically detects the keystore format.
+.br
+.sp
+This option allows the auto\-detection behavior to be overridden.
+.RE
+.sp
+\fB\-\-notty\fP
+.RS 4
+Disable use of tty.
+.br
+.sp
+By default RNP would detect whether TTY is attached and use it for user prompts.
+.br
+.sp
+This option overrides default behaviour so user input may be passed in batch mode.
+.RE
+.sp
+\fB\-\-current\-time\fP \fITIME\fP
+.RS 4
+Override system\(cqs time with a specified value.
+.br
+.sp
+By default RNP uses system\(cqs time in all signature/key checks, however in some scenarios it could be needed to override this.
+.br
+.sp
+\fBTIME\fP may be specified in the same way as \fB\-\-creation\fP.
+.RE
+.sp
+\fB\-\-set\-filename\fP \fIFNAME\fP
+.RS 4
+Override or set a file name, stored inside of OpenPGP message.
+.br
+.sp
+By default RNP will store input filename (or empty string for \fBstdin\fP/\fBenv\fP input) in the resulting OpenPGP message during encryption or embedded signing.
+This option allows the user to override this filename. Special value \fB_CONSOLE\fP may be used for "for your eyes only"\-message. Refer to OpenPGP documentation for details.
+.RE
+.sp
+\fB\-\-allow\-hidden\fP
+.RS 4
+Allow hidden recipient support.
+.br
+.sp
+Sender of an encrypted message may wish to hide recipient\(cqs key by setting a Key ID field to all zeroes.
+In this case receiver has to try every available secret key, checking for a valid decrypted session key. This option is disabled by default.
+.RE
+.SH "EXIT STATUS"
+.sp
+\fI0\fP
+.RS 4
+Success.
+.RE
+.sp
+\fINon\-zero\fP
+.RS 4
+Failure.
+.RE
+.SH "EXAMPLES"
+.sp
+The following examples demonstrate method of usage of the \fIrnp\fP command.
+.SS "EXAMPLE 1"
+.sp
+\fBrnp\fP \fB\-\-homedir\fP \fI.rnp\fP \fB\-\-encrypt\fP \fB\-r\fP \fI0x6E69636B6F6C6179\fP
+\fB\-\-output\fP \fIdocument.txt.encrypted\fP \fIdocument.txt\fP
+.sp
+Load keyrings from the \fI.rnp\fP folder,
+encrypt the \fIdocument.txt\fP file using the
+key with keyid \fI0x6E69636B6F6C6179\fP.
+.SS "EXAMPLE 2"
+.sp
+\fBrnp\fP \fB\-\-keyfile\fP \fIjohn\-sec.asc\fP \fB\-s\fP \fB\-\-detach\fP \fB\-\-hash\fP \fISHA512\fP \fIdocument.txt\fP
+.sp
+Generate a detached signature over the file \fIdocument.txt\fP, using the
+secret key stored in the file.
+Additionally override the hash algorithm to \fISHA512\fP.
+.SS "EXAMPLE 3"
+.sp
+\fBrnp\fP \fB\-\-keyfile\fP \fIjohn\-pub.asc\fP \fB\-\-verify\fP \fIdocument.txt.sig\fP
+.sp
+Verify detached signature, using the key stored in the \fIjohn\-pub.asc\fP file.
+The signed data is assumed to be available from the file \fIdocument.txt\fP.
+.SS "EXAMPLE 4"
+.sp
+\fBrnp\fP \fB\-e\fP \fB\-c\fP \fB\-s\fP \fB\-\-passwords\fP \fI3\fP
+\fB\-r\fP \fI0x526F6E616C642054\fP
+\fB\-r\fP "\fIjohn@doe.com\fP"
+\fB\-u\fP \fI0x44616E69656C2057\fP
+\fIdocument.txt\fP
+.sp
+Encrypt \fIdocument.txt\fP with 2 keys (specified via \fIkeyid\fP
+\fI0x526F6E616C642054\fP and \fIuserid\fP \fIjohn@doe.com\fP), and 3 passwords,
+so \fBany\fP of these may be used to decrypt the resulting file.
+.sp
+Additionally, the message will be signed with key \fI0x44616E69656C2057\fP.
+.SS "EXAMPLE 5"
+.sp
+\fBprintf\fP \fI"Message"\fP | \fBrnp\fP \fB\-\-keyfile\fP \fIenv:PGP_ENCRYPTION_KEY\fP \fB\-e\fP \fB\-\fP \fB\-\-armor\fP
+.sp
+Encrypt message, passed via stdin, using the key, stored in environment variable \fBPGP_ENCRYPTION_KEY\fP, add ascii armoring, and print result to the stdout.
+.SH "BUGS"
+.sp
+Please report \fIissues\fP via the RNP public issue tracker at:
+.URL "https://github.com/rnpgp/rnp/issues" "" "."
+.sp
+\fISecurity reports\fP or \fIsecurity\-sensitive feedback\fP should be reported
+according to the instructions at:
+.URL "https://www.rnpgp.org/feedback" "" "."
+.SH "AUTHORS"
+.sp
+\fBRNP\fP is an open source project led by Ribose and has
+received contributions from numerous individuals and
+organizations.
+.SH "RESOURCES"
+.sp
+\fBWeb site\fP: \c
+.URL "https://www.rnpgp.org" "" ""
+.sp
+\fBSource repository\fP: \c
+.URL "https://github.com/rnpgp/rnp" "" ""
+.SH "COPYING"
+.sp
+Copyright (C) 2017\-2021 Ribose.
+The RNP software suite is \fIfreely licensed\fP:
+please refer to the \fBLICENSE\fP file for details.
+.SH "SEE ALSO"
+.sp
+\fBrnpkeys(1)\fP, \fBlibrnp(3)\fP
+.SH "AUTHOR"
+.sp
+RNP
