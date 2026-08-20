@@ -1,0 +1,113 @@
+'\" t
+.\"     Title: librnp
+.\"    Author: RNP
+.\" Generator: Asciidoctor 2.0.26
+.\"      Date: 2026-08-01
+.\"    Manual: RNP Manual
+.\"    Source: RNP 0.18.1
+.\"  Language: English
+.\"
+.TH "LIBRNP" "3" "2026-08-01" "RNP 0.18.1" "RNP Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+librnp \- OpenPGP implementation, available via FFI interface.
+.SH "SYNOPSIS"
+.sp
+\fB#include <rnp/rnp.h>\fP
+.br
+\fB#include <rnp/rnp_err.h>\fP
+.SH "DESCRIPTION"
+.sp
+\fBlibrnp\fP is part of the \fBRNP\fP suite and forms the basis for the \fIrnp(1)\fP and \fIrnpkeys(1)\fP command\-line utilities.
+.sp
+It provides an FFI interface to functions required for operations needed by the OpenPGP protocol.
+.sp
+Interface to the library is exposed via \fI<rnp/rnp.h>\fP and \fI<rnp/rnp_err.h>\fP headers.
+You will also need to link to \fIlibrnp\fP.
+.sp
+Please see its headers for the full function list and detailed documentation.
+.SH "EXAMPLES"
+.sp
+A number of examples are provided in \fBsrc/examples\fP folder of the \fBRNP\fP suite source tree.
+.sp
+\fBgenerate.c\fP
+.RS 4
+Demonstrates generation of an OpenPGP keypair using the JSON key description mechanism.
+May be used to generate any custom key types that are supported by the \fBRNP\fP suite.
+.RE
+.sp
+\fBencrypt.c\fP
+.RS 4
+Demonstrates how to build OpenPGP\-encrypted messages.
+A message is encrypted with keys, generated via \fB./generate\fP, with a hardcoded password.
+.RE
+.sp
+\fBdecrypt.c\fP
+.RS 4
+Demonstrates how to decrypt OpenPGP messages.
+Running this example requires the \fB./encrypt\fP example to be first run
+in order to produce the sample encrypted message for decryption.
+.RE
+.sp
+\fBsign.c\fP
+.RS 4
+Demonstrates how to sign OpenPGP messages.
+Running this example requires the \fB./generate\fP example to be first run
+in order to generate and write out secret keys.
+.RE
+.sp
+\fBverify.c\fP
+.RS 4
+Demonstrates verify OpenPGP signed messages.
+Again, running this example requires the \fB./sign\fP example to be first run
+in order to generate a signed OpenPGP message.
+.RE
+.SH "BUGS"
+.sp
+Please report \fIissues\fP via the RNP public issue tracker at:
+.URL "https://github.com/rnpgp/rnp/issues" "" "."
+.sp
+\fISecurity reports\fP or \fIsecurity\-sensitive feedback\fP should be reported
+according to the instructions at:
+.URL "https://www.rnpgp.org/feedback" "" "."
+.SH "AUTHORS"
+.sp
+\fBRNP\fP is an open source project led by Ribose and has
+received contributions from numerous individuals and
+organizations.
+.SH "RESOURCES"
+.sp
+\fBWeb site\fP: \c
+.URL "https://www.rnpgp.org" "" ""
+.sp
+\fBSource repository\fP: \c
+.URL "https://github.com/rnpgp/rnp" "" ""
+.SH "COPYING"
+.sp
+Copyright (C) 2017\-2021 Ribose.
+The RNP software suite is \fIfreely licensed\fP:
+please refer to the \fBLICENSE\fP file for details.
+.SH "SEE ALSO"
+.sp
+\fBrnp(1)\fP, \fBrnpkeys(1)\fP
+.SH "AUTHOR"
+.sp
+RNP
