@@ -79,24 +79,27 @@ jobs:
         use_cmake_prefix_path: [ 'on', 'off' ]
         sanitizers: [ 'off' ]
         include:
-          - arch:  { name: 'x64',    triplet: 'x64-windows' }
-            toolset:                'v143'
-            backend:                'botan'
-            use_cmake_prefix_path:  'off'
-            shared_libs:            'off'
-            sanitizers:             'on'
-          - arch:  { name: 'Win32',  triplet: 'x86-windows' }
-            toolset:                'ClangCL'
-            backend:                'botan'
-            use_cmake_prefix_path:  'on'
-            shared_libs:            'off'
-            sanitizers:             'off'
-          - arch:  { name: 'Win32',  triplet: 'x86-windows' }
-            toolset:                'v143'
-            backend:                'openssl'
-            use_cmake_prefix_path:  'off'
-            shared_libs:            'off'
-            sanitizers:             'off'
+          - os:                    'windows-2022'
+            arch:                  { name: 'x64',    triplet: 'x64-windows' }
+            toolset:               'v143'
+            backend:               'botan'
+            use_cmake_prefix_path: 'off'
+            shared_libs:           'off'
+            sanitizers:            'on'
+          - os:                    'windows-2022'
+            arch:                  { name: 'Win32',  triplet: 'x86-windows' }
+            toolset:               'ClangCL'
+            backend:               'botan'
+            use_cmake_prefix_path: 'on'
+            shared_libs:           'off'
+            sanitizers:            'off'
+          - os:                    'windows-2022'
+            arch:                  { name: 'Win32',  triplet: 'x86-windows' }
+            toolset:               'v143'
+            backend:               'openssl'
+            use_cmake_prefix_path: 'off'
+            shared_libs:           'off'
+            sanitizers:            'off'
           # Windows Server 2025 (newer VS toolchain; preview of what windows-2022
           # deprecation will land on).
           - os:                    'windows-2025'
