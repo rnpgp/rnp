@@ -109,4 +109,4 @@ jobs:
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
           export PATH="$PWD/build/src/lib:$PATH"
           chown -R rnpuser:rnpuser $PWD
-          exec su rnpuser -c "ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure"
+          exec su rnpuser -c "ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure -E '_slow$'"

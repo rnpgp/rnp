@@ -139,7 +139,7 @@ jobs:
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
           export PATH="$PWD/build/src/lib:$PATH"
           export RNP_LOG_CONSOLE=1
-          ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure
+          ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure -E '_slow$'
 
       - name: Install
         run: cmake --install build

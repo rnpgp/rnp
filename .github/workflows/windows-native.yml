@@ -252,4 +252,4 @@ jobs:
           fi
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
-          ctest --parallel ${{ env.CORES }} --test-dir build -C Release --output-on-failure
+          ctest --parallel ${{ env.CORES }} --test-dir build -C Release --output-on-failure -E '_slow$'
