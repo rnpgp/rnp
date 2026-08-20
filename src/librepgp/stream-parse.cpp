@@ -96,18 +96,18 @@ typedef struct pgp_source_encrypted_param_t {
     size_t                     chunklen{};   /* size of AEAD chunk in bytes */
     size_t                     chunkin{};    /* number of bytes read from the current chunk */
     size_t                     chunkidx{};   /* index of the current chunk */
-    size_t               rawbytes{}; /* number of bytes in cache read but not decrypted */
-    uint8_t              cache[PGP_AEAD_CACHE_LEN]; /* read cache */
-    size_t               cachelen{};                /* number of bytes in the cache */
-    size_t               cachepos{}; /* index of first unread byte in the cache */
+    size_t  rawbytes{};                /* number of bytes in cache read but not decrypted */
+    uint8_t cache[PGP_AEAD_CACHE_LEN]; /* read cache */
+    size_t  cachelen{};                /* number of bytes in the cache */
+    size_t  cachepos{};                /* index of first unread byte in the cache */
     /* RFC 9580 §5.16.2: plaintext from a chunk must NOT be released until the
      * chunk's auth tag is verified. We accumulate decrypted-but-unverified
      * plaintext in chunk_buf and only copy to cache after the tag succeeds. */
-    std::vector<uint8_t> chunk_buf;   /* plaintext accumulator for current chunk */
-    size_t               chunk_buflen{}; /* bytes accumulated so far in chunk_buf */
-    size_t               chunk_bufpos{}; /* read offset for releasing verified data */
+    std::vector<uint8_t> chunk_buf;        /* plaintext accumulator for current chunk */
+    size_t               chunk_buflen{};   /* bytes accumulated so far in chunk_buf */
+    size_t               chunk_bufpos{};   /* read offset for releasing verified data */
     bool                 chunk_verified{}; /* chunk tag verified; chunk_buf is releasable */
-    pgp_aead_hdr_t       aead_hdr;   /* AEAD encryption parameters */
+    pgp_aead_hdr_t       aead_hdr;         /* AEAD encryption parameters */
     uint8_t              aead_ad[PGP_AEAD_MAX_AD_LEN]; /* additional data */
     size_t               aead_adlen{};                 /* length of the additional data */
     pgp_symm_alg_t       salg;                         /* data encryption algorithm */
@@ -601,140 +601,156 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
 
     /* it is always 16 for defined EAX and OCB, however this may change in future */
     size_t taglen = pgp_cipher_aead_tag_len(param->aead_hdr.aalg);
-    size_t read = sizeof(param->cache) - 2 * PGP_AEAD_MAX_TAG_LEN - param->rawbytes;
-    bool   chunkend = false;
 
-    if (read >= param->chunklen - param->chunkin) {
-        /* param->rawbytes is smaller then param->chunklen - param->chunkin due to the previous
-         * call */
-        read = param->chunklen - param->chunkin - param->rawbytes;
-        chunkend = true;
-    } else {
-        read = read - (read + param->rawbytes) % pgp_cipher_aead_granularity(&param->decrypt);
-    }
+    /* Withheld plaintext must not surface as a zero-length read: the caller
+     * (src_read_aead) treats a successful part-read with cachelen == 0 as end
+     * of data. Keep consuming input until a whole chunk is verified and can
+     * be released (or the stream ends). */
+    for (;;) {
+        size_t read = sizeof(param->cache) - 2 * PGP_AEAD_MAX_TAG_LEN - param->rawbytes;
+        bool   chunkend = false;
 
-    if (!param->pkt.readsrc->read(param->cache + param->rawbytes, read, &read)) {
-        return false;
-    }
-
-    /* checking whether we have enough input for the final tags */
-    size_t tagread = 0;
-    if (!param->pkt.readsrc->peek(
-          param->cache + param->rawbytes + read, taglen * 2, &tagread)) {
-        return false;
-    }
-
-    bool   lastchunk = false;
-    size_t avail = param->rawbytes + read + tagread;
-    if (tagread < taglen * 2) {
-        /* this would mean the end of the stream */
-        if ((param->chunkin == 0) && (avail == taglen)) {
-            /* we have empty chunk and final tag */
-            chunkend = false;
-            lastchunk = true;
-        } else if (avail >= 2 * taglen) {
-            /* we have end of chunk and final tag */
+        if (read >= param->chunklen - param->chunkin) {
+            /* param->rawbytes is smaller then param->chunklen - param->chunkin due to the
+             * previous call */
+            read = param->chunklen - param->chunkin - param->rawbytes;
             chunkend = true;
-            lastchunk = true;
         } else {
-            RNP_LOG("unexpected end of data");
+            read =
+              read - (read + param->rawbytes) % pgp_cipher_aead_granularity(&param->decrypt);
+        }
+
+        if (!param->pkt.readsrc->read(param->cache + param->rawbytes, read, &read)) {
             return false;
         }
-    }
 
-    if (!chunkend && !lastchunk) {
-        size_t used = 0;
-        bool   res = pgp_cipher_aead_update(
-          param->decrypt, param->cache, param->cache, param->rawbytes + read, used);
+        /* checking whether we have enough input for the final tags */
+        size_t tagread = 0;
+        if (!param->pkt.readsrc->peek(
+              param->cache + param->rawbytes + read, taglen * 2, &tagread)) {
+            return false;
+        }
 
-        param->chunkin += used;
-        if (res) {
-            /* Withhold plaintext until the chunk tag is verified: accumulate
-             * it in chunk_buf instead of exposing it via cachelen. */
-            if (param->chunk_buf.empty()) {
+        bool   lastchunk = false;
+        size_t avail = param->rawbytes + read + tagread;
+        if (tagread < taglen * 2) {
+            /* this would mean the end of the stream */
+            if ((param->chunkin == 0) && (avail == taglen)) {
+                /* we have empty chunk and final tag */
+                chunkend = false;
+                lastchunk = true;
+            } else if (avail >= 2 * taglen) {
+                /* we have end of chunk and final tag */
+                chunkend = true;
+                lastchunk = true;
+            } else {
+                RNP_LOG("unexpected end of data");
+                return false;
+            }
+        }
+
+        if (!chunkend && !lastchunk) {
+            size_t used = 0;
+            bool   res = pgp_cipher_aead_update(
+              param->decrypt, param->cache, param->cache, param->rawbytes + read, used);
+
+            param->chunkin += used;
+            if (res) {
+                /* Withhold plaintext until the chunk tag is verified: accumulate
+                 * it in chunk_buf instead of exposing it via cachelen. */
+                if (param->chunk_buf.empty()) {
+                    param->chunk_buf.resize(param->chunklen);
+                }
+                if (param->chunk_buflen + used <= param->chunk_buf.size()) {
+                    memcpy(param->chunk_buf.data() + param->chunk_buflen, param->cache, used);
+                    param->chunk_buflen += used;
+                }
+                param->rawbytes = param->rawbytes + read - used;
+                /* Compact the un-decrypted remainder to the front of cache. */
+                if (used > 0 && param->rawbytes > 0) {
+                    memmove(param->cache, param->cache + used, param->rawbytes);
+                }
+            }
+            if (!res) {
+                return false;
+            }
+            /* Plaintext withheld until the chunk completes: read more input. */
+            continue;
+        }
+
+        /* Processing end of chunk */
+        if (chunkend) {
+            if (tagread > taglen) {
+                param->pkt.readsrc->skip(tagread - taglen);
+            }
+
+            size_t finlen = param->rawbytes + read + tagread - taglen;
+            if (!pgp_cipher_aead_finish(&param->decrypt, param->cache, param->cache, finlen)) {
+                RNP_LOG("failed to finalize aead chunk");
+                /* Zero unverified plaintext — tag verification failed. */
+                if (!param->chunk_buf.empty() && param->chunk_buflen > 0) {
+                    secure_clear(param->chunk_buf.data(), param->chunk_buflen);
+                }
+                param->chunk_buflen = 0;
+                param->chunk_verified = false;
+                return false;
+            }
+            /* Chunk tag verified: the whole chunk's plaintext is authenticated.
+             * Append the final piece (now in cache[0..final_used]) to whatever the
+             * intermediate reads accumulated. Do NOT copy chunk_buf back into cache
+             * here: the last-chunk finish() below still needs the summary tag that
+             * sits right after this piece in cache. */
+            size_t final_used = finlen - taglen;
+            param->chunkin += final_used;
+            if (param->chunk_buf.empty() && param->chunklen > 0) {
                 param->chunk_buf.resize(param->chunklen);
             }
-            if (param->chunk_buflen + used <= param->chunk_buf.size()) {
-                memcpy(param->chunk_buf.data() + param->chunk_buflen, param->cache, used);
-                param->chunk_buflen += used;
+            if (final_used > 0 &&
+                param->chunk_buflen + final_used <= param->chunk_buf.size()) {
+                memcpy(
+                  param->chunk_buf.data() + param->chunk_buflen, param->cache, final_used);
             }
-            param->rawbytes = param->rawbytes + read - used;
-            /* Compact the un-decrypted remainder to the front of cache. */
-            if (used > 0 && param->rawbytes > 0) {
-                memmove(param->cache, param->cache + used, param->rawbytes);
-            }
-        }
-        return res;
-    }
-
-    /* Processing end of chunk */
-    if (chunkend) {
-        if (tagread > taglen) {
-            param->pkt.readsrc->skip(tagread - taglen);
+            param->chunk_buflen += final_used;
+            param->rawbytes = 0;
+            param->chunk_verified = true;
+            param->chunk_bufpos = 0;
         }
 
-        size_t finlen = param->rawbytes + read + tagread - taglen;
-        if (!pgp_cipher_aead_finish(&param->decrypt, param->cache, param->cache, finlen)) {
-            RNP_LOG("failed to finalize aead chunk");
-            /* Zero unverified plaintext — tag verification failed. */
-            if (!param->chunk_buf.empty() && param->chunk_buflen > 0) {
-                secure_clear(param->chunk_buf.data(), param->chunk_buflen);
-            }
-            param->chunk_buflen = 0;
-            param->chunk_verified = false;
+        /* Starting a new chunk (cipher only; its plaintext is held back until the
+         * reader drains the current chunk_buf). */
+        size_t chunkidx = param->chunkidx;
+        if (chunkend && param->chunkin) {
+            chunkidx++;
+        }
+
+        if (!encrypted_start_aead_chunk(param, chunkidx, lastchunk)) {
+            RNP_LOG("failed to start aead chunk");
             return false;
         }
-        /* Chunk tag verified: the whole chunk's plaintext is authenticated.
-         * Append the final piece (now in cache[0..final_used]) to whatever the
-         * intermediate reads accumulated. Do NOT copy chunk_buf back into cache
-         * here: the last-chunk finish() below still needs the summary tag that
-         * sits right after this piece in cache. */
-        size_t final_used = finlen - taglen;
-        param->chunkin += final_used;
-        if (param->chunk_buf.empty() && param->chunklen > 0) {
-            param->chunk_buf.resize(param->chunklen);
-        }
-        if (final_used > 0 && param->chunk_buflen + final_used <= param->chunk_buf.size()) {
-            memcpy(param->chunk_buf.data() + param->chunk_buflen, param->cache, final_used);
-        }
-        param->chunk_buflen += final_used;
-        param->rawbytes = 0;
-        param->chunk_verified = true;
-        param->chunk_bufpos = 0;
-    }
 
-    /* Starting a new chunk (cipher only; its plaintext is held back until the
-     * reader drains the current chunk_buf). */
-    size_t chunkidx = param->chunkidx;
-    if (chunkend && param->chunkin) {
-        chunkidx++;
-    }
-
-    if (!encrypted_start_aead_chunk(param, chunkidx, lastchunk)) {
-        RNP_LOG("failed to start aead chunk");
-        return false;
-    }
-
-    if (lastchunk) {
-        /* Verify the summary tag. It sits at offset (avail - taglen) in cache
-         * in both the chunkend and empty-final-chunk cases, because the chunk
-         * finish() above left the peeked tag region untouched. */
-        if (tagread > 0) {
-            param->pkt.readsrc->skip(tagread);
-        }
-        size_t off = avail - taglen;
-        if (!pgp_cipher_aead_finish(
-              &param->decrypt, param->cache + off, param->cache + off, taglen)) {
-            RNP_LOG("wrong last chunk");
-            if (!param->chunk_buf.empty() && param->chunk_buflen > 0) {
-                secure_clear(param->chunk_buf.data(), param->chunk_buflen);
+        if (lastchunk) {
+            /* Verify the summary tag. It sits at offset (avail - taglen) in cache
+             * in both the chunkend and empty-final-chunk cases, because the chunk
+             * finish() above left the peeked tag region untouched. */
+            if (tagread > 0) {
+                param->pkt.readsrc->skip(tagread);
             }
-            param->chunk_buflen = 0;
-            param->chunk_verified = false;
-            return false;
+            size_t off = avail - taglen;
+            if (!pgp_cipher_aead_finish(
+                  &param->decrypt, param->cache + off, param->cache + off, taglen)) {
+                RNP_LOG("wrong last chunk");
+                if (!param->chunk_buf.empty() && param->chunk_buflen > 0) {
+                    secure_clear(param->chunk_buf.data(), param->chunk_buflen);
+                }
+                param->chunk_buflen = 0;
+                param->chunk_verified = false;
+                return false;
+            }
+            param->auth_validated = true;
         }
-        param->auth_validated = true;
-    }
+
+        break;
+    } /* for (;;) */
 
     /* Release the first batch of verified plaintext. Subsequent calls drain the
      * rest from chunk_buf before any new chunk is decrypted. */
