@@ -38,18 +38,41 @@
 #
 
 set(ADOCCOMMAND_FOUND 0)
+
+# Man page generation requires the `manpage` backend, which is an
+# asciidoctor feature. Classic Python asciidoc has no manpage backend
+# (it fails with "missing backend conf file: manpage.conf" and needs the
+# docbook+xmlto/a2x pipeline instead), so it must NOT be picked up as an
+# automatic fallback — any environment with only asciidoc installed would
+# break the build at man-page generation time. Distros that don't ship
+# asciidoctor by default (e.g. Debian, #2395) can `apt install asciidoctor`,
+# or build with ENABLE_DOC=Off to skip man pages entirely.
 find_program(ADOCCOMMAND_PATH
   NAMES asciidoctor
   DOC "Path to AsciiDoc processor. Used to generate man pages from AsciiDoc."
 )
 
+# Escape hatch for packagers who wire up a custom processor that does
+# support -b manpage (e.g. a vendored asciidoctor under a different name).
+if(DEFINED ASCIIDOC_TOOL)
+  find_program(ADOCCOMMAND_PATH
+    NAMES ${ASCIIDOC_TOOL}
+    DOC "Path to AsciiDoc processor (forced via ASCIIDOC_TOOL=${ASCIIDOC_TOOL})."
+  )
+endif()
+
 if(NOT EXISTS ${ADOCCOMMAND_PATH})
-  set(ADOC_MISSING_MSG "AsciiDoc processor not found, man pages will not be generated. Install asciidoctor or use the CMAKE_PROGRAM_PATH variable.")
+  if(EXISTS "${CMAKE_SOURCE_DIR}/docs/man")
+    set(ADOC_USING_CACHE 1)
+    set(ADOC_MISSING_MSG "AsciiDoc processor not found; installing pre-generated man pages from docs/man/. Refresh them with ci/regen-man-pages.sh when the .adoc sources change.")
+  else()
+    set(ADOC_MISSING_MSG "AsciiDoc processor not found and no pre-generated man pages in docs/man/. Install asciidoctor, or refresh the cache with ci/regen-man-pages.sh on a machine that has it.")
+  endif()
 
   string(TOLOWER "${ENABLE_DOC}" ENABLE_DOC)
   if (ENABLE_DOC STREQUAL "auto")
-    message(WARNING ${ADOC_MISSING_MSG})
-  elseif(ENABLE_DOC)
+    message(STATUS ${ADOC_MISSING_MSG})
+  elseif(ENABLE_DOC AND NOT ADOC_USING_CACHE)
     message(FATAL_ERROR ${ADOC_MISSING_MSG})
   endif()
 else()
@@ -57,7 +80,7 @@ else()
 endif()
 
 function(add_adoc_man SRC COMPONENT_VERSION)
-  if (NOT ${ADOCCOMMAND_FOUND})
+  if (NOT ${ADOCCOMMAND_FOUND} AND NOT ${ADOC_USING_CACHE})
     return()
   endif()
 
@@ -118,14 +141,35 @@ function(add_adoc_man SRC COMPONENT_VERSION)
     message(FATAL_ERROR "File name of a man page must be in the format {name}.{man-number}${ADOC_EXT}.")
   endif()
 
-  add_custom_command(
-    OUTPUT ${DST}
-    COMMAND ${ADOCCOMMAND_PATH} -b manpage ${SRC} -o ${DST} -a component-version=${COMPONENT_VERSION}
-    DEPENDS ${SRC}
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Generating man page ${SUBDIR_PATH_DIRECTORY}/${SUBDIR_PATH_NAME_WLE}"
-    VERBATIM
-  )
+  # Pre-generated roff cache: docs/man/{name}.{man-number}, refreshed via
+  # ci/regen-man-pages.sh and shipped in the repo / release archives, so
+  # packagers don't need asciidoctor installed (#2395).
+  set(MAN_CACHE "${CMAKE_SOURCE_DIR}/docs/man/${FILE_NAME_WE}.${MAN_NUM}")
+
+  if(${ADOCCOMMAND_FOUND})
+    add_custom_command(
+      OUTPUT ${DST}
+      # Options must precede the source file: asciidoctor accepts any order,
+      # but classic asciidoc treats anything after the first non-option
+      # argument as additional input files ("Too many arguments").
+      COMMAND ${ADOCCOMMAND_PATH} -b manpage -a component-version=${COMPONENT_VERSION} -o ${DST} ${SRC}
+      DEPENDS ${SRC}
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+      COMMENT "Generating man page ${SUBDIR_PATH_DIRECTORY}/${SUBDIR_PATH_NAME_WLE}"
+      VERBATIM
+    )
+  elseif(EXISTS ${MAN_CACHE})
+    add_custom_command(
+      OUTPUT ${DST}
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${MAN_CACHE} ${DST}
+      DEPENDS ${MAN_CACHE}
+      COMMENT "Installing pre-generated man page ${SUBDIR_PATH_DIRECTORY}/${SUBDIR_PATH_NAME_WLE} (from docs/man)"
+      VERBATIM
+    )
+  else()
+    message(WARNING "No AsciiDoc processor and no cached man page for ${FILE_NAME}; skipping it.")
+    return()
+  endif()
 
   add_custom_target("${TARGET_NAME}" ALL DEPENDS ${DST})
   install(FILES ${DST}

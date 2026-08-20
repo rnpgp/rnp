@@ -31,5 +31,7 @@ Collet = "Collet"
 [files]
 extend-exclude = [
     "src/tests/data/**",
-    "src/libsexpp/**"
+    "src/libsexpp/**",
+    # Generated roff (ci/regen-man-pages.sh); lint the .adoc sources instead
+    "docs/man/**"
 ]
