@@ -67,6 +67,15 @@ jobs:
   build_and_test:
     name: ${{ matrix.os }} [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }}, backend ${{ matrix.backend }}, build shared libs ${{ matrix.shared_libs }}, use CMake prefix path ${{ matrix.use_cmake_prefix_path }}, sanitizers ${{ matrix.sanitizers }}]
     runs-on: ${{ matrix.os }}
+    # windows-2025 and windows-11-arm are experimental preview legs (they were
+    # never exercised before: the workflow had been failing at matrix expansion
+    # since their introduction):
+    # - windows-2025 ships Visual Studio 2026, which the hardcoded
+    #   "Visual Studio 17 2022" generator and the v143 toolset cannot drive;
+    # - windows-11-arm fails at CMake generate time with SHLWAPI_LIBRARY
+    #   NOTFOUND (arm64 SDK library discovery).
+    # Keep them non-blocking until follow-ups make them pass.
+    continue-on-error: ${{ matrix.os == 'windows-2025' || matrix.os == 'windows-11-arm' }}
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     strategy:
       fail-fast: false
@@ -110,7 +119,7 @@ jobs:
             shared_libs:           'off'
             sanitizers:            'off'
           # Windows 11 ARM (preview runner; vcpkg ARM coverage has improved enough
-          # for our dependency set). Marked continue-on-error below.
+          # for our dependency set). Non-blocking at the job level above.
           - os:                    'windows-11-arm'
             arch:                  { name: 'ARM64', triplet: 'arm64-windows' }
             toolset:               'v143'
@@ -244,5 +253,3 @@ jobs:
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
           ctest --parallel ${{ env.CORES }} --test-dir build -C Release --output-on-failure
-        # Windows 11 ARM is a preview runner; don't gate the build on it.
-        continue-on-error: ${{ matrix.os == 'windows-11-arm' }}
