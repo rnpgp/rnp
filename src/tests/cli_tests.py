@@ -578,10 +578,33 @@ def gpg_symencrypt_file(src, dst, cipher=None, z=None, armor=False, aead=None):
         raise_err('gpg symmetric encryption failed for cipher ' + cipher, err)
 
 
+# gpg-agent occasionally misbehaves under parallel CI load (issue #2457):
+# "Corrupted protection" when unwrapping a just-imported protected key, or a
+# spurious "BAD signature" during verification. Both recover on a fresh
+# invocation, so retry exactly these two signatures and nothing else --
+# genuine regressions must still fail.
+GPG_TRANSIENT_ERRORS = ['Corrupted protection', 'BAD signature']
+GPG_TRANSIENT_RETRIES = 3
+
+def run_gpg(params):
+    ret, out, err = run_proc(GPG, params)
+    for attempt in range(1, GPG_TRANSIENT_RETRIES):
+        if ret == 0:
+            break
+        if not any(e in err for e in GPG_TRANSIENT_ERRORS):
+            break
+        lastline = err.strip().splitlines()[-1] if err and err.strip() else ''
+        print('gpg transient failure (attempt %d/%d), retrying: %s' %
+              (attempt, GPG_TRANSIENT_RETRIES, lastline), file=sys.stderr)
+        time.sleep(1)
+        ret, out, err = run_proc(GPG, params)
+    return ret, out, err
+
+
 def gpg_decrypt_file(src, dst, keypass):
     src = path_for_gpg(src)
     dst = path_for_gpg(dst)
-    ret, _, err = run_proc(GPG, ['--display-charset', CONSOLE_ENCODING, '--homedir', GPGHOME, GPG_LOOPBACK, '--batch',
+    ret, _, err = run_gpg(['--display-charset', CONSOLE_ENCODING, '--homedir', GPGHOME, GPG_LOOPBACK, '--batch',
                                    '--yes', '--passphrase', keypass, '--trust-model',
                                    'always', '-o', dst, '-d', src])
     if ret != 0:
@@ -591,7 +614,7 @@ def gpg_decrypt_file(src, dst, keypass):
 def gpg_verify_file(src, dst, signer=None):
     src = path_for_gpg(src)
     dst = path_for_gpg(dst)
-    ret, _, err = run_proc(GPG, ['--display-charset', CONSOLE_ENCODING, '--homedir', GPGHOME, '--batch',
+    ret, _, err = run_gpg(['--display-charset', CONSOLE_ENCODING, '--homedir', GPGHOME, '--batch',
                                    '--yes', '--trust-model', 'always', '-o', dst, '--verify', src])
     if ret != 0:
         raise_err('gpg verification failed', err)
@@ -606,7 +629,7 @@ def gpg_verify_file(src, dst, signer=None):
 def gpg_verify_detached(src, sig, signer=None):
     src = path_for_gpg(src)
     sig = path_for_gpg(sig)
-    ret, _, err = run_proc(GPG, ['--display-charset', CONSOLE_ENCODING, '--homedir', GPGHOME, '--batch', '--yes', '--trust-model',
+    ret, _, err = run_gpg(['--display-charset', CONSOLE_ENCODING, '--homedir', GPGHOME, '--batch', '--yes', '--trust-model',
                                  'always', '--verify', sig, src])
     if ret != 0:
         raise_err('gpg detached verification failed', err)
@@ -620,8 +643,8 @@ def gpg_verify_detached(src, sig, signer=None):
 
 def gpg_verify_cleartext(src, signer=None):
     src = path_for_gpg(src)
-    ret, _, err = run_proc(
-        GPG, ['--display-charset', CONSOLE_ENCODING, '--homedir', GPGHOME, '--batch', '--yes', '--trust-model', 'always', '--verify', src])
+    ret, _, err = run_gpg(
+        ['--display-charset', CONSOLE_ENCODING, '--homedir', GPGHOME, '--batch', '--yes', '--trust-model', 'always', '--verify', src])
     if ret != 0:
         raise_err('gpg cleartext verification failed', err)
     # Check GPG output
