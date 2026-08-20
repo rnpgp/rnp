@@ -48,7 +48,14 @@ TEST_F(rnp_tests, test_fuzz_keyring)
     /* Issue 25302 in oss-fuzz: rnp:fuzz_keyring: Direct-leak in Botan::HashFunction::create */
     data = file_to_vec(DATA_PATH "leak-5ee77f7ae99d7815d069afe037c42f4887193215");
     assert_int_equal(keyring_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
+}
 
-    data = file_to_vec(DATA_PATH "timeout-6140201111519232");
+/* Regression for oss-fuzz issue #46208: a 791KB corpus that previously timed out.
+ * Split from test_fuzz_keyring because it takes several minutes to load on slower
+ * CPUs. CI excludes *_slow tests on per-PR runs; run via ctest without the
+ * --gtest_filter=-*_slow exclusion on nightly schedules. */
+TEST_F(rnp_tests, test_fuzz_keyring_slow)
+{
+    auto data = file_to_vec(DATA_PATH "timeout-6140201111519232");
     assert_int_equal(keyring_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
 }
