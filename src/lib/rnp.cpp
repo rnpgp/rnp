@@ -1217,12 +1217,17 @@ static bool
 get_feature_sec_value(
   rnp_ffi_t ffi, const char *stype, const char *sname, rnp::FeatureType &type, int &value)
 {
+    /* Resolve by name only, without the backend-availability checks used by
+     * str_to_*_alg(): security rules must be queryable (and removable) for
+     * algorithms the current backend cannot use at all, e.g. everything the
+     * FIPS provider prohibits. */
     /* check type */
     if (rnp::str_case_eq(stype, RNP_FEATURE_HASH_ALG)) {
         type = rnp::FeatureType::Hash;
         /* check feature name */
         pgp_hash_alg_t alg = PGP_HASH_UNKNOWN;
-        if (sname && !str_to_hash_alg(sname, &alg)) {
+        if (sname && (alg = static_cast<pgp_hash_alg_t>(id_str_pair::lookup(
+                        hash_alg_map, sname, PGP_HASH_UNKNOWN))) == PGP_HASH_UNKNOWN) {
             FFI_LOG(ffi, "Unknown hash algorithm: %s", sname);
             return false;
         }
@@ -1234,7 +1239,8 @@ get_feature_sec_value(
         type = rnp::FeatureType::Cipher;
         /* check feature name */
         pgp_symm_alg_t alg = PGP_SA_UNKNOWN;
-        if (sname && !str_to_cipher(sname, &alg)) {
+        if (sname && (alg = static_cast<pgp_symm_alg_t>(id_str_pair::lookup(
+                        symm_alg_map, sname, PGP_SA_UNKNOWN))) == PGP_SA_UNKNOWN) {
             FFI_LOG(ffi, "Unknown cipher: %s", sname);
             return false;
         }
@@ -1246,7 +1252,8 @@ get_feature_sec_value(
         type = rnp::FeatureType::PublicKey;
         /* check feature name */
         pgp_pubkey_alg_t alg = PGP_PKA_NOTHING;
-        if (sname && !str_to_pubkey_alg(sname, &alg)) {
+        if (sname && (alg = static_cast<pgp_pubkey_alg_t>(id_str_pair::lookup(
+                        pubkey_alg_map, sname, PGP_PKA_NOTHING))) == PGP_PKA_NOTHING) {
             FFI_LOG(ffi, "Unknown public key algorithm: %s", sname);
             return false;
         }
