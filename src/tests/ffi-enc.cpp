@@ -1238,8 +1238,8 @@ TEST_F(rnp_tests, test_ffi_key_protect_ex_argon2_roundtrip)
     /* Round-trip: export secret key, reload into a fresh FFI, unlock */
     rnp_output_t output = NULL;
     assert_rnp_success(rnp_output_to_memory(&output, 0));
-    assert_rnp_success(rnp_key_export(output, key,
-                                      RNP_KEY_SECRET_SUBKEY | RNP_KEY_PUBLIC_SUBKEY | RNP_KEY_SUBKEYS));
+    assert_rnp_success(rnp_key_export(
+      output, key, RNP_KEY_SECRET_SUBKEY | RNP_KEY_PUBLIC_SUBKEY | RNP_KEY_SUBKEYS));
     rnp_output_destroy(output);
 
     /* Sanity: key is still usable for sign+verify after protect/unlock */
@@ -1408,8 +1408,8 @@ TEST_F(rnp_tests, test_ffi_decrypt_argon2_skesk_wrong_password)
     assert_rnp_success(
       rnp_input_from_path(&input, "data/RFC9580/A.12.1.v4-skesk-argon2-aes128.asc"));
     assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
-    assert_rnp_success(rnp_ffi_set_pass_provider(
-      ffi, ffi_string_password_provider, (void *) "wrong password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "wrong password"));
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
     /* Verification must fail: wrong password cannot derive the AEAD key */
     assert_rnp_failure(rnp_op_verify_execute(verify));
@@ -1485,6 +1485,7 @@ TEST_F(rnp_tests, test_ffi_verify_v2_seipd_cleartext_test_vector)
 }
 #endif
 
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
 TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
 {
     std::vector<std::pair<std::string, std::string>> key_msg_pairs = {
@@ -1521,7 +1522,6 @@ TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
     }
 }
 
-#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
 /* Negative coverage for PQC PKESK decryption (#2355 follow-up). Takes a
  * valid PQC-encrypted message, flips a byte in the ciphertext, and asserts
  * decryption fails cleanly without leaking plaintext. Without this test,
@@ -1530,7 +1530,7 @@ TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_corrupted)
 {
     /* Load the valid message into memory, then flip one byte near the end
      * (well inside the AEAD-protected region). */
-    std::string orig_path = "data/draft-ietf-openpgp-pqc/v6-eddsa-sample-message.asc";
+    std::string          orig_path = "data/draft-ietf-openpgp-pqc/v6-eddsa-sample-message.asc";
     std::vector<uint8_t> buf = file_to_vec(orig_path);
     assert_true(buf.size() > 100);
     /* Flip a byte near the end (within the SEIPD payload, not the armor) */
