@@ -27,6 +27,7 @@
 
 #include "crypto/common.h"
 #include "key.hpp"
+#include "userid.hpp"
 #include "defaults.h"
 #include <assert.h>
 #include <json_object.h>
@@ -5897,6 +5898,35 @@ try {
     }
     memcpy(*data, id->pkt.uid.data(), id->pkt.uid.size());
     *size = id->pkt.uid.size();
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_uid_get_photo(rnp_uid_handle_t uid, uint32_t *format, void **data, size_t *size)
+try {
+    if (!uid || !format || !data || !size) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    auto id = rnp_uid_handle_get_uid(uid);
+    if (!id) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (id->pkt.tag != PGP_PKT_USER_ATTR) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    rnp::PhotoFormat     fmt = rnp::PhotoFormat::Unknown;
+    std::vector<uint8_t> image;
+    if (!rnp::parse_photo_attribute(id->pkt.uid, image, fmt)) {
+        return RNP_ERROR_BAD_STATE;
+    }
+    *data = malloc(image.size());
+    if (image.size() && !*data) {
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+    }
+    memcpy(*data, image.data(), image.size());
+    *size = image.size();
+    *format = static_cast<uint32_t>(fmt);
     return RNP_SUCCESS;
 }
 FFI_GUARD

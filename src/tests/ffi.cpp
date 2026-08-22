@@ -2621,6 +2621,38 @@ TEST_F(rnp_tests, test_ffi_load_userattr)
     assert_rnp_success(rnp_key_get_uid_at(key, 1, &uid));
     assert_string_equal(uid, "(photo)");
     rnp_buffer_destroy(uid);
+
+    // get the UID handle so we can exercise the photo API
+    rnp_uid_handle_t uid_handle = NULL;
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 1, &uid_handle));
+    uint32_t uid_type = 0;
+    assert_rnp_success(rnp_uid_get_type(uid_handle, &uid_type));
+    assert_int_equal(uid_type, RNP_USER_ATTR);
+
+    // rnp_uid_get_photo on a non-photo UID must be rejected
+    rnp_uid_handle_t text_uid = NULL;
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &text_uid));
+    uint32_t format = 99;
+    void *   photo = NULL;
+    size_t   photo_size = 0;
+    assert_rnp_failure(rnp_uid_get_photo(text_uid, &format, &photo, &photo_size));
+    rnp_uid_handle_destroy(text_uid);
+
+    // rnp_uid_get_photo on the photo UID must return JPEG bytes
+    format = 99;
+    photo = NULL;
+    photo_size = 0;
+    assert_rnp_success(rnp_uid_get_photo(uid_handle, &format, &photo, &photo_size));
+    assert_int_equal(format, RNP_PHOTO_FORMAT_JPEG);
+    assert_non_null(photo);
+    // JPEG magic bytes
+    assert_true(photo_size >= 3);
+    assert_int_equal(((uint8_t *) photo)[0], 0xFF);
+    assert_int_equal(((uint8_t *) photo)[1], 0xD8);
+    assert_int_equal(((uint8_t *) photo)[2], 0xFF);
+    rnp_buffer_destroy(photo);
+    rnp_uid_handle_destroy(uid_handle);
+
     assert_rnp_success(rnp_key_handle_destroy(key));
     // cleanup
     rnp_ffi_destroy(ffi);
