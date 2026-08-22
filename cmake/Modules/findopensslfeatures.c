@@ -103,7 +103,7 @@ list_publickey()
      * present in OpenSSL 1.1.0+, OpenSSL 3.x, and LibreSSL. */
     for (size_t i = 0; i < EVP_PKEY_asn1_get_count(); i++) {
         const EVP_PKEY_ASN1_METHOD *ameth = EVP_PKEY_asn1_get0(i);
-        int                    id = 0;
+        int                         id = 0;
         EVP_PKEY_asn1_get0_info(&id, NULL, NULL, NULL, NULL, ameth);
         printf("%s\n", OBJ_nid2ln(id));
     }
