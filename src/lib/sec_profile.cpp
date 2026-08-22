@@ -239,15 +239,11 @@ SecurityContext::SecurityContext() : time_(0), prov_state_(NULL), rng(RNG::Type:
     /* Non-FIPS public-key algorithms. DSA is FIPS-approved but only with
      * approved key sizes; that size gating is enforced separately during key
      * generation/use, not via a blanket rule here. */
-    profile.add_rule(
-      {FeatureType::PublicKey, PGP_PKA_EDDSA, SecurityLevel::Disabled, 0});
+    profile.add_rule({FeatureType::PublicKey, PGP_PKA_EDDSA, SecurityLevel::Disabled, 0});
     profile.add_rule({FeatureType::PublicKey, PGP_PKA_SM2, SecurityLevel::Disabled, 0});
+    profile.add_rule({FeatureType::PublicKey, PGP_PKA_ELGAMAL, SecurityLevel::Disabled, 0});
     profile.add_rule(
-      {FeatureType::PublicKey, PGP_PKA_ELGAMAL, SecurityLevel::Disabled, 0});
-    profile.add_rule({FeatureType::PublicKey,
-                      PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN,
-                      SecurityLevel::Disabled,
-                      0});
+      {FeatureType::PublicKey, PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN, SecurityLevel::Disabled, 0});
 #endif
 }
 

@@ -5938,8 +5938,8 @@ TEST_F(rnp_tests, test_ffi_fips_mode_default_rules)
         uint32_t level = 99;
         uint64_t from = 999;
         uint32_t flags = 99;
-        assert_rnp_success(rnp_get_security_rule(
-          ffi, entry.type, entry.name, 0, &flags, &from, &level));
+        assert_rnp_success(
+          rnp_get_security_rule(ffi, entry.type, entry.name, 0, &flags, &from, &level));
         assert_int_equal(level, RNP_SECURITY_PROHIBITED);
     }
 
@@ -6234,12 +6234,11 @@ TEST_F(rnp_tests, test_ffi_security_rule_enumeration)
     uint32_t level = 0;
     uint64_t from = 0;
     uint32_t flags = 0;
-    char *type = NULL;
-    char *name = NULL;
+    char *   type = NULL;
+    char *   name = NULL;
     assert_rnp_failure(
       rnp_get_security_rule_at(ffi, count, &type, &name, &level, &from, &flags));
-    assert_rnp_failure(
-      rnp_get_security_rule_at(NULL, 0, &type, &name, &level, &from, &flags));
+    assert_rnp_failure(rnp_get_security_rule_at(NULL, 0, &type, &name, &level, &from, &flags));
 
     /* Enumerate and look up the MD5 rule */
     bool found_md5 = false;

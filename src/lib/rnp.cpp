@@ -1477,13 +1477,13 @@ try {
 FFI_GUARD
 
 rnp_result_t
-rnp_get_security_rule_at(rnp_ffi_t  ffi,
-                         size_t     idx,
-                         char **    type,
-                         char **    name,
-                         uint32_t * level,
-                         uint64_t * from,
-                         uint32_t * flags)
+rnp_get_security_rule_at(rnp_ffi_t ffi,
+                         size_t    idx,
+                         char **   type,
+                         char **   name,
+                         uint32_t *level,
+                         uint64_t *from,
+                         uint32_t *flags)
 try {
     if (!ffi) {
         return RNP_ERROR_NULL_POINTER;
@@ -1496,7 +1496,7 @@ try {
 
     /* Feature type → string */
     static const char *type_str[] = {"hash", "symmetric", "public-key"};
-    int ti = static_cast<int>(rule.type);
+    int                ti = static_cast<int>(rule.type);
     if (ti < 0 || ti > 2) {
         return RNP_ERROR_BAD_STATE;
     }
@@ -1521,7 +1521,7 @@ try {
         break;
     }
     if (name) {
-        const char *n = map ? id_str_pair::lookup(map, rule.feature, "unknown") : "unknown";
+        const char * n = map ? id_str_pair::lookup(map, rule.feature, "unknown") : "unknown";
         rnp_result_t ret = ret_str_value(n, name);
         if (ret) {
             return ret;
