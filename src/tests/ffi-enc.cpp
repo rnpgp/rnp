@@ -1419,6 +1419,9 @@ TEST_F(rnp_tests, test_ffi_decrypt_argon2_skesk_wrong_password)
     rnp_ffi_destroy(ffi);
 }
 #endif
+
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
+TEST_F(rnp_tests, test_ffi_verify_v2_seipd_test_vector)
 {
     rnp_ffi_t       ffi = NULL;
     rnp_input_t     input = NULL;
@@ -1480,6 +1483,7 @@ TEST_F(rnp_tests, test_ffi_verify_v2_seipd_cleartext_test_vector)
     rnp_op_verify_destroy(verify);
     rnp_ffi_destroy(ffi);
 }
+#endif
 
 TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
 {
@@ -1554,6 +1558,7 @@ TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_corrupted)
 }
 #endif
 
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
 TEST_F(rnp_tests, test_ffi_pqc_default_enc_subkey)
 {
     rnp_ffi_t         ffi = NULL;
@@ -1618,7 +1623,9 @@ TEST_F(rnp_tests, test_ffi_pqc_default_enc_subkey)
     rnp_key_handle_destroy(defkey2);
     rnp_ffi_destroy(ffi);
 }
+#endif
 
+#if defined(ENABLE_CRYPTO_REFRESH)
 TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
 {
     rnp_ffi_t        ffi = NULL;
