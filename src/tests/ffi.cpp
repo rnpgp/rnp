@@ -2431,8 +2431,7 @@ TEST_F(rnp_tests, test_ffi_dump_multiple_armored_messages)
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
 
     rnp_input_t input = NULL;
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_stream_key_merge/key-both.asc"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_key_merge/key-both.asc"));
     rnp_output_t output = NULL;
     assert_rnp_success(rnp_output_to_memory(&output, 0));
     assert_rnp_success(rnp_dump_packets_to_output(input, output, 0));
@@ -2455,15 +2454,14 @@ TEST_F(rnp_tests, test_ffi_dump_multiple_armored_messages)
 
     /* Same coverage via the JSON dumper, which has the same multi-armor
      * bug class. */
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_stream_key_merge/key-both.asc"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_key_merge/key-both.asc"));
     char *json = NULL;
     assert_rnp_success(rnp_dump_packets_to_json(input, 0, &json));
     rnp_input_destroy(input);
     std::string jstr(json);
     rnp_buffer_destroy(json);
-    assert_true(jstr.find("\"tag\":5") != std::string::npos);   /* secret key */
-    assert_true(jstr.find("\"tag\":7") != std::string::npos);   /* secret subkey */
+    assert_true(jstr.find("\"tag\":5") != std::string::npos); /* secret key */
+    assert_true(jstr.find("\"tag\":7") != std::string::npos); /* secret subkey */
 
     rnp_ffi_destroy(ffi);
 }
