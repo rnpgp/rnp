@@ -45,15 +45,6 @@ on:
       - '.github/workflows/*.yml'
       - '!.github/workflows/alpine.yml'
   pull_request:
-    paths:
-      - 'CMakeLists.txt'
-      - 'cmake/**'
-      - 'src/lib/CMakeLists.txt'
-      - 'src/libsexpp/CMakeLists.txt'
-      - '.github/workflows/alpine.yml'
-      - '.github/workflows/*.yml'
-      - '!.github/workflows/alpine.yml'
-  pull_request:
     paths-ignore:
       - '/*.sh'
       - '/.*'
@@ -76,63 +67,6 @@ env:
   LC_LANG: C.UTF-8
   RNP_LOG_CONSOLE: 1
 
-jobs:
-  tests:
-    name: ${{ matrix.image.container }} [CC ${{ matrix.env.CC }}; backend ${{ matrix.image.backend }}; GnuPG system-shipped]
-    runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, 'skip ci')"
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        image:
-          # Alpine edge -- botan 3.12.0 system per @remicollet #2420.
-          - { container: 'alpine-edge-amd64', backend: 'botan3' }
-        env:
-          - { CC: 'gcc',   CXX: 'g++'     }
-          - { CC: 'clang', CXX: 'clang++' }
-
-    container: ghcr.io/rnpgp/ci-rnp-${{ matrix.image.container }}
-
-    env: ${{ matrix.env }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - name: Setup ccache
-        uses: actions/cache@v4
-        with:
-          path: ~/.ccache
-          key: ccache-${{ matrix.image.container }}-${{ matrix.env.CC }}-${{ github.run_id }}
-          restore-keys: |
-            ccache-${{ matrix.image.container }}-${{ matrix.env.CC }}-
-      - name: Setup environment
-        shell: bash
-        run: |
-          # Alpine uses BusyBox by default; ensure bash is available for the build.
-          apk add --no-cache bash build-base cmake ninja bzip2-dev zlib-dev json-c-dev botan3-dev gnupg gtest-dev || true
-
-          # Create rnpuser with an explicit login shell -- BusyBox adduser defaults to
-          # /bin/false which makes `su rnpuser -c ...` fail with "This account is not
-          # available."
-          addgroup -S rnpuser 2>/dev/null || true
-          adduser -S -G rnpuser -s /bin/sh rnpuser 2>/dev/null || true
-
-      - name: Configure
-        shell: bash
-        run: |
-          set -eux
-          cmake -B build                                           \
-                -DBUILD_SHARED_LIBS=ON                             \
-                -DCRYPTO_BACKEND=${{ matrix.image.backend }}       \
-                -DDOWNLOAD_GTEST=ON                                \
-                ${RNP_CCACHE_LAUNCHER:-}                           \
-                -DCMAKE_BUILD_TYPE=Release                         \
-                -DCMAKE_CXX_FLAGS_RELEASE="-UNDEBUG"               \
-                -DCMAKE_C_FLAGS_RELEASE="-UNDEBUG"                 \
-                .
 # Alpine uses musl libc, not glibc. Some rnp code paths (notably the
 # error-number string tables, passwd-related paths, and the more pedantic
 # warnings-as-errors compilers) behave differently. We test the current
@@ -197,9 +131,6 @@ jobs:
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary" || true
           export PATH="$PWD/build/src/lib:$PATH"
-          chown -R rnpuser:rnpuser $PWD
+          chown -R rnp:rnp $PWD
           # BusyBox su requires explicit shell even when the user has one set.
-          su -s /bin/sh rnpuser -c "ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure"
-          cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
-          chown -R rnp "$GITHUB_WORKSPACE"
-          su rnp -s /bin/sh -c "cd \"$GITHUB_WORKSPACE\" && PATH=\"$PWD/build/src/lib:\$PATH\" ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure"
+          su -s /bin/sh rnp -c "ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure"
