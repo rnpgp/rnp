@@ -143,9 +143,9 @@ EntropyEncodingConfig::validate(std::string &error) const
 }
 
 bool
-entropy_to_flat_string(const std::vector<uint8_t> &entropy,
-                        const EntropyEncodingConfig &cfg,
-                        std::string &out)
+entropy_to_flat_string(const std::vector<uint8_t> & entropy,
+                       const EntropyEncodingConfig &cfg,
+                       std::string &                out)
 {
     size_t bpc = cfg.bits_per_char();
     size_t total_chars = cfg.entropy_chars();
@@ -168,9 +168,9 @@ entropy_to_flat_string(const std::vector<uint8_t> &entropy,
 }
 
 bool
-flat_string_to_entropy(const std::string &flat,
-                        const EntropyEncodingConfig &cfg,
-                        std::vector<uint8_t> &out)
+flat_string_to_entropy(const std::string &          flat,
+                       const EntropyEncodingConfig &cfg,
+                       std::vector<uint8_t> &       out)
 {
     size_t bpc = cfg.bits_per_char();
     if (flat.size() != cfg.entropy_chars()) {
@@ -199,9 +199,9 @@ flat_string_to_entropy(const std::string &flat,
 }
 
 bool
-compute_checksum(const std::vector<uint8_t> &entropy,
-                  const EntropyEncodingConfig &cfg,
-                  std::string &out)
+compute_checksum(const std::vector<uint8_t> & entropy,
+                 const EntropyEncodingConfig &cfg,
+                 std::string &                out)
 {
     auto hash = rnp::Hash::create(PGP_HASH_SHA256);
     hash->add(entropy);
@@ -211,15 +211,14 @@ compute_checksum(const std::vector<uint8_t> &entropy,
     EntropyEncodingConfig cksum_cfg = cfg;
     cksum_cfg.entropy_bits = cfg.checksum_bits;
     /* Pad the digest to entropy_bytes() */
-    std::vector<uint8_t> trimmed(digest.begin(),
-                                  digest.begin() + cksum_cfg.entropy_bytes());
+    std::vector<uint8_t> trimmed(digest.begin(), digest.begin() + cksum_cfg.entropy_bytes());
     return entropy_to_flat_string(trimmed, cksum_cfg, out);
 }
 
 bool
-encode_structured(const std::vector<uint8_t> &entropy,
-                   const EntropyEncodingConfig &cfg,
-                   std::string &out)
+encode_structured(const std::vector<uint8_t> & entropy,
+                  const EntropyEncodingConfig &cfg,
+                  std::string &                out)
 {
     std::string flat;
     if (!entropy_to_flat_string(entropy, cfg, flat)) {
@@ -266,16 +265,16 @@ encode_structured(const std::vector<uint8_t> &entropy,
 }
 
 bool
-decode_structured(const std::string &structured,
-                   const EntropyEncodingConfig &cfg,
-                   std::string &flat,
-                   bool &checksum_ok)
+decode_structured(const std::string &          structured,
+                  const EntropyEncodingConfig &cfg,
+                  std::string &                flat,
+                  bool &                       checksum_ok)
 {
     checksum_ok = true;
     /* Split by separator. */
-    std::string sep = cfg.separator.empty() ? " " : cfg.separator;
+    std::string              sep = cfg.separator.empty() ? " " : cfg.separator;
     std::vector<std::string> groups;
-    size_t start = 0;
+    size_t                   start = 0;
     while (start <= structured.size()) {
         size_t pos = structured.find(sep, start);
         if (pos == std::string::npos) {
@@ -288,11 +287,11 @@ decode_structured(const std::string &structured,
 
     std::string flat_chars;
     flat_chars.reserve(cfg.entropy_chars());
-    std::string checksum_chars;
-    size_t expected_data_groups = cfg.data_group_count();
-    std::vector<bool> seen_group(expected_data_groups, false);
+    std::string              checksum_chars;
+    size_t                   expected_data_groups = cfg.data_group_count();
+    std::vector<bool>        seen_group(expected_data_groups, false);
     std::vector<std::string> group_payloads(expected_data_groups);
-    bool found_checksum = cfg.disable_checksum; /* if disabled, "found" trivially */
+    bool   found_checksum = cfg.disable_checksum; /* if disabled, "found" trivially */
     size_t data_group_seq = 0;
 
     for (auto &grp : groups) {

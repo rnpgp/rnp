@@ -4232,11 +4232,11 @@ typedef struct rnp_entropy_encoding_params_t {
  * @param flat_form on success, the flat passphrase form. May be NULL.
  * @return RNP_SUCCESS on success, RNP_ERROR_BAD_PARAMETERS for invalid params.
  */
-RNP_API rnp_result_t rnp_entropy_encode_human_readable(
-  rnp_ffi_t                              ffi,
-  const rnp_entropy_encoding_params_t *  params,
-  char **                                structured_form,
-  char **                                flat_form);
+RNP_API rnp_result_t
+rnp_entropy_encode_human_readable(rnp_ffi_t                            ffi,
+                                  const rnp_entropy_encoding_params_t *params,
+                                  char **                              structured_form,
+                                  char **                              flat_form);
 
 /**
  * @brief Parse a structured human-readable entropy encoding and return
@@ -4257,9 +4257,7 @@ RNP_API rnp_result_t rnp_entropy_encode_human_readable(
  *         input or invalid params.
  */
 RNP_API rnp_result_t rnp_entropy_decode_human_readable(
-  const char *                           structured_form,
-  const rnp_entropy_encoding_params_t *  params,
-  char **                                flat_form);
+  const char *structured_form, const rnp_entropy_encoding_params_t *params, char **flat_form);
 
 /**
  * @brief Validate the checksum of a structured human-readable entropy
@@ -4272,8 +4270,7 @@ RNP_API rnp_result_t rnp_entropy_decode_human_readable(
  *         input or invalid params.
  */
 RNP_API rnp_result_t rnp_entropy_encoding_validate(
-  const char *                           structured_form,
-  const rnp_entropy_encoding_params_t *  params);
+  const char *structured_form, const rnp_entropy_encoding_params_t *params);
 
 /**
  * @brief Parameters for backup archive creation/loading.
@@ -4308,14 +4305,13 @@ typedef struct rnp_backup_archive_params_t {
  * @param output destination for the encrypted archive.
  * @return RNP_SUCCESS on success, error code otherwise.
  */
-RNP_API rnp_result_t rnp_backup_archive_create(
-  rnp_ffi_t                            ffi,
-  rnp_key_handle_t *                   keys_to_backup,
-  size_t                               key_count,
-  rnp_key_handle_t                     signing_key,
-  rnp_key_handle_t                     encryption_key,
-  const rnp_backup_archive_params_t *  params,
-  rnp_output_t                         output);
+RNP_API rnp_result_t rnp_backup_archive_create(rnp_ffi_t         ffi,
+                                               rnp_key_handle_t *keys_to_backup,
+                                               size_t            key_count,
+                                               rnp_key_handle_t  signing_key,
+                                               rnp_key_handle_t  encryption_key,
+                                               const rnp_backup_archive_params_t *params,
+                                               rnp_output_t                       output);
 
 /**
  * @brief Decrypt and verify a backup archive, importing all recovered
@@ -4338,10 +4334,9 @@ RNP_API rnp_result_t rnp_backup_archive_create(
  * @return RNP_SUCCESS on success, RNP_ERROR_SIGNATURE_INVALID if the
  *         signature does not verify.
  */
-RNP_API rnp_result_t rnp_backup_archive_load(
-  rnp_ffi_t        ffi,
-  rnp_input_t      input,
-  rnp_key_handle_t decryption_key,
-  rnp_key_handle_t signing_key_public);
+RNP_API rnp_result_t rnp_backup_archive_load(rnp_ffi_t        ffi,
+                                             rnp_input_t      input,
+                                             rnp_key_handle_t decryption_key,
+                                             rnp_key_handle_t signing_key_public);
 
 #endif

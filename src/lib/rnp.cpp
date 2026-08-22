@@ -9071,7 +9071,7 @@ rnp_backend_version()
 
 static void
 normalize_entropy_params(const rnp_entropy_encoding_params_t *in,
-                          rnp_entropy_encoding_params_t &out)
+                         rnp_entropy_encoding_params_t &      out)
 {
     out = {};
     if (in) {
@@ -9100,8 +9100,8 @@ normalize_entropy_params(const rnp_entropy_encoding_params_t *in,
 
 static bool
 params_to_cfg(const rnp_entropy_encoding_params_t *params,
-               rnp::EntropyEncodingConfig &cfg,
-               std::string &                error)
+              rnp::EntropyEncodingConfig &         cfg,
+              std::string &                        error)
 {
     rnp_entropy_encoding_params_t norm;
     normalize_entropy_params(params, norm);
@@ -9129,10 +9129,10 @@ alloc_cstr(const std::string &s)
 }
 
 rnp_result_t
-rnp_entropy_encode_human_readable(rnp_ffi_t                             ffi,
-                                   const rnp_entropy_encoding_params_t * params,
-                                   char **                               structured_form,
-                                   char **                               flat_form)
+rnp_entropy_encode_human_readable(rnp_ffi_t                            ffi,
+                                  const rnp_entropy_encoding_params_t *params,
+                                  char **                              structured_form,
+                                  char **                              flat_form)
 try {
     if (!ffi || (!structured_form && !flat_form)) {
         return RNP_ERROR_NULL_POINTER;
@@ -9179,9 +9179,9 @@ try {
 FFI_GUARD
 
 rnp_result_t
-rnp_entropy_decode_human_readable(const char *                          structured_form,
-                                   const rnp_entropy_encoding_params_t * params,
-                                   char **                               flat_form)
+rnp_entropy_decode_human_readable(const char *                         structured_form,
+                                  const rnp_entropy_encoding_params_t *params,
+                                  char **                              flat_form)
 try {
     if (!structured_form || !flat_form) {
         return RNP_ERROR_NULL_POINTER;
@@ -9209,8 +9209,8 @@ try {
 FFI_GUARD
 
 rnp_result_t
-rnp_entropy_encoding_validate(const char *                          structured_form,
-                               const rnp_entropy_encoding_params_t * params)
+rnp_entropy_encoding_validate(const char *                         structured_form,
+                              const rnp_entropy_encoding_params_t *params)
 try {
     if (!structured_form) {
         return RNP_ERROR_NULL_POINTER;
@@ -9232,13 +9232,13 @@ FFI_GUARD
 /* ===================== Backup archive ===================== */
 
 rnp_result_t
-rnp_backup_archive_create(rnp_ffi_t                            ffi,
-                           rnp_key_handle_t *                   keys_to_backup,
-                           size_t                               key_count,
-                           rnp_key_handle_t                     signing_key,
-                           rnp_key_handle_t                     encryption_key,
-                           const rnp_backup_archive_params_t *  params,
-                           rnp_output_t                         output)
+rnp_backup_archive_create(rnp_ffi_t                          ffi,
+                          rnp_key_handle_t *                 keys_to_backup,
+                          size_t                             key_count,
+                          rnp_key_handle_t                   signing_key,
+                          rnp_key_handle_t                   encryption_key,
+                          const rnp_backup_archive_params_t *params,
+                          rnp_output_t                       output)
 try {
     if (!ffi || !keys_to_backup || !signing_key || !encryption_key || !output) {
         return RNP_ERROR_NULL_POINTER;
@@ -9257,7 +9257,7 @@ try {
             rnp_output_destroy(keys_output);
             return RNP_ERROR_NULL_POINTER;
         }
-        uint32_t flags = RNP_KEY_EXPORT_SECRET | RNP_KEY_EXPORT_SUBKEYS;
+        uint32_t     flags = RNP_KEY_EXPORT_SECRET | RNP_KEY_EXPORT_SUBKEYS;
         rnp_result_t r = rnp_key_export(keys_to_backup[i], keys_output, flags);
         if (r) {
             rnp_output_destroy(keys_output);
@@ -9273,9 +9273,8 @@ try {
 
     /* Step 2: build a signed, encrypted OpenPGP message containing the
      * concatenated transferable keys as the literal data. */
-    rnp_input_t payload_input = NULL;
-    rnp_result_t r =
-      rnp_input_from_memory(&payload_input, keys_buf, keys_len, true);
+    rnp_input_t  payload_input = NULL;
+    rnp_result_t r = rnp_input_from_memory(&payload_input, keys_buf, keys_len, true);
     rnp_output_destroy(keys_output);
     if (r) {
         return r;
@@ -9332,9 +9331,9 @@ FFI_GUARD
 
 rnp_result_t
 rnp_backup_archive_load(rnp_ffi_t        ffi,
-                         rnp_input_t      input,
-                         rnp_key_handle_t decryption_key,
-                         rnp_key_handle_t signing_key_public)
+                        rnp_input_t      input,
+                        rnp_key_handle_t decryption_key,
+                        rnp_key_handle_t signing_key_public)
 try {
     if (!ffi || !input || !decryption_key || !signing_key_public) {
         return RNP_ERROR_NULL_POINTER;
