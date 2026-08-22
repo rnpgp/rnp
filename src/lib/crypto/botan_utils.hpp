@@ -28,8 +28,45 @@
 #define RNP_BOTAN_UTILS_HPP_
 
 #include <botan/ffi.h>
+#include <botan/build.h>
+#include <botan/version.h>
+#include <cstring>
+#include <vector>
 #include "mpi.hpp"
 #include "utils.h"
+
+#if BOTAN_VERSION_CODE >= BOTAN_VERSION_CODE_FOR(3, 6, 0)
+/* Destination descriptor for the Botan view-style FFI helpers
+ * (botan_privkey_view_raw / botan_pubkey_view_raw). The callback refuses to
+ * copy when the viewed length does not match the caller's expectation, so a
+ * fixed-size buffer cannot overrun. */
+struct rnp_botan_view_buf {
+    uint8_t *data;
+    size_t   size;
+};
+
+extern "C" {
+static inline int
+rnp_botan_view_bin(botan_view_ctx ctx, const uint8_t *data, size_t len)
+{
+    auto *vb = static_cast<rnp_botan_view_buf *>(ctx);
+    if (len != vb->size) {
+        return -1;
+    }
+    std::memcpy(vb->data, data, len);
+    return 0;
+}
+
+/* Variant for variable-length output (e.g. PQC raw key encodings): the viewed
+ * bytes are assigned into the caller's vector, sizing it to fit. */
+static inline int
+rnp_botan_view_bin_vec(botan_view_ctx ctx, const uint8_t *data, size_t len)
+{
+    static_cast<std::vector<uint8_t> *>(ctx)->assign(data, data + len);
+    return 0;
+}
+}
+#endif
 
 /* Self-destructing wrappers around the Botan's FFI objects */
 namespace rnp {
@@ -251,6 +288,48 @@ class KeyAgreement {
         return op_;
     };
 };
+
+#if defined(ENABLE_PQC)
+class KemEncrypt {
+    botan_pk_op_kem_encrypt_t op_;
+
+  public:
+    KemEncrypt() : op_(NULL){};
+
+    KemEncrypt(const KemEncrypt &) = delete;
+
+    ~KemEncrypt()
+    {
+        botan_pk_op_kem_encrypt_destroy(op_);
+    }
+
+    botan_pk_op_kem_encrypt_t &
+    get() noexcept
+    {
+        return op_;
+    };
+};
+
+class KemDecrypt {
+    botan_pk_op_kem_decrypt_t op_;
+
+  public:
+    KemDecrypt() : op_(NULL){};
+
+    KemDecrypt(const KemDecrypt &) = delete;
+
+    ~KemDecrypt()
+    {
+        botan_pk_op_kem_decrypt_destroy(op_);
+    }
+
+    botan_pk_op_kem_decrypt_t &
+    get() noexcept
+    {
+        return op_;
+    };
+};
+#endif
 
 } // namespace op
 } // namespace botan
