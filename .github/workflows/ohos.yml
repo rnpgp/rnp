@@ -71,7 +71,9 @@ jobs:
       # SDK version supported by openharmony-rs/setup-ohos-sdk; must match a
       # release tag of the openharmony-rs/ohos-sdk GitHub mirror.
       OHOS_SDK_VERSION: "6.1"
-      BOTAN_VERSION: "3.6.1"
+      # Keep in sync with ci/prebuilt-versions.env; Botan 3.6.x is unsuitable
+      # for minimized arm64 builds (see #2456).
+      BOTAN_VERSION: "3.12.0"
     steps:
       - name: Checkout rnp
         uses: actions/checkout@v4
@@ -130,7 +132,7 @@ jobs:
             --without-documentation \
             --disable-shared-library \
             --minimized-build \
-            --enable-modules="aes,aes_ni,auto_rng,bigint,block,blowfish,camellia,cast128,cbc,cfb,chacha,chacha20poly1305,checksum,crc24,des,dl_group,dsa,ecc_group,ecdh,ecdsa,eddsa,ed25519,elgamal,eme_pkcs1,emsa_pkcs1,gcm,getentropy,ghash,hash,hex,hmac,hmac_drbg,idea,kdf,md5,mem_pool,ocb,pgp_s2k,pk_pad,pkcs_enc,rfc3394,rsa,sha1,sha2_32,sha2_64,sha3,sm2,sm3,sm4,sp800_56a,system_rng,twofish,x25519,x448,ed448,hkdf,kyber,dilithium,sphincsplus,sha3_512" \
+            --enable-modules="$(cat "$GITHUB_WORKSPACE/ci/botan3-pqc-modules" | tr '\n' ',')" \
             --prefix="$HOME/ohos-deps/botan"
           make -j"$(nproc)"
           make install

@@ -76,7 +76,7 @@ TOOLCHAIN=$OHOS_NDK_HOME/native/build/cmake/ohos.toolchain.cmake
 SYSROOT=$OHOS_NDK_HOME/native/sysroot
 
 # 1. Cross-build Botan 3 against the OHOS sysroot.
-cd Botan-3.6.1
+cd Botan-3.12.0
 python3 ./configure.py \
   --cc=clang \
   --cpu=aarch64 \
