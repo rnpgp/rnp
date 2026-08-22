@@ -1675,9 +1675,12 @@ DumpContextDst::dump(bool raw_only)
 }
 
 static bool
-obj_add_intstr_json(json_object *obj, const char *name, int val, const id_str_pair map[])
+obj_add_intstr_json(nlohmann::ordered_json &obj,
+                    const char *            name,
+                    int                     val,
+                    const id_str_pair       map[])
 {
-    if (!json_add(obj, name, val)) {
+    if (!rnp::json::add(obj, name, val)) {
         return false; // LCOV_EXCL_LINE
     }
     if (!map) {
@@ -1686,38 +1689,33 @@ obj_add_intstr_json(json_object *obj, const char *name, int val, const id_str_pa
     char        namestr[64] = {0};
     const char *str = id_str_pair::lookup(map, val, "Unknown");
     snprintf(namestr, sizeof(namestr), "%s.str", name);
-    return json_add(obj, namestr, str);
+    return rnp::json::add(obj, namestr, str);
 }
 
 static bool
-obj_add_mpi_json(json_object *obj, const char *name, const mpi &mpi, bool contents)
+obj_add_mpi_json(nlohmann::ordered_json &obj, const char *name, const mpi &mpi, bool contents)
 {
     char strname[64] = {0};
     snprintf(strname, sizeof(strname), "%s.bits", name);
-    if (!json_add(obj, strname, (int) mpi.bits())) {
+    if (!rnp::json::add(obj, strname, (int) mpi.bits())) {
         return false; // LCOV_EXCL_LINE
     }
     if (!contents) {
         return true;
     }
     snprintf(strname, sizeof(strname), "%s.raw", name);
-    return json_add_hex(obj, strname, mpi.data(), mpi.size());
+    return rnp::json::add_hex(obj, strname, mpi.data(), mpi.size());
 }
 
 static bool
-subpacket_obj_add_algs(json_object *               obj,
+subpacket_obj_add_algs(nlohmann::ordered_json &    obj,
                        const char *                name,
                        const std::vector<uint8_t> &algs,
                        const id_str_pair           map[])
 {
-    json_object *jso_algs = json_object_new_array();
-    if (!jso_algs || !json_add(obj, name, jso_algs)) {
-        return false; // LCOV_EXCL_LINE
-    }
+    auto &jso_algs = obj[name] = nlohmann::ordered_json::array();
     for (auto &alg : algs) {
-        if (!json_array_add(jso_algs, json_object_new_int(alg))) {
-            return false; // LCOV_EXCL_LINE
-        }
+        jso_algs.push_back((int) alg);
     }
     if (!map) {
         return true;
@@ -1726,12 +1724,9 @@ subpacket_obj_add_algs(json_object *               obj,
     char strname[64] = {0};
     snprintf(strname, sizeof(strname), "%s.str", name);
 
-    jso_algs = json_object_new_array();
-    if (!jso_algs || !json_add(obj, strname, jso_algs)) {
-        return false; // LCOV_EXCL_LINE
-    }
+    auto &jso_str = obj[strname] = nlohmann::ordered_json::array();
     for (auto &alg : algs) {
-        if (!json_array_add(jso_algs, id_str_pair::lookup(map, alg, "Unknown"))) {
+        if (!rnp::json::array_add(jso_str, id_str_pair::lookup(map, alg, "Unknown"))) {
             return false; // LCOV_EXCL_LINE
         }
     }
@@ -1739,40 +1734,37 @@ subpacket_obj_add_algs(json_object *               obj,
 }
 
 static bool
-obj_add_s2k_json(json_object *obj, pgp_s2k_t *s2k)
+obj_add_s2k_json(nlohmann::ordered_json &obj, pgp_s2k_t *s2k)
 {
-    json_object *s2k_obj = json_object_new_object();
-    if (!json_add(obj, "s2k", s2k_obj)) {
-        return false; // LCOV_EXCL_LINE
-    }
-    if (!json_add(s2k_obj, "specifier", (int) s2k->specifier)) {
+    auto &s2k_obj = obj["s2k"] = nlohmann::ordered_json::object();
+    if (!rnp::json::add(s2k_obj, "specifier", (int) s2k->specifier)) {
         return false; // LCOV_EXCL_LINE
     }
     if ((s2k->specifier == PGP_S2KS_EXPERIMENTAL) && s2k->gpg_ext_num) {
-        if (!json_add(s2k_obj, "gpg extension", (int) s2k->gpg_ext_num)) {
+        if (!rnp::json::add(s2k_obj, "gpg extension", (int) s2k->gpg_ext_num)) {
             return false; // LCOV_EXCL_LINE
         }
         if (s2k->gpg_ext_num == PGP_S2K_GPG_SMARTCARD) {
             size_t slen = s2k->gpg_serial_len > 16 ? 16 : s2k->gpg_serial_len;
-            if (!json_add_hex(s2k_obj, "card serial number", s2k->gpg_serial, slen)) {
+            if (!rnp::json::add_hex(s2k_obj, "card serial number", s2k->gpg_serial, slen)) {
                 return false; // LCOV_EXCL_LINE
             }
         }
     }
     if (s2k->specifier == PGP_S2KS_EXPERIMENTAL) {
-        return json_add_hex(s2k_obj, "unknown experimental", s2k->experimental);
+        return rnp::json::add_hex(s2k_obj, "unknown experimental", s2k->experimental);
     }
     if (!obj_add_intstr_json(s2k_obj, "hash algorithm", s2k->hash_alg, hash_alg_map)) {
         return false; // LCOV_EXCL_LINE
     }
     if (((s2k->specifier == PGP_S2KS_SALTED) ||
          (s2k->specifier == PGP_S2KS_ITERATED_AND_SALTED)) &&
-        !json_add_hex(s2k_obj, "salt", s2k->salt, PGP_SALT_SIZE)) {
+        !rnp::json::add_hex(s2k_obj, "salt", s2k->salt, PGP_SALT_SIZE)) {
         return false; // LCOV_EXCL_LINE
     }
     if (s2k->specifier == PGP_S2KS_ITERATED_AND_SALTED) {
         size_t real_iter = pgp_s2k_decode_iterations(s2k->iterations);
-        if (!json_add(s2k_obj, "iterations", (uint64_t) real_iter)) {
+        if (!rnp::json::add(s2k_obj, "iterations", (uint64_t) real_iter)) {
             return false; // LCOV_EXCL_LINE
         }
     }
@@ -1780,37 +1772,38 @@ obj_add_s2k_json(json_object *obj, pgp_s2k_t *s2k)
 }
 
 bool
-DumpContextJson::dump_signature_subpacket(const pkt::sigsub::Raw &subpkt, json_object *obj)
+DumpContextJson::dump_signature_subpacket(const pkt::sigsub::Raw &subpkt,
+                                          nlohmann::ordered_json &obj)
 {
     switch (subpkt.type()) {
     case pkt::sigsub::Type::CreationTime: {
         auto &sub = dynamic_cast<const pkt::sigsub::CreationTime &>(subpkt);
-        return json_add(obj, "creation time", (uint64_t) sub.time());
+        return rnp::json::add(obj, "creation time", (uint64_t) sub.time());
     }
     case pkt::sigsub::Type::ExpirationTime: {
         auto &sub = dynamic_cast<const pkt::sigsub::ExpirationTime &>(subpkt);
-        return json_add(obj, "expiration time", (uint64_t) sub.time());
+        return rnp::json::add(obj, "expiration time", (uint64_t) sub.time());
     }
     case pkt::sigsub::Type::ExportableCert: {
         auto &sub = dynamic_cast<const pkt::sigsub::ExportableCert &>(subpkt);
-        return json_add(obj, "exportable", sub.exportable());
+        return rnp::json::add(obj, "exportable", sub.exportable());
     }
     case pkt::sigsub::Type::Trust: {
         auto &sub = dynamic_cast<const pkt::sigsub::Trust &>(subpkt);
-        return json_add(obj, "amount", (int) sub.amount()) &&
-               json_add(obj, "level", (int) sub.level());
+        return rnp::json::add(obj, "amount", (int) sub.amount()) &&
+               rnp::json::add(obj, "level", (int) sub.level());
     }
     case pkt::sigsub::Type::RegExp: {
         auto &sub = dynamic_cast<const pkt::sigsub::RegExp &>(subpkt);
-        return json_add(obj, "regexp", sub.regexp());
+        return rnp::json::add(obj, "regexp", sub.regexp());
     }
     case pkt::sigsub::Type::Revocable: {
         auto &sub = dynamic_cast<const pkt::sigsub::Revocable &>(subpkt);
-        return json_add(obj, "revocable", sub.revocable());
+        return rnp::json::add(obj, "revocable", sub.revocable());
     }
     case pkt::sigsub::Type::KeyExpirationTime: {
         auto &sub = dynamic_cast<const pkt::sigsub::KeyExpirationTime &>(subpkt);
-        return json_add(obj, "key expiration", (uint64_t) sub.time());
+        return rnp::json::add(obj, "key expiration", (uint64_t) sub.time());
     }
     case pkt::sigsub::Type::PreferredSymmetric: {
         auto &sub = dynamic_cast<const pkt::sigsub::PreferredSymmetric &>(subpkt);
@@ -1830,157 +1823,146 @@ DumpContextJson::dump_signature_subpacket(const pkt::sigsub::Raw &subpkt, json_o
     }
     case pkt::sigsub::Type::RevocationKey: {
         auto &sub = dynamic_cast<const pkt::sigsub::RevocationKey &>(subpkt);
-        return json_add(obj, "class", (int) sub.rev_class()) &&
-               json_add(obj, "algorithm", (int) sub.alg()) &&
-               json_add(obj, "fingerprint", sub.fp());
+        return rnp::json::add(obj, "class", (int) sub.rev_class()) &&
+               rnp::json::add(obj, "algorithm", (int) sub.alg()) &&
+               rnp::json::add(obj, "fingerprint", sub.fp());
     }
     case pkt::sigsub::Type::IssuerKeyID: {
         auto &sub = dynamic_cast<const pkt::sigsub::IssuerKeyID &>(subpkt);
-        return json_add(obj, "issuer keyid", sub.keyid());
+        return rnp::json::add(obj, "issuer keyid", sub.keyid());
     }
     case pkt::sigsub::Type::KeyserverPrefs: {
         auto &sub = dynamic_cast<const pkt::sigsub::KeyserverPrefs &>(subpkt);
-        return json_add(obj, "no-modify", sub.no_modify());
+        return rnp::json::add(obj, "no-modify", sub.no_modify());
     }
     case pkt::sigsub::Type::PreferredKeyserver: {
         auto &sub = dynamic_cast<const pkt::sigsub::PreferredKeyserver &>(subpkt);
-        return json_add(obj, "uri", sub.keyserver());
+        return rnp::json::add(obj, "uri", sub.keyserver());
     }
     case pkt::sigsub::Type::PrimaryUserID: {
         auto &sub = dynamic_cast<const pkt::sigsub::PrimaryUserID &>(subpkt);
-        return json_add(obj, "primary", sub.primary());
+        return rnp::json::add(obj, "primary", sub.primary());
     }
     case pkt::sigsub::Type::PolicyURI: {
         auto &sub = dynamic_cast<const pkt::sigsub::PolicyURI &>(subpkt);
-        return json_add(obj, "uri", sub.URI());
+        return rnp::json::add(obj, "uri", sub.URI());
     }
     case pkt::sigsub::Type::KeyFlags: {
         auto &  sub = dynamic_cast<const pkt::sigsub::KeyFlags &>(subpkt);
         uint8_t flg = sub.flags();
-        if (!json_add(obj, "flags", (int) flg)) {
+        if (!rnp::json::add(obj, "flags", (int) flg)) {
             return false; // LCOV_EXCL_LINE
         }
-        json_object *jso_flg = json_object_new_array();
-        if (!jso_flg || !json_add(obj, "flags.str", jso_flg)) {
+        auto &jso_flg = obj["flags.str"] = nlohmann::ordered_json::array();
+        if ((flg & PGP_KF_CERTIFY) && !rnp::json::array_add(jso_flg, "certify")) {
             return false; // LCOV_EXCL_LINE
         }
-        if ((flg & PGP_KF_CERTIFY) && !json_array_add(jso_flg, "certify")) {
+        if ((flg & PGP_KF_SIGN) && !rnp::json::array_add(jso_flg, "sign")) {
             return false; // LCOV_EXCL_LINE
         }
-        if ((flg & PGP_KF_SIGN) && !json_array_add(jso_flg, "sign")) {
+        if ((flg & PGP_KF_ENCRYPT_COMMS) && !rnp::json::array_add(jso_flg, "encrypt_comm")) {
             return false; // LCOV_EXCL_LINE
         }
-        if ((flg & PGP_KF_ENCRYPT_COMMS) && !json_array_add(jso_flg, "encrypt_comm")) {
+        if ((flg & PGP_KF_ENCRYPT_STORAGE) &&
+            !rnp::json::array_add(jso_flg, "encrypt_storage")) {
             return false; // LCOV_EXCL_LINE
         }
-        if ((flg & PGP_KF_ENCRYPT_STORAGE) && !json_array_add(jso_flg, "encrypt_storage")) {
+        if ((flg & PGP_KF_SPLIT) && !rnp::json::array_add(jso_flg, "split")) {
             return false; // LCOV_EXCL_LINE
         }
-        if ((flg & PGP_KF_SPLIT) && !json_array_add(jso_flg, "split")) {
+        if ((flg & PGP_KF_AUTH) && !rnp::json::array_add(jso_flg, "auth")) {
             return false; // LCOV_EXCL_LINE
         }
-        if ((flg & PGP_KF_AUTH) && !json_array_add(jso_flg, "auth")) {
-            return false; // LCOV_EXCL_LINE
-        }
-        if ((flg & PGP_KF_SHARED) && !json_array_add(jso_flg, "shared")) {
+        if ((flg & PGP_KF_SHARED) && !rnp::json::array_add(jso_flg, "shared")) {
             return false; // LCOV_EXCL_LINE
         }
         return true;
     }
     case pkt::sigsub::Type::SignersUserID: {
         auto &sub = dynamic_cast<const pkt::sigsub::SignersUserID &>(subpkt);
-        return json_add(obj, "uid", sub.signer());
+        return rnp::json::add(obj, "uid", sub.signer());
     }
     case pkt::sigsub::Type::RevocationReason: {
         auto &sub = dynamic_cast<const pkt::sigsub::RevocationReason &>(subpkt);
         if (!obj_add_intstr_json(obj, "code", sub.code(), revoc_reason_map)) {
             return false;
         }
-        return json_add(obj, "message", sub.reason());
+        return rnp::json::add(obj, "message", sub.reason());
     }
     case pkt::sigsub::Type::Features: {
         auto &sub = dynamic_cast<const pkt::sigsub::Features &>(subpkt);
-        return json_add(obj, "mdc", (bool) (sub.features() & PGP_KEY_FEATURE_MDC)) &&
-               json_add(obj, "aead", (bool) (sub.features() & PGP_KEY_FEATURE_AEAD)) &&
-               json_add(obj, "v5 keys", (bool) (sub.features() & PGP_KEY_FEATURE_V5));
+        return rnp::json::add(obj, "mdc", (bool) (sub.features() & PGP_KEY_FEATURE_MDC)) &&
+               rnp::json::add(obj, "aead", (bool) (sub.features() & PGP_KEY_FEATURE_AEAD)) &&
+               rnp::json::add(obj, "v5 keys", (bool) (sub.features() & PGP_KEY_FEATURE_V5));
     }
     case pkt::sigsub::Type::EmbeddedSignature: {
-        auto &       sub = dynamic_cast<const pkt::sigsub::EmbeddedSignature &>(subpkt);
-        json_object *sig = json_object_new_object();
-        if (!sub.signature() || !sig || !json_add(obj, "signature", sig)) {
+        auto &sub = dynamic_cast<const pkt::sigsub::EmbeddedSignature &>(subpkt);
+        if (!sub.signature()) {
             return false; // LCOV_EXCL_LINE
         }
+        auto &sig = obj["signature"] = nlohmann::ordered_json::object();
         return !dump_signature_pkt(*sub.signature(), sig);
     }
     case pkt::sigsub::Type::IssuerFingerprint: {
         auto &sub = dynamic_cast<const pkt::sigsub::IssuerFingerprint &>(subpkt);
-        return json_add(obj, "fingerprint", sub.fp());
+        return rnp::json::add(obj, "fingerprint", sub.fp());
     }
     case pkt::sigsub::Type::NotationData: {
         auto &sub = dynamic_cast<const pkt::sigsub::NotationData &>(subpkt);
-        if (!json_add(obj, "human", sub.human_readable()) ||
-            !json_add(obj, "name", sub.name())) {
+        if (!rnp::json::add(obj, "human", sub.human_readable()) ||
+            !rnp::json::add(obj, "name", sub.name())) {
             return false; // LCOV_EXCL_LINE
         }
         if (sub.human_readable()) {
-            return json_add(obj, "value", (char *) sub.value().data(), sub.value().size());
+            return rnp::json::add(
+              obj, "value", (char *) sub.value().data(), sub.value().size());
         }
-        return json_add_hex(obj, "value", sub.value());
+        return rnp::json::add_hex(obj, "value", sub.value());
     }
     default:
         if (!dump_packets) {
-            return json_add_hex(obj, "raw", subpkt.data());
+            return rnp::json::add_hex(obj, "raw", subpkt.data());
         }
         return true;
     }
     return true;
 }
 
-json_object *
+nlohmann::ordered_json
 DumpContextJson::dump_signature_subpackets(const pkt::Signature &sig)
 {
-    json_object *res = json_object_new_array();
-    if (!res) {
-        return NULL; // LCOV_EXCL_LINE
-    }
-    JSONObject reswrap(res);
+    nlohmann::ordered_json res = nlohmann::ordered_json::array();
 
     for (auto &subpkt : sig.subpkts) {
-        json_object *jso_subpkt = json_object_new_object();
-        if (json_object_array_add(res, jso_subpkt)) {
-            json_object_put(jso_subpkt);
-            return NULL; // LCOV_EXCL_LINE
-        }
+        auto &jso_subpkt = res.emplace_back(nlohmann::ordered_json::object());
 
         if (!obj_add_intstr_json(
               jso_subpkt, "type", subpkt->raw_type(), sig_subpkt_type_map)) {
-            return NULL; // LCOV_EXCL_LINE
+            return nlohmann::ordered_json(); // LCOV_EXCL_LINE
         }
-        if (!json_add(jso_subpkt, "length", (int) subpkt->data().size())) {
-            return NULL; // LCOV_EXCL_LINE
+        if (!rnp::json::add(jso_subpkt, "length", (int) subpkt->data().size())) {
+            return nlohmann::ordered_json(); // LCOV_EXCL_LINE
         }
-        if (!json_add(jso_subpkt, "hashed", subpkt->hashed())) {
-            return NULL; // LCOV_EXCL_LINE
+        if (!rnp::json::add(jso_subpkt, "hashed", subpkt->hashed())) {
+            return nlohmann::ordered_json(); // LCOV_EXCL_LINE
         }
-        if (!json_add(jso_subpkt, "critical", subpkt->critical())) {
-            return NULL; // LCOV_EXCL_LINE
+        if (!rnp::json::add(jso_subpkt, "critical", subpkt->critical())) {
+            return nlohmann::ordered_json(); // LCOV_EXCL_LINE
         }
-        if (dump_packets && !json_add_hex(jso_subpkt, "raw", subpkt->data())) {
-            return NULL; // LCOV_EXCL_LINE
+        if (dump_packets && !rnp::json::add_hex(jso_subpkt, "raw", subpkt->data())) {
+            return nlohmann::ordered_json(); // LCOV_EXCL_LINE
         }
         if (!dump_signature_subpacket(*subpkt, jso_subpkt)) {
-            return NULL;
+            return nlohmann::ordered_json();
         }
     }
-    return reswrap.release();
+    return res;
 }
 
 rnp_result_t
-DumpContextJson::dump_signature_pkt(const pkt::Signature &sig, json_object *pkt)
+DumpContextJson::dump_signature_pkt(const pkt::Signature &sig, nlohmann::ordered_json &pkt)
 {
-    json_object *material = NULL;
-
-    if (!json_add(pkt, "version", (int) sig.version)) {
+    if (!rnp::json::add(pkt, "version", (int) sig.version)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (!obj_add_intstr_json(pkt, "type", sig.type(), sig_type_map)) {
@@ -1988,10 +1970,10 @@ DumpContextJson::dump_signature_pkt(const pkt::Signature &sig, json_object *pkt)
     }
 
     if (sig.version < PGP_V4) {
-        if (!json_add(pkt, "creation time", (uint64_t) sig.creation_time)) {
+        if (!rnp::json::add(pkt, "creation time", (uint64_t) sig.creation_time)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
-        if (!json_add(pkt, "signer", sig.signer)) {
+        if (!rnp::json::add(pkt, "signer", sig.signer)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
     }
@@ -2003,20 +1985,18 @@ DumpContextJson::dump_signature_pkt(const pkt::Signature &sig, json_object *pkt)
     }
 
     if (sig.version >= PGP_V4) {
-        json_object *subpkts = dump_signature_subpackets(sig);
-        if (!subpkts || !json_add(pkt, "subpackets", subpkts)) {
+        nlohmann::ordered_json subpkts = dump_signature_subpackets(sig);
+        if (subpkts.is_null()) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
+        pkt["subpackets"] = std::move(subpkts);
     }
 
-    if (!json_add_hex(pkt, "lbits", sig.lbits.data(), sig.lbits.size())) {
+    if (!rnp::json::add_hex(pkt, "lbits", sig.lbits.data(), sig.lbits.size())) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
-    material = json_object_new_object();
-    if (!material || !json_add(pkt, "material", material)) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
+    auto &material = pkt["material"] = nlohmann::ordered_json::object();
 
     auto sigmaterial = sig.parse_material();
     if (!sigmaterial) {
@@ -2098,7 +2078,7 @@ DumpContextJson::dump_signature_pkt(const pkt::Signature &sig, json_object *pkt)
 }
 
 rnp_result_t
-DumpContextJson::dump_signature(json_object *pkt)
+DumpContextJson::dump_signature(nlohmann::ordered_json &pkt)
 {
     pkt::Signature sig;
     auto           ret = sig.parse(src);
@@ -2109,7 +2089,7 @@ DumpContextJson::dump_signature(json_object *pkt)
 }
 
 bool
-DumpContextJson::dump_key_material(const KeyMaterial *material, json_object *jso)
+DumpContextJson::dump_key_material(const KeyMaterial *material, nlohmann::ordered_json &jso)
 {
     if (!material) {
         return false; // LCOV_EXCL_LINE
@@ -2155,7 +2135,7 @@ DumpContextJson::dump_key_material(const KeyMaterial *material, json_object *jso
         if (!obj_add_mpi_json(jso, "p", ec.p(), dump_mpi)) {
             return false; // LCOV_EXCL_LINE
         }
-        if (!json_add(jso, "curve", cdesc ? cdesc->pgp_name : "unknown")) {
+        if (!rnp::json::add(jso, "curve", cdesc ? cdesc->pgp_name : "unknown")) {
             return false; // LCOV_EXCL_LINE
         }
         if (material->alg() != PGP_PKA_ECDH) {
@@ -2225,7 +2205,7 @@ DumpContextJson::dump_key_material(const KeyMaterial *material, json_object *jso
 }
 
 rnp_result_t
-DumpContextJson::dump_key(json_object *pkt)
+DumpContextJson::dump_key(nlohmann::ordered_json &pkt)
 {
     pgp_key_pkt_t key;
     auto          ret = key.parse(src);
@@ -2233,37 +2213,34 @@ DumpContextJson::dump_key(json_object *pkt)
         return ret;
     }
 
-    if (!json_add(pkt, "version", (int) key.version)) {
+    if (!rnp::json::add(pkt, "version", (int) key.version)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
-    if (!json_add(pkt, "creation time", (uint64_t) key.creation_time)) {
+    if (!rnp::json::add(pkt, "creation time", (uint64_t) key.creation_time)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
-    if ((key.version < PGP_V4) && !json_add(pkt, "v3 days", (int) key.v3_days)) {
+    if ((key.version < PGP_V4) && !rnp::json::add(pkt, "v3 days", (int) key.v3_days)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (!obj_add_intstr_json(pkt, "algorithm", key.alg, pubkey_alg_map)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if ((key.version == PGP_V5) &&
-        !json_add(pkt, "v5 public key material length", (int) key.v5_pub_len)) {
+        !rnp::json::add(pkt, "v5 public key material length", (int) key.v5_pub_len)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
-    auto material = json_object_new_object();
-    if (!material || !json_add(pkt, "material", material)) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
+    auto &material = pkt["material"] = nlohmann::ordered_json::object();
     if (!dump_key_material(key.material.get(), material)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     if (is_secret_key_pkt(key.tag)) {
-        if (!json_add(material, "s2k usage", (int) key.sec_protection.s2k.usage)) {
+        if (!rnp::json::add(material, "s2k usage", (int) key.sec_protection.s2k.usage)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         if ((key.version == PGP_V5) &&
-            !json_add(material, "v5 s2k length", (int) key.v5_s2k_len)) {
+            !rnp::json::add(material, "v5 s2k length", (int) key.v5_s2k_len)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         if (!obj_add_s2k_json(material, &key.sec_protection.s2k)) {
@@ -2275,24 +2252,24 @@ DumpContextJson::dump_key(json_object *pkt)
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         if ((key.version == PGP_V5) &&
-            !json_add(material, "v5 secret key data length", (int) key.v5_sec_len)) {
+            !rnp::json::add(material, "v5 secret key data length", (int) key.v5_sec_len)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
     }
 
     Fingerprint fp(key);
-    if (!json_add(pkt, "keyid", fp.keyid())) {
+    if (!rnp::json::add(pkt, "keyid", fp.keyid())) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
-    if (dump_grips && !json_add(pkt, "fingerprint", fp)) {
+    if (dump_grips && !rnp::json::add(pkt, "fingerprint", fp)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
     if (dump_grips) {
         if (key.material) {
             KeyGrip grip = key.material->grip();
-            if (!json_add_hex(pkt, "grip", grip.data(), grip.size())) {
+            if (!rnp::json::add_hex(pkt, "grip", grip.data(), grip.size())) {
                 return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
             }
         } else {
@@ -2303,7 +2280,7 @@ DumpContextJson::dump_key(json_object *pkt)
 }
 
 rnp_result_t
-DumpContextJson::dump_user_id(json_object *pkt)
+DumpContextJson::dump_user_id(nlohmann::ordered_json &pkt)
 {
     pgp_userid_pkt_t uid;
     auto             ret = uid.parse(src);
@@ -2313,12 +2290,12 @@ DumpContextJson::dump_user_id(json_object *pkt)
 
     switch (uid.tag) {
     case PGP_PKT_USER_ID:
-        if (!json_add(pkt, "userid", (char *) uid.uid.data(), uid.uid.size())) {
+        if (!rnp::json::add(pkt, "userid", (char *) uid.uid.data(), uid.uid.size())) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
     case PGP_PKT_USER_ATTR:
-        if (!json_add_hex(pkt, "userattr", uid.uid.data(), uid.uid.size())) {
+        if (!rnp::json::add_hex(pkt, "userattr", uid.uid.data(), uid.uid.size())) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
@@ -2328,7 +2305,7 @@ DumpContextJson::dump_user_id(json_object *pkt)
 }
 
 rnp_result_t
-DumpContextJson::dump_pk_session_key(json_object *pkt)
+DumpContextJson::dump_pk_session_key(nlohmann::ordered_json &pkt)
 {
     pgp_pk_sesskey_t pkey;
     auto             ret = pkey.parse(src);
@@ -2340,16 +2317,13 @@ DumpContextJson::dump_pk_session_key(json_object *pkt)
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    if (!json_add(pkt, "version", (int) pkey.version) ||
-        !json_add(pkt, "keyid", pkey.key_id) ||
+    if (!rnp::json::add(pkt, "version", (int) pkey.version) ||
+        !rnp::json::add(pkt, "keyid", pkey.key_id) ||
         !obj_add_intstr_json(pkt, "algorithm", pkey.alg, pubkey_alg_map)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
-    json_object *material = json_object_new_object();
-    if (!json_add(pkt, "material", material)) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
+    auto &material = pkt["material"] = nlohmann::ordered_json::object();
 
     switch (pkey.alg) {
     case PGP_PKA_RSA:
@@ -2380,10 +2354,10 @@ DumpContextJson::dump_pk_session_key(json_object *pkt)
     case PGP_PKA_ECDH: {
         auto &ecdh = dynamic_cast<const ECDHEncMaterial &>(*pkmaterial).enc;
         if (!obj_add_mpi_json(material, "p", ecdh.p, dump_mpi) ||
-            !json_add(material, "m.bytes", (int) ecdh.m.size())) {
+            !rnp::json::add(material, "m.bytes", (int) ecdh.m.size())) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
-        if (dump_mpi && !json_add_hex(material, "m", ecdh.m.data(), ecdh.m.size())) {
+        if (dump_mpi && !rnp::json::add_hex(material, "m", ecdh.m.data(), ecdh.m.size())) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
         break;
@@ -2420,7 +2394,7 @@ DumpContextJson::dump_pk_session_key(json_object *pkt)
 }
 
 rnp_result_t
-DumpContextJson::dump_sk_session_key(json_object *pkt)
+DumpContextJson::dump_sk_session_key(nlohmann::ordered_json &pkt)
 {
     pgp_sk_sesskey_t skey;
     auto             ret = skey.parse(src);
@@ -2428,7 +2402,7 @@ DumpContextJson::dump_sk_session_key(json_object *pkt)
         return ret;
     }
 
-    if (!json_add(pkt, "version", (int) skey.version) ||
+    if (!rnp::json::add(pkt, "version", (int) skey.version) ||
         !obj_add_intstr_json(pkt, "algorithm", skey.alg, symm_alg_map)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
@@ -2439,17 +2413,18 @@ DumpContextJson::dump_sk_session_key(json_object *pkt)
     if (!obj_add_s2k_json(pkt, &skey.s2k)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
-    if ((skey.version == PGP_SKSK_V5) && !json_add_hex(pkt, "aead iv", skey.iv, skey.ivlen)) {
+    if ((skey.version == PGP_SKSK_V5) &&
+        !rnp::json::add_hex(pkt, "aead iv", skey.iv, skey.ivlen)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
-    if (!json_add_hex(pkt, "encrypted key", skey.enckey, skey.enckeylen)) {
+    if (!rnp::json::add_hex(pkt, "encrypted key", skey.enckey, skey.enckeylen)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     return RNP_SUCCESS;
 }
 
 rnp_result_t
-DumpContextJson::dump_encrypted(json_object *pkt, pgp_pkt_type_t tag)
+DumpContextJson::dump_encrypted(nlohmann::ordered_json &pkt, pgp_pkt_type_t tag)
 {
     if (tag != PGP_PKT_AEAD_ENCRYPTED) {
         /* packet header with tag is already in pkt */
@@ -2462,18 +2437,18 @@ DumpContextJson::dump_encrypted(json_object *pkt, pgp_pkt_type_t tag)
         return RNP_ERROR_READ;
     }
 
-    if (!json_add(pkt, "version", (int) aead.version) ||
+    if (!rnp::json::add(pkt, "version", (int) aead.version) ||
         !obj_add_intstr_json(pkt, "algorithm", aead.ealg, symm_alg_map) ||
         !obj_add_intstr_json(pkt, "aead algorithm", aead.aalg, aead_alg_map) ||
-        !json_add(pkt, "chunk size", (int) aead.csize) ||
-        !json_add_hex(pkt, "aead iv", aead.iv, aead.ivlen)) {
+        !rnp::json::add(pkt, "chunk size", (int) aead.csize) ||
+        !rnp::json::add_hex(pkt, "aead iv", aead.iv, aead.ivlen)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     return RNP_SUCCESS;
 }
 
 rnp_result_t
-DumpContextJson::dump_one_pass(json_object *pkt)
+DumpContextJson::dump_one_pass(nlohmann::ordered_json &pkt)
 {
     pgp_one_pass_sig_t onepass;
     auto               ret = onepass.parse(src);
@@ -2481,7 +2456,7 @@ DumpContextJson::dump_one_pass(json_object *pkt)
         return ret;
     }
 
-    if (!json_add(pkt, "version", (int) onepass.version)) {
+    if (!rnp::json::add(pkt, "version", (int) onepass.version)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     if (!obj_add_intstr_json(pkt, "type", onepass.type, sig_type_map)) {
@@ -2495,36 +2470,37 @@ DumpContextJson::dump_one_pass(json_object *pkt)
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     if (onepass.version == PGP_OPS_V6 &&
-        !json_add(pkt, "salt", (const char *) onepass.salt.data(), onepass.salt.size())) {
+        !rnp::json::add(
+          pkt, "salt", (const char *) onepass.salt.data(), onepass.salt.size())) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 #endif
-    if (onepass.version == PGP_OPS_V3 && !json_add(pkt, "signer", onepass.keyid)) {
+    if (onepass.version == PGP_OPS_V3 && !rnp::json::add(pkt, "signer", onepass.keyid)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if (onepass.version == PGP_OPS_V6 && !json_add(pkt, "signer", onepass.fp)) {
+    if (onepass.version == PGP_OPS_V6 && !rnp::json::add(pkt, "signer", onepass.fp)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 #endif
-    if (!json_add(pkt, "nested", (bool) onepass.nested)) {
+    if (!rnp::json::add(pkt, "nested", (bool) onepass.nested)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     return RNP_SUCCESS;
 }
 
 rnp_result_t
-DumpContextJson::dump_marker(json_object *pkt)
+DumpContextJson::dump_marker(nlohmann::ordered_json &pkt)
 {
     auto ret = stream_parse_marker(src);
-    if (!json_add(pkt, "contents", ret ? "invalid" : PGP_MARKER_CONTENTS)) {
+    if (!rnp::json::add(pkt, "contents", ret ? "invalid" : PGP_MARKER_CONTENTS)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
     return ret;
 }
 
 rnp_result_t
-DumpContextJson::dump_compressed(json_object *pkt)
+DumpContextJson::dump_compressed(nlohmann::ordered_json &pkt)
 {
     std::unique_ptr<Source> zsrc(new Source());
     auto                    ret = init_compressed_src(&zsrc->src(), &src);
@@ -2538,20 +2514,19 @@ DumpContextJson::dump_compressed(json_object *pkt)
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
 
-    json_object *   contents = NULL;
-    DumpContextJson ctx(zsrc->src(), &contents);
+    nlohmann::ordered_json contents;
+    DumpContextJson        ctx(zsrc->src(), &contents);
     ctx.copy_params(*this);
     ret = ctx.dump(true);
     copy_params(ctx);
-    if (!ret && !json_add(pkt, "contents", contents)) {
-        json_object_put(contents);
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+    if (!ret) {
+        pkt["contents"] = std::move(contents);
     }
     return ret;
 }
 
 rnp_result_t
-DumpContextJson::dump_literal(json_object *pkt)
+DumpContextJson::dump_literal(nlohmann::ordered_json &pkt)
 {
     Source lsrc;
     auto   ret = init_literal_src(&lsrc.src(), &src);
@@ -2561,9 +2536,9 @@ DumpContextJson::dump_literal(json_object *pkt)
 
     ret = RNP_ERROR_OUT_OF_MEMORY;
     auto &lhdr = get_literal_src_hdr(lsrc.src());
-    if (!json_add(pkt, "format", (char *) &lhdr.format, 1) ||
-        !json_add(pkt, "filename", (char *) lhdr.fname, lhdr.fname_len) ||
-        !json_add(pkt, "timestamp", (uint64_t) lhdr.timestamp)) {
+    if (!rnp::json::add(pkt, "format", (char *) &lhdr.format, 1) ||
+        !rnp::json::add(pkt, "filename", (char *) lhdr.fname, lhdr.fname_len) ||
+        !rnp::json::add(pkt, "timestamp", (uint64_t) lhdr.timestamp)) {
         return ret; // LCOV_EXCL_LINE
     }
 
@@ -2575,41 +2550,35 @@ DumpContextJson::dump_literal(json_object *pkt)
         }
     }
 
-    if (!json_add(pkt, "datalen", (uint64_t) lsrc.readb())) {
+    if (!rnp::json::add(pkt, "datalen", (uint64_t) lsrc.readb())) {
         return ret; // LCOV_EXCL_LINE
     }
     return RNP_SUCCESS;
 }
 
 bool
-DumpContextJson::dump_pkt_hdr(pgp_packet_hdr_t &hdr, json_object *pkt)
+DumpContextJson::dump_pkt_hdr(pgp_packet_hdr_t &hdr, nlohmann::ordered_json &pkt)
 {
     auto hdrret = stream_peek_packet_hdr(&src, &hdr);
     if (hdrret) {
         return false;
     }
 
-    json_object *jso_hdr = json_object_new_object();
-    if (!jso_hdr) {
-        return false;
-    }
-    rnp::JSONObject jso_hdrwrap(jso_hdr);
+    auto &jso_hdr = pkt["header"] = nlohmann::ordered_json::object();
 
-    if (!json_add(jso_hdr, "offset", (uint64_t) src.readb) ||
+    if (!rnp::json::add(jso_hdr, "offset", (uint64_t) src.readb) ||
         !obj_add_intstr_json(jso_hdr, "tag", hdr.tag, packet_tag_map) ||
-        !json_add_hex(jso_hdr, "raw", hdr.hdr, hdr.hdr_len)) {
+        !rnp::json::add_hex(jso_hdr, "raw", hdr.hdr, hdr.hdr_len)) {
         return false; // LCOV_EXCL_LINE
     }
     if (!hdr.partial && !hdr.indeterminate &&
-        !json_add(jso_hdr, "length", (uint64_t) hdr.pkt_len)) {
+        !rnp::json::add(jso_hdr, "length", (uint64_t) hdr.pkt_len)) {
         return false; // LCOV_EXCL_LINE
     }
-    if (!json_add(jso_hdr, "partial", hdr.partial) ||
-        !json_add(jso_hdr, "indeterminate", hdr.indeterminate) ||
-        !json_add(pkt, "header", jso_hdr)) {
+    if (!rnp::json::add(jso_hdr, "partial", hdr.partial) ||
+        !rnp::json::add(jso_hdr, "indeterminate", hdr.indeterminate)) {
         return false; // LCOV_EXCL_LINE
     }
-    jso_hdrwrap.release();
     return true;
 }
 
@@ -2618,30 +2587,22 @@ DumpContextJson::dump_raw_packets()
 {
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
-    json_object *pkts = json_object_new_array();
-    if (!pkts) {
-        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-    }
-    JSONObject pktswrap(pkts);
+    nlohmann::ordered_json pkts = nlohmann::ordered_json::array();
 
     if (src.eof()) {
-        *json = pktswrap.release();
+        *json = std::move(pkts);
         return RNP_SUCCESS;
     }
 
     /* do not allow endless recursion */
     if (++layers > MAXIMUM_NESTING_LEVEL) {
         RNP_LOG("Too many OpenPGP nested layers during the dump.");
-        *json = pktswrap.release();
+        *json = std::move(pkts);
         return RNP_SUCCESS;
     }
 
     while (!src.eof()) {
-        json_object *pkt = json_object_new_object();
-        if (!pkt) {
-            return RNP_ERROR_OUT_OF_MEMORY;
-        }
-        JSONObject       pktwrap(pkt);
+        auto &           pkt = pkts.emplace_back(nlohmann::ordered_json::object());
         pgp_packet_hdr_t hdr{};
         if (!dump_pkt_hdr(hdr, pkt)) {
             return RNP_ERROR_OUT_OF_MEMORY;
@@ -2657,7 +2618,7 @@ DumpContextJson::dump_raw_packets()
             if (!src.peek(buf, rlen, &rlen) || (rlen < hdr.hdr_len)) {
                 return RNP_ERROR_READ;
             }
-            if (!json_add_hex(pkt, "raw", buf + hdr.hdr_len, rlen - hdr.hdr_len)) {
+            if (!rnp::json::add_hex(pkt, "raw", buf + hdr.hdr_len, rlen - hdr.hdr_len)) {
                 return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
             }
         }
@@ -2725,17 +2686,13 @@ DumpContextJson::dump_raw_packets()
             }
         }
 
-        if (json_object_array_add(pkts, pkt)) {
-            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
-        }
-        pktwrap.release();
         if (stream_pkts > MAXIMUM_STREAM_PKTS) {
             RNP_LOG("Too many OpenPGP stream packets during the dump.");
             break;
         }
     }
 
-    *json = pktswrap.release();
+    *json = std::move(pkts);
     return RNP_SUCCESS;
 }
 

@@ -32,10 +32,10 @@
 #include "rnp_tests.h"
 #include "support.h"
 
-static bool check_sig_status(json_object *sig,
-                             const char * pub,
-                             const char * sec,
-                             const char * fp);
+static bool check_sig_status(nlohmann::ordered_json sig,
+                             const char *           pub,
+                             const char *           sec,
+                             const char *           fp);
 
 TEST_F(rnp_tests, test_ffi_key_signatures)
 {
@@ -135,16 +135,16 @@ TEST_F(rnp_tests, test_ffi_key_signatures)
     char *json = NULL;
     assert_rnp_success(rnp_import_signatures(ffi, input, 0, &json));
     assert_non_null(json);
-    json_object *jso = json_tokener_parse(json);
-    assert_non_null(jso);
-    assert_true(json_object_is_type(jso, json_type_object));
-    json_object *jsigs = NULL;
-    assert_true(json_object_object_get_ex(jso, "sigs", &jsigs));
-    assert_true(json_object_is_type(jsigs, json_type_array));
-    assert_int_equal(json_object_array_length(jsigs), 1);
-    json_object *jsig = json_object_array_get_idx(jsigs, 0);
+    nlohmann::ordered_json jso = nlohmann::ordered_json::parse(json);
+    assert_true(!jso.is_null());
+    assert_true(jso.is_object());
+    nlohmann::ordered_json jsigs;
+    assert_true((jso.contains("sigs") ? (jsigs = jso["sigs"], true) : false));
+    assert_true(jsigs.is_array());
+    assert_int_equal(jsigs.size(), 1);
+    nlohmann::ordered_json jsig = jsigs.at(0);
     assert_true(check_sig_status(jsig, "none", "none", NULL));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     rnp_buffer_destroy(json);
     assert_rnp_success(rnp_input_destroy(input));
     assert_rnp_success(rnp_output_destroy(output));
@@ -211,7 +211,10 @@ TEST_F(rnp_tests, test_ffi_key_signatures)
 }
 
 static bool
-check_import_sigs(rnp_ffi_t ffi, json_object **jso, json_object **sigarr, const char *sigpath)
+check_import_sigs(rnp_ffi_t               ffi,
+                  nlohmann::ordered_json *jso,
+                  nlohmann::ordered_json *sigarr,
+                  const char *            sigpath)
 {
     rnp_input_t input = NULL;
     if (rnp_input_from_path(&input, sigpath)) {
@@ -228,23 +231,24 @@ check_import_sigs(rnp_ffi_t ffi, json_object **jso, json_object **sigarr, const 
         goto done;
     }
 
-    *jso = json_tokener_parse(sigs);
+    *jso = nlohmann::ordered_json::parse(sigs);
     if (!jso) {
         goto done;
     }
-    if (!json_object_is_type(*jso, json_type_object)) {
+    if (!jso->is_object()) {
         goto done;
     }
-    if (!json_object_object_get_ex(*jso, "sigs", sigarr)) {
+    if (!((*sigarr = jso->value("sigs", nlohmann::ordered_json::array()),
+           jso->contains("sigs")))) {
         goto done;
     }
-    if (!json_object_is_type(*sigarr, json_type_array)) {
+    if (!sigarr->is_array()) {
         goto done;
     }
     res = true;
 done:
     if (!res) {
-        json_object_put(*jso);
+        (void) (*jso); /* removed */
         *jso = NULL;
     }
     rnp_input_destroy(input);
@@ -253,35 +257,37 @@ done:
 }
 
 static bool
-check_sig_status(json_object *sig, const char *pub, const char *sec, const char *fp)
+check_sig_status(nlohmann::ordered_json sig, const char *pub, const char *sec, const char *fp)
 {
-    if (!sig) {
+    if (sig.is_null()) {
         return false;
     }
-    if (!json_object_is_type(sig, json_type_object)) {
+    if (!sig.is_object()) {
         return false;
     }
-    json_object *fld = NULL;
-    if (!json_object_object_get_ex(sig, "public", &fld)) {
+    nlohmann::ordered_json fld;
+    if (!(sig.contains("public") ? (fld = sig["public"], true) : false)) {
         return false;
     }
-    if (strcmp(json_object_get_string(fld), pub) != 0) {
+    if (strcmp(fld.get_ref<const std::string &>().c_str(), pub) != 0) {
         return false;
     }
-    if (!json_object_object_get_ex(sig, "secret", &fld)) {
+    if (!(sig.contains("secret") ? (fld = sig["secret"], true) : false)) {
         return false;
     }
-    if (strcmp(json_object_get_string(fld), sec) != 0) {
+    if (strcmp(fld.get_ref<const std::string &>().c_str(), sec) != 0) {
         return false;
     }
-    if (!fp && json_object_object_get_ex(sig, "signer fingerprint", &fld)) {
+    if (!fp && (sig.contains("signer fingerprint") ? (fld = sig["signer fingerprint"], true) :
+                                                     false)) {
         return false;
     }
     if (fp) {
-        if (!json_object_object_get_ex(sig, "signer fingerprint", &fld)) {
+        if (!(sig.contains("signer fingerprint") ? (fld = sig["signer fingerprint"], true) :
+                                                   false)) {
             return false;
         }
-        if (strcmp(json_object_get_string(fld), fp) != 0) {
+        if (strcmp(fld.get_ref<const std::string &>().c_str(), fp) != 0) {
             return false;
         }
     }
@@ -309,15 +315,15 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
     /* some import edge cases */
     assert_rnp_failure(rnp_import_signatures(ffi, NULL, 0, &results));
     /* import revocation signature */
-    json_object *jso = NULL;
-    json_object *jsosigs = NULL;
+    nlohmann::ordered_json jso;
+    nlohmann::ordered_json jsosigs;
     assert_true(
       check_import_sigs(ffi, &jso, &jsosigs, "data/test_key_validity/alice-rev.pgp"));
-    assert_int_equal(json_object_array_length(jsosigs), 1);
-    json_object *jsosig = json_object_array_get_idx(jsosigs, 0);
+    assert_int_equal(jsosigs.size(), 1);
+    nlohmann::ordered_json jsosig = jsosigs.at(0);
     assert_true(check_sig_status(
       jsosig, "new", "unknown key", "73edcc9119afc8e2dbbdcde50451409669ffde3c"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     /* key now must become revoked */
     assert_rnp_success(rnp_key_is_revoked(key_handle, &revoked));
     assert_true(revoked);
@@ -352,11 +358,11 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
     /* import signature again, making sure it is not duplicated */
     assert_true(
       check_import_sigs(ffi, &jso, &jsosigs, "data/test_key_validity/alice-rev.pgp"));
-    assert_int_equal(json_object_array_length(jsosigs), 1);
-    jsosig = json_object_array_get_idx(jsosigs, 0);
+    assert_int_equal(jsosigs.size(), 1);
+    jsosig = jsosigs.at(0);
     assert_true(check_sig_status(
       jsosig, "unchanged", "unknown key", "73edcc9119afc8e2dbbdcde50451409669ffde3c"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     /* check signature count, using the same key handle (it must not be changed) */
     assert_rnp_success(rnp_key_get_signature_count(key_handle, &sigcount));
     assert_int_equal(sigcount, 1);
@@ -378,10 +384,10 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
     /* try to import wrong signature (certification) */
     assert_true(
       check_import_sigs(ffi, &jso, &jsosigs, "data/test_key_validity/alice-cert.pgp"));
-    assert_int_equal(json_object_array_length(jsosigs), 1);
-    jsosig = json_object_array_get_idx(jsosigs, 0);
+    assert_int_equal(jsosigs.size(), 1);
+    jsosig = jsosigs.at(0);
     assert_true(check_sig_status(jsosig, "none", "none", NULL));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
 
     /* try to import signature for both public and secret key */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
@@ -389,20 +395,20 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
     assert_true(import_sec_keys(ffi, "data/test_key_validity/alice-sec.asc"));
     assert_true(
       check_import_sigs(ffi, &jso, &jsosigs, "data/test_key_validity/alice-rev.pgp"));
-    assert_int_equal(json_object_array_length(jsosigs), 1);
-    jsosig = json_object_array_get_idx(jsosigs, 0);
+    assert_int_equal(jsosigs.size(), 1);
+    jsosig = jsosigs.at(0);
     assert_true(
       check_sig_status(jsosig, "new", "new", "73edcc9119afc8e2dbbdcde50451409669ffde3c"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
 
     /* import direct-key signature (with revocation key subpacket) */
     assert_true(
       check_import_sigs(ffi, &jso, &jsosigs, "data/test_key_validity/alice-revoker-sig.pgp"));
-    assert_int_equal(json_object_array_length(jsosigs), 1);
-    jsosig = json_object_array_get_idx(jsosigs, 0);
+    assert_int_equal(jsosigs.size(), 1);
+    jsosig = jsosigs.at(0);
     assert_true(
       check_sig_status(jsosig, "new", "new", "73edcc9119afc8e2dbbdcde50451409669ffde3c"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
     assert_rnp_success(rnp_key_get_signature_count(key_handle, &sigcount));
     assert_int_equal(sigcount, 2);
@@ -422,14 +428,14 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
 
     assert_true(
       check_import_sigs(ffi, &jso, &jsosigs, "data/test_key_validity/alice-sigs.pgp"));
-    assert_int_equal(json_object_array_length(jsosigs), 2);
-    jsosig = json_object_array_get_idx(jsosigs, 0);
+    assert_int_equal(jsosigs.size(), 2);
+    jsosig = jsosigs.at(0);
     assert_true(check_sig_status(
       jsosig, "new", "unknown key", "73edcc9119afc8e2dbbdcde50451409669ffde3c"));
-    jsosig = json_object_array_get_idx(jsosigs, 1);
+    jsosig = jsosigs.at(1);
     assert_true(check_sig_status(
       jsosig, "new", "unknown key", "73edcc9119afc8e2dbbdcde50451409669ffde3c"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
     assert_rnp_success(rnp_key_get_signature_count(key_handle, &sigcount));
     assert_int_equal(sigcount, 2);
@@ -443,15 +449,15 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
 
     assert_true(
       check_import_sigs(ffi, &jso, &jsosigs, "data/test_key_validity/alice-sigs.asc"));
-    assert_int_equal(json_object_array_length(jsosigs), 2);
-    jsosig = json_object_array_get_idx(jsosigs, 0);
+    assert_int_equal(jsosigs.size(), 2);
+    jsosig = jsosigs.at(0);
     /* when secret key is loaded then public copy is created automatically */
     assert_true(
       check_sig_status(jsosig, "new", "new", "73edcc9119afc8e2dbbdcde50451409669ffde3c"));
-    jsosig = json_object_array_get_idx(jsosigs, 1);
+    jsosig = jsosigs.at(1);
     assert_true(
       check_sig_status(jsosig, "new", "new", "73edcc9119afc8e2dbbdcde50451409669ffde3c"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
     assert_rnp_success(rnp_key_get_signature_count(key_handle, &sigcount));
     assert_int_equal(sigcount, 2);
@@ -560,14 +566,14 @@ TEST_F(rnp_tests, test_ffi_export_revocation)
     assert_true(locked);
     assert_rnp_success(rnp_key_handle_destroy(key_handle));
     /* make sure we can successfully import exported revocation */
-    json_object *jso = NULL;
-    json_object *jsosigs = NULL;
+    nlohmann::ordered_json jso;
+    nlohmann::ordered_json jsosigs;
     assert_true(check_import_sigs(ffi, &jso, &jsosigs, "alice-revocation.pgp"));
-    assert_int_equal(json_object_array_length(jsosigs), 1);
-    json_object *jsosig = json_object_array_get_idx(jsosigs, 0);
+    assert_int_equal(jsosigs.size(), 1);
+    nlohmann::ordered_json jsosig = jsosigs.at(0);
     assert_true(
       check_sig_status(jsosig, "new", "new", "73edcc9119afc8e2dbbdcde50451409669ffde3c"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
     /* key now must become revoked */
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
     bool revoked = false;
@@ -622,11 +628,11 @@ TEST_F(rnp_tests, test_ffi_export_revocation)
 
     // import it back
     assert_true(check_import_sigs(ffi, &jso, &jsosigs, "alice-revocation.asc"));
-    assert_int_equal(json_object_array_length(jsosigs), 1);
-    jsosig = json_object_array_get_idx(jsosigs, 0);
+    assert_int_equal(jsosigs.size(), 1);
+    jsosig = jsosigs.at(0);
     assert_true(
       check_sig_status(jsosig, "new", "new", "73edcc9119afc8e2dbbdcde50451409669ffde3c"));
-    json_object_put(jso);
+    /* json_object_put removed: jso */
 
     // make sure that key becomes revoked
     key_handle = NULL;

@@ -48,8 +48,6 @@ if(MSVC)
 endif()
 
 # for the headers
-find_package(JSON-C 0.11 REQUIRED)
-
 add_executable(rnpkeys
   rnpkeys.cpp
   tui.cpp
@@ -74,7 +72,6 @@ target_include_directories(rnpkeys
   PRIVATE
     "${PROJECT_SOURCE_DIR}/src"
     "${PROJECT_SOURCE_DIR}/src/lib"
-    "${JSON-C_INCLUDE_DIRS}"
 )
 if(MSVC)
   target_include_directories(rnpkeys
@@ -87,7 +84,6 @@ endif()
 target_link_libraries(rnpkeys
   PRIVATE
     librnp
-    JSON-C::JSON-C
 )
 if(MSVC)
   target_link_libraries(rnpkeys
