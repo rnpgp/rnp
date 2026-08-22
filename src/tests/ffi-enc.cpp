@@ -2678,7 +2678,7 @@ TEST_F(rnp_tests, test_ffi_entropy_encoding_roundtrip)
     flat = NULL;
     assert_rnp_success(rnp_entropy_encode_human_readable(ffi, &params, &structured, &flat));
     /* The structured form has 17 groups: 1 checksum + 16 data, separated by spaces. */
-    std::string original(structured);
+    std::string              original(structured);
     std::vector<std::string> groups;
     {
         size_t start = 0;
@@ -2753,18 +2753,14 @@ TEST_F(rnp_tests, test_ffi_backup_archive_roundtrip)
     rnp_output_t archive_out = NULL;
     assert_rnp_success(rnp_output_to_memory(&archive_out, 0));
     rnp_key_handle_t keys_to_backup[] = {backup_key};
-    assert_rnp_success(rnp_backup_archive_create(ffi,
-                                                  keys_to_backup,
-                                                  1,
-                                                  signing_key,
-                                                  encryption_key,
-                                                  NULL,
-                                                  archive_out));
+    assert_rnp_success(rnp_backup_archive_create(
+      ffi, keys_to_backup, 1, signing_key, encryption_key, NULL, archive_out));
 
     /* Read the archive bytes. */
     uint8_t *archive_bytes = NULL;
     size_t   archive_len = 0;
-    assert_rnp_success(rnp_output_memory_get_buf(archive_out, &archive_bytes, &archive_len, false));
+    assert_rnp_success(
+      rnp_output_memory_get_buf(archive_out, &archive_bytes, &archive_len, false));
     assert_true(archive_len > 0);
 
     /* Save to a file for re-input. */
@@ -2780,13 +2776,15 @@ TEST_F(rnp_tests, test_ffi_backup_archive_roundtrip)
     rnp_output_t enc_sec_out = NULL;
     assert_rnp_success(rnp_output_to_path(&enc_sec_out, "enc_sec.asc"));
     assert_rnp_success(
-      rnp_key_export(encryption_key, enc_sec_out,
+      rnp_key_export(encryption_key,
+                     enc_sec_out,
                      RNP_KEY_EXPORT_SECRET | RNP_KEY_EXPORT_SUBKEYS | RNP_KEY_EXPORT_ARMORED));
     rnp_output_destroy(enc_sec_out);
     rnp_output_t sign_pub_out = NULL;
     assert_rnp_success(rnp_output_to_path(&sign_pub_out, "sign_pub.asc"));
     assert_rnp_success(
-      rnp_key_export(signing_key, sign_pub_out,
+      rnp_key_export(signing_key,
+                     sign_pub_out,
                      RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_SUBKEYS | RNP_KEY_EXPORT_ARMORED));
     rnp_output_destroy(sign_pub_out);
 
@@ -2803,10 +2801,12 @@ TEST_F(rnp_tests, test_ffi_backup_archive_roundtrip)
 
     /* Locate the loaded keys by userid. */
     rnp_key_handle_t decryption_key2 = NULL;
-    assert_rnp_success(rnp_locate_key(ffi2, "userid", "encryptor <enc@example.com>", &decryption_key2));
+    assert_rnp_success(
+      rnp_locate_key(ffi2, "userid", "encryptor <enc@example.com>", &decryption_key2));
     assert_non_null(decryption_key2);
     rnp_key_handle_t signing_pub2 = NULL;
-    assert_rnp_success(rnp_locate_key(ffi2, "userid", "signer <signer@example.com>", &signing_pub2));
+    assert_rnp_success(
+      rnp_locate_key(ffi2, "userid", "signer <signer@example.com>", &signing_pub2));
     assert_non_null(signing_pub2);
 
     /* Load the archive. */
@@ -2818,7 +2818,8 @@ TEST_F(rnp_tests, test_ffi_backup_archive_roundtrip)
 
     /* Verify the backed-up key is now present in ffi2. */
     rnp_key_handle_t recovered = NULL;
-    assert_rnp_success(rnp_locate_key(ffi2, "userid", "backed-up <bu@example.com>", &recovered));
+    assert_rnp_success(
+      rnp_locate_key(ffi2, "userid", "backed-up <bu@example.com>", &recovered));
     assert_non_null(recovered);
     bool is_secret = false;
     assert_rnp_success(rnp_key_have_secret(recovered, &is_secret));
