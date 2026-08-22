@@ -5915,7 +5915,7 @@ try {
     if (id->pkt.tag != PGP_PKT_USER_ATTR) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    rnp::PhotoFormat         fmt = rnp::PhotoFormat::Unknown;
+    rnp::PhotoFormat     fmt = rnp::PhotoFormat::Unknown;
     std::vector<uint8_t> image;
     if (!rnp::parse_photo_attribute(id->pkt.uid, image, fmt)) {
         return RNP_ERROR_BAD_STATE;

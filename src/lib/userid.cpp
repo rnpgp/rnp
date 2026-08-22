@@ -144,10 +144,10 @@ parse_photo_attribute(const std::vector<uint8_t> &uid,
         if (sub_len == 0 || pos + sub_len > uid.size()) {
             return false;
         }
-        size_t sub_end = pos + sub_len;
-        uint8_t     sub_type = uid[pos];
+        size_t         sub_end = pos + sub_len;
+        uint8_t        sub_type = uid[pos];
         const uint8_t *img = nullptr;
-        size_t          img_len = 0;
+        size_t         img_len = 0;
         if (sub_type == 1 && sub_len >= 2) {
             /* Image Attribute. Per RFC 4880 §5.12.1 / RFC 9580 §5.13.1,
              * the image header length byte counts ITSELF, so the remaining
@@ -162,8 +162,8 @@ parse_photo_attribute(const std::vector<uint8_t> &uid,
         if (img && img_len >= 3) {
             if (img[0] == 0xFF && img[1] == 0xD8 && img[2] == 0xFF) {
                 format = PhotoFormat::JPEG;
-            } else if (img[0] == 0x89 && img[1] == 0x50 && img[2] == 0x4E &&
-                       img_len >= 4 && img[3] == 0x47) {
+            } else if (img[0] == 0x89 && img[1] == 0x50 && img[2] == 0x4E && img_len >= 4 &&
+                       img[3] == 0x47) {
                 format = PhotoFormat::PNG;
             } else {
                 /* Unknown image format; still return the bytes and let the

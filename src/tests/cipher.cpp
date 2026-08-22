@@ -1091,13 +1091,13 @@ TEST_F(rnp_tests, test_parse_photo_attribute)
      * independently of the cli_tests fixture set. */
     using namespace rnp;
 
-    auto build_userattr = [](uint8_t                 subpacket_type,
-                             uint8_t                 header_len,
+    auto build_userattr = [](uint8_t                     subpacket_type,
+                             uint8_t                     header_len,
                              const std::vector<uint8_t> &header_tail,
                              const std::vector<uint8_t> &image) -> std::vector<uint8_t> {
         /* Build a UserAttr body containing exactly one subpacket of the
          * requested shape. Subpacket body = type + hdr_len + header_tail + image. */
-        size_t sub_body = 1 + 1 + header_tail.size() + image.size();
+        size_t               sub_body = 1 + 1 + header_tail.size() + image.size();
         std::vector<uint8_t> body;
         if (sub_body < 192) {
             body.push_back((uint8_t) sub_body);
@@ -1114,10 +1114,10 @@ TEST_F(rnp_tests, test_parse_photo_attribute)
 
     /* JPEG happy path: 16-byte header, magic FF D8 FF E0 ... */
     {
-        std::vector<uint8_t> image = {0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10,
-                                      'J', 'F', 'I', 'F', 0x00, 0x01};
+        std::vector<uint8_t> image = {
+          0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00, 0x01};
         std::vector<uint8_t> header_tail(15, 0x00);
-        auto body = build_userattr(1, 16, header_tail, image);
+        auto                 body = build_userattr(1, 16, header_tail, image);
         std::vector<uint8_t> out;
         PhotoFormat          fmt = PhotoFormat::Unknown;
         assert_true(parse_photo_attribute(body, out, fmt));
@@ -1128,10 +1128,10 @@ TEST_F(rnp_tests, test_parse_photo_attribute)
 
     /* PNG happy path: magic 89 50 4E 47 0D 0A 1A 0A */
     {
-        std::vector<uint8_t> image = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
-                                      'P', 'N', 'G'};
+        std::vector<uint8_t> image = {
+          0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 'P', 'N', 'G'};
         std::vector<uint8_t> header_tail(15, 0x00);
-        auto body = build_userattr(1, 16, header_tail, image);
+        auto                 body = build_userattr(1, 16, header_tail, image);
         std::vector<uint8_t> out;
         PhotoFormat          fmt = PhotoFormat::Unknown;
         assert_true(parse_photo_attribute(body, out, fmt));
@@ -1143,7 +1143,7 @@ TEST_F(rnp_tests, test_parse_photo_attribute)
     {
         std::vector<uint8_t> image = {0x42, 0x4D, 0x00, 0x00, 'B', 'M'}; // BMP magic
         std::vector<uint8_t> header_tail(15, 0x00);
-        auto body = build_userattr(1, 16, header_tail, image);
+        auto                 body = build_userattr(1, 16, header_tail, image);
         std::vector<uint8_t> out;
         PhotoFormat          fmt = PhotoFormat::JPEG;
         assert_true(parse_photo_attribute(body, out, fmt));
@@ -1164,7 +1164,7 @@ TEST_F(rnp_tests, test_parse_photo_attribute)
     {
         std::vector<uint8_t> image = {0xFF, 0xD8, 0xFF, 0xE0};
         std::vector<uint8_t> header_tail(15, 0x00);
-        auto body = build_userattr(2 /*unknown type*/, 16, header_tail, image);
+        auto                 body = build_userattr(2 /*unknown type*/, 16, header_tail, image);
         std::vector<uint8_t> out;
         PhotoFormat          fmt = PhotoFormat::Unknown;
         assert_false(parse_photo_attribute(body, out, fmt));
@@ -1183,7 +1183,7 @@ TEST_F(rnp_tests, test_parse_photo_attribute)
     {
         std::vector<uint8_t> image = {0xFF, 0xD8};
         std::vector<uint8_t> header_tail(15, 0x00);
-        auto body = build_userattr(1, 16, header_tail, image);
+        auto                 body = build_userattr(1, 16, header_tail, image);
         std::vector<uint8_t> out;
         PhotoFormat          fmt = PhotoFormat::Unknown;
         assert_false(parse_photo_attribute(body, out, fmt));
@@ -1192,12 +1192,13 @@ TEST_F(rnp_tests, test_parse_photo_attribute)
     /* 5-byte subpacket length form (b0 == 255) — exercised separately from
      * the 2-byte form, which is what the existing fixture happens to use. */
     {
-        std::vector<uint8_t> image(400, 0xAA); // > 192 to force 5-byte form? actually need >8383
+        std::vector<uint8_t> image(400,
+                                   0xAA); // > 192 to force 5-byte form? actually need >8383
         image[0] = 0xFF;
         image[1] = 0xD8;
         image[2] = 0xFF;
         std::vector<uint8_t> header_tail(15, 0x00);
-        size_t                sub_body = 1 + 1 + header_tail.size() + image.size();
+        size_t               sub_body = 1 + 1 + header_tail.size() + image.size();
         std::vector<uint8_t> body = {0xFF,
                                      (uint8_t)((sub_body >> 24) & 0xff),
                                      (uint8_t)((sub_body >> 16) & 0xff),

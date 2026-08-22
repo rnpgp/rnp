@@ -2633,8 +2633,8 @@ TEST_F(rnp_tests, test_ffi_load_userattr)
     rnp_uid_handle_t text_uid = NULL;
     assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &text_uid));
     uint32_t format = 99;
-    void *  photo = NULL;
-    size_t  photo_size = 0;
+    void *   photo = NULL;
+    size_t   photo_size = 0;
     assert_rnp_failure(rnp_uid_get_photo(text_uid, &format, &photo, &photo_size));
     rnp_uid_handle_destroy(text_uid);
 
