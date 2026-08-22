@@ -648,13 +648,13 @@ RNP_API rnp_result_t rnp_get_security_rule_count(rnp_ffi_t ffi, size_t *count);
  * @param flags on success, rule flags (RNP_SECURITY_OVERRIDE, VERIFY_KEY, VERIFY_DATA).
  * @return RNP_SUCCESS on success or RNP_ERROR_BAD_PARAMETERS if idx is out of range.
  */
-RNP_API rnp_result_t rnp_get_security_rule_at(rnp_ffi_t  ffi,
-                                              size_t     idx,
-                                              char **    type,
-                                              char **    name,
-                                              uint32_t * level,
-                                              uint64_t * from,
-                                              uint32_t * flags);
+RNP_API rnp_result_t rnp_get_security_rule_at(rnp_ffi_t ffi,
+                                              size_t    idx,
+                                              char **   type,
+                                              char **   name,
+                                              uint32_t *level,
+                                              uint64_t *from,
+                                              uint32_t *flags);
 
 /**
  * @brief Query whether the library was built with FIPS-compliant defaults.
