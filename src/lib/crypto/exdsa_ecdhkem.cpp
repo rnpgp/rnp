@@ -168,9 +168,7 @@ ecdh_kem_public_key_t::encapsulate(rnp::RNG *            rng,
         params = curve_botan_name(curve_);
         break;
     }
-    if (!params && curve_ != PGP_CURVE_25519
-        && curve_ != PGP_CURVE_448
-    ) {
+    if (!params && curve_ != PGP_CURVE_25519 && curve_ != PGP_CURVE_448) {
         return RNP_ERROR_NOT_SUPPORTED;
     }
 

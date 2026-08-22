@@ -31,6 +31,7 @@
 #include "types.h"
 #include "utils.h"
 #include "mem.h"
+#include "botan_utils.hpp"
 #include "botan/ec_group.h"
 #include "botan/ecdh.h"
 #if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
