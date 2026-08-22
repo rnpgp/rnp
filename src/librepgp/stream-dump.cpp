@@ -2767,10 +2767,18 @@ DumpContextJson::dump(bool raw_only)
     /* check whether source is armored */
     if (!raw_only && src.is_armored()) {
         /* Walk all armored messages in the stream, mirroring the text
-         * dumper (see issue #2036). */
+         * dumper (see issue #2036). Each block dumps to its own array via
+         * dump_raw_packets(); merge the blocks into one flat array so the
+         * output shape stays the same as for a single message and no
+         * block's tree is dropped on the floor. */
         rnp::ArmoredSource armor(
           src, rnp::ArmoredSource::AllowBinary | rnp::ArmoredSource::AllowMultiple);
         rnp_result_t ret = RNP_SUCCESS;
+        json_object *res = json_object_new_array();
+        JSONObject   reswrap(res);
+        if (!res) {
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+        }
         while (true) {
             if (armor.eof() && armor.multiple()) {
                 armor.restart();
@@ -2778,12 +2786,33 @@ DumpContextJson::dump(bool raw_only)
             if (armor.eof()) {
                 break;
             }
-            DumpContextJson ctx(armor.src(), json);
+            json_object *   block = NULL;
+            DumpContextJson ctx(armor.src(), &block);
             ctx.copy_params(*this);
             ret = ctx.dump(true);
             if (ret) {
                 break;
             }
+            while (block && json_object_array_length(block)) {
+                json_object *pkt = json_object_array_get_idx(block, 0);
+                if (!pkt) {
+                    break;
+                }
+                json_object_get(pkt);
+                json_object_array_del_idx(block, 0, 1);
+                if (json_object_array_add(res, pkt)) {
+                    json_object_put(pkt);
+                    ret = RNP_ERROR_OUT_OF_MEMORY;
+                    break;
+                }
+            }
+            json_object_put(block);
+            if (ret) {
+                break;
+            }
+        }
+        if (!ret) {
+            *json = reswrap.release();
         }
         return ret;
     }
