@@ -234,16 +234,25 @@ if(CRYPTO_BACKEND_BOTAN)
   resolve_feature_state(ENABLE_IDEA "IDEA")
   resolve_feature_state(ENABLE_CRYPTO_REFRESH "HKDF;ED448;X448;ARGON2")
   # The PQC code paths use the FIPS 203/204/205 APIs (KyberMode::ML_KEM_*,
-  # DilithiumMode::ML_DSA_*, SLH_DSA_*), which Botan activates via the
-  # ml_kem/ml_dsa/slh_dsa_* modules — not the legacy kyber/dilithium/
-  # sphincsplus_* ones. Check the corresponding BOTAN_HAS_* defines so a
-  # minimized Botan without those modules disables PQC at configure time
-  # instead of failing the build (all of them exist since Botan 3.6.0,
-  # the minimum for ENABLE_CRYPTO_REFRESH).
-  if(Botan_VERSION VERSION_GREATER_EQUAL 3.6.0)
-    resolve_feature_state(ENABLE_PQC "HKDF;ML_KEM;ML_DSA;SLH_DSA_WITH_SHA2;SLH_DSA_WITH_SHAKE")
+  # DilithiumMode::ML_DSA_*, SLH_DSA_*), which only exist from Botan 3.6.0.
+  # The round-3 Kyber/Dilithium/SPHINCS+ variants of older Botan are different
+  # algorithms, not renames: the draft-ietf-openpgp-pqc test vectors verify
+  # only with the final FIPS parameter sets. Enabling PQC there would pass
+  # configure (the legacy BOTAN_HAS_KYBER/DILITHIUM/SPHINCS_PLUS_* defines
+  # exist) and then fail compiling the missing APIs, so reject it upfront.
+  if(NOT Botan_VERSION VERSION_GREATER_EQUAL 3.6.0)
+    if(ENABLE_PQC)
+      string(TOLOWER "${ENABLE_PQC}" _pqc)
+      if(NOT _pqc STREQUAL "auto")
+        message(FATAL_ERROR
+          "ENABLE_PQC requires Botan >= 3.6.0 (FIPS 203/204/205 APIs); older "
+          "Botan only provides the non-interoperable round-3 variants.")
+      endif()
+      set(ENABLE_PQC Off CACHE STRING "Auto -> Off as no support" FORCE)
+      message(NOTICE "ENABLE_PQC requires Botan >= 3.6.0. Disabling.")
+    endif()
   else()
-    resolve_feature_state(ENABLE_PQC "HKDF;DILITHIUM;KYBER;SPHINCS_PLUS_WITH_SHA2;SPHINCS_PLUS_WITH_SHAKE")
+    resolve_feature_state(ENABLE_PQC "HKDF;ML_KEM;ML_DSA;SLH_DSA_WITH_SHA2;SLH_DSA_WITH_SHAKE")
   endif()
   resolve_feature_state(ENABLE_BLOWFISH "BLOWFISH")
   resolve_feature_state(ENABLE_CAST5 "CAST_128")
