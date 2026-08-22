@@ -39,9 +39,9 @@ namespace rnp {
  * the FFI-facing rnp_entropy_encoding_params_t struct.
  */
 struct EntropyEncodingConfig {
-    std::string alphabet;       /* power-of-two size, unique chars */
-    size_t      entropy_bits;   /* multiple of bits_per_char * group_size */
-    size_t      group_size;     /* payload chars per group */
+    std::string alphabet;     /* power-of-two size, unique chars */
+    size_t      entropy_bits; /* multiple of bits_per_char * group_size */
+    size_t      group_size;   /* payload chars per group */
     bool        disable_group_ids;
     bool        disable_checksum;
     size_t      checksum_bits;
@@ -67,34 +67,34 @@ struct EntropyEncodingConfig {
  * Convert raw entropy bytes to a flat string of alphabet characters.
  * Returns false if the config is invalid.
  */
-bool entropy_to_flat_string(const std::vector<uint8_t> &entropy,
-                             const EntropyEncodingConfig &cfg,
-                             std::string &out);
+bool entropy_to_flat_string(const std::vector<uint8_t> & entropy,
+                            const EntropyEncodingConfig &cfg,
+                            std::string &                out);
 
 /**
  * Inverse: decode a flat string of alphabet characters to raw bytes.
  * Returns false if the string contains characters outside the alphabet
  * or the wrong number of characters.
  */
-bool flat_string_to_entropy(const std::string &flat,
-                             const EntropyEncodingConfig &cfg,
-                             std::vector<uint8_t> &out);
+bool flat_string_to_entropy(const std::string &          flat,
+                            const EntropyEncodingConfig &cfg,
+                            std::vector<uint8_t> &       out);
 
 /**
  * Compute the first `cfg.checksum_bits` bits of SHA-256(entropy),
  * encoded as alphabet characters. Returns false on failure.
  */
-bool compute_checksum(const std::vector<uint8_t> &entropy,
-                       const EntropyEncodingConfig &cfg,
-                       std::string &out);
+bool compute_checksum(const std::vector<uint8_t> & entropy,
+                      const EntropyEncodingConfig &cfg,
+                      std::string &                out);
 
 /**
  * Encode raw entropy as a structured human-readable string per the
  * config. Returns false on failure.
  */
-bool encode_structured(const std::vector<uint8_t> &entropy,
-                        const EntropyEncodingConfig &cfg,
-                        std::string &out);
+bool encode_structured(const std::vector<uint8_t> & entropy,
+                       const EntropyEncodingConfig &cfg,
+                       std::string &                out);
 
 /**
  * Parse a structured human-readable string per the config. Populates
@@ -102,10 +102,10 @@ bool encode_structured(const std::vector<uint8_t> &entropy,
  * no checksum). Returns false if malformed; sets checksum_ok=false if
  * the checksum does not verify.
  */
-bool decode_structured(const std::string &structured,
-                        const EntropyEncodingConfig &cfg,
-                        std::string &flat,
-                        bool &checksum_ok);
+bool decode_structured(const std::string &          structured,
+                       const EntropyEncodingConfig &cfg,
+                       std::string &                flat,
+                       bool &                       checksum_ok);
 
 } // namespace rnp
 
