@@ -638,12 +638,17 @@ endif()
 
 foreach (prop LINK_LIBRARIES INTERFACE_LINK_LIBRARIES INCLUDE_DIRECTORIES INTERFACE_INCLUDE_DIRECTORIES INTERFACE_COMPILE_DEFINITIONS)
   get_target_property(val librnp-obj ${prop})
-  if (BUILD_SHARED_LIBS)
-    set_property(TARGET librnp-static PROPERTY ${prop} ${val})
-    list(REMOVE_ITEM val "$<LINK_ONLY:${SEXPP_TARGET}>")
-    set_property(TARGET librnp PROPERTY ${prop} ${val})
-  else()
-    set_property(TARGET librnp PROPERTY ${prop} ${val})
+  # get_target_property() leaves val as the literal 'val-NOTFOUND' when the
+  # property is unset; forwarding that would inject -Dval-NOTFOUND via
+  # INTERFACE_COMPILE_DEFINITIONS and poison every TU naming a parameter 'val'.
+  if (NOT val MATCHES "-NOTFOUND$")
+    if (BUILD_SHARED_LIBS)
+      set_property(TARGET librnp-static PROPERTY ${prop} ${val})
+      list(REMOVE_ITEM val "$<LINK_ONLY:${SEXPP_TARGET}>")
+      set_property(TARGET librnp PROPERTY ${prop} ${val})
+    else()
+      set_property(TARGET librnp PROPERTY ${prop} ${val})
+    endif()
   endif()
 
 endforeach()
