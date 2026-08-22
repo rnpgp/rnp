@@ -24,6 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <fcntl.h>
 #include <fstream>
 #include <vector>
 #include <string>
@@ -2763,8 +2764,11 @@ TEST_F(rnp_tests, test_ffi_backup_archive_roundtrip)
       rnp_output_memory_get_buf(archive_out, &archive_bytes, &archive_len, false));
     assert_true(archive_len > 0);
 
-    /* Save to a file for re-input. */
-    FILE *f = fopen("backup.archive", "wb");
+    /* Save to a file for re-input. The archive contains secret key material;
+     * create it owner-only rather than world-writable. */
+    int archive_fd = open("backup.archive", O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    assert_true(archive_fd >= 0);
+    FILE *f = fdopen(archive_fd, "wb");
     assert_non_null(f);
     assert_int_equal(fwrite(archive_bytes, 1, archive_len, f), archive_len);
     fclose(f);
