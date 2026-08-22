@@ -12,7 +12,7 @@ Regardless of target, three CMake variables control cross-compile behaviour:
 `CMAKE_TOOLCHAIN_FILE`::
   Path to a toolchain file that sets `CMAKE_SYSTEM_NAME`, `CMAKE_SYSTEM_PROCESSOR`,
   `CMAKE_C_COMPILER`, `CMAKE_CXX_COMPILER`, and (optionally) `CMAKE_SYSROOT`.
-  Most NDKs ship one (e.g. `ohos.toolchain.cmake` for OHOS).
+  Most NDK toolchains ship one (e.g. `ohos.toolchain.cmake` for OHOS).
 
 `CMAKE_SYSROOT`::
   Path to the target's sysroot directory. Some toolchain files set this
