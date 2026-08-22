@@ -68,7 +68,9 @@ jobs:
     timeout-minutes: 45
     continue-on-error: true
     env:
-      OHOS_NDK_VERSION: "5.0.13.2"
+      # SDK version supported by openharmony-rs/setup-ohos-sdk; must match a
+      # release tag of the openharmony-rs/ohos-sdk GitHub mirror.
+      OHOS_SDK_VERSION: "6.1"
       BOTAN_VERSION: "3.6.1"
     steps:
       - name: Checkout rnp
@@ -82,51 +84,34 @@ jobs:
           sudo apt-get -y update
           sudo apt-get -y install cmake ninja-build python3 bzip2 libbz2-dev zlib1g-dev
 
-      - name: Cache OHOS NDK
-        id: cache-ndk
-        uses: actions/cache@v4
+      # Huawei's SDK download CDN (repo/contentcenter hosts) is geo-restricted
+      # to China; GitHub Actions runners get HTTP 403. openharmony-rs mirrors
+      # the released SDKs as GitHub release assets and ships an installer
+      # action with caching; the Rust-for-OHOS ecosystem uses this in CI.
+      - name: Set up OHOS SDK (native NDK component)
+        uses: openharmony-rs/setup-ohos-sdk@v1.0.0
         with:
-          path: ~/ohos-ndk
-          key: ohos-ndk-${{ env.OHOS_NDK_VERSION }}-linux-x64
-
-      - name: Download OHOS NDK (commandline-tools)
-        if: steps.cache-ndk.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p ~/ohos-ndk
-          # Huawei's commandline-tools-linux download. The CDN is geo-restricted
-          # to China; GitHub Actions runners outside China get HTTP 403. Try
-          # multiple mirrors; if all fail, the job fails (continue-on-error).
-          URL_BASE="https://contentcenter-vali-drcn.dbankcdn.cn/pub_11/Download_CDN/local_chrun/Downloads"
-          VER_NOPATCH=$(echo $OHOS_NDK_VERSION | tr -d .)
-          for url in \
-            "${URL_BASE}/${VER_NOPATCH}/ohos-sdk-commandline-tools-linux-x64.zip" \
-            "${URL_BASE}/${OHOS_NDK_VERSION}/ohos-sdk-commandline-tools-linux-x64.zip"; do
-            echo "Trying: $url"
-            curl -L --retry 3 --fail -o ~/ohos-ndk/ndk.zip "$url" && break
-          done
-          test -s ~/ohos-ndk/ndk.zip
-          cd ~/ohos-ndk && unzip -q ndk.zip
-          find ~/ohos-ndk -maxdepth 1 -type d -name 'ohos-sdk-commandline-*' -exec mv {} ~/ohos-ndk/cmdtools \; || true
-          ls ~/ohos-ndk
+          version: ${{ env.OHOS_SDK_VERSION }}
+          components: 'native'
 
       - name: Locate OHOS toolchain & sysroot
-        id: ohos-paths
         run: |
-          NDK_ROOT="$HOME/ohos-ndk/cmdtools/sdk"
-          echo "NDK_ROOT=$NDK_ROOT" >> $GITHUB_ENV
-          TOOLCHAIN=$(find "$NDK_ROOT" -name 'ohos.toolchain.cmake' | head -1)
-          SYSROOT=$(find "$NDK_ROOT" -type d -name 'aarch64-linux-ohos' -path '*sysroot*' | head -1)
+          # The action exports OHOS_NDK_HOME pointing at the host SDK dir;
+          # the native/ component inside it holds the NDK.
+          NDK="${OHOS_NDK_HOME}/native"
+          TOOLCHAIN="${NDK}/build/cmake/ohos.toolchain.cmake"
+          SYSROOT="${NDK}/sysroot"
+          test -f "$TOOLCHAIN"
+          test -d "$SYSROOT/usr/lib/aarch64-linux-ohos"
           echo "TOOLCHAIN=$TOOLCHAIN" >> $GITHUB_ENV
           echo "SYSROOT=$SYSROOT" >> $GITHUB_ENV
-          echo "OHOS_NDK_HOME=$NDK_ROOT" >> $GITHUB_ENV
-          test -n "$TOOLCHAIN" && test -n "$SYSROOT"
 
       - name: Cache cross-built Botan
         id: cache-botan
         uses: actions/cache@v4
         with:
           path: ~/ohos-deps/botan
-          key: ohos-botan-${{ env.BOTAN_VERSION }}-${{ env.OHOS_NDK_VERSION }}
+          key: ohos-botan-${{ env.BOTAN_VERSION }}-${{ env.OHOS_SDK_VERSION }}
 
       - name: Cross-build Botan 3 for aarch64-linux-ohos
         if: steps.cache-botan.outputs.cache-hit != 'true'

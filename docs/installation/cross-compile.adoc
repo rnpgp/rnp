@@ -60,6 +60,16 @@ pass `-DBOTAN_USE_PKGCONFIG=ON` or `-DJSON-C_USE_PKGCONFIG=ON` and set
 The OHOS NDK ships `ohos.toolchain.cmake`, which sets
 `CMAKE_SYSTEM_NAME=OHOS`. A typical build looks like:
 
+[NOTE]
+====
+Huawei's SDK download CDN is geo-restricted to China; hosts elsewhere may
+receive HTTP 403. The https://github.com/openharmony-rs/ohos-sdk[openharmony-rs
+SDK mirror] publishes the released SDKs as GitHub release assets, and the
+https://github.com/openharmony-rs/setup-ohos-sdk[setup-ohos-sdk] action
+installs them in CI (this is what rnp's `ohos` workflow uses). Outside CI,
+download the SDK via DevEco Studio's SDK Manager if the CDN is unreachable.
+====
+
 [source,console]
 ----
 TOOLCHAIN=$OHOS_NDK_HOME/native/build/cmake/ohos.toolchain.cmake
