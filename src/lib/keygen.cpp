@@ -426,12 +426,11 @@ UserPrefs::check_defaults(pgp_version_t version, pgp_pubkey_alg_t pk_alg)
 #endif
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if (aead_prefs.empty() &&
-        ((version == PGP_V6)
+    if (aead_prefs.empty() && ((version == PGP_V6)
 #if defined(ENABLE_PQC)
-         || Key::is_pqc_alg(pk_alg)
+                               || Key::is_pqc_alg(pk_alg)
 #endif
-         )) {
+                                 )) {
         /* Per RFC 9980 §7.1, a certificate that contains a PQ(/T) key SHOULD
          * include the pair AES-256 with OCB in the Preferred AEAD Ciphersuites
          * subpacket. v6 keys get the full matrix; v4 PQ keys (only
