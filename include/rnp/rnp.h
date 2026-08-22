@@ -1523,7 +1523,7 @@ RNP_API rnp_result_t rnp_uid_get_data(rnp_uid_handle_t uid, void **data, size_t 
  *         body is malformed or contains no image subpacket.
  */
 RNP_API rnp_result_t rnp_uid_get_photo(rnp_uid_handle_t uid,
-                                       uint32_t *      format,
+                                       uint32_t *       format,
                                        void **          data,
                                        size_t *         size);
 
