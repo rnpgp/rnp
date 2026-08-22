@@ -1831,7 +1831,7 @@ Key::validate_binding(SignatureInfo &        sinfo,
      * A receiving implementation MUST treat such a signature as invalid. */
 #if defined(ENABLE_PQC)
     if (Key::is_pqc_alg(subkey.alg())) {
-        auto halg = sinfo.sig->halg();
+        auto halg = sinfo.sig->halg;
         if (halg == PGP_HASH_MD5 || halg == PGP_HASH_SHA1 || halg == PGP_HASH_RIPEMD) {
             RNP_LOG("Weak hash algorithm %d in PQ subkey binding signature (RFC 9980 §7.2)",
                     (int) halg);
