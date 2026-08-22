@@ -1826,6 +1826,21 @@ Key::validate_binding(SignatureInfo &        sinfo,
         sinfo.validity.mark_validated();
         return;
     }
+    /* RFC 9980 §7.2: Subkey binding signatures (Signature Type 0x18) over
+     * PQ(/T) algorithms MUST NOT be made with MD5, SHA-1, or RIPEMD-160.
+     * A receiving implementation MUST treat such a signature as invalid. */
+#if defined(ENABLE_PQC)
+    if (Key::is_pqc_alg(subkey.alg())) {
+        auto halg = sinfo.sig->halg();
+        if (halg == PGP_HASH_MD5 || halg == PGP_HASH_SHA1 || halg == PGP_HASH_RIPEMD) {
+            RNP_LOG("Weak hash algorithm %d in PQ subkey binding signature (RFC 9980 §7.2)",
+                    (int) halg);
+            sinfo.validity.add_error(RNP_ERROR_SIG_WEAK_HASH);
+            sinfo.validity.mark_validated();
+            return;
+        }
+    }
+#endif
     auto hash = signature_hash_binding(*sinfo.sig, pkt(), subkey.pkt());
     validate_sig(sinfo, *hash, ctx);
     /* Check whether subkey is capable of signing and return otherwise */
