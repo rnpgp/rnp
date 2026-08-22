@@ -123,6 +123,7 @@ jobs:
           cd "Botan-${BOTAN_VERSION}"
           python3 ./configure.py \
             --cc=clang \
+            --cpu=aarch64 \
             --cc-abi-flags="--target=aarch64-linux-ohos --sysroot=${SYSROOT}" \
             --cc-bin="${OHOS_NDK_HOME}/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=${SYSROOT}" \
             --build-targets=static \

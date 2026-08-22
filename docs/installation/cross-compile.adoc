@@ -79,6 +79,7 @@ SYSROOT=$OHOS_NDK_HOME/native/sysroot
 cd Botan-3.6.1
 python3 ./configure.py \
   --cc=clang \
+  --cpu=aarch64 \
   --cc-abi-flags="--target=aarch64-linux-ohos --sysroot=$SYSROOT" \
   --cc-bin="$OHOS_NDK_HOME/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=$SYSROOT" \
   --build-targets=static \
