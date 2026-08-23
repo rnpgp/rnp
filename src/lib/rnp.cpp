@@ -7937,11 +7937,15 @@ try {
     unsigned            iterations = 0;
     pgp_s2k_specifier_t s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
     pgp_s2k_usage_t     s2k_usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
-    pgp_aead_alg_t      aead_alg = PGP_AEAD_NONE;
-    uint8_t             argon2_t = 0;
-    uint8_t             argon2_p = 0;
-    uint8_t             argon2_m = 0;
-    bool                want_argon2 = false;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* only read on AEAD/Argon2 paths, all of which require the
+     * crypto-refresh build */
+    pgp_aead_alg_t aead_alg = PGP_AEAD_NONE;
+    uint8_t        argon2_t = 0;
+    uint8_t        argon2_p = 0;
+    uint8_t        argon2_m = 0;
+#endif
+    bool want_argon2 = false;
 
     if (params) {
         if (params->cipher && !str_to_cipher(params->cipher, &symm_alg)) {
