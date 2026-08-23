@@ -1213,7 +1213,7 @@ TEST_F(rnp_tests, test_ffi_key_protect_ex_argon2_roundtrip)
     rnp_op_generate_t op = NULL;
     rnp_key_handle_t  key = NULL;
     assert_rnp_success(rnp_op_generate_create(&op, ffi, "RSA"));
-    assert_rnp_success(rnp_op_generate_set_rsa_bits(op, 2048));
+    assert_rnp_success(rnp_op_generate_set_bits(op, 2048));
     assert_rnp_success(rnp_op_generate_set_userid(op, "test <test@example.com>"));
     assert_rnp_success(rnp_op_generate_execute(op));
     assert_rnp_success(rnp_op_generate_get_key(op, &key));
@@ -1238,8 +1238,8 @@ TEST_F(rnp_tests, test_ffi_key_protect_ex_argon2_roundtrip)
     /* Round-trip: export secret key, reload into a fresh FFI, unlock */
     rnp_output_t output = NULL;
     assert_rnp_success(rnp_output_to_memory(&output, 0));
-    assert_rnp_success(rnp_key_export(
-      output, key, RNP_KEY_SECRET_SUBKEY | RNP_KEY_PUBLIC_SUBKEY | RNP_KEY_SUBKEYS));
+    assert_rnp_success(
+      rnp_key_export(key, output, RNP_KEY_EXPORT_SECRET | RNP_KEY_EXPORT_SUBKEYS));
     rnp_output_destroy(output);
 
     /* Sanity: key is still usable for sign+verify after protect/unlock */

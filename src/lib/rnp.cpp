@@ -7987,11 +7987,12 @@ try {
                                           (uint8_t)(sizeof(size_t) > 4 ? 1 : 3);
             argon2_p = params->argon2_p ? (uint8_t) params->argon2_p : (uint8_t) 4;
             if (params->argon2_m_kib) {
-                /* User gives KiB; on-wire field is log2(bytes). */
-                size_t  m_bytes = params->argon2_m_kib * 1024;
+                /* On-wire field is log2 of the memory in KiB (RFC 9580),
+                 * matching Botan::Argon2 from_params(). */
+                size_t  m_kib = params->argon2_m_kib;
                 uint8_t log = 0;
-                while (m_bytes > 1) {
-                    m_bytes >>= 1;
+                while (m_kib > 1) {
+                    m_kib >>= 1;
                     log++;
                 }
                 argon2_m = log;
@@ -8070,13 +8071,16 @@ try {
         sp.s2k.iterations = 0;
     }
 
-    /* encrypt_secret_key operates on the target packet in-place. Key::protect
-     * also copies the result back to pkt(); we mirror that here. */
-    rnp_result_t ret = encrypt_secret_key(&target, password, handle->ffi->context.rng);
-    if (ret == RNP_SUCCESS) {
-        if (decrypted_key) {
-            key->pkt() = std::move(target);
-        }
+    /* write_sec_rawpkt encrypts the secret material (in place for an
+     * unprotected key) and refreshes the Key's raw packet, which unlock,
+     * export and key-store writes all read. Calling encrypt_secret_key alone
+     * would leave the stale raw packet in place, so unlocking would decrypt
+     * the old, possibly unprotected data and succeed with any password. */
+    rnp_result_t ret = key->write_sec_rawpkt(target, pass, handle->ffi->context) ?
+                         RNP_SUCCESS :
+                         RNP_ERROR_GENERIC;
+    if ((ret == RNP_SUCCESS) && decrypted_key) {
+        key->pkt() = std::move(target);
     }
     delete decrypted_key;
     return ret;
