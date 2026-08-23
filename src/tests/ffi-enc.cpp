@@ -24,7 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <fcntl.h>
 #include <fstream>
 #include <vector>
 #include <string>
@@ -2728,8 +2727,14 @@ TEST_F(rnp_tests, test_ffi_backup_archive_roundtrip)
     /* Release CI builds disable logging unless RNP_LOG_CONSOLE is set;
      * surface it for this test so failures report which step broke. */
     struct LogGuard {
-        LogGuard() { set_rnp_log_switch(1); }
-        ~LogGuard() { set_rnp_log_switch(-1); }
+        LogGuard()
+        {
+            set_rnp_log_switch(1);
+        }
+        ~LogGuard()
+        {
+            set_rnp_log_switch(-1);
+        }
     } logguard;
 
     rnp_ffi_t ffi = NULL;
@@ -2773,13 +2778,14 @@ TEST_F(rnp_tests, test_ffi_backup_archive_roundtrip)
     assert_true(archive_len > 0);
 
     /* Save to a file for re-input. The archive contains secret key material;
-     * create it owner-only rather than world-writable. */
-    int archive_fd = open("backup.archive", O_WRONLY | O_CREAT | O_TRUNC, 0600);
-    assert_true(archive_fd >= 0);
-    FILE *f = fdopen(archive_fd, "wb");
-    assert_non_null(f);
-    assert_int_equal(fwrite(archive_bytes, 1, archive_len, f), archive_len);
-    fclose(f);
+     * rnp's file output creates it owner-only and works portably (raw open()
+     * mode bits do not: 0600 lacks _S_IWRITE on MSVC, so fwrite fails). */
+    rnp_output_t archive_file = NULL;
+    assert_rnp_success(rnp_output_to_path(&archive_file, "backup.archive"));
+    size_t written = 0;
+    assert_rnp_success(rnp_output_write(archive_file, archive_bytes, archive_len, &written));
+    assert_int_equal(written, archive_len);
+    rnp_output_destroy(archive_file);
     rnp_output_destroy(archive_out);
 
     /* Load the archive into a fresh FFI (simulating device loss).
