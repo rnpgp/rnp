@@ -141,6 +141,11 @@ jobs:
             --minimized-build \
             --enable-modules="$(cat "$GITHUB_WORKSPACE/ci/botan3-pqc-modules" | tr '\n' ',')" \
             --prefix="$HOME/ohos-deps/botan"
+          # The configure probe wrongly decides OHOS musl has explicit_bzero
+          # (the symbol exists but the declaration is feature-gated); drop
+          # the define so the portable volatile-memset fallback is used.
+          sed -i '/define BOTAN_TARGET_OS_HAS_EXPLICIT_BZERO/d' \
+            build/include/botan/build.h
           make -j"$(nproc)"
           make install
 
