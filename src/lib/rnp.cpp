@@ -7923,16 +7923,18 @@ try {
 FFI_GUARD
 
 rnp_result_t
-rnp_key_protect_ex(rnp_key_handle_t handle, const char *password, const rnp_protection_params_t *params)
+rnp_key_protect_ex(rnp_key_handle_t               handle,
+                   const char *                   password,
+                   const rnp_protection_params_t *params)
 try {
     if (!handle || !password) {
         return RNP_ERROR_NULL_POINTER;
     }
     /* Resolve FFI strings into enums. Defaults mirror rnp_key_protect. */
-    pgp_symm_alg_t    symm_alg = DEFAULT_PGP_SYMM_ALG;
-    pgp_cipher_mode_t cipher_mode = DEFAULT_PGP_CIPHER_MODE;
-    pgp_hash_alg_t    hash_alg = DEFAULT_PGP_HASH_ALG;
-    unsigned          iterations = 0;
+    pgp_symm_alg_t      symm_alg = DEFAULT_PGP_SYMM_ALG;
+    pgp_cipher_mode_t   cipher_mode = DEFAULT_PGP_CIPHER_MODE;
+    pgp_hash_alg_t      hash_alg = DEFAULT_PGP_HASH_ALG;
+    unsigned            iterations = 0;
     pgp_s2k_specifier_t s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
     pgp_s2k_usage_t     s2k_usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
     pgp_aead_alg_t      aead_alg = PGP_AEAD_NONE;
@@ -7982,12 +7984,12 @@ try {
             /* Default Argon2 params follow RFC 9100 §4: t=1, p=4, m=2^21 on
              * 64-bit; t=3, p=4, m=2^16 on memory-constrained 32-bit. */
             argon2_t = params->argon2_t ? (uint8_t) params->argon2_t :
-                       (uint8_t)(sizeof(size_t) > 4 ? 1 : 3);
+                                          (uint8_t)(sizeof(size_t) > 4 ? 1 : 3);
             argon2_p = params->argon2_p ? (uint8_t) params->argon2_p : (uint8_t) 4;
             if (params->argon2_m_kib) {
                 /* User gives KiB; on-wire field is log2(bytes). */
-                size_t m_bytes = params->argon2_m_kib * 1024;
-                uint8_t  log = 0;
+                size_t  m_bytes = params->argon2_m_kib * 1024;
+                uint8_t log = 0;
                 while (m_bytes > 1) {
                     m_bytes >>= 1;
                     log++;
@@ -8021,7 +8023,7 @@ try {
     if (!key) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
-    pgp_key_pkt_t *decrypted_key = NULL;
+    pgp_key_pkt_t *   decrypted_key = NULL;
     const std::string pass = password;
     if (key->encrypted()) {
         pgp_password_ctx_t ctx(PGP_OP_PROTECT, key);
