@@ -145,7 +145,7 @@ jobs:
           # (the symbol exists but the declaration is feature-gated); drop
           # the define so the portable volatile-memset fallback is used.
           sed -i '/define BOTAN_TARGET_OS_HAS_EXPLICIT_BZERO/d' \
-            build/include/botan/build.h
+            build/include/public/botan/build.h
           make -j"$(nproc)"
           make install
 
