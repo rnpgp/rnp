@@ -2837,21 +2837,21 @@ RNP_API rnp_result_t rnp_key_protect(rnp_key_handle_t handle,
 #ifndef RNP_PROTECTION_PARAMS_T_DEFINED
 #define RNP_PROTECTION_PARAMS_T_DEFINED
 typedef struct rnp_protection_params_t {
-    const char *cipher;        /**< Symmetric cipher, e.g. "AES256". NULL = default. */
-    const char *cipher_mode;   /**< Block cipher mode, e.g. "CFB". NULL = default.
-                                    Ignored when aead_alg is set. */
-    const char *hash;          /**< Hash for S2K, e.g. "SHA256". NULL = default.
-                                    Not used with Argon2. */
-    size_t      iterations;    /**< Iteration count for iterated-and-salted S2K.
-                                    0 = lib default. Ignored for Argon2. */
-    const char *s2k_type;      /**< "Simple", "Salted", "Iterated and salted",
-                                    "Argon2". NULL = "Iterated and salted". */
-    const char *aead_alg;      /**< AEAD algorithm for v6 secret keys, e.g. "OCB",
-                                    "EAX". NULL = no AEAD (CFB instead). Required
-                                    when s2k_type = "Argon2". */
-    size_t      argon2_t;      /**< Argon2 time parameter (1-4 typical). 0 = default. */
-    size_t      argon2_p;      /**< Argon2 parallelism (lanes). 0 = default. */
-    size_t      argon2_m_kib;  /**< Argon2 memory in KiB. 0 = default. */
+    const char *cipher;      /**< Symmetric cipher, e.g. "AES256". NULL = default. */
+    const char *cipher_mode; /**< Block cipher mode, e.g. "CFB". NULL = default.
+                                  Ignored when aead_alg is set. */
+    const char *hash;        /**< Hash for S2K, e.g. "SHA256". NULL = default.
+                                  Not used with Argon2. */
+    size_t iterations;       /**< Iteration count for iterated-and-salted S2K.
+                                  0 = lib default. Ignored for Argon2. */
+    const char *s2k_type;    /**< "Simple", "Salted", "Iterated and salted",
+                                  "Argon2". NULL = "Iterated and salted". */
+    const char *aead_alg;    /**< AEAD algorithm for v6 secret keys, e.g. "OCB",
+                                  "EAX". NULL = no AEAD (CFB instead). Required
+                                  when s2k_type = "Argon2". */
+    size_t argon2_t;         /**< Argon2 time parameter (1-4 typical). 0 = default. */
+    size_t argon2_p;         /**< Argon2 parallelism (lanes). 0 = default. */
+    size_t argon2_m_kib;     /**< Argon2 memory in KiB. 0 = default. */
 } rnp_protection_params_t;
 #endif
 
