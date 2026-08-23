@@ -71,9 +71,12 @@ jobs:
       # SDK version supported by openharmony-rs/setup-ohos-sdk; must match a
       # release tag of the openharmony-rs/ohos-sdk GitHub mirror.
       OHOS_SDK_VERSION: "6.1"
-      # Keep in sync with ci/prebuilt-versions.env; Botan 3.6.x is unsuitable
-      # for minimized arm64 builds (see #2456).
-      BOTAN_VERSION: "3.12.0"
+      # The OHOS NDK ships clang 15, whose bundled libc++ lacks the C++20
+      # ranges *algorithms* (std::ranges::equal et al.). Botan 3.10+ uses
+      # them unguarded, so 3.9.0 is the newest release that cross-compiles
+      # with this SDK (still >= 3.7 for legacy_ec_point, and unlike 3.6.x
+      # it has no arm64 legacy-EC crash, see #2456).
+      BOTAN_VERSION: "3.9.0"
     steps:
       - name: Checkout rnp
         uses: actions/checkout@v4
@@ -123,6 +126,10 @@ jobs:
             "https://botan.randombit.net/releases/Botan-${BOTAN_VERSION}.tar.xz"
           tar xf botan.tgz
           cd "Botan-${BOTAN_VERSION}"
+          # 3.9.0 has a single ranges-algorithm call; the member function is
+          # the exact equivalent for its std::array argument.
+          sed -i 's/std::ranges::fill(m_value, 0)/m_value.fill(0)/' \
+            src/lib/math/pcurves/pcurves.h
           python3 ./configure.py \
             --cc=clang \
             --cpu=aarch64 \
