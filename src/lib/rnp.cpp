@@ -9274,11 +9274,13 @@ try {
     rnp_op_verify_t verify = NULL;
     rnp_result_t    r = rnp_op_verify_create(&verify, ffi, input, plaintext_output);
     if (r) {
+        FFI_LOG(ffi, "backup archive: failed to create verify op: %d", (int) r);
         rnp_output_destroy(plaintext_output);
         return r;
     }
     r = rnp_op_verify_execute(verify);
     if (r) {
+        FFI_LOG(ffi, "backup archive: decrypt/verify failed: %d", (int) r);
         rnp_op_verify_destroy(verify);
         rnp_output_destroy(plaintext_output);
         return r;
@@ -9287,6 +9289,7 @@ try {
     size_t sig_count = 0;
     rnp_op_verify_get_signature_count(verify, &sig_count);
     if (sig_count == 0) {
+        FFI_LOG(ffi, "backup archive: no signatures");
         rnp_op_verify_destroy(verify);
         rnp_output_destroy(plaintext_output);
         return RNP_ERROR_SIGNATURE_INVALID;
@@ -9324,6 +9327,7 @@ try {
         }
     }
     if (!any_good) {
+        FFI_LOG(ffi, "backup archive: signing key signature missing or invalid");
         rnp_op_verify_destroy(verify);
         rnp_output_destroy(plaintext_output);
         return RNP_ERROR_SIGNATURE_INVALID;
@@ -9333,6 +9337,7 @@ try {
     size_t   keys_len = 0;
     r = rnp_output_memory_get_buf(plaintext_output, &keys_buf, &keys_len, false);
     if (r) {
+        FFI_LOG(ffi, "backup archive: failed to get plaintext: %d", (int) r);
         rnp_op_verify_destroy(verify);
         rnp_output_destroy(plaintext_output);
         return r;
@@ -9346,6 +9351,12 @@ try {
     }
     char *results = NULL;
     r = rnp_import_keys(ffi, keys_input, RNP_LOAD_SAVE_SECRET_KEYS, &results);
+    if (r) {
+        FFI_LOG(ffi,
+                "backup archive: key import failed: %d (plaintext %zu bytes)",
+                (int) r,
+                keys_len);
+    }
     free(results);
     rnp_input_destroy(keys_input);
     rnp_op_verify_destroy(verify);
