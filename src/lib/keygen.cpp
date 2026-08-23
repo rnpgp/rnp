@@ -27,6 +27,7 @@
 #include "keygen.hpp"
 #include <cassert>
 #include <algorithm>
+#include <rnp/rnp.h> // RNP_ALGNAME_* (and their RNP_EXPERIMENTAL_* guards)
 #include "librekey/key_store_g10.h"
 
 namespace rnp {
