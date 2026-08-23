@@ -33,6 +33,7 @@
 #include <rnp/rnp.h>
 #include "rnp_tests.h"
 #include "support.h"
+#include "logging.h"
 #include "librepgp/stream-common.h"
 #include "librepgp/stream-packet.h"
 #include "librepgp/stream-sig.h"
@@ -2724,6 +2725,13 @@ TEST_F(rnp_tests, test_ffi_entropy_encoding_roundtrip)
 
 TEST_F(rnp_tests, test_ffi_backup_archive_roundtrip)
 {
+    /* Release CI builds disable logging unless RNP_LOG_CONSOLE is set;
+     * surface it for this test so failures report which step broke. */
+    struct LogGuard {
+        LogGuard() { set_rnp_log_switch(1); }
+        ~LogGuard() { set_rnp_log_switch(-1); }
+    } logguard;
+
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
 
