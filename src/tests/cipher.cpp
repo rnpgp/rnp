@@ -175,6 +175,71 @@ TEST_F(rnp_tests, pkcs1_rsa_test_sign_enc_only)
     assert_false(keygen2.generate(seckey2, true));
 }
 
+/* OpenPGP MPIs have leading zero bytes stripped, so about 1/256 of RSA
+ * ciphertexts/signatures is one byte shorter than the modulus. Botan 3.13+
+ * (and some OpenSSL versions) reject such inputs, so decryption/verification
+ * must left-pad them back to the modulus length (issue #2465, commit 82283888).
+ * The vectors below are fixed: 1024-bit key, 127-byte ciphertext of "abc",
+ * and a 127-byte SHA-256 signature. */
+TEST_F(rnp_tests, pkcs1_rsa_short_mpi_test_success)
+{
+    pgp::rsa::Key key;
+    assert_true(
+      hex2mpi(&key.n,
+              "C4A740F92F24DB0425803FB0A16D9BC474BBF2A7884AFA70C1281E31BC71ABAAFFCFB78D"
+              "E52721A31384D89C4DDCBD2D51DF3EE3319EE2F0EDA99D41A142403CF827E9D5D25B3A"
+              "0952911846C4193FA8BCF86AC3CB4E7F66173203CEBC9E366C56AC2AA0FCF33B0E229D"
+              "4494FA0DC5550C6507F32B00E53A4B579A9808F43A21"));
+    assert_true(hex2mpi(&key.e, "010001"));
+    assert_true(
+      hex2mpi(&key.d,
+              "837B785BA303B753FC66D52E99A01967AECD031EB467BD2EAA56D2695A9F7DB1E53BD274"
+              "12E4A8FEC9CC26AFCAF76D9CE182AC1F674BDE5C4BEAFDF3A588103E075F253A8D6DCD06"
+              "3F3731EC7BBE7BC713ACC7D70219EEC5CA601DC9D5091A98BDEE3C42B4276B2065160055"
+              "DC86B1658A7121F404B1BEFC2B3D37A9F718E1E1"));
+    assert_true(
+      hex2mpi(&key.p,
+              "DA4A8AEF86EDF1E4982A47B3CCA6A4627A0CE58A5456C200E1FABDF9339CC1B81EA1A9F"
+              "89698877F41587AFC8382687E45290E73D58E57B363E499EFA6C1BC15"));
+    assert_true(
+      hex2mpi(&key.q,
+              "E69FD2EB2FCA5F029881F0A088D2B14D7C59E29C1B759A2DE5C2B1913BBAB50A72EA1C8"
+              "9B0A51722DD89F9D7AC17945704CC086C788CB77CB9B50D0661EC6CDD"));
+    assert_true(
+      hex2mpi(&key.u,
+              "DD962C16022ACCB0A5D10F6CA9A27A6CF23179EBF966824B24CE055F3CDFF2E077E3831C"
+              "1093A9EF46142878B9F85133342BA8CBB4633F6D9037F7F1D45C0170"));
+
+    /* short ciphertext: one byte shorter than the modulus */
+    pgp::rsa::Encrypted enc;
+    assert_true(
+      hex2mpi(&enc.m,
+              "301DDA159609D4AA8A8F97658CB8B73D659D73980690484E378B960F44C34FE3E575124"
+              "30C15691E375F6E228F860FA97CF2497AE87EB579C1C450B6C99B510528F50362CC48465"
+              "667F1DF69F499EF8DBD07E4F038FABD91C7806EFC9C0F296BCBE26BB480F41DBB37B2D29"
+              "1C6111F3AE285C97EF57D32C32B0822122B47A0"));
+    assert_int_equal(enc.m.size(), 127);
+
+    rnp::secure_bytes dec;
+    assert_rnp_success(key.decrypt_pkcs1(global_ctx.rng, dec, enc));
+    assert_int_equal(dec.size(), 3);
+    assert_true(bin_eq_hex(dec.data(), dec.size(), "616263"));
+
+    /* short signature over fixed digest: one byte shorter than the modulus */
+    pgp::rsa::Signature sig;
+    assert_true(
+      hex2mpi(&sig.s,
+              "30FFB372A7D8BFA9B7393EE3829C1BBE0B2D6C2CDD5695A003E2D4FB1C01B0347836A2F"
+              "4FBB67AC9DB9ED91DD227709C428E40B676EBBF0FD956AF7F114D75496BA3E243A49047"
+              "586A92563DAB73B8ADBB7AAEB08A726E0228C45912A4CC7FEDB0E0A45EA91944B8C3DEC1"
+              "D1E859CE07BC4E7FAD3AA23DAC2F92FD293913BE"));
+    assert_int_equal(sig.s.size(), 127);
+    rnp::secure_bytes digest({0x00, 0x00, 0x00, 0x18, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
+                              0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11,
+                              0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B});
+    assert_rnp_success(key.verify_pkcs1(sig, PGP_HASH_SHA256, digest));
+}
+
 TEST_F(rnp_tests, rnp_test_eddsa)
 {
     rnp::KeygenParams keygen(PGP_PKA_EDDSA, global_ctx);
