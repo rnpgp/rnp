@@ -136,6 +136,17 @@ cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=on -DBUILD_TESTING=o
 make install
 ----
 
+[NOTE]
+====
+When building against the Botan backend, avoid Botan 3.6.x on arm64:
+it has an upstream crash in the EC path (SIGBUS inside
+`Botan::BigInt::is_equal`) that breaks ordinary ECDSA/ECDH, and 3.6.0
+additionally signs SLH-DSA with the wrong (non-FIPS-compliant)
+deterministic variant. Botan 3.7.0 or newer is required for PQC
+(`-DENABLE_PQC=on`) and recommended everywhere on arm64. Botan 3.0 - 3.5
+works fine with PQC left off (the default).
+====
+
 == On Windows
 
 === Using MSYS/MinGW

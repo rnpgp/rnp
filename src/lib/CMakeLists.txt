@@ -234,25 +234,44 @@ if(CRYPTO_BACKEND_BOTAN)
   resolve_feature_state(ENABLE_IDEA "IDEA")
   resolve_feature_state(ENABLE_CRYPTO_REFRESH "HKDF;ED448;X448;ARGON2")
   # The PQC code paths use the FIPS 203/204/205 APIs (KyberMode::ML_KEM_*,
-  # DilithiumMode::ML_DSA_*, SLH_DSA_*), which only exist from Botan 3.6.0.
+  # DilithiumMode::ML_DSA_*, SLH_DSA_*), which first exist in Botan 3.6.0.
+  # The floor is 3.7.0, not 3.6.0:
+  #  - 3.6.0 signs SLH-DSA with the non-FIPS-compliant deterministic variant
+  #    (fixed upstream in 3.6.1, GH #4398);
+  #  - 3.6.0/3.6.1 crash in the BigInt/legacy-EC path on arm64 (verified:
+  #    rnp_tests.ecdsa_signverify_success and the ML-KEM/ECDH curve composites
+  #    die with SIGBUS inside Botan::BigInt::is_equal);
+  #  - the minimized-build module list (ci/botan3-pqc-modules) needs the
+  #    legacy_ec_point module, which only exists from 3.7.0.
   # The round-3 Kyber/Dilithium/SPHINCS+ variants of older Botan are different
   # algorithms, not renames: the draft-ietf-openpgp-pqc test vectors verify
-  # only with the final FIPS parameter sets. Enabling PQC there would pass
+  # only with the final FIPS parameter sets, so enabling PQC there would pass
   # configure (the legacy BOTAN_HAS_KYBER/DILITHIUM/SPHINCS_PLUS_* defines
-  # exist) and then fail compiling the missing APIs, so reject it upfront.
-  if(NOT Botan_VERSION VERSION_GREATER_EQUAL 3.6.0)
+  # exist) and then fail compiling the missing APIs. Reject it upfront.
+  if(NOT Botan_VERSION VERSION_GREATER_EQUAL 3.7.0)
     if(ENABLE_PQC)
       string(TOLOWER "${ENABLE_PQC}" _pqc)
       if(NOT _pqc STREQUAL "auto")
         message(FATAL_ERROR
-          "ENABLE_PQC requires Botan >= 3.6.0 (FIPS 203/204/205 APIs); older "
-          "Botan only provides the non-interoperable round-3 variants.")
+          "ENABLE_PQC requires Botan >= 3.7.0 (FIPS 203/204/205 APIs; 3.6.x "
+          "has an arm64 EC crash and an SLH-DSA signing bug); older Botan "
+          "only provides the non-interoperable round-3 variants.")
       endif()
       set(ENABLE_PQC Off CACHE STRING "Auto -> Off as no support" FORCE)
-      message(NOTICE "ENABLE_PQC requires Botan >= 3.6.0. Disabling.")
+      message(NOTICE "ENABLE_PQC requires Botan >= 3.7.0. Disabling.")
     endif()
   else()
     resolve_feature_state(ENABLE_PQC "HKDF;ML_KEM;ML_DSA;SLH_DSA_WITH_SHA2;SLH_DSA_WITH_SHAKE")
+  endif()
+  # Even without PQC, plain ECDSA/ECDH crash on arm64 with Botan 3.6.x (same
+  # upstream BigInt/legacy-EC bug); x86-64 3.6 builds are unaffected.
+  if(Botan_VERSION VERSION_GREATER_EQUAL 3.6.0
+     AND Botan_VERSION VERSION_LESS 3.7.0
+     AND (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64"))
+    message(WARNING
+      "Botan ${Botan_VERSION} has an upstream crash in the EC path on arm64 "
+      "(SIGBUS in BigInt::is_equal) that breaks ordinary ECDSA/ECDH. "
+      "Use Botan >= 3.7.0 on arm64 if possible.")
   endif()
   resolve_feature_state(ENABLE_BLOWFISH "BLOWFISH")
   resolve_feature_state(ENABLE_CAST5 "CAST_128")
