@@ -67,13 +67,10 @@ jobs:
   build_and_test:
     name: ${{ matrix.os }} [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }}, backend ${{ matrix.backend }}, build shared libs ${{ matrix.shared_libs }}, use CMake prefix path ${{ matrix.use_cmake_prefix_path }}, sanitizers ${{ matrix.sanitizers }}]
     runs-on: ${{ matrix.os }}
-    # Preview legs (windows-2025, windows-11-arm, and the *-vs2026 variants)
-    # stay non-blocking until verified green. Image contents have drifted from
-    # the runner-images READMEs, so the generator is detected via vswhere
-    # rather than assumed from the label. SHLWAPI is linked by name (the old
+    # The windows-2025 image ships VS2026 despite the runner-images README
+    # listing VS2022, so the generator is detected via vswhere rather than
+    # assumed from the label. SHLWAPI is linked by name (the old
     # GetUMWindowsSDKLibraryDir probing returned empty on ARM64).
-    continue-on-error: ${{ matrix.os == 'windows-2025' || matrix.os == 'windows-11-arm' ||
-                            matrix.os == 'windows-2025-vs2026' || matrix.os == 'windows-11-vs2026-arm' }}
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     strategy:
       fail-fast: false
