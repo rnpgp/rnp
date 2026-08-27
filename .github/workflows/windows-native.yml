@@ -235,7 +235,7 @@ jobs:
           # Keep the requested toolset for VS2022; VS2026 images may not ship
           # v143, so use their default toolset.
           TOOLSET_ARG=""
-          if [[ "$CMAKE_GENERATOR" != *"18 2026"* ]] && [ -n "${{ matrix.toolset }}" ]]; then
+          if [[ "$CMAKE_GENERATOR" != *"18 2026"* ]] && [ -n "${{ matrix.toolset }}" ]; then
             TOOLSET_ARG="-T ${{ matrix.toolset }}"
           fi
           cmake -B build   -G "$CMAKE_GENERATOR"      \
@@ -255,7 +255,7 @@ jobs:
           # Keep the requested toolset for VS2022; VS2026 images may not ship
           # v143, so use their default toolset.
           TOOLSET_ARG=""
-          if [[ "$CMAKE_GENERATOR" != *"18 2026"* ]] && [ -n "${{ matrix.toolset }}" ]]; then
+          if [[ "$CMAKE_GENERATOR" != *"18 2026"* ]] && [ -n "${{ matrix.toolset }}" ]; then
             TOOLSET_ARG="-T ${{ matrix.toolset }}"
           fi
           cmake -B build   -G "$CMAKE_GENERATOR"      \
