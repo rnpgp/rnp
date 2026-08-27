@@ -144,7 +144,7 @@ set(RNP_TEST_SOURCES
   issues/1030.cpp
   issues/1115.cpp
   issues/1171.cpp
-  issues/2469.cpp  
+  issues/2469.cpp
   issues/oss-fuzz-25489.cpp
   fuzz_keyring.cpp
   fuzz_keyring_g10.cpp
