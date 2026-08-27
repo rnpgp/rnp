@@ -2009,6 +2009,7 @@ TEST_F(rnp_tests, test_ffi_dearmor_edge_cases)
     rnp_output_destroy(output);
 }
 
+
 TEST_F(rnp_tests, test_ffi_customized_enarmor)
 {
     rnp_input_t           input = NULL;
@@ -6209,3 +6210,5 @@ TEST_F(rnp_tests, test_ffi_wrong_hex_length)
     assert_rnp_failure(rnp_locate_key(ffi, "keyid", "C6709B15C23A4A", &key));
     rnp_ffi_destroy(ffi);
 }
+
+
