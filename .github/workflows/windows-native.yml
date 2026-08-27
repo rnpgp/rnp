@@ -206,17 +206,22 @@ jobs:
         shell: bash
         run: echo CXXFLAGS="-DS2K_MINIMUM_TUNING_RATIO=4" >> $GITHUB_ENV
 
-      # Plain windows-2025 / windows-11-arm images ship VS2022; the *-vs2026
-      # labels ship VS2026 (generator version 18). Drive the generator off the
-      # label so each image gets the VS it actually contains.
+      # Detect the actually-installed Visual Studio and derive the generator
+      # from it: image contents have drifted from the runner-images READMEs
+      # (the live windows-2025 image exposes no VS2022 instance despite the
+      # README listing one), so labels cannot be trusted for this.
       - name: Select Visual Studio generator
         shell: bash
         run: |
-          if [[ "${{ matrix.os }}" == *vs2026* ]]; then
-            echo "CMAKE_GENERATOR=Visual Studio 18 2026" >> $GITHUB_ENV
-          else
-            echo "CMAKE_GENERATOR=Visual Studio 17 2022" >> $GITHUB_ENV
-          fi
+          ver=$("/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"                 -latest -products '*' -property installationVersion)
+          major=${ver%%.*}
+          case "$major" in
+            17) gen="Visual Studio 17 2022";;
+            18) gen="Visual Studio 18 2026";;
+            *)  echo "Unsupported Visual Studio version: '$ver'" >&2; exit 1;;
+          esac
+          echo "Detected Visual Studio $ver -> $gen"
+          echo "CMAKE_GENERATOR=$gen" >> $GITHUB_ENV
 
       - name: Configure using vpkg toolchain file
         if: matrix.use_cmake_prefix_path != 'on'
@@ -224,8 +229,12 @@ jobs:
         run: |
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
           export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
+          # Keep the requested toolset for VS2022; VS2026 images may not ship
+          # v143, so use their default toolset.
           TOOLSET_ARG=""
-          [ -n "${{ matrix.toolset }}" ] && TOOLSET_ARG="-T ${{ matrix.toolset }}"
+          if [[ "$CMAKE_GENERATOR" != *"18 2026"* ]] && [ -n "${{ matrix.toolset }}" ]]; then
+            TOOLSET_ARG="-T ${{ matrix.toolset }}"
+          fi
           cmake -B build   -G "$CMAKE_GENERATOR"      \
                            -A ${{ matrix.arch.name }}  \
                            $TOOLSET_ARG                \
@@ -240,8 +249,12 @@ jobs:
         run: |
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
           export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
+          # Keep the requested toolset for VS2022; VS2026 images may not ship
+          # v143, so use their default toolset.
           TOOLSET_ARG=""
-          [ -n "${{ matrix.toolset }}" ] && TOOLSET_ARG="-T ${{ matrix.toolset }}"
+          if [[ "$CMAKE_GENERATOR" != *"18 2026"* ]] && [ -n "${{ matrix.toolset }}" ]]; then
+            TOOLSET_ARG="-T ${{ matrix.toolset }}"
+          fi
           cmake -B build   -G "$CMAKE_GENERATOR"      \
                            -A ${{ matrix.arch.name }}  \
                            $TOOLSET_ARG                \
