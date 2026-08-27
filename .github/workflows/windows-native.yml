@@ -67,14 +67,11 @@ jobs:
   build_and_test:
     name: ${{ matrix.os }} [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }}, backend ${{ matrix.backend }}, build shared libs ${{ matrix.shared_libs }}, use CMake prefix path ${{ matrix.use_cmake_prefix_path }}, sanitizers ${{ matrix.sanitizers }}]
     runs-on: ${{ matrix.os }}
-    # windows-2025 and windows-11-arm are experimental preview legs (they were
-    # never exercised before: the workflow had been failing at matrix expansion
-    # since their introduction):
-    # - windows-2025 ships Visual Studio 2026, which the hardcoded
-    #   "Visual Studio 17 2022" generator and the v143 toolset cannot drive;
-    # - windows-11-arm fails at CMake generate time with SHLWAPI_LIBRARY
-    #   NOTFOUND (arm64 SDK library discovery).
-    # Keep them non-blocking until follow-ups make them pass.
+    # Preview legs (windows-2025, windows-11-arm, and the *-vs2026 variants)
+    # stay non-blocking until verified green. Image contents have drifted from
+    # the runner-images READMEs, so the generator is detected via vswhere
+    # rather than assumed from the label. SHLWAPI is linked by name (the old
+    # GetUMWindowsSDKLibraryDir probing returned empty on ARM64).
     continue-on-error: ${{ matrix.os == 'windows-2025' || matrix.os == 'windows-11-arm' ||
                             matrix.os == 'windows-2025-vs2026' || matrix.os == 'windows-11-vs2026-arm' }}
     if: "!contains(github.event.head_commit.message, 'skip ci')"
