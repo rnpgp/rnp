@@ -2379,12 +2379,16 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *len = output->dst.writeb;
-    *buf = (uint8_t *) mem_dest_get_memory(&output->dst);
-    if (!*buf) {
+    if (output->dst.type != PGP_STREAM_MEMORY) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (do_copy) {
+
+    *len = output->dst.writeb;
+    *buf = (uint8_t *) mem_dest_get_memory(&output->dst);
+    if (!*buf && *len) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (do_copy && *len) {
         uint8_t *tmp_buf = *buf;
         *buf = (uint8_t *) malloc(*len);
         if (!*buf) {
