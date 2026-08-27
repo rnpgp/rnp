@@ -75,7 +75,8 @@ jobs:
     # - windows-11-arm fails at CMake generate time with SHLWAPI_LIBRARY
     #   NOTFOUND (arm64 SDK library discovery).
     # Keep them non-blocking until follow-ups make them pass.
-    continue-on-error: ${{ matrix.os == 'windows-2025' || matrix.os == 'windows-11-arm' }}
+    continue-on-error: ${{ matrix.os == 'windows-2025' || matrix.os == 'windows-11-arm' ||
+                            matrix.os == 'windows-2025-vs2026' || matrix.os == 'windows-11-vs2026-arm' }}
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     strategy:
       fail-fast: false
@@ -123,6 +124,25 @@ jobs:
           - os:                    'windows-11-arm'
             arch:                  { name: 'ARM64', triplet: 'arm64-windows' }
             toolset:               'v143'
+            backend:               'botan'
+            use_cmake_prefix_path: 'off'
+            shared_libs:           'off'
+            sanitizers:            'off'
+          # Windows Server 2025 with Visual Studio 2026: toolchain-of-the-future
+          # coverage. Default toolset of VS2026 for now (v143 availability there
+          # is unverified), hence the empty toolset.
+          - os:                    'windows-2025-vs2026'
+            arch:                  { name: 'x64',    triplet: 'x64-windows' }
+            toolset:               ''
+            backend:               'botan'
+            use_cmake_prefix_path: 'off'
+            shared_libs:           'off'
+            sanitizers:            'off'
+          # Windows 11 ARM64 with Visual Studio 2026 (GA per runner-images
+          # #14592). Non-blocking until it proves stable.
+          - os:                    'windows-11-vs2026-arm'
+            arch:                  { name: 'ARM64', triplet: 'arm64-windows' }
+            toolset:               ''
             backend:               'botan'
             use_cmake_prefix_path: 'off'
             shared_libs:           'off'
@@ -186,12 +206,13 @@ jobs:
         shell: bash
         run: echo CXXFLAGS="-DS2K_MINIMUM_TUNING_RATIO=4" >> $GITHUB_ENV
 
-      # windows-2025 images ship only Visual Studio 2026 (generator version 18);
-      # the hardcoded "Visual Studio 17 2022" finds no VS instance there.
+      # Plain windows-2025 / windows-11-arm images ship VS2022; the *-vs2026
+      # labels ship VS2026 (generator version 18). Drive the generator off the
+      # label so each image gets the VS it actually contains.
       - name: Select Visual Studio generator
         shell: bash
         run: |
-          if [ "${{ matrix.os }}" = "windows-2025" ]; then
+          if [[ "${{ matrix.os }}" == *vs2026* ]]; then
             echo "CMAKE_GENERATOR=Visual Studio 18 2026" >> $GITHUB_ENV
           else
             echo "CMAKE_GENERATOR=Visual Studio 17 2022" >> $GITHUB_ENV
@@ -203,9 +224,11 @@ jobs:
         run: |
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
           export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
+          TOOLSET_ARG=""
+          [ -n "${{ matrix.toolset }}" ] && TOOLSET_ARG="-T ${{ matrix.toolset }}"
           cmake -B build   -G "$CMAKE_GENERATOR"      \
                            -A ${{ matrix.arch.name }}  \
-                           -T ${{ matrix.toolset }}    \
+                           $TOOLSET_ARG                \
                            -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}} \
                            -DENABLE_SANITIZERS=${{ matrix.sanitizers }} \
                            -DCRYPTO_BACKEND=${{ matrix.backend }}       \
@@ -217,9 +240,11 @@ jobs:
         run: |
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
           export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
+          TOOLSET_ARG=""
+          [ -n "${{ matrix.toolset }}" ] && TOOLSET_ARG="-T ${{ matrix.toolset }}"
           cmake -B build   -G "$CMAKE_GENERATOR"      \
                            -A ${{ matrix.arch.name }}  \
-                           -T ${{ matrix.toolset }}    \
+                           $TOOLSET_ARG                \
                            -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}} \
                            -DENABLE_SANITIZERS=${{ matrix.sanitizers }} \
                            -DCRYPTO_BACKEND=${{ matrix.backend }}       \
