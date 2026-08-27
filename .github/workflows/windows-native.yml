@@ -213,7 +213,10 @@ jobs:
       - name: Select Visual Studio generator
         shell: bash
         run: |
-          ver=$("/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"                 -latest -products '*' -property installationVersion)
+          # Direct bash invocation of the PF-x86 vswhere fails on these images
+          # (see the toolchain step below); use the Chocolatey shim via cmd,
+          # as that step already does. tr strips the CRLF cmd emits.
+          ver=$(cmd //c 'C:\ProgramData\Chocolatey\bin\vswhere.exe -latest -products * -property installationVersion' | tr -d '\r')
           major=${ver%%.*}
           case "$major" in
             17) gen="Visual Studio 17 2022";;
