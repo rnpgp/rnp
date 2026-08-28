@@ -67,15 +67,10 @@ jobs:
   build_and_test:
     name: ${{ matrix.os }} [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }}, backend ${{ matrix.backend }}, build shared libs ${{ matrix.shared_libs }}, use CMake prefix path ${{ matrix.use_cmake_prefix_path }}, sanitizers ${{ matrix.sanitizers }}]
     runs-on: ${{ matrix.os }}
-    # windows-2025 and windows-11-arm are experimental preview legs (they were
-    # never exercised before: the workflow had been failing at matrix expansion
-    # since their introduction):
-    # - windows-2025 ships Visual Studio 2026, which the hardcoded
-    #   "Visual Studio 17 2022" generator and the v143 toolset cannot drive;
-    # - windows-11-arm fails at CMake generate time with SHLWAPI_LIBRARY
-    #   NOTFOUND (arm64 SDK library discovery).
-    # Keep them non-blocking until follow-ups make them pass.
-    continue-on-error: ${{ matrix.os == 'windows-2025' || matrix.os == 'windows-11-arm' }}
+    # The windows-2025 image ships VS2026 despite the runner-images README
+    # listing VS2022, so the generator is detected via vswhere rather than
+    # assumed from the label. SHLWAPI is linked by name (the old
+    # GetUMWindowsSDKLibraryDir probing returned empty on ARM64).
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     strategy:
       fail-fast: false
@@ -123,6 +118,25 @@ jobs:
           - os:                    'windows-11-arm'
             arch:                  { name: 'ARM64', triplet: 'arm64-windows' }
             toolset:               'v143'
+            backend:               'botan'
+            use_cmake_prefix_path: 'off'
+            shared_libs:           'off'
+            sanitizers:            'off'
+          # Windows Server 2025 with Visual Studio 2026: toolchain-of-the-future
+          # coverage. Default toolset of VS2026 for now (v143 availability there
+          # is unverified), hence the empty toolset.
+          - os:                    'windows-2025-vs2026'
+            arch:                  { name: 'x64',    triplet: 'x64-windows' }
+            toolset:               ''
+            backend:               'botan'
+            use_cmake_prefix_path: 'off'
+            shared_libs:           'off'
+            sanitizers:            'off'
+          # Windows 11 ARM64 with Visual Studio 2026 (GA per runner-images
+          # #14592). Non-blocking until it proves stable.
+          - os:                    'windows-11-vs2026-arm'
+            arch:                  { name: 'ARM64', triplet: 'arm64-windows' }
+            toolset:               ''
             backend:               'botan'
             use_cmake_prefix_path: 'off'
             shared_libs:           'off'
@@ -186,15 +200,41 @@ jobs:
         shell: bash
         run: echo CXXFLAGS="-DS2K_MINIMUM_TUNING_RATIO=4" >> $GITHUB_ENV
 
+      # Detect the actually-installed Visual Studio and derive the generator
+      # from it: image contents have drifted from the runner-images READMEs
+      # (the live windows-2025 image exposes no VS2022 instance despite the
+      # README listing one), so labels cannot be trusted for this.
+      - name: Select Visual Studio generator
+        shell: bash
+        run: |
+          # Direct bash invocation of the PF-x86 vswhere fails on these images
+          # (see the toolchain step below); use the Chocolatey shim via cmd,
+          # as that step already does. tr strips the CRLF cmd emits.
+          ver=$(cmd //c 'C:\ProgramData\Chocolatey\bin\vswhere.exe -latest -products * -property installationVersion' | tr -d '\r')
+          major=${ver%%.*}
+          case "$major" in
+            17) gen="Visual Studio 17 2022";;
+            18) gen="Visual Studio 18 2026";;
+            *)  echo "Unsupported Visual Studio version: '$ver'" >&2; exit 1;;
+          esac
+          echo "Detected Visual Studio $ver -> $gen"
+          echo "CMAKE_GENERATOR=$gen" >> $GITHUB_ENV
+
       - name: Configure using vpkg toolchain file
         if: matrix.use_cmake_prefix_path != 'on'
         shell: bash
         run: |
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
           export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
-          cmake -B build   -G "Visual Studio 17 2022"  \
+          # Keep the requested toolset for VS2022; VS2026 images may not ship
+          # v143, so use their default toolset.
+          TOOLSET_ARG=""
+          if [[ "$CMAKE_GENERATOR" != *"18 2026"* ]] && [ -n "${{ matrix.toolset }}" ]; then
+            TOOLSET_ARG="-T ${{ matrix.toolset }}"
+          fi
+          cmake -B build   -G "$CMAKE_GENERATOR"      \
                            -A ${{ matrix.arch.name }}  \
-                           -T ${{ matrix.toolset }}    \
+                           $TOOLSET_ARG                \
                            -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}} \
                            -DENABLE_SANITIZERS=${{ matrix.sanitizers }} \
                            -DCRYPTO_BACKEND=${{ matrix.backend }}       \
@@ -206,9 +246,15 @@ jobs:
         run: |
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
           export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
-          cmake -B build   -G "Visual Studio 17 2022"  \
+          # Keep the requested toolset for VS2022; VS2026 images may not ship
+          # v143, so use their default toolset.
+          TOOLSET_ARG=""
+          if [[ "$CMAKE_GENERATOR" != *"18 2026"* ]] && [ -n "${{ matrix.toolset }}" ]; then
+            TOOLSET_ARG="-T ${{ matrix.toolset }}"
+          fi
+          cmake -B build   -G "$CMAKE_GENERATOR"      \
                            -A ${{ matrix.arch.name }}  \
-                           -T ${{ matrix.toolset }}    \
+                           $TOOLSET_ARG                \
                            -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}} \
                            -DENABLE_SANITIZERS=${{ matrix.sanitizers }} \
                            -DCRYPTO_BACKEND=${{ matrix.backend }}       \

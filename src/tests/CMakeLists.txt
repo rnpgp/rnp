@@ -168,13 +168,6 @@ endif()
 add_executable(rnp_tests ${RNP_TEST_SOURCES})
 
 if(MSVC)
-  find_package(WindowsSDK)
-  GetUMWindowsSDKLibraryDir(WIN_LIBRARY_DIR)
-  message (STATUS "Using Windows SDK library directory: ${WIN_LIBRARY_DIR}")
-  find_library(SHLWAPI_LIBRARY
-    PATHS
-       ${WIN_LIBRARY_DIR}
-    NAMES shlwapi)
 
   find_path(GETOPT_INCLUDE_DIR
     NAMES getopt.h
@@ -192,7 +185,10 @@ if(MSVC)
     )
   target_link_libraries(rnp_tests
     PRIVATE
-      "${SHLWAPI_LIBRARY}"
+      # shlwapi is resolved by the linker from the per-architecture Windows SDK
+      # library paths; the old GetUMWindowsSDKLibraryDir probing returned an
+      # empty dir on the ARM64 images, leaving SHLWAPI_LIBRARY NOTFOUND.
+      shlwapi
       "${GETOPT_LIBRARY}"
     )
 endif()
