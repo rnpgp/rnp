@@ -87,6 +87,9 @@ if (OpenSSL::applink)
 endif(OpenSSL::applink)
 if(CMAKE_CROSSCOMPILING_EMULATOR)
   target_link_options(findopensslfeatures PRIVATE -static)
+  # A static libcrypto may reference dlopen() & co (dso_dlfcn.o) while
+  # FindOpenSSL only adds CMAKE_DL_LIBS when pkg-config reports them
+  target_link_libraries(findopensslfeatures PRIVATE ${CMAKE_DL_LIBS})
 endif(CMAKE_CROSSCOMPILING_EMULATOR)
 if (WIN32 AND NOT MINGW)
   target_link_libraries(findopensslfeatures PRIVATE Crypt32 Ws2_32 Advapi32 User32)
