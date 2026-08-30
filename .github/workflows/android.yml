@@ -1,0 +1,194 @@
+# Copyright (c) 2026 [Ribose Inc](https://www.ribose.com).
+# All rights reserved.
+# This file is a part of rnp
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+# Smoke test: cross-compile librnp to aarch64-linux-android, testing
+# BOTH the Botan and OpenSSL backends. The qemu emulator enables the
+# findopensslfeatures probe to run, catching linkage issues (e.g. the
+# CMAKE_DL_LIBS gap fixed in #2473) that a build-only check would miss.
+
+name: android
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/android.yml'
+  pull_request:
+    paths:
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - 'src/lib/CMakeLists.txt'
+      - '.github/workflows/android.yml'
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
+
+jobs:
+  aarch64-android-cross:
+    name: aarch64-linux-android cross-compile (${{ matrix.backend }} backend)
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [botan, openssl]
+        include:
+          - backend: openssl
+            openssl_version: "1.1.1n"
+          - backend: botan
+            botan_version: "3.13.0"
+
+    env:
+      ANDROID_NDK_VERSION: "r29"
+      ANDROID_ABI: arm64-v8a
+      ANDROID_PLATFORM: android-24
+
+    steps:
+      - name: Checkout rnp
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: Install host build deps
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install cmake ninja-build python3 qemu-user-static
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: ${{ env.ANDROID_NDK_VERSION }}
+          add-to-path: false
+
+      - name: Cache cross-built ${{ matrix.backend }}
+        id: cache-deps
+        uses: actions/cache@v4
+        with:
+          path: ~/android-deps/${{ matrix.backend }}
+          key: android-${{ matrix.backend }}-${{ env.ANDROID_NDK_VERSION }}
+
+      - name: Locate Android toolchain & sysroot
+        run: |
+          NDK="${{ steps.setup-ndk.outputs.ndk-path }}"
+          TOOLCHAIN="${NDK}/build/cmake/android.toolchain.cmake"
+          test -f "$TOOLCHAIN"
+          echo "TOOLCHAIN=$TOOLCHAIN" >> $GITHUB_ENV
+          echo "SYSROOT=${NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$NDK" >> $GITHUB_ENV
+
+      # ── OpenSSL cross-build (for the openssl backend) ──
+      - name: Cross-build OpenSSL for aarch64-linux-android
+        if: matrix.backend == 'openssl' && steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/android-deps && cd ~/android-deps
+          curl -sL "https://www.openssl.org/source/openssl-${{ env.openssl_version }}.tar.gz" | tar xz
+          cd "openssl-${{ env.openssl_version }}"
+          export ANDROID_NDK_ROOT="${ANDROID_NDK_HOME}"
+          ./Configure android-arm64 no-shared no-tests \
+            -D__ANDROID_API__=24 \
+            --prefix="$HOME/android-deps/openssl"
+          make -j"$(nproc)" && make install_sw
+
+      # ── Botan cross-build (for the botan backend) ──
+      - name: Cross-build Botan for aarch64-linux-android
+        if: matrix.backend == 'botan' && steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/android-deps && cd ~/android-deps
+          curl -sL "https://botan.randombit.net/releases/Botan-${{ env.botan_version }}.tar.xz" | tar xJ
+          cd "Botan-${{ env.botan_version }}"
+          python3 ./configure.py \
+            --cc=clang \
+            --cpu=aarch64 \
+            --os=android \
+            --cc-abi-flags="--target=aarch64-linux-android24 --sysroot=${SYSROOT}" \
+            --cc-bin="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-linux-android24 --sysroot=${SYSROOT}" \
+            --build-targets=static \
+            --without-documentation \
+            --disable-shared-library \
+            --minimized-build \
+            --enable-modules="$(cat "$GITHUB_WORKSPACE/ci/botan3-pqc-modules" | tr '\n' ',')" \
+            --prefix="$HOME/android-deps/botan"
+          make -j"$(nproc)"
+          make install
+
+      # ── librnp cross-compile ──
+      - name: Configure librnp for aarch64-linux-android
+        run: |
+          DEP_PREFIX="$HOME/android-deps/${{ matrix.backend }}"
+          EXTRA_FLAGS=""
+          if [ "${{ matrix.backend }}" = "openssl" ]; then
+            EXTRA_FLAGS="-DOPENSSL_ROOT_DIR=$DEP_PREFIX"
+          else
+            EXTRA_FLAGS="-DBOTAN_ROOT_DIR=$DEP_PREFIX"
+          fi
+          cmake -B build -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="${TOOLCHAIN}" \
+            -DANDROID_ABI="${ANDROID_ABI}" \
+            -DANDROID_PLATFORM="${ANDROID_PLATFORM}" \
+            -DCMAKE_CROSSCOMPILING_EMULATOR="/usr/bin/qemu-aarch64-static" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DBUILD_TESTING=OFF \
+            -DENABLE_DOC=OFF \
+            -DDOWNLOAD_GTEST=OFF \
+            -DCRYPTO_BACKEND=${{ matrix.backend }} \
+            $EXTRA_FLAGS \
+            .
+
+      - name: Build librnp.a
+        run: cmake --build build --parallel "$(nproc)"
+
+      - name: Verify archive architecture
+        run: |
+          file build/src/lib/librnp.a
+          OBJ=$(ar t build/src/lib/librnp.a | head -1)
+          ar x build/src/lib/librnp.a "$OBJ"
+          file "$OBJ" | tee /dev/stderr | grep -q 'ELF 64-bit LSB.*aarch64'
+
+      - name: Upload librnp artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: librnp-aarch64-linux-android-${{ matrix.backend }}
+          path: |
+            build/src/lib/librnp.a
+            include/rnp/rnp.h
+            include/rnp/rnp_err.h
+          retention-days: 14
