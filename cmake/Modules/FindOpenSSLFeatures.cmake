@@ -107,6 +107,17 @@ if(CMAKE_FIND_ROOT_PATH)
   set(MKF ${MKF} "-DCMAKE_FIND_ROOT_PATH=${CMAKE_FIND_ROOT_PATH}")
 endif(CMAKE_FIND_ROOT_PATH)
 
+# The NDK toolchain derives the target ABI and API level from these cache
+# variables (not from the environment); without them the nested configure
+# silently builds for the default 32-bit ARM ABI and fails to link against
+# the parent's arm64 OpenSSL.
+if(ANDROID_ABI)
+  set(MKF ${MKF} "-DANDROID_ABI=${ANDROID_ABI}")
+endif(ANDROID_ABI)
+if(ANDROID_PLATFORM)
+  set(MKF ${MKF} "-DANDROID_PLATFORM=${ANDROID_PLATFORM}")
+endif(ANDROID_PLATFORM)
+
 if(CMAKE_TOOLCHAIN_FILE)
   set(MKF ${MKF} "-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}")
 endif(CMAKE_TOOLCHAIN_FILE)
