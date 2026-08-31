@@ -119,7 +119,9 @@ jobs:
         if: matrix.backend == 'openssl' && steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/android-deps && cd ~/android-deps
-          curl -sL "https://www.openssl.org/source/openssl-${{ env.openssl_version }}.tar.gz" | tar xz
+          curl -fSL --retry 3 -o openssl.tar.gz \
+            "https://www.openssl.org/source/openssl-${{ env.openssl_version }}.tar.gz"
+          tar xzf openssl.tar.gz
           cd "openssl-${{ env.openssl_version }}"
           export ANDROID_NDK_ROOT="${ANDROID_NDK_HOME}"
           ./Configure android-arm64 no-shared no-tests \
@@ -132,7 +134,9 @@ jobs:
         if: matrix.backend == 'botan' && steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/android-deps && cd ~/android-deps
-          curl -sL "https://botan.randombit.net/releases/Botan-${{ env.botan_version }}.tar.xz" | tar xJ
+          curl -fSL --retry 3 -o botan.tar.xz \
+            "https://botan.randombit.net/releases/Botan-${{ env.botan_version }}.tar.xz"
+          tar xJf botan.tar.xz
           cd "Botan-${{ env.botan_version }}"
           python3 ./configure.py \
             --cc=clang \
