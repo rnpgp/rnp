@@ -103,6 +103,13 @@ if(CMAKE_PREFIX_PATH)
   set(MKF ${MKF} "-DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}")
 endif(CMAKE_PREFIX_PATH)
 
+# Cross toolchain files (e.g. Android NDK) restrict find_path/find_library
+# to sysroot + CMAKE_FIND_ROOT_PATH, so the nested configure must receive
+# the same roots to rediscover the OpenSSL installation.
+if(CMAKE_FIND_ROOT_PATH)
+  set(MKF ${MKF} "-DCMAKE_FIND_ROOT_PATH=${CMAKE_FIND_ROOT_PATH}")
+endif(CMAKE_FIND_ROOT_PATH)
+
 if(CMAKE_TOOLCHAIN_FILE)
   set(MKF ${MKF} "-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}")
 endif(CMAKE_TOOLCHAIN_FILE)
