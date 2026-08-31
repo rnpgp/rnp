@@ -120,9 +120,9 @@ jobs:
         run: |
           mkdir -p ~/android-deps && cd ~/android-deps
           curl -fSL --retry 3 -o openssl.tar.gz \
-            "https://www.openssl.org/source/openssl-${{ env.openssl_version }}.tar.gz"
+            "https://www.openssl.org/source/openssl-${{ matrix.openssl_version }}.tar.gz"
           tar xzf openssl.tar.gz
-          cd "openssl-${{ env.openssl_version }}"
+          cd "openssl-${{ matrix.openssl_version }}"
           export ANDROID_NDK_ROOT="${ANDROID_NDK_HOME}"
           ./Configure android-arm64 no-shared no-tests \
             -D__ANDROID_API__=24 \
@@ -135,9 +135,9 @@ jobs:
         run: |
           mkdir -p ~/android-deps && cd ~/android-deps
           curl -fSL --retry 3 -o botan.tar.xz \
-            "https://botan.randombit.net/releases/Botan-${{ env.botan_version }}.tar.xz"
+            "https://botan.randombit.net/releases/Botan-${{ matrix.botan_version }}.tar.xz"
           tar xJf botan.tar.xz
-          cd "Botan-${{ env.botan_version }}"
+          cd "Botan-${{ matrix.botan_version }}"
           python3 ./configure.py \
             --cc=clang \
             --cpu=aarch64 \
