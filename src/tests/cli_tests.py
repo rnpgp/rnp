@@ -596,6 +596,10 @@ def run_gpg(params):
         lastline = err.strip().splitlines()[-1] if err and err.strip() else ''
         print('gpg transient failure (attempt %d/%d), retrying: %s' %
               (attempt, GPG_TRANSIENT_RETRIES, lastline), file=sys.stderr)
+        # The misbehaving agent state outlives plain re-invocations (seen as
+        # 3 consecutive "BAD signature" retries on CI), so restart the agent
+        # between attempts the same way a fresh runner would.
+        run_proc(GPGCONF, ['--homedir', GPGHOME, '--kill', 'gpg-agent'])
         time.sleep(1)
         ret, out, err = run_proc(GPG, params)
     return ret, out, err
