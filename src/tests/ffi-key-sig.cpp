@@ -2649,7 +2649,16 @@ TEST_F(rnp_tests, test_ffi_verify_detached_pqc_test_vector)
       {"data/draft-ietf-openpgp-pqc/v6-slhdsa-128s-sample-pk.asc",
        "data/draft-ietf-openpgp-pqc/v6-slhdsa-128s-sample-signature.asc"},
       {"data/draft-ietf-openpgp-pqc/v6-slhdsa-256s-sample-pk.asc",
-       "data/draft-ietf-openpgp-pqc/v6-slhdsa-256s-sample-signature.asc"}};
+       "data/draft-ietf-openpgp-pqc/v6-slhdsa-256s-sample-signature.asc"},
+      /* additional nist/bp combinations */
+      {"data/draft-ietf-openpgp-pqc-nist-bp-comp/pubkey-primary41-sub37.asc",
+       "data/draft-ietf-openpgp-pqc-nist-bp-comp/detached-alg41.asc"},
+      {"data/draft-ietf-openpgp-pqc-nist-bp-comp/pubkey-primary42-sub38.asc",
+       "data/draft-ietf-openpgp-pqc-nist-bp-comp/detached-alg42.asc"},
+      {"data/draft-ietf-openpgp-pqc-nist-bp-comp/pubkey-primary43-sub39.asc",
+       "data/draft-ietf-openpgp-pqc-nist-bp-comp/detached-alg43.asc"},
+      {"data/draft-ietf-openpgp-pqc-nist-bp-comp/pubkey-primary44-sub40.asc",
+       "data/draft-ietf-openpgp-pqc-nist-bp-comp/detached-alg44.asc"}};
 
     for (auto key_sig_pair : key_sig_pairs) {
         rnp_ffi_t       ffi = NULL;

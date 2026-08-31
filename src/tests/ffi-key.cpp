@@ -3336,7 +3336,15 @@ TEST_F(rnp_tests, test_ffi_pqc_certs)
        "data/draft-ietf-openpgp-pqc/v6-mldsa-87-sample-sk.asc"},
       {"data/draft-ietf-openpgp-pqc/v6-slhdsa-128s-sample-pk.asc",
        "data/draft-ietf-openpgp-pqc/v6-slhdsa-128s-sample-sk.asc"},
-    };
+      /* additional nist/bp combinations */
+      {"data/draft-ietf-openpgp-pqc-nist-bp-comp/pubkey-primary41-sub37.asc",
+       "data/draft-ietf-openpgp-pqc-nist-bp-comp/seckey-primary41-sub37.asc"},
+      {"data/draft-ietf-openpgp-pqc-nist-bp-comp/pubkey-primary42-sub38.asc",
+       "data/draft-ietf-openpgp-pqc-nist-bp-comp/seckey-primary42-sub38.asc"},
+      {"data/draft-ietf-openpgp-pqc-nist-bp-comp/pubkey-primary43-sub39.asc",
+       "data/draft-ietf-openpgp-pqc-nist-bp-comp/seckey-primary43-sub39.asc"},
+      {"data/draft-ietf-openpgp-pqc-nist-bp-comp/pubkey-primary44-sub40.asc",
+       "data/draft-ietf-openpgp-pqc-nist-bp-comp/seckey-primary44-sub40.asc"}};
 
     for (auto pub_sec_key : pub_sec_keys) {
         int expected_keys = 2;
