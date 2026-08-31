@@ -441,7 +441,7 @@ rnpkeys_ask_generate_params_subkey(rnp_cfg &cfg, FILE *input_fp)
                "\t(19) ECDSA\n"
                "\t(22) EDDSA\n"
 #if defined(ENABLE_PQC)
-               "\t(25) ML-KEN-768 + X25519\n"
+               "\t(25) ML-KEM-768 + X25519\n"
 #endif
 #if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
                "\t(26) ML-KEM-1024 + X448\n"
