@@ -124,6 +124,10 @@ jobs:
           tar xzf openssl.tar.gz
           cd "openssl-${{ matrix.openssl_version }}"
           export ANDROID_NDK_ROOT="${ANDROID_NDK_HOME}"
+          export PATH="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+          export CC=aarch64-linux-android24-clang
+          export AR=llvm-ar
+          export RANLIB=llvm-ranlib
           ./Configure android-arm64 no-shared no-tests \
             -D__ANDROID_API__=24 \
             --prefix="$HOME/android-deps/openssl"
@@ -163,10 +167,12 @@ jobs:
           else
             EXTRA_FLAGS="-DBOTAN_ROOT_DIR=$DEP_PREFIX"
           fi
+          DEP_PREFIX="$HOME/android-deps/${{ matrix.backend }}"
           cmake -B build -G Ninja \
             -DCMAKE_TOOLCHAIN_FILE="${TOOLCHAIN}" \
             -DANDROID_ABI="${ANDROID_ABI}" \
             -DANDROID_PLATFORM="${ANDROID_PLATFORM}" \
+            -DCMAKE_FIND_ROOT_PATH="${DEP_PREFIX}" \
             -DCMAKE_CROSSCOMPILING_EMULATOR="/usr/bin/qemu-aarch64-static" \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_SHARED_LIBS=OFF \
