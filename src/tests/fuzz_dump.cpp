@@ -61,4 +61,10 @@ TEST_F(rnp_tests, test_fuzz_dump)
 
     data = file_to_vec(DATA_PATH "abrt-5093675862917120");
     assert_int_equal(dump_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
+
+    /* nested decompression bomb: must be stopped by the dump limits */
+    data = file_to_vec(DATA_PATH "outofmemory-12fd9b02d8465f2f");
+    start = time(NULL);
+    assert_int_equal(dump_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
+    assert_true(time(NULL) - start <= 30);
 }

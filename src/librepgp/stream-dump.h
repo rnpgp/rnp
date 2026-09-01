@@ -30,23 +30,37 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <sys/types.h>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include "rnp.h"
+#include "stream-def.h"
 #include "stream-common.h"
 #include "stream-packet.h"
 #include "sig_subpacket.hpp"
 #include "key_material.hpp"
 
 namespace rnp {
+
+/* Budget of the decompressed data which may be processed during the single dump
+ * call. Shared between all dump layers, so nested decompression bombs cannot
+ * exceed it (see issue with the fuzz_dump OOM). */
+struct dump_budget_t {
+    size_t left;
+    bool   hit;
+};
+
 class DumpContext {
   protected:
-    bool          dump_mpi{};
-    bool          dump_packets{};
-    bool          dump_grips{};
-    size_t        layers{};
-    size_t        stream_pkts{};
-    size_t        failures{};
-    pgp_source_t &src;
+    bool   dump_mpi{};
+    bool   dump_packets{};
+    bool   dump_grips{};
+    size_t layers{};
+    size_t stream_pkts{};
+    size_t failures{};
+    size_t dumped_pkts{};
+    /* shared between all (nested) dump contexts */
+    std::shared_ptr<dump_budget_t> zbudget{};
+    pgp_source_t &                 src;
 
     virtual rnp_result_t dump_raw_packets() = 0;
     void                 copy_params(const DumpContext &ctx);
@@ -54,7 +68,10 @@ class DumpContext {
     bool                 skip_cleartext();
 
   public:
-    DumpContext(pgp_source_t &asrc) : src(asrc){};
+    DumpContext(pgp_source_t &asrc)
+        : zbudget(std::make_shared<dump_budget_t>(
+            dump_budget_t{MAXIMUM_DUMP_DECOMPRESSED_SIZE, false})),
+          src(asrc){};
     virtual ~DumpContext(){};
 
     void
