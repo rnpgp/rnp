@@ -85,9 +85,6 @@ target_link_libraries(rnpkeys
   PRIVATE
     librnp
 )
-if(WIN32)
-  target_link_libraries(rnpkeys PRIVATE crypt32 wintrust)
-endif()
 if(MSVC)
   target_link_libraries(rnpkeys
     PRIVATE

@@ -27,13 +27,13 @@
 #include "rnp_tests.h"
 
 #if defined(_WIN32)
-#include "common/dll-verify.h"
+#include "rnp/fficli.h"
 
 TEST_F(rnp_tests, test_dll_verify_unsigned)
 {
     /* CI and development builds are unsigned, so the module verification
      * must succeed as a no-op (the check only activates for signed
      * executables). */
-    assert_true(rnp_dll_verify_modules());
+    assert_true(cli_rnp_verify_module_signatures());
 }
 #endif

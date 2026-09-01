@@ -105,6 +105,12 @@ disable_core_dumps(void)
 
 #ifdef _WIN32
 #include <windows.h>
+/* initguid instantiates the WinTrust action GUIDs in this translation unit,
+ * so no link-time dependency on wintrust.lib is needed (see below). */
+#include <initguid.h>
+#include <wintrust.h>
+#include <softpub.h>
+#include <set>
 #include <stdexcept>
 
 static std::vector<std::string>
@@ -3372,3 +3378,172 @@ cli_rnp_print_feature(FILE *fp, const char *type, const char *printed_type)
     }
     rnp_buffer_destroy(result);
 }
+
+#if defined(_WIN32)
+namespace {
+
+enum class sig_status_t { valid, invalid, unavailable };
+
+/* Checks the embedded Authenticode signature. WinVerifyTrust is resolved
+ * dynamically from System32 so that embedders compiling this file (e.g.
+ * Thunderbird's moz.build) need no additional link-time dependencies, and so
+ * that the verification API itself cannot be side-loaded. */
+sig_status_t
+check_file_signature(const wchar_t *path)
+{
+    using WinVerifyTrustFn = LONG(WINAPI *)(HWND, GUID *, LPVOID);
+    static WinVerifyTrustFn verify_trust = []() -> WinVerifyTrustFn {
+        HMODULE wintrust = LoadLibraryExW(L"wintrust.dll", NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
+        if (!wintrust) {
+            return nullptr;
+        }
+        return reinterpret_cast<WinVerifyTrustFn>(
+          reinterpret_cast<void *>(GetProcAddress(wintrust, "WinVerifyTrust")));
+    }();
+    if (!verify_trust) {
+        return sig_status_t::unavailable;
+    }
+
+    WINTRUST_FILE_INFO file = {};
+    file.cbStruct = sizeof(file);
+    file.pcwszFilePath = path;
+
+    GUID           action = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+    WINTRUST_DATAW data = {};
+    data.cbStruct = sizeof(data);
+    data.dwUIChoice = WTD_UI_NONE;
+    data.fdwRevocationChecks = WTD_REVOCATION_CHECK_NONE;
+    data.dwUnionChoice = WTD_CHOICE_FILE;
+    data.dwStateAction = WTD_STATEACTION_VERIFY;
+    data.pFile = &file;
+
+    HWND dummy = static_cast<HWND>(INVALID_HANDLE_VALUE);
+    LONG res = verify_trust(dummy, &action, &data);
+    data.dwStateAction = WTD_STATEACTION_CLOSE;
+    verify_trust(dummy, &action, &data);
+    return (res == ERROR_SUCCESS) ? sig_status_t::valid : sig_status_t::invalid;
+}
+
+std::wstring
+module_path(HMODULE mod)
+{
+    wchar_t path[32768] = {0};
+    return GetModuleFileNameW(mod, path, 32768) ? std::wstring(path) : std::wstring();
+}
+
+std::wstring
+to_lower(const std::wstring &str)
+{
+    std::wstring res(str);
+    std::transform(res.begin(), res.end(), res.begin(), towlower);
+    return res;
+}
+
+std::wstring
+directory_of(const std::wstring &path)
+{
+    size_t pos = path.find_last_of(L"\\/");
+    return (pos == std::wstring::npos) ? std::wstring() : path.substr(0, pos);
+}
+
+bool
+path_in_directory(const std::wstring &path, const std::wstring &dir)
+{
+    if (dir.empty() || path.size() <= dir.size() + 1) {
+        return false;
+    }
+    if (_wcsnicmp(path.c_str(), dir.c_str(), dir.size()) != 0) {
+        return false;
+    }
+    return path[dir.size()] == L'\\' || path[dir.size()] == L'/';
+}
+
+/* Collects the names of the DLLs imported by the module mapped at base. The
+ * images were already validated by the loader, so a defensive bound suffices. */
+void
+collect_imports(uint8_t *base, std::vector<std::wstring> &names)
+{
+    if (!base) {
+        return;
+    }
+    auto dos = reinterpret_cast<PIMAGE_DOS_HEADER>(base);
+    if (dos->e_magic != IMAGE_DOS_SIGNATURE) {
+        return;
+    }
+    auto nt = reinterpret_cast<PIMAGE_NT_HEADERS>(base + dos->e_lfanew);
+    if (nt->Signature != IMAGE_NT_SIGNATURE) {
+        return;
+    }
+    auto &dir = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+    if (!dir.VirtualAddress) {
+        return;
+    }
+    auto imp = reinterpret_cast<PIMAGE_IMPORT_DESCRIPTOR>(base + dir.VirtualAddress);
+    for (size_t i = 0; imp->Name && i < 1024; imp++, i++) {
+        wchar_t name[MAX_PATH] = {0};
+        MultiByteToWideChar(
+          CP_ACP, 0, reinterpret_cast<const char *>(base + imp->Name), -1, name, MAX_PATH);
+        if (name[0]) {
+            names.push_back(name);
+        }
+    }
+}
+
+} // namespace
+
+bool
+cli_rnp_verify_module_signatures()
+{
+    std::wstring exe = module_path(NULL);
+    if (exe.empty()) {
+        return true;
+    }
+    /* Unsigned (or not verifiably signed) executable is a development build: a
+     * swapped DLL would not gain trusted-process status, nothing to enforce. */
+    if (check_file_signature(exe.c_str()) != sig_status_t::valid) {
+        return true;
+    }
+
+    std::wstring           exedir = directory_of(exe);
+    std::set<std::wstring> seen;
+    std::vector<HMODULE>   pending{NULL};
+    bool                   trusted = true;
+    while (!pending.empty() && seen.size() < 64) {
+        HMODULE mod = pending.back();
+        pending.pop_back();
+        std::vector<std::wstring> names;
+        collect_imports(reinterpret_cast<uint8_t *>(mod), names);
+        for (const auto &name : names) {
+            if (!seen.insert(to_lower(name)).second) {
+                continue;
+            }
+            HMODULE imported = GetModuleHandleW(name.c_str());
+            if (!imported) {
+                continue;
+            }
+            std::wstring path = module_path(imported);
+            /* only modules shipped next to the executable are ours to check */
+            if (path.empty() || !path_in_directory(path, exedir)) {
+                continue;
+            }
+            switch (check_file_signature(path.c_str())) {
+            case sig_status_t::valid:
+                pending.push_back(imported);
+                break;
+            case sig_status_t::invalid:
+                fwprintf(stderr,
+                         L"error: module '%s' is loaded from the application directory "
+                         L"but has no valid digital signature - possible DLL "
+                         L"side-loading. Refusing to continue.\n",
+                         path.c_str());
+                trusted = false;
+                break;
+            case sig_status_t::unavailable:
+                fwprintf(stderr, L"warning: could not verify module signatures.\n");
+                return true;
+            }
+        }
+    }
+    return trusted;
+}
+#endif

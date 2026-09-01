@@ -28,10 +28,6 @@ add_library(rnp-common OBJECT
   time-utils.cpp
 )
 
-if(WIN32)
-  target_sources(rnp-common PRIVATE dll-verify.cpp)
-endif()
-
 if(MSVC)
   find_path(GETOPT_INCLUDE_DIR
     NAMES getopt.h
