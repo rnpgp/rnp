@@ -40,6 +40,39 @@ C project, the C++ runtime must be linked as well: with CMake enable the CXX
 language in your project, with manual flags link via the C++ compiler driver
 or add the C++ standard library explicitly (`-lc++` or `-lstdc++`).
 
+== Hardening signed Windows distributions (DLL side-loading)
+
+The `rnp` and `rnpkeys` command-line tools are attractive side-loading
+targets on Windows when shipped inside a digitally signed application (see
+issue #2411): the Windows loader resolves `rnp.dll` (and any other DLL) from
+the executable's directory *before* `main()` runs, so replacing a DLL next
+to a signed `rnpkeys.exe` results in attacker-controlled code running
+inside a process that appears trusted to EDR/AV products.
+
+Two complementary mitigations are available:
+
+. *Prefer static linking for signed distributions.* Building the tools with
+  `-DBUILD_SHARED_LIBS=OFF` removes the `rnp.dll` import entirely (the CLI
+  executables statically link librnp), which also closes the
+  loader-resolves-before-main window for the library itself. This is the
+  recommended configuration for distributors who sign and ship the
+  executables.
+. *Runtime module verification (default on Windows).* On startup, `rnp` and
+  `rnpkeys` check every module loaded from the executable's own directory
+  for a valid Authenticode signature, but only when the executable itself is
+  signed — unsigned development builds are unaffected. If an unsigned or
+  invalidly signed module is found, the tool refuses to continue with a
+  clear error message. Note that a startup check runs after the loader has
+  already mapped the DLLs, so it detects the substitution and aborts before
+  the tool is abused further, but cannot fully prevent execution of the
+  replaced module's initialization code — hence the static-linking
+  recommendation above.
+
+Projects embedding the rnp sources directly (rather than building through
+rnp's CMake) must compile `src/common/dll-verify.cpp` into the CLI
+executables on Windows and link `crypt32` and `wintrust` (see
+Thunderbird's `third_party/rnp` `moz.build` setup).
+
 == CMake find_package
 
 The installed CMake package (`<prefix>/lib/cmake/rnp/rnp-config.cmake`)

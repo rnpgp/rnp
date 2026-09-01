@@ -37,6 +37,9 @@
 #include <stdio.h>
 #include <string.h>
 #include "rnpkeys.h"
+#if defined(_WIN32)
+#include "common/dll-verify.h"
+#endif
 
 extern struct option options[];
 extern const char *  usage;
@@ -67,6 +70,12 @@ int
 rnpkeys_main(int argc, char **argv)
 #endif
 {
+#if !defined(RNP_RUN_TESTS) && defined(_WIN32)
+    if (!rnp_dll_verify_modules()) {
+        return EXIT_FAILURE;
+    }
+#endif
+
     if (argc < 2) {
         print_usage(usage);
         return EXIT_FAILURE;
