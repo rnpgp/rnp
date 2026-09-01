@@ -49,6 +49,9 @@
 #include <errno.h>
 
 #include "fficli.h"
+#if defined(_WIN32)
+#include "common/dll-verify.h"
+#endif
 #include "str-utils.h"
 #include "logging.h"
 
@@ -641,6 +644,12 @@ int
 rnp_main(int argc, char **argv)
 #endif
 {
+#if !defined(RNP_RUN_TESTS) && defined(_WIN32)
+    if (!rnp_dll_verify_modules()) {
+        return EXIT_ERROR;
+    }
+#endif
+
     if (argc < 2) {
         print_usage(usage);
         return EXIT_ERROR;
