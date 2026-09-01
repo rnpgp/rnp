@@ -581,8 +581,9 @@ using namespace pgp;
 /* Source wrapper which limits the number of bytes which may be read through it,
  * used on top of the decompressed packet contents during the dump. */
 typedef struct dump_limited_src_param_t {
-    pgp_source_t *                 readsrc;
-    std::shared_ptr<dump_budget_t> budget;
+    pgp_source_t *readsrc;
+    /* owned by the parent dump context, which outlives this source */
+    dump_budget_t *budget;
 } dump_limited_src_param_t;
 
 static bool
@@ -611,9 +612,7 @@ dump_limited_src_close(pgp_source_t *src)
 }
 
 static rnp_result_t
-init_dump_limited_src(pgp_source_t *                        src,
-                      pgp_source_t *                        readsrc,
-                      const std::shared_ptr<dump_budget_t> &budget)
+init_dump_limited_src(pgp_source_t *src, pgp_source_t *readsrc, dump_budget_t *budget)
 {
     if (!init_src_common(src, sizeof(dump_limited_src_param_t))) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
@@ -1494,7 +1493,7 @@ DumpContextDst::dump_compressed()
         return ret;
     }
     Source lsrc;
-    if ((ret = init_dump_limited_src(&lsrc.src(), &zsrc->src(), zbudget))) {
+    if ((ret = init_dump_limited_src(&lsrc.src(), &zsrc->src(), zbudget.get()))) {
         return ret;
     }
 
@@ -2601,7 +2600,7 @@ DumpContextJson::dump_compressed(nlohmann::ordered_json &pkt)
         return ret;
     }
     Source lsrc;
-    if ((ret = init_dump_limited_src(&lsrc.src(), &zsrc->src(), zbudget))) {
+    if ((ret = init_dump_limited_src(&lsrc.src(), &zsrc->src(), zbudget.get()))) {
         return ret;
     }
 
