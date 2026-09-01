@@ -110,6 +110,7 @@ disable_core_dumps(void)
 #include <initguid.h>
 #include <wintrust.h>
 #include <softpub.h>
+#include <algorithm>
 #include <set>
 #include <stdexcept>
 
