@@ -578,6 +578,55 @@ dst_hexdump(pgp_dest_t &dst, const std::vector<uint8_t> &data)
 namespace rnp {
 using namespace pgp;
 
+/* Source wrapper which limits the number of bytes which may be read through it,
+ * used on top of the decompressed packet contents during the dump. */
+typedef struct dump_limited_src_param_t {
+    pgp_source_t *                 readsrc;
+    std::shared_ptr<dump_budget_t> budget;
+} dump_limited_src_param_t;
+
+static bool
+dump_limited_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
+{
+    auto param = static_cast<dump_limited_src_param_t *>(src->param);
+    if (!param->budget->left) {
+        if (!param->budget->hit) {
+            RNP_LOG("too much decompressed data during the dump, stopping.");
+            param->budget->hit = true;
+        }
+        return false;
+    }
+    len = std::min(len, param->budget->left);
+    if (!param->readsrc->read(buf, len, readres)) {
+        return false;
+    }
+    param->budget->left -= *readres;
+    return true;
+}
+
+static void
+dump_limited_src_close(pgp_source_t *src)
+{
+    free(src->param);
+}
+
+static rnp_result_t
+init_dump_limited_src(pgp_source_t *                        src,
+                      pgp_source_t *                        readsrc,
+                      const std::shared_ptr<dump_budget_t> &budget)
+{
+    if (!init_src_common(src, sizeof(dump_limited_src_param_t))) {
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+    }
+    auto param = static_cast<dump_limited_src_param_t *>(src->param);
+    param->readsrc = readsrc;
+    param->budget = budget;
+    src->raw_read = dump_limited_src_read;
+    src->raw_close = dump_limited_src_close;
+    src->type = PGP_STREAM_PARLEN_PACKET;
+    return RNP_SUCCESS;
+}
+
 void
 DumpContext::copy_params(const DumpContext &ctx)
 {
@@ -588,6 +637,8 @@ DumpContext::copy_params(const DumpContext &ctx)
     layers = ctx.layers;
     stream_pkts = ctx.stream_pkts;
     failures = ctx.failures;
+    dumped_pkts = ctx.dumped_pkts;
+    zbudget = ctx.zbudget;
 }
 
 bool
@@ -1442,6 +1493,10 @@ DumpContextDst::dump_compressed()
     if (ret) {
         return ret;
     }
+    Source lsrc;
+    if ((ret = init_dump_limited_src(&lsrc.src(), &zsrc->src(), zbudget))) {
+        return ret;
+    }
 
     dst_printf(dst, "Compressed data packet\n");
     indent_dest_increase(dst);
@@ -1451,10 +1506,15 @@ DumpContextDst::dump_compressed()
     dst_print_zalg(dst, NULL, (pgp_compression_type_t) zalg);
     dst_printf(dst, "Decompressed contents:\n");
 
-    std::unique_ptr<DumpContextDst> ctx(new DumpContextDst(zsrc->src(), dst));
+    std::unique_ptr<DumpContextDst> ctx(new DumpContextDst(lsrc.src(), dst));
     ctx->copy_params(*this);
     ret = ctx->dump(true);
     copy_params(*ctx);
+    if (ret && zbudget->hit) {
+        /* limit on the decompressed data was reached - dump what we have so far */
+        dst_printf(dst, ":too much decompressed data, stopping.\n");
+        ret = RNP_SUCCESS;
+    }
     indent_dest_decrease(dst);
     return ret;
 }
@@ -1521,6 +1581,16 @@ DumpContextDst::dump_raw_packets()
     }
 
     while (!src.eof()) {
+        if (zbudget->hit) {
+            dst_printf(dst, ":too much decompressed data, stopping.\n");
+            return RNP_SUCCESS;
+        }
+        if (++dumped_pkts > MAXIMUM_DUMP_PKTS) {
+            RNP_LOG("Too many packets during the dump.");
+            dst_printf(dst, ":too many packets, stopping.\n");
+            return RNP_SUCCESS;
+        }
+
         pgp_packet_hdr_t hdr{};
         size_t           off = src.readb;
         rnp_result_t     hdrret = stream_peek_packet_hdr(&src, &hdr);
@@ -1672,7 +1742,17 @@ DumpContextDst::dump(bool raw_only)
             DumpContextDst ctx(armor.src(), dst);
             ctx.copy_params(*this);
             ret = ctx.dump(true);
-            if (ret) {
+            if (ret && !zbudget->hit) {
+                break;
+            }
+            /* accumulate counters, but not layers: each armored message is
+             * dumped at the same nesting level */
+            stream_pkts = ctx.stream_pkts;
+            failures = ctx.failures;
+            dumped_pkts = ctx.dumped_pkts;
+            if (zbudget->hit) {
+                dst_printf(dst, ":too much decompressed data, stopping.\n");
+                ret = RNP_SUCCESS;
                 break;
             }
         }
@@ -2520,6 +2600,10 @@ DumpContextJson::dump_compressed(nlohmann::ordered_json &pkt)
     if (ret) {
         return ret;
     }
+    Source lsrc;
+    if ((ret = init_dump_limited_src(&lsrc.src(), &zsrc->src(), zbudget))) {
+        return ret;
+    }
 
     uint8_t zalg;
     get_compressed_src_alg(&zsrc->src(), &zalg);
@@ -2528,10 +2612,15 @@ DumpContextJson::dump_compressed(nlohmann::ordered_json &pkt)
     }
 
     nlohmann::ordered_json contents;
-    DumpContextJson        ctx(zsrc->src(), &contents);
+    DumpContextJson        ctx(lsrc.src(), &contents);
     ctx.copy_params(*this);
     ret = ctx.dump(true);
     copy_params(ctx);
+    if (zbudget->hit) {
+        /* limit on the decompressed data was reached - dump what we have so far */
+        pkt["contents"] = std::move(contents);
+        return RNP_SUCCESS;
+    }
     if (!ret) {
         pkt["contents"] = std::move(contents);
     }
@@ -2615,6 +2704,14 @@ DumpContextJson::dump_raw_packets()
     }
 
     while (!src.eof()) {
+        if (zbudget->hit) {
+            break;
+        }
+        if (++dumped_pkts > MAXIMUM_DUMP_PKTS) {
+            RNP_LOG("Too many packets during the dump.");
+            break;
+        }
+
         auto &           pkt = pkts.emplace_back(nlohmann::ordered_json::object());
         pgp_packet_hdr_t hdr{};
         if (!dump_pkt_hdr(hdr, pkt)) {
@@ -2737,11 +2834,20 @@ DumpContextJson::dump(bool raw_only)
             DumpContextJson        ctx(armor.src(), &block);
             ctx.copy_params(*this);
             ret = ctx.dump(true);
-            if (ret) {
+            if (ret && !zbudget->hit) {
                 break;
             }
+            /* accumulate counters, but not layers: each armored message is
+             * dumped at the same nesting level */
+            stream_pkts = ctx.stream_pkts;
+            failures = ctx.failures;
+            dumped_pkts = ctx.dumped_pkts;
             if (block.is_array()) {
                 res.insert(res.end(), block.begin(), block.end());
+            }
+            if (zbudget->hit) {
+                ret = RNP_SUCCESS;
+                break;
             }
         }
         *json = std::move(res);

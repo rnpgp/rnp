@@ -61,6 +61,11 @@
 #define MAXIMUM_STREAM_PKTS 16
 #define MAXIMUM_ERROR_PKTS 64
 
+/* Limits for the packet dump, making nested decompression bombs and packet
+ * floods non-lethal for memory/time (both text and JSON dump paths) */
+#define MAXIMUM_DUMP_PKTS 32768
+#define MAXIMUM_DUMP_DECOMPRESSED_SIZE (256 * 1024 * 1024)
+
 /* Maximum text line length supported by GnuPG */
 #define MAXIMUM_GNUPG_LINELEN 19995
 
