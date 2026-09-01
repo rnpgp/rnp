@@ -113,6 +113,7 @@ set(RNP_TEST_SOURCES
   ffi-key-prop.cpp
   ffi-key.cpp
   file-utils.cpp
+  dll-verify.cpp
   generatekey.cpp
   kbx-nsigs-test.cpp
   key-add-userid.cpp
@@ -189,6 +190,13 @@ if(MSVC)
       # empty dir on the ARM64 images, leaving SHLWAPI_LIBRARY NOTFOUND.
       shlwapi
       "${GETOPT_LIBRARY}"
+    )
+endif()
+if(WIN32)
+  target_link_libraries(rnp_tests
+    PRIVATE
+      crypt32
+      wintrust
     )
 endif()
 if (CRYPTO_BACKEND_BOTAN)
