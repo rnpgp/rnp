@@ -192,13 +192,6 @@ if(MSVC)
       "${GETOPT_LIBRARY}"
     )
 endif()
-if(WIN32)
-  target_link_libraries(rnp_tests
-    PRIVATE
-      crypt32
-      wintrust
-    )
-endif()
 if (CRYPTO_BACKEND_BOTAN)
   get_target_property(BOTAN_INCLUDE_DIRS Botan::Botan INTERFACE_INCLUDE_DIRECTORIES)
 endif()

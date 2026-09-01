@@ -68,10 +68,11 @@ Two complementary mitigations are available:
   replaced module's initialization code — hence the static-linking
   recommendation above.
 
-Projects embedding the rnp sources directly (rather than building through
-rnp's CMake) must compile `src/common/dll-verify.cpp` into the CLI
-executables on Windows and link `crypt32` and `wintrust` (see
-Thunderbird's `third_party/rnp` `moz.build` setup).
+The check lives in `src/rnp/fficli.cpp`, a file which every embedder of the
+rnp CLI sources already compiles into both tools, and the Windows APIs it
+uses are resolved at runtime from System32 - so embedding projects (such as
+Thunderbird's `third_party/rnp` `moz.build` setup) pick it up with a plain
+re-vendor, without any build configuration changes.
 
 == CMake find_package
 
