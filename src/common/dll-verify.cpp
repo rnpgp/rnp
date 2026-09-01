@@ -42,12 +42,12 @@ namespace {
 bool
 file_has_valid_signature(const std::wstring &path)
 {
-    WINTRUST_FILE_INFOW file = {};
+    WINTRUST_FILE_INFO file = {};
     file.cbStruct = sizeof(file);
     file.pcwszFilePath = path.c_str();
 
-    GUID           policy = WINTRUST_ACTION_GENERIC_VERIFY_V2;
-    WINTRUST_DATAW data = {};
+    GUID          policy = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+    WINTRUST_DATA data = {};
     data.cbStruct = sizeof(data);
     data.dwUIChoice = WTD_UI_NONE;
     data.fdwRevocationChecks = WTD_REVOCATION_CHECK_NONE;
@@ -56,9 +56,9 @@ file_has_valid_signature(const std::wstring &path)
     data.dwStateAction = WTD_STATEACTION_VERIFY;
 
     HWND dummy = static_cast<HWND>(INVALID_HANDLE_VALUE);
-    LONG res = WinVerifyTrustW(dummy, &policy, &data);
+    LONG res = WinVerifyTrust(dummy, &policy, &data);
     data.dwStateAction = WTD_STATEACTION_CLOSE;
-    WinVerifyTrustW(dummy, &policy, &data);
+    WinVerifyTrust(dummy, &policy, &data);
     return res == ERROR_SUCCESS;
 }
 
