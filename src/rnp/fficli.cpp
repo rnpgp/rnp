@@ -3409,7 +3409,7 @@ check_file_signature(const wchar_t *path)
     file.cbStruct = sizeof(file);
     file.pcwszFilePath = path;
 
-    GUID           action = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+    GUID          action = WINTRUST_ACTION_GENERIC_VERIFY_V2;
     WINTRUST_DATA data = {};
     data.cbStruct = sizeof(data);
     data.dwUIChoice = WTD_UI_NONE;
