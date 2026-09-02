@@ -74,6 +74,16 @@ uses are resolved at runtime from System32 - so embedding projects (such as
 Thunderbird's `third_party/rnp` `moz.build` setup) pick it up with a plain
 re-vendor, without any build configuration changes.
 
+On macOS the equivalent exposure exists (the tools load `librnp.dylib` via
+`@rpath` from the application directory, before `main()`), but the platform
+provides a stronger, kernel-enforced mitigation: code signing the executables
+with the hardened runtime and *without* the
+`com.apple.security.cs.disable-library-validation` entitlement turns on
+library validation, which makes the loader reject any dylib not signed by
+the same Team ID - verified empirically on a current Thunderbird release.
+Signed macOS distributions should simply keep that configuration for the
+bundled rnp tools.
+
 == CMake find_package
 
 The installed CMake package (`<prefix>/lib/cmake/rnp/rnp-config.cmake`)
