@@ -2,12 +2,12 @@
 .\"     Title: rnpkeys
 .\"    Author: RNP
 .\" Generator: Asciidoctor 2.0.26
-.\"      Date: 2026-08-01
+.\"      Date: 2026-09-02
 .\"    Manual: RNP Manual
 .\"    Source: RNP 0.18.1
 .\"  Language: English
 .\"
-.TH "RNPKEYS" "1" "2026-08-01" "RNP 0.18.1" "RNP Manual"
+.TH "RNPKEYS" "1" "2026-09-02" "RNP 0.18.1" "RNP Manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -28,7 +28,7 @@
 .  LINKSTYLE blue R < >
 .\}
 .SH "NAME"
-RNPKEYS \- OpenPGP key management utility.
+rnpkeys \- OpenPGP key management utility.
 .SH "SYNOPSIS"
 .sp
 \fBrnpkeys\fP [\fI\-\-homedir\fP \fIdir\fP] [\fIOPTIONS\fP] \fICOMMAND\fP
@@ -156,9 +156,7 @@ It may be specified in one of the following ways:
 \fBuserid\fP
 .RS 4
 Or just part of the \fBuserid\fP.
-For \fB"Alice \c
-.MTO "alice\(atrnpgp.com" "" ""\fP,"
-the following methods are considered identical:
+For \fIalice@rnpgp.com\fP, the following methods are considered identical:
 .sp
 .RS 4
 .ie n \{\
@@ -867,9 +865,7 @@ To import all secret keys the following command should be used (please note, tha
 This example generates a new key with specified userid and expiration.
 Also it enables "expert" mode, allowing the selection of key/subkey algorithms.
 .sp
-\fBrnpkeys\fP \fB\-\-generate\fP \fB\-\-userid\fP \fB"\c
-.MTO "john\(atdoe.com" "" ""\fP"
-\fB\-\-expert\fP \fB\-\-expiration\fP \fB1y\fP
+\fBrnpkeys\fP \fB\-\-generate\fP \fB\-\-userid\fP \fIjohn@doe.com\fP \fB\-\-expert\fP \fB\-\-expiration\fP \fB1y\fP
 .SH "BUGS"
 .sp
 Please report \fIissues\fP via the RNP public issue tracker at:

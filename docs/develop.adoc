@@ -437,6 +437,39 @@ rnp_result_t
 rnp_do_operation(const char *param1, const int param2, int *size, char *buffer);
 --
 
+== Man pages
+
+Man pages are generated from AsciiDoc sources (`src/*/[name].[1-9].adoc`).
+Two toolchains are supported, and every man page source must build and
+render identically with both (`ci/check-man-pages.sh` enforces this in CI,
+modeled on git's dual-toolchain documentation check):
+
+* `asciidoctor -b manpage` (preferred, no extra dependencies), or
+* classic Python `asciidoc` (asciidoc-py) via docbook XML and
+  `xsltproc`/docbook-xsl, using `cmake/Modules/adoc-manpage.xsl`.
+
+CMake picks `asciidoctor` when available and falls back to
+`asciidoc` + `xsltproc`; `ASCIIDOC_TOOL` forces either one. When neither
+is installed, pre-generated pages from `docs/man/` are installed instead;
+refresh them with `ci/regen-man-pages.sh` (always with asciidoctor) after
+changing a man page source.
+
+To keep the sources compatible with both toolchains, stick to their
+common subset:
+
+* The NAME section must start with the page's own name
+  (e.g. `rnp - ...` for `rnp.1.adoc`); docbook-xsl names its output
+  after the first refname.
+* Prefer literal blocks (`----`) over `+` hard line breaks for verbatim
+  content such as headers and code; docbook-xsl drops `+` breaks inside
+  paragraphs unless they are plain text.
+* Do not nest quotes inside emphasis markers (`*"text"*`, `*"a@b.com"*`):
+  the tools disagree on where the span ends.
+* Avoid the `user@domain` and `<user@domain>` email shapes in running
+  text: asciidoctor turns them into email macros while asciidoc-py
+  leaves them as plain text. Wrap them in matched emphasis
+  (`_a@b.com_`) or monospace (`` `a@b.com` ``) instead.
+
 == OpenPGP protocol specification
 
 During development you'll need to reference OpenPGP protocol and related documents.

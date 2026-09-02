@@ -38,35 +38,72 @@
 #
 
 set(ADOCCOMMAND_FOUND 0)
+set(ADOC_BACKEND "")
+set(ADOC_MANPAGE_XSL "${CMAKE_CURRENT_LIST_DIR}/adoc-manpage.xsl")
 
-# Man page generation requires the `manpage` backend, which is an
-# asciidoctor feature. Classic Python asciidoc has no manpage backend
-# (it fails with "missing backend conf file: manpage.conf" and needs the
-# docbook+xmlto/a2x pipeline instead), so it must NOT be picked up as an
-# automatic fallback — any environment with only asciidoc installed would
-# break the build at man-page generation time. Distros that don't ship
-# asciidoctor by default (e.g. Debian, #2395) can `apt install asciidoctor`,
-# or build with ENABLE_DOC=Off to skip man pages entirely.
+# Man page generation supports two toolchains (#2395):
+#  - asciidoctor with its native `manpage` backend (preferred, no extra deps);
+#  - classic Python asciidoc (asciidoc-py) which has no manpage backend:
+#    it goes through docbook XML and xsltproc/docbook-xsl instead
+#    (the same a2x pipeline git uses). cmake/Modules/adoc-manpage.xsl
+#    supplements stock docbook-xsl with the `<?asciidoc-br?>` handling
+#    and suppressions a2x's bundled sheet applies.
 find_program(ADOCCOMMAND_PATH
   NAMES asciidoctor
   DOC "Path to AsciiDoc processor. Used to generate man pages from AsciiDoc."
 )
+find_program(ADOC_ASCIIDOC_PATH
+  NAMES asciidoc
+  DOC "Path to classic Python asciidoc processor (man pages via docbook + xsltproc)."
+)
+find_program(ADOC_XSLTPROC_PATH
+  NAMES xsltproc
+  DOC "Path to xsltproc. Used with the asciidoc docbook backend to build man pages."
+)
 
-# Escape hatch for packagers who wire up a custom processor that does
-# support -b manpage (e.g. a vendored asciidoctor under a different name).
+# Escape hatch for packagers who wire up a custom processor. Setting
+# ASCIIDOC_TOOL=asciidoc selects the docbook+xsltproc backend; any other
+# value must be a processor supporting -b manpage (e.g. a vendored
+# asciidoctor under a different name).
 if(DEFINED ASCIIDOC_TOOL)
-  find_program(ADOCCOMMAND_PATH
-    NAMES ${ASCIIDOC_TOOL}
-    DOC "Path to AsciiDoc processor (forced via ASCIIDOC_TOOL=${ASCIIDOC_TOOL})."
-  )
+  if("${ASCIIDOC_TOOL}" STREQUAL "asciidoc")
+    set(ADOC_BACKEND "asciidoc")
+    find_program(ADOC_ASCIIDOC_PATH
+      NAMES ${ASCIIDOC_TOOL}
+      DOC "Path to asciidoc processor (forced via ASCIIDOC_TOOL=${ASCIIDOC_TOOL})."
+    )
+  else()
+    set(ADOC_BACKEND "asciidoctor")
+    find_program(ADOCCOMMAND_PATH
+      NAMES ${ASCIIDOC_TOOL}
+      DOC "Path to AsciiDoc processor (forced via ASCIIDOC_TOOL=${ASCIIDOC_TOOL})."
+    )
+  endif()
+elseif(ADOCCOMMAND_PATH)
+  set(ADOC_BACKEND "asciidoctor")
+elseif(ADOC_ASCIIDOC_PATH AND ADOC_XSLTPROC_PATH)
+  set(ADOC_BACKEND "asciidoc")
 endif()
 
-if(NOT EXISTS ${ADOCCOMMAND_PATH})
+if("${ADOC_BACKEND}" STREQUAL "asciidoc")
+  if(NOT ADOC_ASCIIDOC_PATH OR NOT ADOC_XSLTPROC_PATH)
+    message(FATAL_ERROR "ASCIIDOC_TOOL=asciidoc requires both asciidoc and xsltproc (plus the docbook-xsl stylesheets registered in the XML catalog).")
+  endif()
+  set(ADOCCOMMAND_FOUND 1)
+elseif("${ADOC_BACKEND}" STREQUAL "asciidoctor")
+  if(NOT EXISTS ${ADOCCOMMAND_PATH})
+    set(ADOC_BACKEND "")
+  else()
+    set(ADOCCOMMAND_FOUND 1)
+  endif()
+endif()
+
+if(NOT ADOC_BACKEND)
   if(EXISTS "${CMAKE_SOURCE_DIR}/docs/man")
     set(ADOC_USING_CACHE 1)
-    set(ADOC_MISSING_MSG "AsciiDoc processor not found; installing pre-generated man pages from docs/man/. Refresh them with ci/regen-man-pages.sh when the .adoc sources change.")
+    set(ADOC_MISSING_MSG "No AsciiDoc toolchain found (asciidoctor, or asciidoc + xsltproc); installing pre-generated man pages from docs/man/. Refresh them with ci/regen-man-pages.sh when the .adoc sources change.")
   else()
-    set(ADOC_MISSING_MSG "AsciiDoc processor not found and no pre-generated man pages in docs/man/. Install asciidoctor, or refresh the cache with ci/regen-man-pages.sh on a machine that has it.")
+    set(ADOC_MISSING_MSG "No AsciiDoc toolchain found (asciidoctor, or asciidoc + xsltproc) and no pre-generated man pages in docs/man/. Install a toolchain, or refresh the cache with ci/regen-man-pages.sh on a machine that has one.")
   endif()
 
   string(TOLOWER "${ENABLE_DOC}" ENABLE_DOC)
@@ -76,7 +113,7 @@ if(NOT EXISTS ${ADOCCOMMAND_PATH})
     message(FATAL_ERROR ${ADOC_MISSING_MSG})
   endif()
 else()
-  set(ADOCCOMMAND_FOUND 1)
+  message(STATUS "Man pages: ${ADOC_BACKEND} backend")
 endif()
 
 function(add_adoc_man SRC COMPONENT_VERSION)
@@ -146,7 +183,7 @@ function(add_adoc_man SRC COMPONENT_VERSION)
   # packagers don't need asciidoctor installed (#2395).
   set(MAN_CACHE "${CMAKE_SOURCE_DIR}/docs/man/${FILE_NAME_WE}.${MAN_NUM}")
 
-  if(${ADOCCOMMAND_FOUND})
+  if("${ADOC_BACKEND}" STREQUAL "asciidoctor")
     add_custom_command(
       OUTPUT ${DST}
       # Options must precede the source file: asciidoctor accepts any order,
@@ -156,6 +193,35 @@ function(add_adoc_man SRC COMPONENT_VERSION)
       DEPENDS ${SRC}
       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
       COMMENT "Generating man page ${SUBDIR_PATH_DIRECTORY}/${SUBDIR_PATH_NAME_WLE}"
+      VERBATIM
+    )
+  elseif("${ADOC_BACKEND}" STREQUAL "asciidoc")
+    # docbook-xsl names its output file after the first refname of the NAME
+    # section, not after the source file, so the refname must equal the
+    # source file base name for the output to land on ${DST}.
+    file(READ ${SRC} ADOC_SRC)
+    string(REGEX MATCH "== NAME[^\n]*\n[^\n]*\n+[ \t]*([A-Za-z0-9_.+-]+)[ \t]+-" ADOC_NAME_MATCH "${ADOC_SRC}")
+    set(ADOC_REFNAME "${CMAKE_MATCH_1}")
+    if(NOT ADOC_REFNAME)
+      message(FATAL_ERROR "Cannot find the NAME section in ${FILE_NAME}; it is required for man page generation.")
+    endif()
+    if(NOT ADOC_REFNAME STREQUAL FILE_NAME_WE)
+      message(FATAL_ERROR "The NAME section of ${FILE_NAME} must start with '${FILE_NAME_WE}' (found '${ADOC_REFNAME}'): docbook-xsl names the man page after the first refname.")
+    endif()
+
+    set(ADOC_XML "${DST}.xml")
+    get_filename_component(DST_DIR ${DST} DIRECTORY)
+    # xsltproc resolves the stylesheet's docbook-xsl import through the system
+    # XML catalog (/etc/xml/catalog), where distro docbook-xsl packages
+    # register it; --nonet fails fast when the catalog is missing.
+    add_custom_command(
+      OUTPUT ${DST}
+      COMMAND ${ADOC_ASCIIDOC_PATH} -b docbook -d manpage -a component-version=${COMPONENT_VERSION} -o ${ADOC_XML} ${SRC}
+      COMMAND ${ADOC_XSLTPROC_PATH} --nonet ${ADOC_MANPAGE_XSL} ${ADOC_XML}
+      COMMAND ${CMAKE_COMMAND} -E remove ${ADOC_XML}
+      DEPENDS ${SRC} ${ADOC_MANPAGE_XSL}
+      WORKING_DIRECTORY ${DST_DIR}
+      COMMENT "Generating man page ${SUBDIR_PATH_DIRECTORY}/${SUBDIR_PATH_NAME_WLE} (asciidoc backend)"
       VERBATIM
     )
   elseif(EXISTS ${MAN_CACHE})
