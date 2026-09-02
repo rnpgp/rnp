@@ -33,6 +33,13 @@ normalize() {
     | tr -s '[:space:]' ' '
 }
 
+# Toolchain noise that does not indicate a documentation problem:
+# asciidoc-py < 10.2.1 emits Python SyntaxWarnings from its own config
+# on Python 3.12+ (git's ci/test-documentation.sh filters the same).
+filter_err() {
+  sed -e '/SyntaxWarning: invalid escape sequence/d' "$1"
+}
+
 fail=0
 
 for page in $PAGES; do
@@ -46,7 +53,7 @@ for page in $PAGES; do
   ( cd "$name.py.d" && xsltproc --nonet ../cmake/Modules/adoc-manpage.xsl "../$name.xml" ) 2> "$name.py.d.err"
 
   for err in "$name.ad.err" "$name.py.err" "$name.py.d.err"; do
-    if [ -s "$err" ]; then
+    if [ -n "$(filter_err "$err")" ]; then
       echo "error: $page: $(basename "$err") is not empty:" >&2
       cat "$err" >&2
       fail=1
