@@ -2,12 +2,12 @@
 .\"     Title: librnp
 .\"    Author: RNP
 .\" Generator: Asciidoctor 2.0.26
-.\"      Date: 2026-08-01
+.\"      Date: 2026-09-02
 .\"    Manual: RNP Manual
 .\"    Source: RNP 0.18.1
 .\"  Language: English
 .\"
-.TH "LIBRNP" "3" "2026-08-01" "RNP 0.18.1" "RNP Manual"
+.TH "LIBRNP" "3" "2026-09-02" "RNP 0.18.1" "RNP Manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -31,9 +31,14 @@
 librnp \- OpenPGP implementation, available via FFI interface.
 .SH "SYNOPSIS"
 .sp
-\fB#include <rnp/rnp.h>\fP
-.br
-\fB#include <rnp/rnp_err.h>\fP
+.if n .RS 4
+.nf
+.fam C
+#include <rnp/rnp.h>
+#include <rnp/rnp_err.h>
+.fam
+.fi
+.if n .RE
 .SH "DESCRIPTION"
 .sp
 \fBlibrnp\fP is part of the \fBRNP\fP suite and forms the basis for the \fIrnp(1)\fP and \fIrnpkeys(1)\fP command\-line utilities.

@@ -11,9 +11,10 @@ librnp - OpenPGP implementation, available via FFI interface.
 
 == SYNOPSIS
 
-*#include <rnp/rnp.h>* +
-*#include <rnp/rnp_err.h>*
-
+----
+#include <rnp/rnp.h>
+#include <rnp/rnp_err.h>
+----
 
 == DESCRIPTION
 

@@ -7,7 +7,7 @@ RNP
 
 == NAME
 
-RNPKEYS - OpenPGP key management utility.
+rnpkeys - OpenPGP key management utility.
 
 == SYNOPSIS
 
@@ -63,7 +63,7 @@ It may be specified in one of the following ways:
 
 *userid*::
 Or just part of the *userid*.
-For *"Alice <alice@rnpgp.com>"*, the following methods are considered identical:
+For _alice@rnpgp.com_, the following methods are considered identical:
 
 ** _alice_
 ** _alice@rnpgp_
@@ -420,7 +420,7 @@ To import all secret keys the following command should be used (please note, tha
 This example generates a new key with specified userid and expiration.
 Also it enables "expert" mode, allowing the selection of key/subkey algorithms.
 
-*rnpkeys* *--generate* *--userid* *"john@doe.com"* *--expert* *--expiration* *1y*
+*rnpkeys* *--generate* *--userid* _john@doe.com_ *--expert* *--expiration* *1y*
 
 == BUGS
 
