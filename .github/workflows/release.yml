@@ -89,8 +89,11 @@ jobs:
     name: Build prebuilt static-library tarballs
     needs: release
     uses: ./.github/workflows/prebuilt.yml
+    # job-level with: of a reusable workflow caller cannot use the env
+    # context (only github/needs/vars/inputs), which made GitHub reject the
+    # whole workflow file on every run
     with:
-      tag: ${{ env.RELEASE_TAG }}
+      tag: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag }}
     secrets: inherit
     permissions:
       contents: write
