@@ -4434,8 +4434,8 @@ TEST_F(rnp_tests, test_ffi_key_export_autocrypt_pqc)
 
     /* Load test key: EdDSA primary + ECDH Curve25519 subkey + ML-KEM-768+X25519 subkey */
     rnp_input_t input = NULL;
-    assert_rnp_success(rnp_input_from_path(
-      &input, "data/test_key_edge_cases/eddsa-ecdh-mlkem-pub.pgp"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/eddsa-ecdh-mlkem-pub.pgp"));
     assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
     rnp_input_destroy(input);
 
