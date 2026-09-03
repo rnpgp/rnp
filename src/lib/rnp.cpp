@@ -4017,8 +4017,7 @@ try {
          * For v4 keys, PQC means ML-KEM-768+X25519 (PGP_PKA_KYBER768_X25519). */
         for (auto &fp : primary->subkey_fps()) {
             rnp::KeyFingerprintSearch search(fp);
-            rnp::Key *cur =
-              key->ffi->key_provider.request_key(search, PGP_OP_ENCRYPT, false);
+            rnp::Key *cur = key->ffi->key_provider.request_key(search, PGP_OP_ENCRYPT, false);
             if (!cur || !cur->usable_for(PGP_OP_ENCRYPT)) {
                 continue;
             }
