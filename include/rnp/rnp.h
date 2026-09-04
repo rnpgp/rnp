@@ -2821,6 +2821,64 @@ RNP_API rnp_result_t rnp_key_protect(rnp_key_handle_t handle,
                                      const char *     hash,
                                      size_t           iterations);
 
+/**
+ * @brief Extended key protection parameters, allowing the caller to opt into
+ *        Argon2 S2K and AEAD encryption of the secret key material.
+ *
+ *  Pass a pointer to this struct to rnp_key_protect_ex(). Any field may be
+ *  NULL / 0 to take the default, except that selecting "Argon2" for s2k_type
+ *  implies AEAD usage (per RFC 9580 §5.13.2 / the OpenPGP crypto refresh),
+ *  so aead_alg must also be set or defaulted.
+ *
+ *  S2K type strings: "Simple", "Salted", "Iterated and salted" (default),
+ *  "Argon2". Argon2 requires ENABLE_CRYPTO_REFRESH at build time; on builds
+ *  without it, rnp_key_protect_ex() returns RNP_ERROR_NOT_SUPPORTED.
+ */
+#ifndef RNP_PROTECTION_PARAMS_T_DEFINED
+#define RNP_PROTECTION_PARAMS_T_DEFINED
+typedef struct rnp_protection_params_t {
+    const char *cipher;      /**< Symmetric cipher, e.g. "AES256". NULL = default. */
+    const char *cipher_mode; /**< Block cipher mode, e.g. "CFB". NULL = default.
+                                  Ignored when aead_alg is set. */
+    const char *hash;        /**< Hash for S2K, e.g. "SHA256". NULL = default.
+                                  Not used with Argon2. */
+    size_t iterations;       /**< Iteration count for iterated-and-salted S2K.
+                                  0 = lib default. Ignored for Argon2. */
+    const char *s2k_type;    /**< "Simple", "Salted", "Iterated and salted",
+                                  "Argon2". NULL = "Iterated and salted". */
+    const char *aead_alg;    /**< AEAD algorithm for v6 secret keys, e.g. "OCB",
+                                  "EAX". NULL = no AEAD (CFB instead). Required
+                                  when s2k_type = "Argon2". */
+    size_t argon2_t;         /**< Argon2 time parameter (1-4 typical). 0 = default. */
+    size_t argon2_p;         /**< Argon2 parallelism (lanes). 0 = default. */
+    size_t argon2_m_kib;     /**< Argon2 memory in KiB. 0 = default. */
+} rnp_protection_params_t;
+#endif
+
+/**
+ * @brief Protect (encrypt) a secret key with the extended parameter set.
+ *
+ *  Like rnp_key_protect(), but allows selecting Argon2 S2K and AEAD
+ *  encryption of the secret-key material (RFC 9580 crypto refresh).
+ *  Callers who want the defaults of rnp_key_protect() should keep using it;
+ *  this function is for callers that need fine-grained control.
+ *
+ *  If the key is currently encrypted, it is first decrypted using the
+ *  FFI password provider. If params is NULL, behaves like rnp_key_protect()
+ *  with all-NULL string parameters.
+ *
+ *  @param handle secret key handle, cannot be NULL.
+ *  @param password new password, cannot be NULL.
+ *  @param params protection parameters, may be NULL for defaults.
+ *  @return RNP_SUCCESS on success. RNP_ERROR_NOT_SUPPORTED if Argon2 was
+ *          requested but the library was built without ENABLE_CRYPTO_REFRESH.
+ *          RNP_ERROR_BAD_PARAMETERS for invalid algorithm names or
+ *          inconsistent parameter combinations.
+ */
+RNP_API rnp_result_t rnp_key_protect_ex(rnp_key_handle_t               handle,
+                                        const char *                   password,
+                                        const rnp_protection_params_t *params);
+
 /** unprotect the key
  *
  *  This removes the encryption from the key.
