@@ -39,6 +39,14 @@ Currently supported platforms:
 
 == link:docs/supported-platforms.adoc[Supported platforms]
 
+== link:docs/crypto-backends.adoc[Crypto backends]
+
+librnp can be built against several crypto backends. The choice of backend
+determines which algorithms are available and on which platforms librnp runs
+without an additional crypto dependency. See link:docs/crypto-backends.adoc[Crypto backends]
+for the full matrix (OpenSSL 1.1.x, OpenSSL 3.x, LibreSSL, Botan) and the
+feature tradeoffs of each (PQC, AEAD-OCB, Brainpool, etc.).
+
 == link:docs/cli-usage.adoc[Using CLI tool]
 
 == link:docs/c-usage.adoc[Using the RNP C API in your projects]
