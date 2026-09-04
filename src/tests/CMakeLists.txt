@@ -113,6 +113,7 @@ set(RNP_TEST_SOURCES
   ffi-key-prop.cpp
   ffi-key.cpp
   file-utils.cpp
+  dll-verify.cpp
   generatekey.cpp
   kbx-nsigs-test.cpp
   key-add-userid.cpp
