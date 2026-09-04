@@ -31,8 +31,9 @@
 #include <array>
 #include <vector>
 #if defined(CRYPTO_BACKEND_BOTAN)
-#include <botan/secmem.h>
 #include <botan/ffi.h>
+#include <cstdlib>
+#include <type_traits>
 #elif defined(CRYPTO_BACKEND_OPENSSL)
 #include <cstdlib>
 #include <openssl/crypto.h>
@@ -42,7 +43,49 @@
 namespace rnp {
 
 #if defined(CRYPTO_BACKEND_BOTAN)
-template <typename T> using secure_vector = Botan::secure_vector<T>;
+template <typename T> class secure_allocator {
+  public:
+#if !defined(_MSC_VER) || !defined(_DEBUG)
+    /* MSVC in debug mode uses non-integral proxy types in container types */
+    static_assert(std::is_integral<T>::value, "secure_vector can hold integral types only");
+#endif
+
+    typedef T           value_type;
+    typedef std::size_t size_type;
+
+    secure_allocator() noexcept = default;
+    secure_allocator(const secure_allocator &) noexcept = default;
+    secure_allocator &operator=(const secure_allocator &) noexcept = default;
+    ~secure_allocator() noexcept = default;
+
+    template <typename U> secure_allocator(const secure_allocator<U> &) noexcept
+    {
+    }
+
+    T *
+    allocate(std::size_t n)
+    {
+        if (!n) {
+            return nullptr;
+        }
+        T *ptr = static_cast<T *>(std::calloc(n, sizeof(T)));
+        if (!ptr)
+            throw std::bad_alloc();
+        return ptr;
+    }
+
+    void
+    deallocate(T *p, std::size_t n)
+    {
+        if (!p) {
+            return;
+        }
+        botan_scrub_mem(p, n * sizeof(T));
+        std::free(p);
+    }
+};
+
+template <typename T> using secure_vector = std::vector<T, secure_allocator<T> >;
 #elif defined(CRYPTO_BACKEND_OPENSSL)
 template <typename T> class ossl_allocator {
   public:
