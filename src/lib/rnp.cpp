@@ -4003,13 +4003,45 @@ try {
         FFI_LOG(key->ffi, "No valid signing primary key");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    /* Get encrypting subkey */
-    auto *sub = subkey ?
-                  get_key_prefer_public(subkey) :
-                  find_suitable_key(PGP_OP_ENCRYPT, primary, &key->ffi->key_provider, true);
-    if (!sub || sub->is_primary() || !sub->usable_for(PGP_OP_ENCRYPT)) {
-        FFI_LOG(key->ffi, "No encrypting subkey");
-        return RNP_ERROR_KEY_NOT_FOUND;
+    /* Get encrypting subkey(s) */
+    rnp::Key *sub = nullptr;
+    rnp::Key *pqc_sub = nullptr;
+    if (subkey) {
+        sub = get_key_prefer_public(subkey);
+        if (!sub || sub->is_primary() || !sub->usable_for(PGP_OP_ENCRYPT)) {
+            FFI_LOG(key->ffi, "No encrypting subkey");
+            return RNP_ERROR_KEY_NOT_FOUND;
+        }
+    } else {
+        /* Auto-select: find the best traditional (non-PQC) and PQC encryption subkeys.
+         * For v4 keys, PQC means ML-KEM-768+X25519 (PGP_PKA_KYBER768_X25519). */
+        for (auto &fp : primary->subkey_fps()) {
+            rnp::KeyFingerprintSearch search(fp);
+            rnp::Key *cur = key->ffi->key_provider.request_key(search, PGP_OP_ENCRYPT, false);
+            if (!cur || !cur->usable_for(PGP_OP_ENCRYPT)) {
+                continue;
+            }
+#if defined(ENABLE_PQC)
+            if (cur->is_pqc()) {
+                if (!pqc_sub || cur->creation() > pqc_sub->creation()) {
+                    pqc_sub = cur;
+                }
+                continue;
+            }
+#endif
+            if (!sub || cur->creation() > sub->creation()) {
+                sub = cur;
+            }
+        }
+        if (!sub && !pqc_sub) {
+            FFI_LOG(key->ffi, "No encrypting subkey");
+            return RNP_ERROR_KEY_NOT_FOUND;
+        }
+        /* If only a PQC subkey is available, export it as the sole subkey. */
+        if (!sub) {
+            sub = pqc_sub;
+            pqc_sub = nullptr;
+        }
     }
     /* Get userid */
     size_t uididx = primary->uid_count();
@@ -4036,9 +4068,9 @@ try {
     bool res = false;
     if (base64) {
         rnp::ArmoredDest armor(output->dst, PGP_ARMORED_BASE64);
-        res = primary->write_autocrypt(armor.dst(), *sub, uididx);
+        res = primary->write_autocrypt(armor.dst(), *sub, uididx, pqc_sub);
     } else {
-        res = primary->write_autocrypt(output->dst, *sub, uididx);
+        res = primary->write_autocrypt(output->dst, *sub, uididx, pqc_sub);
     }
     if (res) {
         output->keep = true;

@@ -4367,6 +4367,99 @@ TEST_F(rnp_tests, test_ffi_key_export_autocrypt)
     rnp_ffi_destroy(ffi);
 }
 
+#if defined(ENABLE_PQC)
+static bool
+check_key_autocrypt_pqc(rnp_output_t       memout,
+                        const std::string &keyid,
+                        const std::string &subid,
+                        const std::string &pqcsubid,
+                        const std::string &uid)
+{
+    rnp_ffi_t ffi = NULL;
+    rnp_ffi_create(&ffi, "GPG", "GPG");
+
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    if (rnp_output_memory_get_buf(memout, &buf, &len, false) || !buf || !len) {
+        return false;
+    }
+    if (!import_all_keys(ffi, buf, len)) {
+        return false;
+    }
+    size_t count = 0;
+    rnp_get_public_key_count(ffi, &count);
+    if (count != 3) {
+        return false;
+    }
+    rnp_get_secret_key_count(ffi, &count);
+    if (count != 0) {
+        return false;
+    }
+    rnp_key_handle_t key = NULL;
+    if (rnp_locate_key(ffi, "keyid", keyid.c_str(), &key) || !key) {
+        return false;
+    }
+    rnp_key_handle_t sub = NULL;
+    if (rnp_locate_key(ffi, "keyid", subid.c_str(), &sub) || !sub) {
+        return false;
+    }
+    rnp_key_handle_t pqcsub = NULL;
+    if (rnp_locate_key(ffi, "keyid", pqcsubid.c_str(), &pqcsub) || !pqcsub) {
+        return false;
+    }
+    if (!key->pub->valid() || !sub->pub->valid() || !pqcsub->pub->valid()) {
+        return false;
+    }
+    if ((key->pub->sig_count() != 1) || (sub->pub->sig_count() != 1) ||
+        (pqcsub->pub->sig_count() != 1)) {
+        return false;
+    }
+    if (!key->pub->can_sign() || !sub->pub->can_encrypt() || !pqcsub->pub->can_encrypt()) {
+        return false;
+    }
+    if ((key->pub->uid_count() != 1) || (key->pub->get_uid(0).str != uid)) {
+        return false;
+    }
+    rnp_key_handle_destroy(key);
+    rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(pqcsub);
+    rnp_ffi_destroy(ffi);
+    return true;
+}
+
+TEST_F(rnp_tests, test_ffi_key_export_autocrypt_pqc)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* Load test key: EdDSA primary + ECDH Curve25519 subkey + ML-KEM-768+X25519 subkey */
+    rnp_input_t input = NULL;
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/eddsa-ecdh-mlkem-pub.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    rnp_input_destroy(input);
+
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "49521d629c00700d", &key));
+    assert_non_null(key);
+
+    /* Export with NULL subkey: should auto-select both traditional and PQC subkeys */
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_key_export_autocrypt(
+      key, NULL, "Test Autocrypt PQC <autocrypt-pqc@rnp.test>", output, 0));
+    assert_true(check_key_autocrypt_pqc(output,
+                                        "49521d629c00700d",
+                                        "602a701453cf85ef",
+                                        "295165dd86e098aa",
+                                        "Test Autocrypt PQC <autocrypt-pqc@rnp.test>"));
+    rnp_output_destroy(output);
+
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(ffi);
+}
+#endif /* ENABLE_PQC */
+
 TEST_F(rnp_tests, test_ffi_keys_import_autocrypt)
 {
     rnp_ffi_t ffi = NULL;
