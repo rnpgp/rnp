@@ -825,7 +825,7 @@ install (
 
 # Compute Libs.private for the pkg-config file from the link interface of
 # librnp, so that `pkg-config --static --libs librnp` lists the transitive
-# dependencies (crypto backend, JSON-C, zlib, bzip2 and, for a static
+# dependencies (crypto backend, zlib, bzip2 and, for a static
 # librnp, sexpp).
 set(LIBRNP_PRIVATE_LIBS "")
 get_target_property(_librnp_interface_libs librnp INTERFACE_LINK_LIBRARIES)

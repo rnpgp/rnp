@@ -432,7 +432,7 @@ TEST_F(rnp_tests, test_ffi_keygen_json_edge_cases)
       rnp_generate_key_json(ffi, "{ \"primary\": { }, \"wrong\": {} }", &results));
     assert_rnp_failure(
       rnp_generate_key_json(ffi, "{ \"primary\": { }, \"PRIMARY\": { } }", &results));
-    /* Json-C puts stuff under the same key into the single object */
+    /* Duplicate keys are merged into the single object */
     assert_rnp_success(
       rnp_generate_key_json(ffi, "{ \"primary\": { }, \"primary\": { } }", &results));
     rnp_buffer_destroy(results);
@@ -2194,7 +2194,7 @@ get_json_obj(nlohmann::ordered_json jso, const char *field)
  * then validates some properties.
  *
  * We could just do a simple strcmp, but that would depend
- * on json-c sorting the keys consistently, across versions,
+ * on the JSON library sorting the keys consistently, across versions,
  * etc.
  */
 TEST_F(rnp_tests, test_ffi_key_to_json)

@@ -80,7 +80,7 @@ jobs:
           DEBIAN_FRONTEND=noninteractive apt-get -y install \
               build-essential clang-${{ matrix.clang }} clang-tidy-${{ matrix.clang }} \
               cmake ninja-build git \
-              zlib1g-dev libbz2-dev libjson-c-dev \
+              zlib1g-dev libbz2-dev \
               libbotan-3-dev libssl-dev
 
       - name: Checkout

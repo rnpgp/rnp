@@ -20,8 +20,8 @@ Regardless of target, three CMake variables control cross-compile behaviour:
 
 `CMAKE_FIND_ROOT_PATH`::
   List of root paths to search for headers/libraries. Set this to your
-  dependency install prefix so `find_package(Botan)` and
-  `find_package(JSON-C)` look inside the target sysroot, not the host.
+  dependency install prefix so `find_package(Botan)` looks inside the
+  target sysroot, not the host.
 
 rnp's top-level `CMakeLists.txt` sets `CMAKE_FIND_ROOT_PATH_MODE_*` to `ONLY`
 for library/include/package searches when `CMAKE_CROSSCOMPILING` is true, so
@@ -43,16 +43,14 @@ cmake ../rnp \
   -DCRYPTO_BACKEND=botan \
   -DBOTAN_INCLUDE_DIR=$DEPS_PREFIX/include/botan-3 \
   -DBOTAN_LIBRARY=$DEPS_PREFIX/lib/libbotan-3.a \
-  -DJSON-C_INCLUDE_DIR=$DEPS_PREFIX/include/json-c \
-  -DJSON-C_LIBRARY=$DEPS_PREFIX/lib/libjson-c.a \
   -DBUILD_SHARED_LIBS=OFF \
   -DBUILD_TESTING=OFF
 ----
 
-rnp's `FindBotan.cmake` and `FindJSON-C.cmake` modules skip pkg-config
-automatically when `CMAKE_CROSSCOMPILING` is true. To force pkg-config use
-under cross-compile (e.g. you have a target-aware `pkg-config` binary),
-pass `-DBOTAN_USE_PKGCONFIG=ON` or `-DJSON-C_USE_PKGCONFIG=ON` and set
+rnp's `FindBotan.cmake` module skips pkg-config automatically when
+`CMAKE_CROSSCOMPILING` is true. To force pkg-config use under
+cross-compile (e.g. you have a target-aware `pkg-config` binary), pass
+`-DBOTAN_USE_PKGCONFIG=ON` and set
 `PKG_CONFIG_LIBDIR` / `PKG_CONFIG_SYSROOT_DIR` to point at the target root.
 
 == OpenHarmony (aarch64-linux-ohos)
@@ -88,15 +86,7 @@ python3 ./configure.py \
   [..botan module list..]
 make -j && make install
 
-# 2. Cross-build json-c with the OHOS toolchain.
-cmake -S json-c -B json-c/build \
-  -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN -DOHOS_ARCH=arm64-v8a \
-  -DCMAKE_SYSROOT=$SYSROOT \
-  -DCMAKE_INSTALL_PREFIX=$DEPS/jsonc \
-  -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF
-cmake --build json-c/build && cmake --install json-c/build
-
-# 3. Cross-build librnp.
+# 2. Cross-build librnp.
 cmake -S rnp -B rnp/build \
   -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN -DOHOS_ARCH=arm64-v8a \
   -DCMAKE_SYSROOT=$SYSROOT \
@@ -104,9 +94,7 @@ cmake -S rnp -B rnp/build \
   -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF -DENABLE_DOC=OFF \
   -DCRYPTO_BACKEND=botan \
   -DBOTAN_INCLUDE_DIR=$DEPS/botan/include/botan-3 \
-  -DBOTAN_LIBRARY=$DEPS/botan/lib/libbotan-3.a \
-  -DJSON-C_INCLUDE_DIR=$DEPS/jsonc/include/json-c \
-  -DJSON-C_LIBRARY=$DEPS/jsonc/lib/libjson-c.a
+  -DBOTAN_LIBRARY=$DEPS/botan/lib/libbotan-3.a
 cmake --build rnp/build -j
 ----
 
@@ -122,7 +110,7 @@ install step will try to write to `/usr/lib` on the host filesystem. Set
 == Android (aarch64-linux-android)
 
 The Android NDK ships `android.toolchain.cmake`. The same pattern as OHOS
-applies: pass explicit include/lib paths for Botan and json-c, and set
+applies: pass explicit include/lib paths for Botan, and set
 `CMAKE_FIND_ROOT_PATH` to your dependency prefix.
 
 == Windows via MinGW (x86_64-w64-mingw32)

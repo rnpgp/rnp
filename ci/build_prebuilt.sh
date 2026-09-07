@@ -2,7 +2,7 @@
 # ci/build_prebuilt.sh
 #
 # Build a self-contained static-library tarball of librnp plus its full
-# dependency stack (Botan or OpenSSL, json-c, zlib, bzip2, sexpp), suitable
+# dependency stack (Botan or OpenSSL, zlib, bzip2, sexpp), suitable
 # for attaching to a GitHub release as a prebuilt asset for downstream
 # language bindings (Cargo, etc.) that cannot reach a system package
 # manager.
@@ -32,7 +32,7 @@ set -euxo pipefail
 #
 #   build_prebuilt.sh deps <target> [workdir]
 #       Phase 1 (called by the build-deps CI job): build the common
-#       deps (zlib, bzip2, json-c) into $WORK/prefix and stop. The
+#       deps (zlib, bzip2) into $WORK/prefix and stop. The
 #       workflow uploads that prefix as an artifact so both per-backend
 #       rnp jobs can reuse it without rebuilding.
 #
@@ -112,7 +112,6 @@ fi
 source "${SCRIPT_DIR}/prebuilt-versions.env"
 : "${ZLIB_VERSION:?missing in prebuilt-versions.env}"
 : "${BZIP2_VERSION:?missing in prebuilt-versions.env}"
-: "${JSONC_VERSION:?missing in prebuilt-versions.env}"
 : "${BOTAN_VERSION:?missing in prebuilt-versions.env}"
 : "${OPENSSL_VERSION:?missing in prebuilt-versions.env}"
 
@@ -174,8 +173,8 @@ else
 fi
 
 # Pin build time to the Unix epoch so that tools which embed build
-# timestamps (gzip header, libtool archives, some debug info, Python
-# bytecode in json-c, etc.) produce identical output across runs on the
+# timestamps (gzip header, libtool archives, some debug info, etc.)
+# produce identical output across runs on the
 # same platform. Consumers can verify reproducibility by rebuilding.
 export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-0}"
 
@@ -235,26 +234,6 @@ build_bzip2() {
     make -j"$NPROC" CC="${CC:-cc}" CFLAGS="$CFLAGS" libbz2.a
     install -m644 libbz2.a "$PREFIX/lib/"
     install -m644 bzlib.h "$PREFIX/include/"
-}
-
-# Build json-c as a static library.
-build_jsonc() {
-    [[ -f "$PREFIX/lib/libjson-c.a" ]] && { echo "=== json-c cached ==="; return; }
-    echo "=== json-c $JSONC_VERSION ==="
-    cd "$WORK/src"
-    download "https://s3.amazonaws.com/json-c_releases/releases/json-c-$JSONC_VERSION.tar.gz" "json-c-$JSONC_VERSION.tar.gz"
-    rm -rf "json-c-$JSONC_VERSION"
-    tar xzf "json-c-$JSONC_VERSION.tar.gz"
-    rm -rf "json-c-$JSONC_VERSION/build"
-    mkdir -p "json-c-$JSONC_VERSION/build"
-    cd "json-c-$JSONC_VERSION/build"
-    cmake -DCMAKE_INSTALL_PREFIX="$PREFIX" \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DBUILD_SHARED_LIBS=OFF \
-          -DBUILD_TESTING=OFF \
-          -DENABLE_THREAD_SAFE=ON \
-          ..
-    make -j"$NPROC" install
 }
 
 # Build Botan as a static library, with the module set curated for rnp
@@ -436,7 +415,6 @@ Contents
 --------
   include/rnp/                  public FFI headers (rnp.h, rnp_err.h, rnp_export.h, rnp_ver.h)
   include/$BACKEND_HEADERS_DIR/ backend headers
-  include/json-c/               json-c headers
   include/bzlib.h               bzip2 header
   include/zlib.h                zlib header
 $(
@@ -464,7 +442,6 @@ Produced by ci/build_prebuilt.sh in the rnp repository
 (https://github.com/rnpgp/rnp). Dependency versions used:
   zlib     $ZLIB_VERSION
   bzip2    $BZIP2_VERSION
-  json-c   $JSONC_VERSION
 EOF
 
     sign_file "$staging/MANIFEST.txt"
@@ -503,7 +480,6 @@ case "$MODE" in
         # the per-backend Phase 2 jobs, which download this prefix.
         build_zlib
         build_bzip2
-        build_jsonc
         echo
         echo "=== Phase 1 (deps) complete: $PREFIX ==="
         ls -la "$PREFIX/lib/"
@@ -520,8 +496,7 @@ case "$MODE" in
             echo "WARNING: $PREFIX/lib/libz.a missing; building common deps inline." >&2
             build_zlib
             build_bzip2
-            build_jsonc
-        fi
+            fi
         case "$BACKEND" in
             botan)   build_botan ;;
             openssl) build_openssl ;;
@@ -534,7 +509,6 @@ case "$MODE" in
         # Backward-compat single-pass mode.
         build_zlib
         build_bzip2
-        build_jsonc
         case "$BACKEND" in
             botan)   build_botan ;;
             openssl) build_openssl ;;

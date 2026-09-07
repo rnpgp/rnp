@@ -3,13 +3,12 @@
 : "${LOCAL_BUILDS:=$HOME/local-builds}"
 : "${LOCAL_INSTALLS:=$HOME/local-installs}"
 : "${BOTAN_INSTALL:=$LOCAL_INSTALLS/botan-install}"
-: "${JSONC_INSTALL:=$LOCAL_INSTALLS/jsonc-install}"
 : "${GPG_INSTALL:=$LOCAL_INSTALLS/gpg-install}"
 : "${RNP_INSTALL:=$LOCAL_INSTALLS/rnp-install}"
 : "${CPU:=}"
 : "${SUDO:=}"
 
-for var in LOCAL_BUILDS LOCAL_INSTALLS BOTAN_INSTALL JSONC_INSTALL \
+for var in LOCAL_BUILDS LOCAL_INSTALLS BOTAN_INSTALL \
   GPG_INSTALL RNP_INSTALL CPU SUDO; do
   export "${var?}"
 done

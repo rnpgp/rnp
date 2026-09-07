@@ -28,7 +28,7 @@ name: prebuilt
 #
 #   config       -- single source of truth for the target list; emits
 #                   two matrices via jq (unix_targets, rnp_matrix).
-#   build-deps   -- Phase 1: builds zlib+bzip2+json-c once per Unix
+#   build-deps   -- Phase 1: builds zlib+bzip2 once per Unix
 #                   target and uploads $prefix as an artifact. Both
 #                   per-backend rnp jobs for the same target download
 #                   it instead of rebuilding common deps.
@@ -140,7 +140,7 @@ jobs:
           echo "rnp_matrix=$rnp_matrix"     >> "$GITHUB_OUTPUT"
 
   # ---------------------------------------------------------------------------
-  # build-deps (Phase 1): common deps (zlib, bzip2, json-c) built once
+  # build-deps (Phase 1): common deps (zlib, bzip2) built once
   # per Unix target. Uploaded as an artifact and consumed by both
   # per-backend rnp jobs for the same target, so the 12 Unix rnp jobs
   # skip dep building entirely.
@@ -230,7 +230,7 @@ jobs:
           restore-keys: |
             deps-${{ matrix.target.triple }}-
 
-      - name: Build common deps (zlib, bzip2, json-c)
+      - name: Build common deps (zlib, bzip2)
         run: |
           # Inside containers, $GITHUB_WORKSPACE points at the mount
           # root (e.g. /__w/rnp/rnp), while ${{ github.workspace }}
@@ -422,7 +422,7 @@ jobs:
             vcpkg-${{ matrix.target.triple }}-${{ matrix.backend }}-
 
       # Unix only: restore the deps artifact from Phase 1 so the rnp
-      # build finds zlib+bzip2+json-c in $prefix without rebuilding.
+      # build finds zlib+bzip2 in $prefix without rebuilding.
       # Skipped on alpine+ARM64 (no Phase 1 artifact was uploaded
       # because GitHub Actions refuses JS actions in alpine+ARM64
       # containers). The rnp script's self-healing path builds deps

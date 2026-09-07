@@ -29,7 +29,7 @@ installations) librnp is installed as a shared library and linking
 
 With `-DBUILD_SHARED_LIBS=OFF` a static `librnp.a` is installed, and
 consumers must also link the transitive dependencies (the crypto backend,
-JSON-C, zlib, bzip2 and sexpp). With CMake this happens automatically — see
+zlib, bzip2 and sexpp). With CMake this happens automatically — see
 below. A static librnp built with the bundled sexpp sources installs
 `libsexpp.a` next to it and exports it as `rnp::sexpp`, so no separate sexpp
 installation is needed (unless rnp was built with `-DSYSTEM_LIBSEXPP=ON`, in
@@ -63,7 +63,7 @@ in `CMAKE_PREFIX_PATH`:
 
 [source,console]
 --
-cmake -B build -DCMAKE_PREFIX_PATH="/opt/rnp;/opt/botan;/opt/json-c"
+cmake -B build -DCMAKE_PREFIX_PATH="/opt/rnp;/opt/botan"
 --
 
 == pkg-config
@@ -96,7 +96,7 @@ above — with vcpkg's CMake toolchain, adding the rnp installation prefix to
 
 Each librnp GitHub release ships per-target static-library tarballs alongside
 the source tarball. Each tarball bundles `librnp.a` plus a curated static
-build of every transitive dependency (sexpp, Botan or OpenSSL, json-c, zlib,
+build of every transitive dependency (sexpp, Botan or OpenSSL, zlib,
 bzip2), so downstream consumers can link against librnp without compiling
 the C++ + Botan stack from source and without any system package
 dependencies.
@@ -145,14 +145,12 @@ rnp-v0.18.1-aarch64-apple-darwin-openssl.tar.gz
 include/
   rnp/             public FFI headers (rnp.h, rnp_err.h, rnp_export.h, rnp_ver.h)
   botan-3/         (botan backend) or openssl/ (openssl backend)
-  json-c/
   bzlib.h
   zlib.h
 lib/
   librnp.a
   libsexpp.a
   libbotan-3.a     (botan backend) or libcrypto.a + libssl.a (openssl backend)
-  libjson-c.a
   libz.a
   libbz2.a
   cmake/rnp/       CMake config (find_package(rnp))
@@ -196,7 +194,7 @@ tar xzf rnp-v0.18.1-aarch64-apple-darwin-botan.tar.gz
 cc -I rnp-v0.18.1-aarch64-apple-darwin-botan/include \
    -L rnp-v0.18.1-aarch64-apple-darwin-botan/lib \
    main.c -o example \
-   -lrnp -lsexpp -lbotan-3 -ljson-c -lz -lbz2 \
+   -lrnp -lsexpp -lbotan-3 -lz -lbz2 \
    -lc++ -framework Security -framework CoreFoundation
 ----
 
@@ -251,7 +249,7 @@ achievable since the binary contents differ by definition.
 The build is driven by two scripts:
 
 * `ci/build_prebuilt.sh` — Linux glibc, Linux musl, macOS. Downloads
-  pinned versions of each dependency (zlib, bzip2, json-c, Botan or
+  pinned versions of each dependency (zlib, bzip2, Botan or
   OpenSSL), builds them as static libraries into a temporary prefix,
   builds librnp against that prefix, and stages the resulting headers
   and archives into the tarball layout shown above.

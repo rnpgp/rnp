@@ -37,7 +37,7 @@ A backend must:
 Each backend has a config file at `ci/backends/<name>.env` declaring:
 
 * `BACKEND_DESCRIPTION` — human-readable name.
-* `BACKEND_DEPS` — extra deps to install (beyond common bzip2+zlib+json-c).
+* `BACKEND_DEPS` — extra deps to install (beyond common bzip2+zlib).
 * `BACKEND_CMAKE_FLAGS` — CMake flags for the rnp configure step.
 * `BACKEND_HEADERS_DIR` — subdirectory under `include/` for backend headers.
 * `BACKEND_LINK_LIBS` — Unix link flags (space-separated).

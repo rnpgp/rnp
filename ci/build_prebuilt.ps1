@@ -1,7 +1,7 @@
 # ci/build_prebuilt.ps1
 #
 # Windows MSVC counterpart to ci/build_prebuilt.sh. Uses vcpkg to obtain
-# a static dependency stack (bzip2, zlib, json-c, botan or openssl) and
+# a static dependency stack (bzip2, zlib, botan or openssl) and
 # builds librnp as a static library against it, then stages everything
 # into a release-ready tarball with the same layout as the Linux/macOS
 # builds produced by build_prebuilt.sh.
@@ -68,7 +68,7 @@ $Triplet = 'x64-windows-static'
 # temp dir so no vcpkg.json from the repo root interferes with
 # classic-mode detection. This is the same pattern rnp's own
 # windows-native.yml CI uses successfully.
-$Packages = @('bzip2', 'zlib', 'json-c', 'getopt', 'dirent')
+$Packages = @('bzip2', 'zlib', 'getopt', 'dirent')
 if ($Backend -eq 'botan') {
     $Packages += 'botan'
 } else {
@@ -162,9 +162,9 @@ if (Test-Path (Join-Path $LibSrc 'pkgconfig')) {
 
 # MANIFEST.txt — same shape as the Linux/macOS one.
 $linkLibs = if ($Backend -eq 'botan') {
-    'rnp.lib sexpp.lib botan-3.lib json-c.lib zlib.lib libbz2.lib'
+    'rnp.lib sexpp.lib botan-3.lib zlib.lib libbz2.lib'
 } else {
-    'rnp.lib sexpp.lib libcrypto.lib libssl.lib json-c.lib zlib.lib libbz2.lib'
+    'rnp.lib sexpp.lib libcrypto.lib libssl.lib zlib.lib libbz2.lib'
 }
 $manifest = @"
 rnp $Version -- prebuilt static library bundle (Windows MSVC)
@@ -176,14 +176,12 @@ Contents
 --------
   include\rnp\      public FFI headers (rnp.h, rnp_err.h, rnp_export.h, rnp_ver.h)
   include\botan-3\  (botan backend) or include\openssl\ (openssl backend)
-  include\json-c\   json-c headers
   include\bzlib.h   bzip2 header
   include\zlib.h    zlib header
   lib\rnp.lib       librnp static library
   lib\sexpp.lib     sexpp static library (librnp depends on this; headers
                     not included -- not needed by C API consumers)
   lib\botan-3.lib   (botan backend) or libcrypto.lib + libssl.lib (openssl)
-  lib\json-c.lib    json-c static library
   lib\zlib.lib      zlib static library
   lib\libbz2.lib    bzip2 static library
   lib\cmake\rnp\    CMake config (find_package(rnp))

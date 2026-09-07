@@ -60,46 +60,6 @@ install_botan() {
   fi
 }
 
-# TODO:
-# /tmp/rnp-local-installs/jsonc-install/lib
-# | If you ever happen to want to link against installed libraries
-# | in a given directory, LIBDIR, you must either use libtool, and
-# | specify the full pathname of the library, or use the '-LLIBDIR'
-# | flag during linking and do at least one of the following:
-# |    - add LIBDIR to the 'LD_LIBRARY_PATH' environment variable
-# |      during execution
-# |    - add LIBDIR to the 'LD_RUN_PATH' environment variable
-# |      during linking
-# |    - use the '-Wl,-rpath -Wl,LIBDIR' linker flag
-# |    - have your system administrator add LIBDIR to '/etc/ld.so.conf'
-install_jsonc() {
-  local jsonc_build=${LOCAL_BUILDS}/json-c
-  if [[ ! -e "${JSONC_INSTALL}/lib/libjson-c.so" ]] && \
-     [[ ! -e "${JSONC_INSTALL}/lib/libjson-c.dylib" ]] && \
-     [[ ! -e "${JSONC_INSTALL}/lib/libjson-c.a" ]]; then
-
-     if [ -d "${jsonc_build}" ]; then
-       rm -rf "${jsonc_build}"
-     fi
-
-    mkdir -p "${jsonc_build}"
-    pushd "${jsonc_build}"
-    wget https://s3.amazonaws.com/json-c_releases/releases/json-c-"${JSONC_VERSION}".tar.gz -O json-c.tar.gz
-    tar xzf json-c.tar.gz --strip 1
-
-    autoreconf -ivf
-    local cpuparam=()
-    [[ -z "$CPU" ]] || cpuparam=(--build="$CPU")
-    local build_type_args=(
-        "--enable-$(is_use_static_dependencies && echo 'static' || echo 'shared')"
-        "--disable-$(is_use_static_dependencies && echo 'shared' || echo 'static')"
-    )
-    env CFLAGS="-fPIC -fno-omit-frame-pointer -Wno-implicit-fallthrough -g" ./configure ${cpuparam+"${cpuparam[@]}"} "${build_type_args[@]}" --prefix="${JSONC_INSTALL}"
-    ${MAKE} -j"${MAKE_PARALLEL}" install
-    popd
-  fi
-}
-
 _install_gpg() {
   local VERSION_SWITCH=$1
   local NPTH_VERSION=$2

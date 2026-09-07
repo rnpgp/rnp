@@ -32,7 +32,7 @@ prepare_build_prerequisites() {
 prepare_test_env() {
   prepare_build_tool_env
 
-  export LD_LIBRARY_PATH="${GPG_INSTALL}/lib:${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib:$LD_LIBRARY_PATH"
+  export LD_LIBRARY_PATH="${GPG_INSTALL}/lib:${BOTAN_INSTALL}/lib:${RNP_INSTALL}/lib:$LD_LIBRARY_PATH"
 
   # update dll search path for windows
   if [[ "${OS}" = "msys" ]]; then
@@ -78,7 +78,7 @@ main() {
     -DCMAKE_BUILD_TYPE=Release
     -DBUILD_SHARED_LIBS=yes
     -DCMAKE_INSTALL_PREFIX="${RNP_INSTALL}"
-    -DCMAKE_PREFIX_PATH="${BOTAN_INSTALL};${JSONC_INSTALL};${GPG_INSTALL}"
+    -DCMAKE_PREFIX_PATH="${BOTAN_INSTALL};${GPG_INSTALL}"
   )
   [[ ${SKIP_TESTS} = 1 ]] && cmakeopts+=(-DBUILD_TESTING=OFF)
   [[ "${BUILD_MODE}" = "coverage" ]] && cmakeopts+=(-DENABLE_COVERAGE=yes)

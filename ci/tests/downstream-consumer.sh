@@ -40,7 +40,7 @@ RNP_ROOT="$( cd "$DIR0"/../.. && pwd )"
 #   3. raw compiler flags (-I/-L/-lrnp)
 #
 # For the static installation this exercises the transitive dependency
-# propagation (crypto backend, JSON-C, zlib, bzip2, sexpp).
+# propagation (crypto backend, zlib, bzip2, sexpp).
 #
 # Overridable environment:
 #   WORK_DIR               - build/install scratch dir (default: mktemp)

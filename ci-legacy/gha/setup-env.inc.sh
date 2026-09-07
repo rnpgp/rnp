@@ -29,7 +29,6 @@ LOCAL_INSTALLS="${rnp_local_installs}"
 # When building packages, dependencies with non-standard installation paths must
 # be found by the (DEB) package builder.
 BOTAN_INSTALL="${rnp_local_installs}/botan-install"
-JSONC_INSTALL="${rnp_local_installs}/jsonc-install"
 GPG_INSTALL="${rnp_local_installs}/gpg-install"
 
 # set this explicitly since we don't want to cache the rnp installation
@@ -40,7 +39,6 @@ for var in \
   CACHE_DIR \
   LOCAL_INSTALLS \
   BOTAN_INSTALL \
-  JSONC_INSTALL \
   GPG_INSTALL \
   RNP_INSTALL
 do

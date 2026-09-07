@@ -66,7 +66,7 @@ For the platforms rnp is known to work on, see
 |---|---|---|---|
 | Botan | Botan | Jack Lloyd | [@randombit](https://github.com/randombit) |
 | OpenSSL | OpenSSL | OpenSSL team | [@openssl/openssl](https://github.com/openssl/openssl) |
-| json-c | json-c | Michael Stack | [@json-c/json-c](https://github.com/json-c/json-c) |
+| nlohmann/json | nlohmann/json | Niels Lohmann | [@nlohmann/json](https://github.com/nlohmann/json) |
 | BZip2 | bzip2 | Julian Seward (historical); maintained by various distros | — |
 | sexpp | Ribose | Ribose / rnp core | [@rnpgp/sexp](https://github.com/rnpgp/sexp) |
 
