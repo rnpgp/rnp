@@ -312,7 +312,10 @@ Key::generate(rnp::RNG &rng, size_t keylen, size_t qbits)
         RNP_LOG("Failed to set key bits: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
     }
-#if OPENSSL_VERSION_NUMBER < 0x1010105fL
+#if OPENSSL_VERSION_NUMBER < 0x1010105fL || defined(LIBRESSL_VERSION_NUMBER)
+    /* LibreSSL and BoringSSL expose the EVP_PKEY_CTRL_DSA_PARAMGEN_Q_BITS
+     * constant but not the EVP_PKEY_CTX_set_dsa_paramgen_q_bits macro
+     * wrapper; older OpenSSL also lacks the macro. Use the ctrl call. */
     EVP_PKEY_CTX_ctrl(ctx.get(),
                       EVP_PKEY_DSA,
                       EVP_PKEY_OP_PARAMGEN,
