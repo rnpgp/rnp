@@ -15,14 +15,12 @@
 : "${MINIMUM_RUBY_VERSION:=3.0.0}"
 
 : "${RECOMMENDED_BOTAN_VERSION:=2.18.2}"
-: "${RECOMMENDED_JSONC_VERSION:=0.12.1}"
 : "${RECOMMENDED_CMAKE_VERSION:=3.20.5}"
 : "${RECOMMENDED_PYTHON_VERSION:=3.9.2}"
 : "${RECOMMENDED_RUBY_VERSION:=3.1.1}"
 
 : "${CMAKE_VERSION:=${RECOMMENDED_CMAKE_VERSION}}"
 : "${BOTAN_VERSION:=${RECOMMENDED_BOTAN_VERSION}}"
-: "${JSONC_VERSION:=${RECOMMENDED_JSONC_VERSION}}"
 : "${PYTHON_VERSION:=${RECOMMENDED_PYTHON_VERSION}}"
 : "${RUBY_VERSION:=${RECOMMENDED_RUBY_VERSION}}"
 
@@ -113,7 +111,7 @@ yum_prepare_repos() {
 
 linux_install_fedora() {
   yum_prepare_repos
-  extra_dep=(cmake json-c-devel ruby)
+  extra_dep=(cmake ruby)
 
   yum_install_build_dependencies "${extra_dep[@]}"
   yum_install_dynamic_build_dependencies_if_needed
@@ -215,7 +213,7 @@ yum_install_build_dependencies() {
 linux_install_centos7() {
   yum_prepare_repos epel-release centos-release-scl centos-sclo-rh
 
-  extra_dep=(cmake3 llvm-toolset-7.0 json-c12-devel rh-ruby30)
+  extra_dep=(cmake3 llvm-toolset-7.0 rh-ruby30)
 
   yum_install_build_dependencies "${extra_dep[@]}"
   yum_install_dynamic_build_dependencies_if_needed
@@ -233,7 +231,7 @@ linux_install_centos8() {
   "${SUDO}" "${YUM}" module reset ruby -y
   yum_prepare_repos epel-release
 
-  extra_dep=(cmake texinfo json-c-devel @ruby:3.0)
+  extra_dep=(cmake texinfo @ruby:3.0)
 
   yum_install_build_dependencies "${extra_dep[@]}"
   yum_install_dynamic_build_dependencies_if_needed
@@ -250,7 +248,7 @@ linux_install_centos9() {
   "${SUDO}" "${YUM}" config-manager --set-enabled crb
   yum_prepare_repos epel-release
 
-  extra_dep=(cmake texinfo json-c-devel ruby)
+  extra_dep=(cmake texinfo ruby)
 
   yum_install_build_dependencies "${extra_dep[@]}"
   yum_install_dynamic_build_dependencies_if_needed
@@ -293,7 +291,7 @@ install_static_cacheable_build_dependencies() {
 
   mkdir -p "$LOCAL_BUILDS"
 
-  local default=(jsonc gpg)
+  local default=(gpg)
   if [[ "${CRYPTO_BACKEND:-}" != "openssl" ]]; then
     default=(botan "${default[@]}")
   fi
@@ -320,9 +318,6 @@ rubygem_install_build_dependencies() {
 yum_install_dynamic_build_dependencies() {
   yum_install \
     "${dynamic_build_dependencies_yum[@]}"
-
-  # Work around pkg-config giving out wrong include path for json-c:
-  ensure_symlink_to_target /usr/include/json-c12 /usr/include/json-c
 }
 
 # Make sure cmake is at least 3.14+ as required by rnp
@@ -506,7 +501,6 @@ build_and_install_automake() {
   popd
 }
 
-# json-c is installed with install_jsonc
 # asciidoctor is installed with install_asciidoctor
 linux_install_ubuntu() {
   "${SUDO}" apt-get update
@@ -647,14 +641,12 @@ msys_install() {
   if [ "${CC}" = "gcc" ]; then
     packages+=(mingw64/mingw-w64-x86_64-gcc
                mingw64/mingw-w64-x86_64-libbotan
-               mingw64/mingw-w64-x86_64-json-c
     )
   else
     packages+=(clang64/mingw-w64-clang-x86_64-clang
                clang64/mingw-w64-clang-x86_64-openmp
                clang64/mingw-w64-clang-x86_64-libc++
                clang64/mingw-w64-clang-x86_64-libbotan
-               clang64/mingw-w64-clang-x86_64-json-c
                clang64/mingw-w64-clang-x86_64-libsystre
     )
   fi

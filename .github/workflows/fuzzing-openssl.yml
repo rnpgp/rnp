@@ -57,7 +57,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install cmake libbz2-dev libjson-c-dev libssl-dev clang
+          sudo apt-get -y install cmake libbz2-dev libssl-dev clang
 
       - name: Configure
         run: |

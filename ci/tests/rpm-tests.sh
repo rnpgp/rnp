@@ -32,7 +32,6 @@ DIR0="$( cd "$( dirname "$0" )" && pwd )"
 # Defaults applicable to 'normal' installation and not build environment
 : "${INSTALL_PREFIX:=/usr}"
 : "${BOTAN_INSTALL:=$INSTALL_PREFIX}"
-: "${JSONC_INSTALL:=$INSTALL_PREFIX}"
 : "${RNP_INSTALL:=$INSTALL_PREFIX}"
 
 : "${ENABLE_SM2:=}"

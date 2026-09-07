@@ -147,12 +147,6 @@ if [[ ! -d "$STAGING/include/$BACKEND_HEADERS_DIR" ]]; then
 fi
 echo "PASS backend headers present ($BACKEND, include/$BACKEND_HEADERS_DIR/)"
 
-if [[ ! -d "$STAGING/include/json-c" ]]; then
-    echo "FAIL: missing include/json-c/" >&2
-    exit 1
-fi
-echo "PASS include/json-c/"
-
 # ---------------------------------------------------------------------------
 # 5. Required static archives
 # ---------------------------------------------------------------------------

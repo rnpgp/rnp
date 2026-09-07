@@ -36,7 +36,7 @@ task:
       - { CIRRUS_CLONE_SUBMODULES: true, CRYPTO_BACKEND: botan,   CRYPTO_LIB_INSTALL: botan3,  SHARED_LIBS: off, RNP_LOG_CONSOLE: 1 }
 
   dependencies_script: |
-    pkg install -y gcc cmake pkgconf googletest gnupg $CRYPTO_LIB_INSTALL json-c rubygem-asciidoctor
+    pkg install -y gcc cmake pkgconf googletest gnupg $CRYPTO_LIB_INSTALL rubygem-asciidoctor
 
   user_script: |
     pw useradd -n rnpuser -m
@@ -67,7 +67,7 @@ task:
     CIRRUS_CLONE_SUBMODULES: true
 
   dependencies_script: |
-    pkg install -y gcc cmake pkgconf botan3 json-c rubygem-asciidoctor
+    pkg install -y gcc cmake pkgconf botan3 rubygem-asciidoctor
 
   configure_script: |
     cmake . -B build                            \
@@ -96,7 +96,7 @@ task:
     echo "Not cloning rnp repo"
 
   dependencies_script: |
-    pkg install -y wget unzip gcc cmake pkgconf botan3 json-c rubygem-asciidoctor bzip2
+    pkg install -y wget unzip gcc cmake pkgconf botan3 rubygem-asciidoctor bzip2
 
   download_script: |
     wget -q https://api.cirrus-ci.com/v1/artifact/build/$CIRRUS_BUILD_ID/package_source.zip
@@ -133,7 +133,7 @@ task:
     echo "Not cloning rnp repo"
 
   dependencies_script: |
-    pkg install -y bash wget git botan3 json-c bzip2
+    pkg install -y bash wget git botan3 bzip2
 
   download_script: |
     wget -q https://api.cirrus-ci.com/v1/artifact/build/$CIRRUS_BUILD_ID/package_binary.zip

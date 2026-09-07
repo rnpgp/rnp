@@ -103,7 +103,7 @@ jobs:
           apk add --no-cache \
               build-base cmake clang ninja \
               git bash perl python3 \
-              zlib-dev bzip2-dev json-c-dev \
+              zlib-dev bzip2-dev \
               ${{ matrix.backend.package }} \
               gpg gpgme-dev
 

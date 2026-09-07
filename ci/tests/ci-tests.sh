@@ -33,7 +33,6 @@ SHUNIT_PARENT="$0"
 
 # Defaults applicable to 'normal' installation and not build environment
 : "${BOTAN_INSTALL:=/usr}"
-: "${JSONC_INSTALL:=/usr}"
 : "${RNP_INSTALL:=/usr}"
 
 : "${ENABLE_SM2:=}"
@@ -118,10 +117,10 @@ test_supported_features() {
 
     if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
         unsupported+=("${botan_only[@]}")
-        library_path="${JSONC_INSTALL}/$so_folder:${RNP_INSTALL}/$so_folder"
+        library_path="${RNP_INSTALL}/$so_folder"
     else
         supported+=("${botan_only[@]}")
-        library_path="${BOTAN_INSTALL}/$so_folder:${JSONC_INSTALL}/$so_folder:${RNP_INSTALL}/$so_folder"
+        library_path="${BOTAN_INSTALL}/$so_folder:${RNP_INSTALL}/$so_folder"
     fi
 
     # For darwin we assume that LC_RPATH is added with @executable_dir/../lib

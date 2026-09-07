@@ -44,7 +44,7 @@ yum -y install epel-release
 
 # rnp
 yum -y install git cmake3 make gcc-c++
-yum -y install bzip2-devel zlib-devel json-c12-devel
+yum -y install bzip2-devel zlib-devel
 
 # botan
 rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages.pub

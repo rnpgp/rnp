@@ -9,7 +9,7 @@ stdenv.mkDerivation rec {
 
   src = ./.;
 
-  buildInputs = with pkgs; [ zlib bzip2 json_c botan2 ];
+  buildInputs = with pkgs; [ zlib bzip2 botan2 ];
 
   cmakeFlags = [
     "-DCMAKE_INSTALL_PREFIX=${placeholder "out"}"
