@@ -1477,6 +1477,7 @@ Key::write_autocrypt(pgp_dest_t &dst, Key &sub, uint32_t uid, Key *pqc_sub)
         RNP_LOG("Public key required");
         return false;
     }
+#if defined(ENABLE_PQC)
     Signature *pqc_binding = nullptr;
     if (pqc_sub) {
         if (pqc_sub->is_secret()) {
@@ -1489,6 +1490,7 @@ Key::write_autocrypt(pgp_dest_t &dst, Key &sub, uint32_t uid, Key *pqc_sub)
             return false;
         }
     }
+#endif
 
     try {
         /* write all or nothing */
@@ -1498,10 +1500,12 @@ Key::write_autocrypt(pgp_dest_t &dst, Key &sub, uint32_t uid, Key *pqc_sub)
         cert->sig.write(memdst.dst());
         sub.pkt().write(memdst.dst());
         binding->sig.write(memdst.dst());
+#if defined(ENABLE_PQC)
         if (pqc_sub) {
             pqc_sub->pkt().write(memdst.dst());
             pqc_binding->sig.write(memdst.dst());
         }
+#endif
         dst_write(&dst, memdst.memory(), memdst.writeb());
         return !dst.werr;
     } catch (const std::exception &e) {
