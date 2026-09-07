@@ -2922,6 +2922,22 @@ class Misc(unittest.TestCase):
         ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--unknown-option', '--help'])
         self.assertNotEqual(ret, 0, 'rnpkeys should return non-zero exit code for unknown command line options')
 
+    def test_no_arguments(self):
+        """rnp and rnpkeys called without any arguments (argc < 2) must print
+        the usage message and exit with a non-zero code."""
+        # rnp exits with EXIT_ERROR (2) and prints the same usage as --help
+        ret, out, _ = run_proc(RNP, [])
+        self.assertEqual(ret, 2, 'invalid exit code of \'rnp\' without arguments')
+        self.assertRegex(out, r'(?s)^.*Usage: rnp --command \[options\] \[files\].*$')
+        _, hlp, _ = run_proc(RNP, ['--help'])
+        self.assertEqual(out, hlp, 'rnp without arguments must print the --help output')
+        # rnpkeys exits with EXIT_FAILURE (1) and prints the same usage as --help
+        ret, out, _ = run_proc(RNPK, [])
+        self.assertEqual(ret, 1, 'invalid exit code of \'rnpkeys\' without arguments')
+        self.assertRegex(out, r'(?s)^.*Usage: rnpkeys --command \[options\] \[files\].*$')
+        _, hlp, _ = run_proc(RNPK, ['--help'])
+        self.assertEqual(out, hlp, 'rnpkeys without arguments must print the --help output')
+
     def test_input_from_specifier(self):
         KEY_LIST = r'(?s)^.*' \
         r'1 key found.*' \
