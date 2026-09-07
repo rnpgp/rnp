@@ -580,12 +580,14 @@ def gpg_symencrypt_file(src, dst, cipher=None, z=None, armor=False, aead=None):
 
 
 # gpg-agent occasionally misbehaves under parallel CI load (issue #2457):
-# "Corrupted protection" when unwrapping a just-imported protected key, or a
-# spurious "BAD signature" during verification. "Bad passphrase" is the same
-# agent-state failure as reported by some gpg versions. All of them recover
-# on a fresh invocation, so retry exactly these signatures and nothing else
-# -- genuine regressions must still fail.
-GPG_TRANSIENT_ERRORS = ['Corrupted protection', 'BAD signature', 'Bad passphrase']
+# "Corrupted protection" when unwrapping a just-imported protected key, a
+# spurious "BAD signature" during verification, "Bad passphrase" or a
+# symmetric session-key "Checksum error" - the same agent-state failure with
+# different wording across gpg versions. All of them recover on a fresh
+# invocation, so retry exactly these signatures and nothing else --
+# genuine regressions must still fail.
+GPG_TRANSIENT_ERRORS = [
+  'Corrupted protection', 'BAD signature', 'Bad passphrase', 'Checksum error']
 GPG_TRANSIENT_RETRIES = 3
 
 def run_gpg(params):
