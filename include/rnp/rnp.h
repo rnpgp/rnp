@@ -115,6 +115,13 @@ typedef uint32_t rnp_result_t;
 #define RNP_USER_ATTR (2U)
 
 /**
+ * Photo ID format, returned by rnp_uid_get_photo().
+ */
+#define RNP_PHOTO_FORMAT_UNKNOWN (0U)
+#define RNP_PHOTO_FORMAT_JPEG (1U)
+#define RNP_PHOTO_FORMAT_PNG (2U)
+
+/**
  * Predefined feature security levels
  */
 #define RNP_SECURITY_PROHIBITED (0U)
@@ -1493,6 +1500,32 @@ RNP_API rnp_result_t rnp_uid_get_type(rnp_uid_handle_t uid, uint32_t *type);
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_uid_get_data(rnp_uid_handle_t uid, void **data, size_t *size);
+
+/** Get the photo from a User Attribute UID. Returns just the image bytes
+ *  (no UserAttr subpacket framing), along with the detected format.
+ *
+ *  Format is detected from the image bytes' magic header (JPEG: FF D8 FF,
+ *  PNG: 89 50 4E 47), not from the UserAttr header's format byte, which
+ *  real-world keys frequently leave at 0. If the bytes don't match either
+ *  magic, RNP_PHOTO_FORMAT_UNKNOWN is returned and the bytes are still
+ *  handed back so the caller can decide what to do.
+ *
+ *  If the UID is not a User Attribute packet (rnp_uid_get_type() did not
+ *  return RNP_USER_ATTR), this returns RNP_ERROR_BAD_PARAMETERS.
+ *
+ * @param uid uid handle, cannot be NULL. Must reference a User Attribute UID.
+ * @param format cannot be NULL. On success, set to one of RNP_PHOTO_FORMAT_*.
+ * @param data cannot be NULL. On success, points to a malloc'd buffer of
+ *            image bytes. Must be deallocated by caller via rnp_buffer_destroy().
+ * @param size cannot be NULL. On success, size of data in bytes.
+ * @return RNP_SUCCESS on success. RNP_ERROR_BAD_PARAMETERS if uid is not a
+ *         User Attribute packet. RNP_ERROR_BAD_STATE if the User Attribute
+ *         body is malformed or contains no image subpacket.
+ */
+RNP_API rnp_result_t rnp_uid_get_photo(rnp_uid_handle_t uid,
+                                       uint32_t *       format,
+                                       void **          data,
+                                       size_t *         size);
 
 /** Check whether uid is marked as primary.
  *

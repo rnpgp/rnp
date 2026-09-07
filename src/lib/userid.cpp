@@ -95,4 +95,87 @@ UserID::clear_sigs()
     sigs_.clear();
 }
 
+/* Decode the variable-length subpacket length prefix used by both signature
+ * and User Attribute subpackets (see RFC 4880 §5.2.3.1 / RFC 9580 §5.2.3.1).
+ * On success, returns true and advances `pos` past the length field. */
+static bool
+skip_subpacket_length(const std::vector<uint8_t> &buf, size_t &pos, size_t &len)
+{
+    if (pos >= buf.size()) {
+        return false;
+    }
+    uint8_t b0 = buf[pos++];
+    if (b0 < 192) {
+        len = b0;
+    } else if (b0 < 224) {
+        if (pos >= buf.size()) {
+            return false;
+        }
+        len = ((size_t)(b0 - 192) << 8) + buf[pos++] + 192;
+    } else if (b0 == 255) {
+        if (pos + 4 > buf.size()) {
+            return false;
+        }
+        len = ((size_t) buf[pos] << 24) | ((size_t) buf[pos + 1] << 16) |
+              ((size_t) buf[pos + 2] << 8) | (size_t) buf[pos + 3];
+        pos += 4;
+    } else {
+        /* 224-254: partial-length, not valid for UserAttr subpackets */
+        return false;
+    }
+    return true;
+}
+
+bool
+parse_photo_attribute(const std::vector<uint8_t> &uid,
+                      std::vector<uint8_t> &      image,
+                      PhotoFormat &               format)
+{
+    image.clear();
+    format = PhotoFormat::Unknown;
+
+    /* Walk attribute subpackets until we find an image (type 1). */
+    size_t pos = 0;
+    while (pos < uid.size()) {
+        size_t sub_len = 0;
+        if (!skip_subpacket_length(uid, pos, sub_len)) {
+            return false;
+        }
+        if (sub_len == 0 || pos + sub_len > uid.size()) {
+            return false;
+        }
+        size_t         sub_end = pos + sub_len;
+        uint8_t        sub_type = uid[pos];
+        const uint8_t *img = nullptr;
+        size_t         img_len = 0;
+        if (sub_type == 1 && sub_len >= 2) {
+            /* Image Attribute. Per RFC 4880 §5.12.1 / RFC 9580 §5.13.1,
+             * the image header length byte counts ITSELF, so the remaining
+             * header bytes to skip are (hdr_len - 1). */
+            uint8_t hdr_len = uid[pos + 1];
+            if (hdr_len < 1 || (size_t) hdr_len + 1 > sub_len) {
+                return false;
+            }
+            img = uid.data() + pos + 1 + hdr_len;
+            img_len = sub_len - 1 - hdr_len;
+        }
+        if (img && img_len >= 3) {
+            if (img[0] == 0xFF && img[1] == 0xD8 && img[2] == 0xFF) {
+                format = PhotoFormat::JPEG;
+            } else if (img[0] == 0x89 && img[1] == 0x50 && img[2] == 0x4E && img_len >= 4 &&
+                       img[3] == 0x47) {
+                format = PhotoFormat::PNG;
+            } else {
+                /* Unknown image format; still return the bytes and let the
+                 * caller decide. */
+                format = PhotoFormat::Unknown;
+            }
+            image.assign(img, img + img_len);
+            return true;
+        }
+        pos = sub_end;
+    }
+    return false;
+}
+
 } // namespace rnp
