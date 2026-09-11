@@ -4,7 +4,7 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
+ * are permitted that the following conditions are met:
  *
  * 1.  Redistributions of source code must retain the above copyright notice,
  *     this list of conditions and the following disclaimer.
@@ -13,57 +13,44 @@
  *     this list of conditions and the following disclaimer in the documentation
  *     and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "sphincsplus.h"
-#include <botan/slh_dsa.h>
-#include <botan/pubkey.h>
+#include <botan/ffi.h>
+#include "botan_utils.hpp"
 #include <cassert>
 #include "logging.h"
 #include "types.h"
 
 namespace {
-Botan::SLH_DSA_Parameter_Set
-rnp_sphincsplus_alg_to_botan_param(pgp_pubkey_alg_t alg)
+
+/* SLH-DSA mode string for Botan's FFI (SHAKE variants used by rnp). */
+const char *
+sphincsplus_mode_str(pgp_pubkey_alg_t alg)
 {
     switch (alg) {
     case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
-        return Botan::SLH_DSA_Parameter_Set::SLHDSA128Fast;
+        return "SLH-DSA-SHAKE-128f";
     case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
-        return Botan::SLH_DSA_Parameter_Set::SLHDSA128Small;
+        return "SLH-DSA-SHAKE-128s";
     case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
-        return Botan::SLH_DSA_Parameter_Set::SLHDSA256Small;
+        return "SLH-DSA-SHAKE-256s";
     default:
         RNP_LOG("invalid algorithm ID given");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 }
 
-Botan::SLH_DSA_PublicKey
-sphincsplus_pubkey_from_bytes(const std::vector<uint8_t> &key_encoded, pgp_pubkey_alg_t alg)
-{
-    return Botan::SLH_DSA_PublicKey(key_encoded,
-                                    rnp_sphincsplus_alg_to_botan_param(alg),
-                                    Botan::SLH_DSA_Hash_Type::Shake256);
-}
-
-Botan::SLH_DSA_PrivateKey
-sphincsplus_privkey_from_bytes(const uint8_t *key_data, size_t key_size, pgp_pubkey_alg_t alg)
-{
-    Botan::secure_vector<uint8_t> priv_sv(key_data, key_data + key_size);
-    return Botan::SLH_DSA_PrivateKey(
-      priv_sv, rnp_sphincsplus_alg_to_botan_param(alg), Botan::SLH_DSA_Hash_Type::Shake256);
-}
 } // namespace
 
 pgp_sphincsplus_public_key_t::pgp_sphincsplus_public_key_t(const uint8_t *  key_encoded,
@@ -101,12 +88,30 @@ pgp_sphincsplus_private_key_t::sign(rnp::RNG *                   rng,
                                     size_t                       msg_len) const
 {
     assert(is_initialized_);
-    auto priv_key =
-      sphincsplus_privkey_from_bytes(key_encoded_.data(), key_encoded_.size(), pk_alg_);
+    rnp::botan::Privkey priv_key;
+    if (botan_privkey_load_slh_dsa(&priv_key.get(),
+                                   key_encoded_.data(),
+                                   key_encoded_.size(),
+                                   sphincsplus_mode_str(pk_alg_))) {
+        RNP_LOG("Failed to load SLH-DSA private key");
+        return RNP_ERROR_GENERIC;
+    }
 
-    auto signer = Botan::PK_Signer(priv_key, *rng->obj(), "");
-    sig->sig = signer.sign_message(msg, msg_len, *rng->obj());
-
+    rnp::botan::op::Sign signer;
+    if (botan_pk_op_sign_create(&signer.get(), priv_key.get(), "", 0) ||
+        botan_pk_op_sign_update(signer.get(), msg, msg_len)) {
+        return RNP_ERROR_SIGNING_FAILED;
+    }
+    size_t sig_len = 0;
+    if (botan_pk_op_sign_output_length(signer.get(), &sig_len) || !sig_len) {
+        return RNP_ERROR_SIGNING_FAILED;
+    }
+    sig->sig.assign(sig_len, 0);
+    if (botan_pk_op_sign_finish(signer.get(), rng->handle(), sig->sig.data(), &sig_len)) {
+        RNP_LOG("SLH-DSA signing failed");
+        return RNP_ERROR_SIGNING_FAILED;
+    }
+    sig->sig.resize(sig_len);
     return RNP_SUCCESS;
 }
 
@@ -116,26 +121,52 @@ pgp_sphincsplus_public_key_t::verify(const pgp_sphincsplus_signature_t *sig,
                                      size_t                             msg_len) const
 {
     assert(is_initialized_);
-    auto pub_key = sphincsplus_pubkey_from_bytes(key_encoded_, pk_alg_);
-
-    auto verificator = Botan::PK_Verifier(pub_key, "");
-    if (verificator.verify_message(msg, msg_len, sig->sig.data(), sig->sig.size())) {
-        return RNP_SUCCESS;
+    rnp::botan::Pubkey pub_key;
+    if (botan_pubkey_load_slh_dsa(&pub_key.get(),
+                                  key_encoded_.data(),
+                                  key_encoded_.size(),
+                                  sphincsplus_mode_str(pk_alg_))) {
+        RNP_LOG("Failed to load SLH-DSA public key");
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
-    return RNP_ERROR_SIGNATURE_INVALID;
+
+    rnp::botan::op::Verify verifier;
+    if (botan_pk_op_verify_create(&verifier.get(), pub_key.get(), "", 0) ||
+        botan_pk_op_verify_update(verifier.get(), msg, msg_len)) {
+        return RNP_ERROR_SIGNATURE_INVALID;
+    }
+    if (botan_pk_op_verify_finish(verifier.get(), sig->sig.data(), sig->sig.size())) {
+        return RNP_ERROR_SIGNATURE_INVALID;
+    }
+    return RNP_SUCCESS;
 }
 
 std::pair<pgp_sphincsplus_public_key_t, pgp_sphincsplus_private_key_t>
 sphincsplus_generate_keypair(rnp::RNG *rng, pgp_pubkey_alg_t alg)
 {
-    Botan::SLH_DSA_PrivateKey priv_key(*rng->obj(),
-                                       rnp_sphincsplus_alg_to_botan_param(alg),
-                                       Botan::SLH_DSA_Hash_Type::Shake256);
+    const char *mode = sphincsplus_mode_str(alg);
 
-    std::unique_ptr<Botan::Public_Key> pub_key = priv_key.public_key();
-    Botan::secure_vector<uint8_t>      priv_bits = priv_key.private_key_bits();
+    rnp::botan::Privkey priv_key;
+    if (botan_privkey_create(&priv_key.get(), "SLH-DSA", mode, rng->handle())) {
+        RNP_LOG("SLH-DSA key generation failed");
+        throw rnp::rnp_exception(RNP_ERROR_GENERIC);
+    }
+
+    std::vector<uint8_t> priv_bits;
+    if (botan_privkey_view_raw(priv_key.get(), &priv_bits, rnp_botan_view_bin_vec)) {
+        throw rnp::rnp_exception(RNP_ERROR_GENERIC);
+    }
+    rnp::botan::Pubkey pub_key;
+    if (botan_privkey_export_pubkey(&pub_key.get(), priv_key.get())) {
+        throw rnp::rnp_exception(RNP_ERROR_GENERIC);
+    }
+    std::vector<uint8_t> pub_bits;
+    if (botan_pubkey_view_raw(pub_key.get(), &pub_bits, rnp_botan_view_bin_vec)) {
+        throw rnp::rnp_exception(RNP_ERROR_GENERIC);
+    }
+
     return std::make_pair(
-      pgp_sphincsplus_public_key_t(pub_key->public_key_bits(), alg),
+      pgp_sphincsplus_public_key_t(pub_bits, alg),
       pgp_sphincsplus_private_key_t(priv_bits.data(), priv_bits.size(), alg));
 }
 
@@ -155,9 +186,14 @@ pgp_sphincsplus_public_key_t::is_valid(rnp::RNG *rng) const
     if (!is_initialized_) {
         return false;
     }
-
-    auto key = sphincsplus_pubkey_from_bytes(key_encoded_, pk_alg_);
-    return key.check_key(*(rng->obj()), false);
+    rnp::botan::Pubkey key;
+    if (botan_pubkey_load_slh_dsa(&key.get(),
+                                  key_encoded_.data(),
+                                  key_encoded_.size(),
+                                  sphincsplus_mode_str(pk_alg_))) {
+        return false;
+    }
+    return !botan_pubkey_check_key(key.get(), rng->handle(), 0);
 }
 
 bool
@@ -166,10 +202,14 @@ pgp_sphincsplus_private_key_t::is_valid(rnp::RNG *rng) const
     if (!is_initialized_) {
         return false;
     }
-
-    auto key =
-      sphincsplus_privkey_from_bytes(key_encoded_.data(), key_encoded_.size(), pk_alg_);
-    return key.check_key(*(rng->obj()), false);
+    rnp::botan::Privkey key;
+    if (botan_privkey_load_slh_dsa(&key.get(),
+                                   key_encoded_.data(),
+                                   key_encoded_.size(),
+                                   sphincsplus_mode_str(pk_alg_))) {
+        return false;
+    }
+    return !botan_privkey_check_key(key.get(), rng->handle(), 0);
 }
 
 rnp_result_t

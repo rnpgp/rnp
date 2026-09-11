@@ -28,8 +28,6 @@
 #include <string.h>
 #include <vector>
 #include <botan/ffi.h>
-#include <botan/bigint.h>
-#include <botan/numthry.h>
 #include "botan_utils.hpp"
 #include <rnp/rnp_def.h>
 #include "elgamal.h"
@@ -88,26 +86,36 @@ Key::validate(bool secret) const noexcept
     /* Use custom validation since we added some custom validation, and Botan has slow test for
      * prime for p */
     try {
-        Botan::BigInt bp(p.data(), p.size());
-        Botan::BigInt bg(g.data(), g.size());
+        rnp::bn bp(p.data(), p.size());
+        rnp::bn bg(g.data(), g.size());
+        uint8_t oneb = 1;
+        rnp::bn one(&oneb, 1);
+        int     c = 0;
 
         /* 1 < g < p */
-        if ((bg.cmp_word(1) != 1) || (bg.cmp(bp) != -1)) {
+        botan_mp_cmp(&c, bg.get(), one.get());
+        if (c <= 0) {
+            return false;
+        }
+        botan_mp_cmp(&c, bg.get(), bp.get());
+        if (c >= 0) {
             return false;
         }
         /* g ^ (p - 1) = 1 mod p */
-        if (Botan::power_mod(bg, bp - 1, bp).cmp_word(1)) {
+        rnp::bn pm1;
+        rnp::bn gm;
+        botan_mp_sub(pm1.get(), bp.get(), one.get());
+        botan_mp_powmod(gm.get(), bg.get(), pm1.get(), bp.get());
+        botan_mp_cmp(&c, gm.get(), one.get());
+        if (c != 0) {
             return false;
         }
         /* check for small order subgroups */
-        /* Note: we use (v * bg) % bp instead of Modular_Reducer::multiply() because
-         * Botan >= 3.8.0 changed Modular_Reducer::reduce() to use constant-time
-         * ct_modulo(), causing a ~190x slowdown.
-         * BigInt::operator% uses variable-time division. */
-        Botan::BigInt v = bg;
+        rnp::bn v(g.data(), g.size());
         for (size_t i = 2; i < (1 << 17); i++) {
-            v = (v * bg) % bp;
-            if (!v.cmp_word(1)) {
+            botan_mp_mod_mul(v.get(), v.get(), bg.get(), bp.get());
+            botan_mp_cmp(&c, v.get(), one.get());
+            if (c == 0) {
                 RNP_LOG("Small subgroup detected. Order %zu", i);
                 return false;
             }
@@ -116,9 +124,12 @@ Key::validate(bool secret) const noexcept
             return true;
         }
         /* check that g ^ x = y (mod p) */
-        Botan::BigInt by(y.data(), y.size());
-        Botan::BigInt bx(x.data(), x.size());
-        return Botan::power_mod(bg, bx, bp) == by;
+        rnp::bn by(y.data(), y.size());
+        rnp::bn bx(x.data(), x.size());
+        rnp::bn gx;
+        botan_mp_powmod(gx.get(), bg.get(), bx.get(), bp.get());
+        botan_mp_cmp(&c, gx.get(), by.get());
+        return c == 0;
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         return false;

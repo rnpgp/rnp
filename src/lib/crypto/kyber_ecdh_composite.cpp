@@ -31,8 +31,8 @@
 #include "ecdh_utils.h"
 #include "kem_combiner.hpp"
 #if defined(CRYPTO_BACKEND_BOTAN)
-#include <botan/rfc3394.h>
-#include <botan/symkey.h>
+#include <botan/ffi.h>
+#include <cstdio>
 #elif defined(CRYPTO_BACKEND_OPENSSL)
 #include <openssl/evp.h>
 #include "ossl_utils.hpp"
@@ -361,19 +361,24 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(
                                    ecdh_kyber_pub_key.get_ecdh_encoded(),
                                    pk_alg());
 #if defined(CRYPTO_BACKEND_BOTAN)
-    Botan::SymmetricKey kek(kek_vec);
-    // Compute sessionKey := AESKeyUnwrap(KEK, C) with AES-256 as per [RFC3394], aborting if
-    // the 64 bit integrity check fails
-    Botan::secure_vector<uint8_t> tmp_out;
-    try {
-        tmp_out =
-          Botan::rfc3394_keyunwrap(Botan::secure_vector<uint8_t>(enc->wrapped_sesskey.begin(),
-                                                                 enc->wrapped_sesskey.end()),
-                                   kek);
-    } catch (const std::exception &e) {
-        RNP_LOG("Keyunwrap failed: %s", e.what());
+    /* Compute sessionKey := AESKeyUnwrap(KEK, C) with AES-256 as per [RFC3394],
+     * aborting if the 64 bit integrity check fails */
+    char name[16];
+    snprintf(name, sizeof(name), "AES-%zu", 8 * kek_vec.size());
+    std::vector<uint8_t> tmp_out(enc->wrapped_sesskey.size());
+    size_t               tmp_out_len = tmp_out.size();
+    if (botan_nist_kw_dec(name,
+                          0,
+                          enc->wrapped_sesskey.data(),
+                          enc->wrapped_sesskey.size(),
+                          kek_vec.data(),
+                          kek_vec.size(),
+                          tmp_out.data(),
+                          &tmp_out_len)) {
+        RNP_LOG("Keyunwrap failed");
         return RNP_ERROR_DECRYPT_FAILED;
     }
+    tmp_out.resize(tmp_out_len);
 
     if (*out_len < tmp_out.size()) {
         RNP_LOG("buffer for decryption result too small");
@@ -532,15 +537,25 @@ pgp_kyber_ecdh_composite_public_key_t::encrypt(rnp::RNG *                  rng,
                                                                 ecdh_key_.get_encoded(),
                                                                 pk_alg());
 #if defined(CRYPTO_BACKEND_BOTAN)
-    Botan::SymmetricKey kek(kek_vec);
-    // Compute C := AESKeyWrap(KEK, sessionKey) with AES-256 as per [RFC3394] that includes a
-    // 64 bit integrity check
-    try {
-        out->wrapped_sesskey = Botan::unlock(Botan::rfc3394_keywrap(
-          Botan::secure_vector<uint8_t>(session_key, session_key + session_key_len), kek));
-    } catch (const std::exception &e) {
-        RNP_LOG("Keywrap failed: %s", e.what());
-        return RNP_ERROR_ENCRYPT_FAILED;
+    /* Compute C := AESKeyWrap(KEK, sessionKey) with AES-256 as per [RFC3394],
+     * including the 64 bit integrity check */
+    {
+        char name[16];
+        snprintf(name, sizeof(name), "AES-%zu", 8 * kek_vec.size());
+        out->wrapped_sesskey.assign(session_key_len + 8, 0);
+        size_t wrapped_len = out->wrapped_sesskey.size();
+        if (botan_nist_kw_enc(name,
+                              0,
+                              session_key,
+                              session_key_len,
+                              kek_vec.data(),
+                              kek_vec.size(),
+                              out->wrapped_sesskey.data(),
+                              &wrapped_len)) {
+            RNP_LOG("Keywrap failed");
+            return RNP_ERROR_ENCRYPT_FAILED;
+        }
+        out->wrapped_sesskey.resize(wrapped_len);
     }
 #elif defined(CRYPTO_BACKEND_OPENSSL)
     // Compute C := AESKeyWrap(KEK, sessionKey) with AES-256 as per [RFC3394]

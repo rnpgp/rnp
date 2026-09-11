@@ -100,9 +100,16 @@ generate(rnp::RNG &rng, ec::Key &key)
     }
 
     uint8_t key_bits[64];
+#if BOTAN_VERSION_CODE >= BOTAN_VERSION_CODE_FOR(3, 6, 0)
+    rnp_botan_view_buf vb{key_bits, sizeof(key_bits)};
+    if (botan_privkey_view_raw(eddsa.get(), &vb, rnp_botan_view_bin)) {
+        return RNP_ERROR_GENERIC;
+    }
+#else
     if (botan_privkey_ed25519_get_privkey(eddsa.get(), key_bits)) {
         return RNP_ERROR_GENERIC;
     }
+#endif
 
     // First 32 bytes of key_bits are the EdDSA seed (private key)
     // Second 32 bytes are the EdDSA public key
