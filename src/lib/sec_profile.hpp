@@ -76,18 +76,19 @@ class SecurityProfile {
     void          clear_rules(FeatureType type);
     void          clear_rules();
 
-    bool                has_rule(FeatureType    type,
-                                 int            value,
-                                 uint64_t       time,
-                                 SecurityAction action = SecurityAction::Any) const noexcept;
-    const SecurityRule &get_rule(FeatureType    type,
-                                 int            value,
-                                 uint64_t       time,
-                                 SecurityAction action = SecurityAction::Any) const;
-    SecurityLevel       hash_level(pgp_hash_alg_t hash,
-                                   uint64_t       time,
-                                   SecurityAction action = SecurityAction::Any) const noexcept;
-    SecurityLevel       def_level() const;
+    bool                             has_rule(FeatureType    type,
+                                              int            value,
+                                              uint64_t       time,
+                                              SecurityAction action = SecurityAction::Any) const noexcept;
+    const SecurityRule &             get_rule(FeatureType    type,
+                                              int            value,
+                                              uint64_t       time,
+                                              SecurityAction action = SecurityAction::Any) const;
+    SecurityLevel                    hash_level(pgp_hash_alg_t hash,
+                                                uint64_t       time,
+                                                SecurityAction action = SecurityAction::Any) const noexcept;
+    SecurityLevel                    def_level() const;
+    const std::vector<SecurityRule> &rules() const noexcept;
 };
 
 class SecurityContext {

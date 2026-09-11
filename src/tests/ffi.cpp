@@ -5885,6 +5885,76 @@ TEST_F(rnp_tests, test_ffi_set_log_fd)
     close(file_fd);
 }
 
+TEST_F(rnp_tests, test_ffi_fips_mode_query)
+{
+    /* Querying FIPS mode must always succeed and must reflect the compile-time
+     * setting only (RNP_FIPS_MODE). The default test build does not define it,
+     * so the query must report 0. NULL ffi / NULL out are rejected. */
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    size_t enabled = 99;
+    assert_rnp_failure(rnp_is_fips_mode_enabled(NULL, &enabled));
+    assert_rnp_failure(rnp_is_fips_mode_enabled(ffi, NULL));
+    assert_rnp_success(rnp_is_fips_mode_enabled(ffi, &enabled));
+#if defined(RNP_FIPS_MODE)
+    assert_int_equal(enabled, 1);
+#else
+    assert_int_equal(enabled, 0);
+#endif
+
+    rnp_ffi_destroy(ffi);
+}
+
+#if defined(RNP_FIPS_MODE)
+/* When the library is built with -DENABLE_FIPS_MODE=On, the default
+ * SecurityProfile must mark non-FIPS algorithms as Disabled. This
+ * test only runs in FIPS builds (where the rules exist). Each case
+ * queries a single feature via rnp_get_security_rule and checks the
+ * level is PROHIBITED (Disabled).
+ *
+ * Only algorithms the FFI knows about are queried — TWOFISH and SM4
+ * are excluded because the OpenSSL backend doesn't compile them in. */
+TEST_F(rnp_tests, test_ffi_fips_mode_default_rules)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    struct {
+        const char *type;
+        const char *name;
+    } disabled[] = {
+      {RNP_FEATURE_SYMM_ALG, "CAST5"},
+      {RNP_FEATURE_SYMM_ALG, "IDEA"},
+      {RNP_FEATURE_SYMM_ALG, "BLOWFISH"},
+      {RNP_FEATURE_HASH_ALG, "MD5"},
+      {RNP_FEATURE_HASH_ALG, "SHA1"},
+      {RNP_FEATURE_HASH_ALG, "RIPEMD160"},
+      {RNP_FEATURE_PK_ALG, "EDDSA"},
+      {RNP_FEATURE_PK_ALG, "ELGAMAL"},
+    };
+
+    for (auto &entry : disabled) {
+        uint32_t level = 99;
+        uint64_t from = 999;
+        uint32_t flags = 99;
+        assert_rnp_success(
+          rnp_get_security_rule(ffi, entry.type, entry.name, 0, &flags, &from, &level));
+        assert_int_equal(level, RNP_SECURITY_PROHIBITED);
+    }
+
+    /* Sanity check: AES-256 must remain available (not Disabled). */
+    uint32_t aes_level = 99;
+    uint64_t aes_from = 999;
+    uint32_t aes_flags = 99;
+    assert_rnp_success(rnp_get_security_rule(
+      ffi, RNP_FEATURE_SYMM_ALG, "AES256", 0, &aes_flags, &aes_from, &aes_level));
+    assert_int_equal(aes_level, RNP_SECURITY_DEFAULT);
+
+    rnp_ffi_destroy(ffi);
+}
+#endif
+
 TEST_F(rnp_tests, test_ffi_security_profile)
 {
     rnp_ffi_t ffi = NULL;
@@ -5913,7 +5983,13 @@ TEST_F(rnp_tests, test_ffi_security_profile)
     assert_rnp_success(
       rnp_get_security_rule(ffi, RNP_FEATURE_HASH_ALG, "MD5", 0, &flags, &from, &level));
     assert_int_equal(from, 0);
+#if defined(RNP_FIPS_MODE)
+    /* The FIPS default profile disables MD5 from time 0; at later times the
+     * regular insecure rule (greater `from`) still wins. */
+    assert_int_equal(level, RNP_SECURITY_PROHIBITED);
+#else
     assert_int_equal(level, RNP_SECURITY_DEFAULT);
+#endif
     assert_rnp_success(rnp_get_security_rule(
       ffi, RNP_FEATURE_HASH_ALG, "MD5", time(NULL), &flags, &from, &level));
     assert_int_equal(from, MD5_FROM);
@@ -5922,7 +5998,11 @@ TEST_F(rnp_tests, test_ffi_security_profile)
       ffi, RNP_FEATURE_HASH_ALG, "MD5", MD5_FROM - 1, &flags, &from, &level));
     assert_int_equal(from, 0);
     assert_int_equal(flags, 0);
+#if defined(RNP_FIPS_MODE)
+    assert_int_equal(level, RNP_SECURITY_PROHIBITED);
+#else
     assert_int_equal(level, RNP_SECURITY_DEFAULT);
+#endif
     /* Override it */
     assert_rnp_failure(rnp_add_security_rule(
       NULL, RNP_FEATURE_HASH_ALG, "MD5", RNP_SECURITY_OVERRIDE, 0, RNP_SECURITY_DEFAULT));
@@ -6062,27 +6142,40 @@ TEST_F(rnp_tests, test_ffi_security_profile)
 #if defined(ENABLE_CRYPTO_REFRESH)
     add_removed_hash = 1; // RIPEMD
 #endif
-    assert_int_equal(removed, 3 /*HASH*/ + add_removed_hash + 4 /*SYMM*/);
+#if defined(RNP_FIPS_MODE)
+    /* FIPS adds 12 Disabled rules: 5 symmetric, 3 hash (2 without
+     * CRYPTO_REFRESH), 4 public-key; see sec_profile.cpp */
+    const size_t add_removed_fips = 12;
+    const size_t fips_symm = 5;
+    const size_t fips_hash_dupes = 3; /* MD5 + SHA1 + RIPEMD */
+    const size_t fips_hash_alg_dupe = 1;
+#else
+    const size_t add_removed_fips = 0;
+    const size_t fips_symm = 0;
+    const size_t fips_hash_dupes = 0;
+    const size_t fips_hash_alg_dupe = 0;
+#endif
+    assert_int_equal(removed, 3 /*HASH*/ + add_removed_hash + 4 /*SYMM*/ + add_removed_fips);
     rnp_ffi_destroy(ffi);
     rnp_ffi_create(&ffi, "GPG", "GPG");
     /* Remove all rules for hash */
     removed = 0;
     assert_rnp_success(
       rnp_remove_security_rule(ffi, RNP_FEATURE_SYMM_ALG, NULL, 0, 0, 0, &removed));
-    assert_int_equal(removed, 4);
+    assert_int_equal(removed, 4 + fips_symm);
     removed = 0;
     assert_rnp_success(
       rnp_remove_security_rule(ffi, RNP_FEATURE_HASH_ALG, NULL, 0, 0, 0, &removed));
-    assert_int_equal(removed, 3 + add_removed_hash);
+    assert_int_equal(removed, 3 + add_removed_hash + fips_hash_dupes);
     rnp_ffi_destroy(ffi);
     rnp_ffi_create(&ffi, "GPG", "GPG");
     /* Remove all rules for specific hash */
     assert_rnp_success(rnp_remove_security_rule(
       ffi, RNP_FEATURE_HASH_ALG, "MD5", 0, RNP_SECURITY_REMOVE_ALL, 0, &removed));
-    assert_int_equal(removed, 1);
+    assert_int_equal(removed, 1 + fips_hash_alg_dupe);
     assert_rnp_success(rnp_remove_security_rule(
       ffi, RNP_FEATURE_HASH_ALG, "SHA1", 0, RNP_SECURITY_REMOVE_ALL, 0, &removed));
-    assert_int_equal(removed, 2);
+    assert_int_equal(removed, 2 + fips_hash_alg_dupe);
     rnp_ffi_destroy(ffi);
     rnp_ffi_create(&ffi, "GPG", "GPG");
     /* SHA1 - ancient times */
@@ -6091,7 +6184,11 @@ TEST_F(rnp_tests, test_ffi_security_profile)
     assert_rnp_success(
       rnp_get_security_rule(ffi, RNP_FEATURE_HASH_ALG, "SHA1", 0, &flags, &from, &level));
     assert_int_equal(from, 0);
+#if defined(RNP_FIPS_MODE)
+    assert_int_equal(level, RNP_SECURITY_PROHIBITED);
+#else
     assert_int_equal(level, RNP_SECURITY_DEFAULT);
+#endif
     assert_int_equal(flags, 0);
     /* SHA1 - now, data verify disabled, key sig verify is enabled */
     flags = 0;
@@ -6109,7 +6206,11 @@ TEST_F(rnp_tests, test_ffi_security_profile)
     assert_rnp_success(rnp_get_security_rule(
       ffi, RNP_FEATURE_HASH_ALG, "SHA1", SHA1_DATA_FROM - 1, &flags, &from, &level));
     assert_int_equal(from, 0);
+#if defined(RNP_FIPS_MODE)
+    assert_int_equal(level, RNP_SECURITY_PROHIBITED);
+#else
     assert_int_equal(level, RNP_SECURITY_DEFAULT);
+#endif
     flags = RNP_SECURITY_VERIFY_DATA;
     assert_rnp_success(rnp_get_security_rule(
       ffi, RNP_FEATURE_HASH_ALG, "SHA1", time(NULL), &flags, &from, &level));
@@ -6120,7 +6221,13 @@ TEST_F(rnp_tests, test_ffi_security_profile)
     assert_rnp_success(
       rnp_get_security_rule(ffi, RNP_FEATURE_HASH_ALG, "SHA1", now, &flags, &from, &level));
     expect_from = sha1_cutoff ? SHA1_KEY_FROM : 0;
-    auto expect_level = sha1_cutoff ? RNP_SECURITY_INSECURE : RNP_SECURITY_DEFAULT;
+    uint32_t expect_level_no_cutoff;
+#if defined(RNP_FIPS_MODE)
+    expect_level_no_cutoff = RNP_SECURITY_PROHIBITED;
+#else
+    expect_level_no_cutoff = RNP_SECURITY_DEFAULT;
+#endif
+    auto expect_level = sha1_cutoff ? RNP_SECURITY_INSECURE : expect_level_no_cutoff;
     expect_usage = sha1_cutoff ? RNP_SECURITY_VERIFY_KEY : 0;
     assert_int_equal(from, expect_from);
     assert_int_equal(level, expect_level);
@@ -6137,6 +6244,145 @@ TEST_F(rnp_tests, test_ffi_security_profile)
     assert_int_equal(from, SHA1_KEY_FROM);
     assert_int_equal(level, RNP_SECURITY_INSECURE);
     assert_int_equal(flags, RNP_SECURITY_VERIFY_KEY);
+
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_security_rule_enumeration)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* NULL-pointer checks */
+    assert_rnp_failure(rnp_get_security_rule_count(NULL, NULL));
+    assert_rnp_failure(rnp_get_security_rule_count(ffi, NULL));
+    assert_rnp_failure(rnp_get_security_rule_count(NULL, NULL));
+
+    size_t count = 0;
+    assert_rnp_success(rnp_get_security_rule_count(ffi, &count));
+    size_t add_ripemd = 0;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    add_ripemd = 1;
+#endif
+#if defined(RNP_FIPS_MODE)
+    /* The FIPS default profile appends 12 Disabled rules (5 symmetric, 3 hash,
+     * 4 public-key), see sec_profile.cpp */
+    const size_t fips_rules = 12;
+    const size_t fips_symm = 5;
+    const size_t fips_hash_dupes = 2; /* MD5 + SHA1, RIPEMD needs CRYPTO_REFRESH */
+#else
+    const size_t fips_rules = 0;
+    const size_t fips_symm = 0;
+    const size_t fips_hash_dupes = 0;
+#endif
+    /* 2 SHA1 (data + key) + MD5 + 4 symmetric ciphers + optional RIPEMD */
+    assert_int_equal(count, 3 + 4 + add_ripemd + fips_rules);
+
+    /* Out-of-range index */
+    uint32_t level = 0;
+    uint64_t from = 0;
+    uint32_t flags = 0;
+    char *   type = NULL;
+    char *   name = NULL;
+    assert_rnp_failure(
+      rnp_get_security_rule_at(ffi, count, &type, &name, &level, &from, &flags));
+    assert_rnp_failure(rnp_get_security_rule_at(NULL, 0, &type, &name, &level, &from, &flags));
+
+    /* Enumerate and look up the MD5 rule */
+    bool found_md5 = false;
+    bool found_cast5 = false;
+    bool found_sha1_data = false;
+    bool found_sha1_key = false;
+    for (size_t i = 0; i < count; i++) {
+        type = NULL;
+        name = NULL;
+        level = 0;
+        from = 0;
+        flags = 0;
+        assert_rnp_success(
+          rnp_get_security_rule_at(ffi, i, &type, &name, &level, &from, &flags));
+        assert_non_null(type);
+        assert_non_null(name);
+        if (strcmp(type, "hash") == 0 && strcmp(name, "MD5") == 0) {
+            /* Match the base insecure rule; under FIPS an extra Disabled
+             * rule (from = 0) is enumerated alongside it. */
+            if (from == MD5_FROM) {
+                found_md5 = true;
+                assert_int_equal(level, RNP_SECURITY_INSECURE);
+                assert_int_equal(flags, 0);
+            }
+        }
+        if (strcmp(type, "symmetric") == 0 && strcmp(name, "CAST5") == 0) {
+            if (from == CAST5_3DES_IDEA_BLOWFISH_FROM) {
+                found_cast5 = true;
+                assert_int_equal(level, RNP_SECURITY_INSECURE);
+                assert_int_equal(flags, 0);
+            }
+        }
+        if (strcmp(type, "hash") == 0 && strcmp(name, "SHA1") == 0) {
+            if (flags == RNP_SECURITY_VERIFY_DATA && from == SHA1_DATA_FROM) {
+                found_sha1_data = true;
+            }
+            if (flags == RNP_SECURITY_VERIFY_KEY && from == SHA1_KEY_FROM) {
+                found_sha1_key = true;
+            }
+        }
+        rnp_buffer_destroy(type);
+        rnp_buffer_destroy(name);
+    }
+    assert_true(found_md5);
+    assert_true(found_cast5);
+    assert_true(found_sha1_data);
+    assert_true(found_sha1_key);
+
+    /* NULL output parameters should be tolerated */
+    assert_rnp_success(rnp_get_security_rule_at(ffi, 0, NULL, NULL, NULL, NULL, NULL));
+
+    /* Adding a rule should be reflected in count */
+    assert_rnp_success(rnp_add_security_rule(ffi,
+                                             RNP_FEATURE_HASH_ALG,
+                                             "SHA3-256",
+                                             RNP_SECURITY_OVERRIDE,
+                                             12345,
+                                             RNP_SECURITY_DEFAULT));
+    size_t count2 = 0;
+    assert_rnp_success(rnp_get_security_rule_count(ffi, &count2));
+    assert_int_equal(count2, count + 1);
+
+    /* Cover FeatureType::PublicKey branch and the Disabled/PROHIBITED level
+     * mapping, which the built-in defaults don't exercise. */
+    assert_rnp_success(rnp_add_security_rule(ffi,
+                                             RNP_FEATURE_PK_ALG,
+                                             "EDDSA",
+                                             RNP_SECURITY_OVERRIDE,
+                                             20000,
+                                             RNP_SECURITY_PROHIBITED));
+    size_t count3 = 0;
+    assert_rnp_success(rnp_get_security_rule_count(ffi, &count3));
+    assert_int_equal(count3, count2 + 1);
+
+    /* Find the EdDSA rule we just added and verify the fields round-trip. */
+    bool found_eddsa = false;
+    for (size_t i = 0; i < count3; i++) {
+        type = NULL;
+        name = NULL;
+        level = 0;
+        from = 0;
+        flags = 0;
+        assert_rnp_success(
+          rnp_get_security_rule_at(ffi, i, &type, &name, &level, &from, &flags));
+        assert_non_null(type);
+        assert_non_null(name);
+        if (strcmp(type, "public-key") == 0 && strcmp(name, "EDDSA") == 0 &&
+            flags == RNP_SECURITY_OVERRIDE) {
+            found_eddsa = true;
+            assert_int_equal(level, RNP_SECURITY_PROHIBITED);
+            assert_int_equal(from, 20000);
+        }
+        rnp_buffer_destroy(type);
+        rnp_buffer_destroy(name);
+    }
+    assert_true(found_eddsa);
 
     rnp_ffi_destroy(ffi);
 }
