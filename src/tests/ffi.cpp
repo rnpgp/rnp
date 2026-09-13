@@ -3481,11 +3481,20 @@ TEST_F(rnp_tests, test_ffi_literal_filename)
     test_ffi_setup_signatures(&ffi, &op);
     // setup filename and modification time
     assert_rnp_failure(rnp_op_sign_set_file_name(NULL, "checkleak.dat"));
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* RFC 9580: filename/timestamp SHOULD NOT be set, setters reject them. See #2470. */
+    assert_int_equal(rnp_op_sign_set_file_name(op, "checkleak.dat"), RNP_ERROR_NOT_SUPPORTED);
+    assert_rnp_success(rnp_op_sign_set_file_name(op, NULL));
+    assert_int_equal(rnp_op_sign_set_file_name(op, "testfile.dat"), RNP_ERROR_NOT_SUPPORTED);
+    assert_rnp_failure(rnp_op_sign_set_file_mtime(NULL, 12345678));
+    assert_int_equal(rnp_op_sign_set_file_mtime(op, 12345678), RNP_ERROR_NOT_SUPPORTED);
+#else
     assert_rnp_success(rnp_op_sign_set_file_name(op, "checkleak.dat"));
     assert_rnp_success(rnp_op_sign_set_file_name(op, NULL));
     assert_rnp_success(rnp_op_sign_set_file_name(op, "testfile.dat"));
     assert_rnp_failure(rnp_op_sign_set_file_mtime(NULL, 12345678));
     assert_rnp_success(rnp_op_sign_set_file_mtime(op, 12345678));
+#endif
     // execute the operation
     assert_rnp_success(rnp_op_sign_execute(op));
     // make sure the output file was created
@@ -3652,9 +3661,16 @@ TEST_F(rnp_tests, test_ffi_aead_params)
     // set filename and mtime
     assert_rnp_failure(rnp_op_encrypt_set_file_name(NULL, "filename"));
     assert_rnp_success(rnp_op_encrypt_set_file_name(op, NULL));
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* RFC 9580: filename/timestamp SHOULD NOT be set, setters reject them. See #2470. */
+    assert_int_equal(rnp_op_encrypt_set_file_name(op, "filename"), RNP_ERROR_NOT_SUPPORTED);
+    assert_rnp_failure(rnp_op_encrypt_set_file_mtime(NULL, 1000));
+    assert_int_equal(rnp_op_encrypt_set_file_mtime(op, 1000), RNP_ERROR_NOT_SUPPORTED);
+#else
     assert_rnp_success(rnp_op_encrypt_set_file_name(op, "filename"));
     assert_rnp_failure(rnp_op_encrypt_set_file_mtime(NULL, 1000));
     assert_rnp_success(rnp_op_encrypt_set_file_mtime(op, 1000));
+#endif
     // execute the operation
     assert_rnp_success(rnp_op_encrypt_execute(op));
     // make sure the output file was created
