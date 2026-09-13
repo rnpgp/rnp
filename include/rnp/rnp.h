@@ -3070,7 +3070,9 @@ RNP_API rnp_result_t rnp_op_sign_set_expiration_time(rnp_op_sign_t op, uint32_t 
  *  @param filename source data file name. Special value _CONSOLE may be used to mark message
  *         as 'for your eyes only', i.e. it should not be stored anywhere but only displayed
  *         to the receiver. Default is the empty string.
- *  @return RNP_SUCCESS or error code if failed
+ *  @return RNP_SUCCESS or error code if failed. If the library is built with
+ *          ENABLE_CRYPTO_REFRESH, a non-empty value returns RNP_ERROR_NOT_SUPPORTED, since
+ *          RFC 9580 requires that the filename not be set on the literal data packet.
  */
 RNP_API rnp_result_t rnp_op_sign_set_file_name(rnp_op_sign_t op, const char *filename);
 
@@ -3079,7 +3081,9 @@ RNP_API rnp_result_t rnp_op_sign_set_file_name(rnp_op_sign_t op, const char *fil
  *  @param mtime modification time in seconds since Jan, 1 1970 UTC. 32 bit unsigned integer
  *               datatype is used here instead of 64 bit (like modern timestamps do) because
  *               in OpenPGP messages times are stored as 32-bit unsigned integers.
- *  @return RNP_SUCCESS or error code if failed
+ *  @return RNP_SUCCESS or error code if failed. If the library is built with
+ *          ENABLE_CRYPTO_REFRESH, a non-zero value returns RNP_ERROR_NOT_SUPPORTED, since
+ *          RFC 9580 requires that the timestamp not be set on the literal data packet.
  */
 RNP_API rnp_result_t rnp_op_sign_set_file_mtime(rnp_op_sign_t op, uint32_t mtime);
 
@@ -3834,7 +3838,9 @@ RNP_API rnp_result_t rnp_op_encrypt_set_flags(rnp_op_encrypt_t op, uint32_t flag
  * @param filename file name as NULL-terminated string. May be empty string. Value "_CONSOLE"
  *                 may have specific processing (see RFC 4880 for the details), depending on
  *                 implementation.
- * @return RNP_SUCCESS on success, or any other value on error
+ * @return RNP_SUCCESS on success, or any other value on error. If the library is built with
+ *         ENABLE_CRYPTO_REFRESH, a non-empty value returns RNP_ERROR_NOT_SUPPORTED, since
+ *         RFC 9580 requires that the filename not be set on the literal data packet.
  */
 RNP_API rnp_result_t rnp_op_encrypt_set_file_name(rnp_op_encrypt_t op, const char *filename);
 
@@ -3845,7 +3851,9 @@ RNP_API rnp_result_t rnp_op_encrypt_set_file_name(rnp_op_encrypt_t op, const cha
  * @param mtime time in seconds since Jan, 1 1970. 32 bit unsigned integer datatype is used
  *              here instead of 64 bit (like modern timestamps do) because in OpenPGP messages
  *              times are stored as 32-bit unsigned integers.
- * @return RNP_SUCCESS on success, or any other value on error
+ * @return RNP_SUCCESS on success, or any other value on error. If the library is built with
+ *         ENABLE_CRYPTO_REFRESH, a non-zero value returns RNP_ERROR_NOT_SUPPORTED, since
+ *         RFC 9580 requires that the timestamp not be set on the literal data packet.
  */
 RNP_API rnp_result_t rnp_op_encrypt_set_file_mtime(rnp_op_encrypt_t op, uint32_t mtime);
 
