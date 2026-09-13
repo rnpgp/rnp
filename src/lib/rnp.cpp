@@ -2592,15 +2592,34 @@ rnp_op_set_flags(rnp_ffi_t ffi, rnp_ctx_t &ctx, uint32_t flags)
 }
 
 static rnp_result_t
-rnp_op_set_file_name(rnp_ctx_t &ctx, const char *filename)
+rnp_op_set_file_name(rnp_ffi_t ffi, rnp_ctx_t &ctx, const char *filename)
 {
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* RFC 9580: filename SHOULD NOT be set on the literal data packet, so
+     * build_literal_hdr() silently drops it in crypto-refresh builds. Reject
+     * non-empty values here instead of accepting and discarding them later. */
+    if (filename && *filename) {
+        FFI_LOG(ffi,
+                "file name is not supported for literal packets in crypto-refresh "
+                "builds (RFC 9580 requires it not be set)");
+        return RNP_ERROR_NOT_SUPPORTED;
+    }
+#endif
     ctx.filename = filename ? filename : "";
     return RNP_SUCCESS;
 }
 
 static rnp_result_t
-rnp_op_set_file_mtime(rnp_ctx_t &ctx, uint32_t mtime)
+rnp_op_set_file_mtime(rnp_ffi_t ffi, rnp_ctx_t &ctx, uint32_t mtime)
 {
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (mtime) {
+        FFI_LOG(ffi,
+                "file mtime is not supported for literal packets in crypto-refresh "
+                "builds (RFC 9580 requires it not be set)");
+        return RNP_ERROR_NOT_SUPPORTED;
+    }
+#endif
     ctx.filemtime = mtime;
     return RNP_SUCCESS;
 }
@@ -2903,7 +2922,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_file_name(op->rnpctx, filename);
+    return rnp_op_set_file_name(op->ffi, op->rnpctx, filename);
 }
 FFI_GUARD
 
@@ -2913,7 +2932,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_file_mtime(op->rnpctx, mtime);
+    return rnp_op_set_file_mtime(op->ffi, op->rnpctx, mtime);
 }
 FFI_GUARD
 
@@ -3121,7 +3140,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_file_name(op->rnpctx, filename);
+    return rnp_op_set_file_name(op->ffi, op->rnpctx, filename);
 }
 FFI_GUARD
 
@@ -3131,7 +3150,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_file_mtime(op->rnpctx, mtime);
+    return rnp_op_set_file_mtime(op->ffi, op->rnpctx, mtime);
 }
 FFI_GUARD
 
