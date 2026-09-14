@@ -2767,7 +2767,12 @@ cli_rnp_sign(const rnp_cfg &cfg, cli_rnp_t *rnp, rnp_input_t input, rnp_output_t
 
     if (!cleartext && !detached) {
         if (cfg.has(CFG_SETFNAME)) {
-            if (rnp_op_sign_set_file_name(op, cfg.get_str(CFG_SETFNAME).c_str())) {
+            rnp_result_t fname_ret =
+              rnp_op_sign_set_file_name(op, cfg.get_str(CFG_SETFNAME).c_str());
+            if (fname_ret == RNP_ERROR_NOT_SUPPORTED) {
+                ERR_MSG("Warning: --set-filename is not supported in this build "
+                        "(RFC 9580 crypto-refresh); ignoring.");
+            } else if (fname_ret) {
                 goto done;
             }
         } else if (cfg.has(CFG_INFILE)) {
@@ -2842,7 +2847,12 @@ cli_rnp_encrypt_and_sign(const rnp_cfg &cfg,
     rnp_op_encrypt_set_armor(op, cfg.get_bool(CFG_ARMOR));
 
     if (cfg.has(CFG_SETFNAME)) {
-        if (rnp_op_encrypt_set_file_name(op, cfg.get_str(CFG_SETFNAME).c_str())) {
+        rnp_result_t fname_ret =
+          rnp_op_encrypt_set_file_name(op, cfg.get_str(CFG_SETFNAME).c_str());
+        if (fname_ret == RNP_ERROR_NOT_SUPPORTED) {
+            ERR_MSG("Warning: --set-filename is not supported in this build "
+                    "(RFC 9580 crypto-refresh); ignoring.");
+        } else if (fname_ret) {
             goto done;
         }
     } else if (cfg.has(CFG_INFILE)) {
