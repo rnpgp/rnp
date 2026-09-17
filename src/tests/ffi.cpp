@@ -3481,20 +3481,15 @@ TEST_F(rnp_tests, test_ffi_literal_filename)
     test_ffi_setup_signatures(&ffi, &op);
     // setup filename and modification time
     assert_rnp_failure(rnp_op_sign_set_file_name(NULL, "checkleak.dat"));
-#if defined(ENABLE_CRYPTO_REFRESH)
-    /* RFC 9580: filename/timestamp SHOULD NOT be set, setters reject them. See #2470. */
-    assert_int_equal(rnp_op_sign_set_file_name(op, "checkleak.dat"), RNP_ERROR_NOT_SUPPORTED);
-    assert_rnp_success(rnp_op_sign_set_file_name(op, NULL));
-    assert_int_equal(rnp_op_sign_set_file_name(op, "testfile.dat"), RNP_ERROR_NOT_SUPPORTED);
-    assert_rnp_failure(rnp_op_sign_set_file_mtime(NULL, 12345678));
-    assert_int_equal(rnp_op_sign_set_file_mtime(op, 12345678), RNP_ERROR_NOT_SUPPORTED);
-#else
+    /* Setters only store the value now; rejection (if any) happens at
+     * execute() based on the actual output version, not the build flag.
+     * This test signs with the suite's default (v4) key, so output stays
+     * v4 and this always succeeds regardless of build. See #2470. */
     assert_rnp_success(rnp_op_sign_set_file_name(op, "checkleak.dat"));
     assert_rnp_success(rnp_op_sign_set_file_name(op, NULL));
     assert_rnp_success(rnp_op_sign_set_file_name(op, "testfile.dat"));
     assert_rnp_failure(rnp_op_sign_set_file_mtime(NULL, 12345678));
     assert_rnp_success(rnp_op_sign_set_file_mtime(op, 12345678));
-#endif
     // execute the operation
     assert_rnp_success(rnp_op_sign_execute(op));
     // make sure the output file was created
@@ -3661,11 +3656,20 @@ TEST_F(rnp_tests, test_ffi_aead_params)
     // set filename and mtime
     assert_rnp_failure(rnp_op_encrypt_set_file_name(NULL, "filename"));
     assert_rnp_success(rnp_op_encrypt_set_file_name(op, NULL));
+    /* Setters only store the value now; rejection (if any) happens at
+     * execute() based on the actual output version, not the build flag.
+     * This test's AEAD settings imply SEIPDv2 (v6 framing) in crypto-refresh
+     * builds, and RFC 9580 forbids filename/mtime on v6 literal packets.
+     * This test is about AEAD params and packet layout, not filename/mtime
+     * rejection -- that path is already covered by
+     * test_ffi_literal_hdr_crypto_refresh_2470 -- so use defaults here in
+     * crypto-refresh builds to keep execute() succeeding and the rest of
+     * this test (packet dump, decrypt round-trip) exercised in both builds.
+     * See #2470. */
 #if defined(ENABLE_CRYPTO_REFRESH)
-    /* RFC 9580: filename/timestamp SHOULD NOT be set, setters reject them. See #2470. */
-    assert_int_equal(rnp_op_encrypt_set_file_name(op, "filename"), RNP_ERROR_NOT_SUPPORTED);
+    assert_rnp_success(rnp_op_encrypt_set_file_name(op, NULL));
     assert_rnp_failure(rnp_op_encrypt_set_file_mtime(NULL, 1000));
-    assert_int_equal(rnp_op_encrypt_set_file_mtime(op, 1000), RNP_ERROR_NOT_SUPPORTED);
+    assert_rnp_success(rnp_op_encrypt_set_file_mtime(op, 0));
 #else
     assert_rnp_success(rnp_op_encrypt_set_file_name(op, "filename"));
     assert_rnp_failure(rnp_op_encrypt_set_file_mtime(NULL, 1000));
