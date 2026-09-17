@@ -2594,17 +2594,6 @@ rnp_op_set_flags(rnp_ffi_t ffi, rnp_ctx_t &ctx, uint32_t flags)
 static rnp_result_t
 rnp_op_set_file_name(rnp_ffi_t ffi, rnp_ctx_t &ctx, const char *filename)
 {
-#if defined(ENABLE_CRYPTO_REFRESH)
-    /* RFC 9580: filename SHOULD NOT be set on the literal data packet, so
-     * build_literal_hdr() silently drops it in crypto-refresh builds. Reject
-     * non-empty values here instead of accepting and discarding them later. */
-    if (filename && *filename) {
-        FFI_LOG(ffi,
-                "file name is not supported for literal packets in crypto-refresh "
-                "builds (RFC 9580 requires it not be set)");
-        return RNP_ERROR_NOT_SUPPORTED;
-    }
-#endif
     ctx.filename = filename ? filename : "";
     return RNP_SUCCESS;
 }
@@ -2612,14 +2601,6 @@ rnp_op_set_file_name(rnp_ffi_t ffi, rnp_ctx_t &ctx, const char *filename)
 static rnp_result_t
 rnp_op_set_file_mtime(rnp_ffi_t ffi, rnp_ctx_t &ctx, uint32_t mtime)
 {
-#if defined(ENABLE_CRYPTO_REFRESH)
-    if (mtime) {
-        FFI_LOG(ffi,
-                "file mtime is not supported for literal packets in crypto-refresh "
-                "builds (RFC 9580 requires it not be set)");
-        return RNP_ERROR_NOT_SUPPORTED;
-    }
-#endif
     ctx.filemtime = mtime;
     return RNP_SUCCESS;
 }

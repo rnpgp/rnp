@@ -465,3 +465,4 @@ $RECYCLE.BIN/
 .ycm_extra_conf.py
 
 # End of https://www.toptal.com/developers/gitignore/api/c,vim,c++,macos,linux,patch,cmake,emacs,vscode,python,windows,textmate,sublimetext
+build-*/
