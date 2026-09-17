@@ -3070,9 +3070,10 @@ RNP_API rnp_result_t rnp_op_sign_set_expiration_time(rnp_op_sign_t op, uint32_t 
  *  @param filename source data file name. Special value _CONSOLE may be used to mark message
  *         as 'for your eyes only', i.e. it should not be stored anywhere but only displayed
  *         to the receiver. Default is the empty string.
- *  @return RNP_SUCCESS or error code if failed. If the library is built with
- *          ENABLE_CRYPTO_REFRESH, a non-empty value returns RNP_ERROR_NOT_SUPPORTED, since
- *          RFC 9580 requires that the filename not be set on the literal data packet.
+ *  @return RNP_SUCCESS or error code if failed. If the resulting message uses v6
+ *          framing (e.g. SEIPDv2 encryption, or all-v6 signing keys), a non-empty
+ *          value returns RNP_ERROR_NOT_SUPPORTED at execute time, since RFC 9580
+ *          requires that the filename not be set on v6 literal data packets.
  */
 RNP_API rnp_result_t rnp_op_sign_set_file_name(rnp_op_sign_t op, const char *filename);
 
