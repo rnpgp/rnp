@@ -3658,16 +3658,14 @@ TEST_F(rnp_tests, test_ffi_aead_params)
     // set filename and mtime
     assert_rnp_failure(rnp_op_encrypt_set_file_name(NULL, "filename"));
     assert_rnp_success(rnp_op_encrypt_set_file_name(op, NULL));
-    /* Setters only store the value now; rejection (if any) happens at
-     * execute() based on the actual output version, not the build flag.
+    /* Setters always succeed and so does execute(), regardless of build or
+     * v6/v4 output -- a non-default filename/mtime on v6 output is only
+     * silently omitted from the packet with a warning logged, not rejected.
      * This test's AEAD settings imply SEIPDv2 (v6 framing) in crypto-refresh
-     * builds, and RFC 9580 forbids filename/mtime on v6 literal packets.
-     * This test is about AEAD params and packet layout, not filename/mtime
-     * rejection -- that path is already covered by
-     * test_ffi_literal_hdr_crypto_refresh_2470 -- so use defaults here in
-     * crypto-refresh builds to keep execute() succeeding and the rest of
-     * this test (packet dump, decrypt round-trip) exercised in both builds.
-     * See #2470. */
+     * builds. Filename/mtime omission itself is already covered by
+     * test_ffi_literal_hdr_crypto_refresh_2470, so this test uses defaults
+     * in crypto-refresh builds purely to avoid that warning noise and keep
+     * focus on AEAD params and packet layout. See #2470. */
 #if defined(ENABLE_CRYPTO_REFRESH)
     assert_rnp_success(rnp_op_encrypt_set_file_name(op, NULL));
     assert_rnp_failure(rnp_op_encrypt_set_file_mtime(NULL, 1000));
