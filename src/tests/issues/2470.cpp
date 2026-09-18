@@ -94,7 +94,7 @@ TEST_F(rnp_tests, test_ffi_literal_hdr_crypto_refresh_2470)
         assert_rnp_success(rnp_op_verify_create(&vop, ffi, vinput, voutput));
         assert_rnp_success(rnp_op_verify_execute(vop));
 
-        char    *filename = NULL;
+        char *   filename = NULL;
         uint32_t mtime = 0;
         assert_rnp_success(rnp_op_verify_get_file_info(vop, &filename, &mtime));
         assert_string_equal(filename, "secret.txt");
@@ -154,7 +154,7 @@ TEST_F(rnp_tests, test_ffi_literal_hdr_crypto_refresh_2470)
         assert_rnp_success(rnp_op_verify_create(&vop, ffi, vinput, voutput));
         assert_rnp_success(rnp_op_verify_execute(vop));
 
-        char    *filename = NULL;
+        char *   filename = NULL;
         uint32_t mtime = 1;
         assert_rnp_success(rnp_op_verify_get_file_info(vop, &filename, &mtime));
         /* Requested "secret.txt" / 1700000000 did NOT make it through. */
@@ -231,7 +231,7 @@ TEST_F(rnp_tests, test_ffi_literal_hdr_crypto_refresh_2470)
         assert_rnp_success(rnp_op_verify_create(&dverify, ffi, dinput, doutput));
         assert_rnp_success(rnp_op_verify_execute(dverify));
 
-        char    *filename = NULL;
+        char *   filename = NULL;
         uint32_t mtime = 1;
         assert_rnp_success(rnp_op_verify_get_file_info(dverify, &filename, &mtime));
         assert_string_equal(filename, "");
