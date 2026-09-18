@@ -1063,6 +1063,20 @@ encrypted_start_aead(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
 #endif
 }
 
+static bool
+seipdv2_capable(rnp_ctx_t &ctx)
+{
+#if defined(ENABLE_CRYPTO_REFRESH)
+    bool use_v6_pkesk =
+      ctx.enable_pkesk_v6 && !ctx.recipients.empty() && ctx.pkeskv6_capable(&ctx.key_provider);
+    bool use_v6_skesk = ctx.enable_skesk_v6 && (ctx.aalg != PGP_AEAD_NONE);
+    return (use_v6_pkesk || ctx.recipients.empty()) && (use_v6_skesk || ctx.passwords.empty());
+#else
+    (void) ctx;
+    return false;
+#endif
+}
+
 static rnp_result_t
 init_encrypted_dst(rnp_ctx_t &ctx, pgp_dest_t &dst, pgp_dest_t &writedst)
 {
@@ -1113,17 +1127,11 @@ init_encrypted_dst(rnp_ctx_t &ctx, pgp_dest_t &dst, pgp_dest_t &writedst)
     param->auth_type = ctx.aalg == PGP_AEAD_NONE ? rnp::AuthType::MDC : rnp::AuthType::AEADv1;
 
 #if defined(ENABLE_CRYPTO_REFRESH)
-    /* We use v6 PKESK/SKESK with v2 SEIPD if all recipients support it
-    and the variables enable_pkesk_v6 or enable_skesk_v6 are set. */
-    bool use_v6_pkesk =
-      ctx.enable_pkesk_v6 && !ctx.recipients.empty() && ctx.pkeskv6_capable(&ctx.key_provider);
-    bool use_v6_skesk = ctx.enable_skesk_v6 && (ctx.aalg != PGP_AEAD_NONE);
-
-    // check that if we have recipients/passwords, also pkesk/skesk v6 is enabled.
-    if ((use_v6_pkesk || ctx.recipients.empty()) && (use_v6_skesk || ctx.passwords.empty())) {
+    if (seipdv2_capable(ctx)) {
         param->auth_type = rnp::AuthType::AEADv2;
     }
 #endif
+
     param->aalg = ctx.aalg;
     param->pkt.origdst = &writedst;
     // the following assignment is covered for the v2 SEIPD case further below
@@ -1969,26 +1977,6 @@ literal_dst_close(pgp_dest_t *dst, bool discard)
 }
 
 static bool
-require_empty_literal_filename(bool v6_output)
-{
-    return v6_output;
-}
-
-static bool
-encrypted_v6_output(rnp_ctx_t &ctx)
-{
-#if defined(ENABLE_CRYPTO_REFRESH)
-    bool use_v6_pkesk =
-      ctx.enable_pkesk_v6 && !ctx.recipients.empty() && ctx.pkeskv6_capable(&ctx.key_provider);
-    bool use_v6_skesk = ctx.enable_skesk_v6 && (ctx.aalg != PGP_AEAD_NONE);
-    return (use_v6_pkesk || ctx.recipients.empty()) && (use_v6_skesk || ctx.passwords.empty());
-#else
-    (void) ctx;
-    return false;
-#endif
-}
-
-static bool
 signing_v6_output(const rnp_ctx_t &ctx)
 {
 #if defined(ENABLE_CRYPTO_REFRESH)
@@ -2013,7 +2001,7 @@ build_literal_hdr(const rnp_ctx_t &ctx, pgp_literal_hdr_t &hdr, bool v6_output)
     hdr.format = 'b';
     /* RFC 9580: filename and timestamp SHOULD NOT be written for v6 messages;
      * v4/v5 output keeps them so legacy consumers still see the name. */
-    if (require_empty_literal_filename(v6_output)) {
+    if (v6_output) {
         return;
     }
     /* filename */
@@ -2172,11 +2160,9 @@ rnp_sign_src(rnp_ctx_t &ctx, pgp_source_t &src, pgp_dest_t &dst)
     if (!ctx.no_wrap && !ctx.detached && !ctx.clearsign) {
         pgp_literal_hdr_t hdr{};
         bool              v6_output = signing_v6_output(ctx);
-        if (require_empty_literal_filename(v6_output) &&
-            (!ctx.filename.empty() || ctx.filemtime)) {
-            RNP_LOG("file name/mtime is not supported for v6 literal packets (RFC 9580)");
-            ret = RNP_ERROR_NOT_SUPPORTED;
-            goto finish;
+        if (v6_output && (!ctx.filename.empty() || ctx.filemtime)) {
+            RNP_LOG("Warning: filename/mtime is not written for v6 literal packets "
+                    "(RFC 9580)");
         }
         build_literal_hdr(ctx, hdr, v6_output);
 
@@ -2261,12 +2247,10 @@ rnp_encrypt_sign_src(rnp_ctx_t &ctx, pgp_source_t &src, pgp_dest_t &dst)
     /* pushing literal data stream */
     if (!ctx.no_wrap) {
         pgp_literal_hdr_t hdr{};
-        bool              v6_output = encrypted_v6_output(ctx);
-        if (require_empty_literal_filename(v6_output) &&
-            (!ctx.filename.empty() || ctx.filemtime)) {
-            RNP_LOG("file name/mtime is not supported for v6 literal packets (RFC 9580)");
-            ret = RNP_ERROR_NOT_SUPPORTED;
-            goto finish;
+        bool              v6_output = seipdv2_capable(ctx);
+        if (v6_output && (!ctx.filename.empty() || ctx.filemtime)) {
+            RNP_LOG("Warning: filename/mtime is not written for v6 literal packets "
+                    "(RFC 9580)");
         }
         build_literal_hdr(ctx, hdr, v6_output);
 

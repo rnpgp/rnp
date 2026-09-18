@@ -2767,24 +2767,15 @@ cli_rnp_sign(const rnp_cfg &cfg, cli_rnp_t *rnp, rnp_input_t input, rnp_output_t
 
     if (!cleartext && !detached) {
         if (cfg.has(CFG_SETFNAME)) {
-            rnp_result_t fname_ret =
-              rnp_op_sign_set_file_name(op, cfg.get_str(CFG_SETFNAME).c_str());
-            if (fname_ret == RNP_ERROR_NOT_SUPPORTED) {
-                ERR_MSG("Warning: --set-filename is not supported in this build "
-                        "(RFC 9580 crypto-refresh); ignoring.");
-            } else if (fname_ret) {
+            if (rnp_op_sign_set_file_name(op, cfg.get_str(CFG_SETFNAME).c_str())) {
                 goto done;
             }
         } else if (cfg.has(CFG_INFILE)) {
             const std::string &fname = cfg.get_str(CFG_INFILE);
-            rnp_result_t fret = rnp_op_sign_set_file_name(op, extract_filename(fname).c_str());
-            if (fret == RNP_ERROR_NOT_SUPPORTED) {
-                /* v6 output: RFC 9580 forbids filename/mtime, silently skip embedding it */
-            } else if (fret) {
+            if (rnp_op_sign_set_file_name(op, extract_filename(fname).c_str())) {
                 goto done;
-            } else {
-                rnp_op_sign_set_file_mtime(op, rnp_filemtime(fname.c_str()));
             }
+            rnp_op_sign_set_file_mtime(op, rnp_filemtime(fname.c_str()));
         }
         if (rnp_op_sign_set_compression(op, cfg.get_cstr(CFG_ZALG), cfg.get_int(CFG_ZLEVEL))) {
             goto done;
@@ -2849,24 +2840,15 @@ cli_rnp_encrypt_and_sign(const rnp_cfg &cfg,
     rnp_op_encrypt_set_armor(op, cfg.get_bool(CFG_ARMOR));
 
     if (cfg.has(CFG_SETFNAME)) {
-        rnp_result_t fname_ret =
-          rnp_op_encrypt_set_file_name(op, cfg.get_str(CFG_SETFNAME).c_str());
-        if (fname_ret == RNP_ERROR_NOT_SUPPORTED) {
-            ERR_MSG("Warning: --set-filename is not supported in this build "
-                    "(RFC 9580 crypto-refresh); ignoring.");
-        } else if (fname_ret) {
+        if (rnp_op_encrypt_set_file_name(op, cfg.get_str(CFG_SETFNAME).c_str())) {
             goto done;
         }
     } else if (cfg.has(CFG_INFILE)) {
         const std::string &fname = cfg.get_str(CFG_INFILE);
-        rnp_result_t fret = rnp_op_encrypt_set_file_name(op, extract_filename(fname).c_str());
-        if (fret == RNP_ERROR_NOT_SUPPORTED) {
-            /* v6 output: RFC 9580 forbids filename/mtime, silently skip embedding it */
-        } else if (fret) {
+        if (rnp_op_encrypt_set_file_name(op, extract_filename(fname).c_str())) {
             goto done;
-        } else {
-            rnp_op_encrypt_set_file_mtime(op, rnp_filemtime(fname.c_str()));
         }
+        rnp_op_encrypt_set_file_mtime(op, rnp_filemtime(fname.c_str()));
     }
 
     if (rnp_op_encrypt_set_compression(op, cfg.get_cstr(CFG_ZALG), cfg.get_int(CFG_ZLEVEL))) {

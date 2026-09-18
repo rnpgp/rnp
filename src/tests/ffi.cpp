@@ -3512,10 +3512,12 @@ TEST_F(rnp_tests, test_ffi_literal_filename)
     assert_non_null(json);
 
     std::string jstr = json;
-#if !defined(ENABLE_CRYPTO_REFRESH)
+    /* This test signs with the suite's default v4 key, so filename/mtime
+     * are embedded and checkable regardless of build -- the version-aware
+     * design only omits them for v6 output, not for the whole build flavor.
+     * See #2470. */
     assert_true(jstr.find("\"filename\":\"testfile.dat\"") != std::string::npos);
     assert_true(jstr.find("\"timestamp\":12345678") != std::string::npos);
-#endif
 
     assert_rnp_success(rnp_input_destroy(input));
     rnp_buffer_destroy(signed_buf);
