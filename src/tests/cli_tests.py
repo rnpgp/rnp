@@ -3579,11 +3579,7 @@ class Misc(unittest.TestCase):
                 ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-z', '0', '-r', 'alice', '--aead=eax',
                                            '--set-filename', 'cleartext-z0.txt', '--aead-chunk-bits=1', '-e', srctxt, '--output', enc])
                 self.assertEqual(ret, 0)
-                if RNP_CRYPTO_REFRESH:
-                    # with crypto refresh code we set the empty filename
-                    self.assertEqual(os.path.getsize(enc), eax_size - len('cleartext-z0.txt'))
-                else:
-                    self.assertEqual(os.path.getsize(enc), eax_size)
+                self.assertEqual(os.path.getsize(enc), eax_size)
                 # Decrypt with RNP again
                 ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-d', enc, '--output', dec])
                 self.assertEqual(file_text(srctxt), file_text(dec))
@@ -3598,11 +3594,7 @@ class Misc(unittest.TestCase):
                 ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-z', '0', '-r', 'alice', '--aead=ocb',
                                            '--set-filename', 'cleartext-z0.txt', '--aead-chunk-bits=1', '-e', srctxt, '--output', enc])
                 self.assertEqual(ret, 0)
-                if RNP_CRYPTO_REFRESH:
-                    # with crypto refresh code we set the empty filename
-                    self.assertEqual(os.path.getsize(enc), ocb_size - len('cleartext-z0.txt'))
-                else:
-                    self.assertEqual(os.path.getsize(enc), ocb_size)
+                self.assertEqual(os.path.getsize(enc), ocb_size)
                 # Decrypt with RNP again
                 ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-d', enc, '--output', dec])
                 self.assertEqual(file_text(srctxt), file_text(dec))
