@@ -641,6 +641,12 @@ int
 rnp_main(int argc, char **argv)
 #endif
 {
+#if !defined(RNP_RUN_TESTS) && defined(_WIN32)
+    if (!cli_rnp_verify_module_signatures()) {
+        return EXIT_ERROR;
+    }
+#endif
+
     if (argc < 2) {
         print_usage(usage);
         return EXIT_ERROR;
