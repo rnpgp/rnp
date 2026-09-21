@@ -1,0 +1,82 @@
+= Backup archive wire format
+
+The `rnp_backup_archive_create()` FFI produces a standard OpenPGP
+message containing one or more transferable secret keys, signed by a
+caller-specified key and encrypted to a caller-specified public key.
+This document describes the wire format so non-rnp implementations
+can produce and consume compatible archives.
+
+== Container structure
+
+A backup archive is an OpenPGP Signed-and-Encrypted message as
+defined by [RFC 9580]. The high-level structure is:
+
+----
+PKESK v6 (or v3)
+SEIPD v2 (or v1)
+    one-pass signature packet
+    literal data packet
+        concatenated transferable secret keys
+    signature packet
+----
+
+Where:
+
+* The PKESK encrypts a session key to the `encryption_key` parameter.
+* The SEIPD packet contains the signed message body.
+* The literal data packet carries the concatenation of one or more
+  transferable secret keys, each exported with
+  `RNP_KEY_EXPORT_SECRET | RNP_KEY_EXPORT_SUBKEYS`.
+* The signature packet is produced by the `signing_key` parameter,
+  covering the literal data.
+
+== Transferable key concatenation
+
+Each transferable key is exported as the standard sequence of packets
+from [RFC 9580] §10.1 (transferable secret key). Multiple keys are
+simply concatenated; the OpenPGP literal data packet carries the
+concatenated bytes as a single payload.
+
+On load, `rnp_backup_archive_load()` decrypts the SEIPD, verifies the
+signature, then parses each transferable secret key from the literal
+data via the standard keyring import path. All keys are added to the
+FFI's secret keyring.
+
+== Decryption and verification order
+
+Load follows the standard OpenPGP decrypt-and-verify semantics:
+
+. Look up the PKESK recipient in the FFI's keyring; decrypt the
+  session key.
+. Decrypt the SEIPD payload.
+. Verify the one-pass signature against the `signing_key_public`
+  parameter. If the signer's key ID does not match, or if signature
+  verification fails, no keys are imported and the function returns
+  `RNP_ERROR_SIGNATURE_INVALID`.
+. Parse and import the recovered transferable secret keys.
+
+== Parameter defaults
+
+`rnp_backup_archive_params_t` exposes cipher, AEAD algorithm, and hash
+algorithm overrides. If any field is NULL, rnp uses the FFI defaults
+(`AES-256`, `OCB` if the recipient advertises AEAD support,
+`SHA-256`).
+
+== Security properties
+
+* The signing key SHOULD be distinct from any key in the archive.
+  Reusing a key as both the archive signer and an archive member
+  creates a circular dependency that complicates recovery flows.
+* The encryption key SHOULD be a subkey dedicated to backup
+  encryption; using the same key for email and backup means the
+  email-recipient secret material must be present to perform recovery.
+* The caller is responsible for storing the encrypted archive bytes
+  durably (file, blob, message attachment). rnp itself does not
+  dictate storage semantics.
+
+== Compatibility
+
+The wire format is a standard OpenPGP message and can be produced or
+consumed by any RFC 9580-compliant implementation. The literal data
+packet's payload (concatenated transferable secret keys) is the same
+sequence of packets that `gpg --export-secret-keys` produces.
