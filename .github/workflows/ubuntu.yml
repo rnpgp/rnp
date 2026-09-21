@@ -141,6 +141,48 @@ jobs:
           export PATH="$PWD/build/src/lib:$PATH"
           ctest --parallel 1 --test-dir build --output-on-failure -E '_slow$'
 
+
+  # Issue #2347: some code paths can overrun the default stack size.
+  # This leg runs the unit tests under a 256 KiB stack so overruns fail
+  # loudly in CI rather than only on constrained deployments.
+  tests-limited-stack:
+    name: ubuntu-24.04 limited-stack [CC gcc; botan]
+    runs-on: ubuntu-24.04
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    timeout-minutes: 40
+    env:
+      CORES: 2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install cmake libbz2-dev libbotan-2-dev googletest
+
+      - name: Configure
+        run: |
+          cmake -B build -DBUILD_SHARED_LIBS=ON \
+                -DCRYPTO_BACKEND=botan \
+                -DDOWNLOAD_GTEST=ON \
+                -DCMAKE_BUILD_TYPE=Release -DENABLE_DOC=Off .
+
+      - name: Build
+        run: cmake --build build --parallel ${{ env.CORES }}
+
+      - name: Test with a 256 KiB stack
+        run: |
+          mkdir -p "build/Testing/Temporary"
+          cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
+          export PATH="$PWD/build/src/lib:$PATH"
+          # ulimit -s takes kilobytes; 256 KiB is the budget from issue #2347.
+          ulimit -s 256
+          ctest --parallel 1 --test-dir build --output-on-failure -E '_slow$'
+
   cmake-offline-googletest-src:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
