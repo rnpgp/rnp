@@ -30,6 +30,9 @@
 
 #include "hkdf_botan.hpp"
 #include "hash_botan.hpp"
+#include "logging.h"
+#include "types.h"
+#include <botan/ffi.h>
 
 namespace rnp {
 
@@ -59,12 +62,18 @@ Hkdf_Botan::extract_expand(const uint8_t *salt,
                            uint8_t *      output_buf,
                            size_t         output_length)
 {
-    std::unique_ptr<Botan::KDF> kdf = Botan::KDF::create_or_throw(Hkdf_Botan::alg(), "");
-
-    Botan::secure_vector<uint8_t> OKM;
-    OKM = kdf->derive_key(output_length, ikm, ikm_len, salt, salt_len, info, info_len);
-
-    memcpy(output_buf, Botan::unlock(OKM).data(), output_length);
+    if (botan_kdf(Hkdf_Botan::alg().c_str(),
+                  output_buf,
+                  output_length,
+                  ikm,
+                  ikm_len,
+                  salt,
+                  salt_len,
+                  info,
+                  info_len)) {
+        RNP_LOG("HKDF derivation failed");
+        throw rnp_exception(RNP_ERROR_GENERIC);
+    }
 }
 
 Hkdf_Botan::~Hkdf_Botan()
