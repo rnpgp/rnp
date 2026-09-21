@@ -84,6 +84,11 @@ target_link_libraries(rnp
   PRIVATE
     librnp
 )
+if(MINGW)
+  # Issue #2288: link the Unicode entry point so wmain is used.
+  target_link_options(rnp PRIVATE -municode)
+  target_link_libraries(rnp PRIVATE shell32)
+endif()
 if(MSVC)
   target_link_libraries(rnp
     PRIVATE
