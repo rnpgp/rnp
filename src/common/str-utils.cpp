@@ -33,8 +33,7 @@
 #include <stdexcept>
 #include "str-utils.h"
 #ifdef _WIN32
-#include <locale>
-#include <codecvt>
+#include <windows.h>
 #endif
 
 using std::size_t;
@@ -182,36 +181,103 @@ is_slash(char c)
 } // namespace rnp
 
 #ifdef _WIN32
+/* Replace the deprecated std::wstring_convert / std::codecvt_utf8_utf16
+ * pair (issue #2302) with the Win32 conversion APIs, which are the
+ * supported path on modern Windows toolchains and avoid the known
+ * Microsoft STL memory leak in wstring_convert. */
+
 std::wstring
 wstr_from_utf8(const char *s)
 {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> utf8conv;
-    return utf8conv.from_bytes(s);
+    if (!s || !*s) {
+        return std::wstring();
+    }
+    int n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, s, -1, NULL, 0);
+    if (n <= 0) {
+        throw std::runtime_error("MultiByteToWideChar failed");
+    }
+    std::wstring out(static_cast<size_t>(n), L'\0');
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, s, -1, &out[0], n) != n) {
+        throw std::runtime_error("MultiByteToWideChar failed");
+    }
+    out.resize(static_cast<size_t>(n - 1));
+    return out;
 }
 
 std::wstring
 wstr_from_utf8(const char *first, const char *last)
 {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> utf8conv;
-    return utf8conv.from_bytes(first, last);
+    if (!first || first >= last) {
+        return std::wstring();
+    }
+    int len = static_cast<int>(last - first);
+    int n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, first, len, NULL, 0);
+    if (n <= 0) {
+        throw std::runtime_error("MultiByteToWideChar failed");
+    }
+    std::wstring out(static_cast<size_t>(n), L'\0');
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, first, len, &out[0], n) != n) {
+        throw std::runtime_error("MultiByteToWideChar failed");
+    }
+    return out;
 }
 
 std::wstring
 wstr_from_utf8(const std::string &s)
 {
-    return wstr_from_utf8(s.c_str());
+    if (s.empty()) {
+        return std::wstring();
+    }
+    return wstr_from_utf8(s.data(), s.data() + s.size());
 }
 
 std::string
 wstr_to_utf8(const wchar_t *ws)
 {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> utf8conv;
-    return utf8conv.to_bytes(ws);
+    if (!ws || !*ws) {
+        return std::string();
+    }
+    int n = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, ws, -1, NULL, 0, NULL, NULL);
+    if (n <= 0) {
+        throw std::runtime_error("WideCharToMultiByte failed");
+    }
+    std::string out(static_cast<size_t>(n), '\0');
+    if (WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, ws, -1, &out[0], n, NULL, NULL) !=
+        n) {
+        throw std::runtime_error("WideCharToMultiByte failed");
+    }
+    out.resize(static_cast<size_t>(n - 1));
+    return out;
 }
 
 std::string
 wstr_to_utf8(const std::wstring &ws)
 {
-    return wstr_to_utf8(ws.c_str());
+    if (ws.empty()) {
+        return std::string();
+    }
+    int n = WideCharToMultiByte(CP_UTF8,
+                                WC_ERR_INVALID_CHARS,
+                                ws.data(),
+                                static_cast<int>(ws.size()),
+                                NULL,
+                                0,
+                                NULL,
+                                NULL);
+    if (n <= 0) {
+        throw std::runtime_error("WideCharToMultiByte failed");
+    }
+    std::string out(static_cast<size_t>(n), '\0');
+    if (WideCharToMultiByte(CP_UTF8,
+                            WC_ERR_INVALID_CHARS,
+                            ws.data(),
+                            static_cast<int>(ws.size()),
+                            &out[0],
+                            n,
+                            NULL,
+                            NULL) != n) {
+        throw std::runtime_error("WideCharToMultiByte failed");
+    }
+    return out;
 }
 #endif
