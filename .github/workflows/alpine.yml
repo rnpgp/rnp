@@ -133,4 +133,4 @@ jobs:
           export PATH="$PWD/build/src/lib:$PATH"
           chown -R rnp:rnp $PWD
           # BusyBox su requires explicit shell even when the user has one set.
-          su -s /bin/sh rnp -c "ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure"
+          su -s /bin/sh rnp -c "ctest --parallel 1 --test-dir build --output-on-failure"
