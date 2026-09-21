@@ -60,6 +60,8 @@ get_short_cmd(int ch)
     }
 }
 
+int rnpkeys_main(int argc, char **argv);
+
 #ifndef RNP_RUN_TESTS
 #ifdef _WIN32
 /* Issue #2288: enter through wmain so the process receives UTF-16
