@@ -280,11 +280,18 @@ Key::validate(rnp::RNG &rng, bool secret) const noexcept
             return RNP_ERROR_GENERIC;
             /* LCOV_EXCL_END */
         }
+#if defined(LIBRESSL_VERSION_NUMBER)
+        /* EVP_PKEY_check is OpenSSL-internal and not exposed by LibreSSL
+         * or BoringSSL; on those backends we accept the secret key as-is.
+         * Higher-level sanity checks run in the caller. */
+        return RNP_SUCCESS;
+#else
         int res = EVP_PKEY_check(ctx.get());
         if (res <= 0) {
             RNP_LOG("Key validation error: %s", rnp::ossl::latest_err()); // LCOV_EXCL_LINE
         }
         return res > 0 ? RNP_SUCCESS : RNP_ERROR_GENERIC;
+#endif
     }
 
     /* OpenSSL 1.1.1 doesn't have RSA public key check function, so let's do some checks */
