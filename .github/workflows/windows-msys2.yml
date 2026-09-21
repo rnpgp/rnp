@@ -86,6 +86,10 @@ jobs:
           - msystem: 'ucrt64'
             shared_libs: 'off'
             backend: { name: 'botan', lib: 'libbotan' }
+          # Issue #2276: Windows coverage leg (gcc gcov through MSYS2).
+          - msystem: 'ucrt64'
+            backend: { name: 'botan', lib: 'libbotan' }
+            coverage: 'On'
 
     steps:
       - name: Checkout
@@ -116,11 +120,13 @@ jobs:
         run: |
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
           echo CRYPTO_BACKEND=${{ matrix.backend.name }} >> $GITHUB_ENV
+          cov_opt=""
+          if [ -n "${{ matrix.coverage }}" ]; then cov_opt="-DENABLE_COVERAGE=yes"; fi
           cmake -B build   -DBUILD_SHARED_LIBS=${{ matrix.shared_libs }} \
                            -DCRYPTO_BACKEND=${{ matrix.backend.name }}   \
                            -DCMAKE_INSTALL_PREFIX=${{ env.RNP_INSTALL }} \
                            -DDOWNLOAD_GTEST=OFF                          \
-                           -DCMAKE_BUILD_TYPE=Release .
+                           -DCMAKE_BUILD_TYPE=Debug $cov_opt .
 
       - name: Build
         run: cmake --build build --config "Release" --parallel ${{ env.CORES }}
@@ -140,6 +146,13 @@ jobs:
           export PATH="$PWD/build/src/lib:$PATH"
           export RNP_LOG_CONSOLE=1
           ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure -E '_slow$'
+
+      - name: Coverage
+        if: matrix.coverage == 'On'
+        shell: msys2 {0}
+        run: |
+          find "build" -type f -name '*.gcno' -exec gcov -p -b {} +
+          bash <(curl -s https://codecov.io/bash) -Z || true
 
       - name: Install
         run: cmake --install build

@@ -56,6 +56,9 @@ jobs:
           # - { container: 'debian-10-i386',  cpu: 'i386',   backend: 'botan'   }
           - { container: 'debian-11-i386',  cpu: 'i386',   backend: 'botan'   }
           - { container: 'debian-11-i386',  cpu: 'i386',   backend: 'openssl' }
+          # Issue #2276: 32-bit coverage legs.
+          - { container: 'debian-11-i386',  cpu: 'i386',   backend: 'botan',   coverage: 'On' }
+          - { container: 'debian-11-i386',  cpu: 'i386',   backend: 'openssl', coverage: 'On' }
           - { container: 'debian-11-amd64', cpu: 'x86_64', backend: 'botan'   }
           - { container: 'debian-11-amd64', cpu: 'x86_64', backend: 'openssl' }
           - { container: 'debian-12-amd64', cpu: 'x86_64', backend: 'botan'   }
@@ -111,6 +114,8 @@ jobs:
           set -eux
           [ -n "$ENABLE_PQC" ] && pqc_opt=(-DENABLE_PQC="$ENABLE_PQC" -DENABLE_CRYPTO_REFRESH="$ENABLE_PQC")
 
+          [ -n "${{ matrix.image.coverage }}" ] && cov_opt=(-DENABLE_COVERAGE=yes)
+
           cmake -B build                                           \
                 -DBUILD_SHARED_LIBS=ON                             \
                 -DCRYPTO_BACKEND=${{ matrix.image.backend }}       \
@@ -119,7 +124,7 @@ jobs:
                 -DCMAKE_BUILD_TYPE=Release                         \
                 -DCMAKE_CXX_FLAGS_RELEASE="-UNDEBUG"               \
                 -DCMAKE_C_FLAGS_RELEASE="-UNDEBUG"                 \
-                ${pqc_opt[@]:-}
+                ${pqc_opt[@]:-} "${cov_opt[@]:-}"
 
       - name: Build
         run: cmake --build build --parallel ${{ env.CORES }} -- VERBOSE=1
@@ -131,6 +136,13 @@ jobs:
           export PATH="$PWD/build/src/lib:$PATH"
           chown -R rnpuser:rnpuser $PWD
           exec su rnpuser -c "ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure -E '_slow$'"
+
+      - name: Coverage
+        if: matrix.image.coverage == 'On'
+        run: |
+          sudo apt-get -y install gcovr
+          find "build" -type f -name '*.gcno' -exec gcov -p {} +
+          bash <(curl -s https://codecov.io/bash) -Z || true
 
       - name: Package
         run: cpack -G DEB -B debian --config build/CPackConfig.cmake
