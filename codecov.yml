@@ -19,6 +19,17 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        # The aggregated report is assembled from uploads of many backend and
+        # platform legs, and small rounding differences between them shift the
+        # project percentage by a few hundredths of a point. Allow this drift
+        # while still failing on genuine regressions.
+        threshold: 0.1%
+
 ignore:
 # Google test sources stored under the build directory
   - "build"
