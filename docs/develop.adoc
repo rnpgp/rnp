@@ -41,7 +41,7 @@ It may also be helpful to check the Codecov report to identify any uncovered lin
 === Coding style
 
 In general, the coding style should follow the existing modern C++ code rather than
-the legacy C-style remnants. For example, prefer rnp::Key over pgp_key_t, 
+the legacy C-style remnants. For example, prefer rnp::Key over pgp_key_t,
 use .hpp headers instead of .h, and so on.
 
 === Branches

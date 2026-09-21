@@ -235,7 +235,7 @@ def run_proc_windows(proc, params, stdin=None):
     err = file_text(stderr_path).replace('\r\n', '\n')
     os.unlink(stdout_path)
     os.unlink(stderr_path)
-    if stdin: 
+    if stdin:
         os.unlink(stdin_path)
     if passfo:
         os.unlink(pass_path)

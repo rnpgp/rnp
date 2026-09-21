@@ -169,7 +169,7 @@ jobs:
           # See https://github.com/microsoft/vcpkg/issues/41339#issuecomment-2394308597 for lines below.
           export SystemDrive="$SYSTEMDRIVE"
           export SystemRoot="$SYSTEMROOT"
-          export windir="$WINDIR"          
+          export windir="$WINDIR"
           vcpkg install --triplet ${{ matrix.arch.triplet }} bzip2 zlib getopt dirent ${{ matrix.backend }}
 
       - name: Upload vcpkg logs on failure
@@ -274,7 +274,7 @@ jobs:
           FOR /F "delims=" %%i in ('C:\ProgramData\Chocolatey\bin\vswhere.exe -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath') DO SET "VS_PATH=%%i"
           echo "Detected Visual Studio path: %VS_PATH%"
           echo VS_PATH=%VS_PATH%>> "%GITHUB_ENV%"
-          
+
       - name: Test
         shell: bash
         # Sometimes  running cli_tests in parallel causes instability [???]

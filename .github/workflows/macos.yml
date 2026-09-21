@@ -173,7 +173,7 @@ jobs:
             cmake -B build -DBUILD_SHARED_LIBS=${{ matrix.shared_libs }}   \
                            -DCMAKE_BUILD_TYPE=Release                      \
                            -DDOWNLOAD_GTEST=OFF                            \
-                           -DCRYPTO_BACKEND=botan3 .  
+                           -DCRYPTO_BACKEND=botan3 .
             cmake --build build --config Release --parallel ${{ env.CORES }}
             sudo cmake --install build
 

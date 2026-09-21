@@ -1,0 +1,8 @@
+linelint:
+  exclude:
+    - 'src/tests/data/'
+    - 'src/lib/nlohmann/'
+    - 'src/libsexpp/'
+    - 'cmake/Modules/FindWindowsSDK.cmake'
+    - 'ci/utf8-manifest'
+    - 'docs/'

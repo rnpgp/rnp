@@ -74,7 +74,7 @@ jobs:
 
     env: ${{ matrix.env }}
     steps:
-      - name: Checkout 
+      - name: Checkout
         uses: actions/checkout@v7
         with:
           submodules: true
@@ -106,7 +106,7 @@ jobs:
           printf "\nrnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
 
       - name: Configure
-        shell: bash      
+        shell: bash
         run: |
           set -eux
           [ -n "$ENABLE_PQC" ] && pqc_opt=(-DENABLE_PQC="$ENABLE_PQC" -DENABLE_CRYPTO_REFRESH="$ENABLE_PQC")
