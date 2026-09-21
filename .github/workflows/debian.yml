@@ -72,6 +72,11 @@ jobs:
         env:
           - { CC: 'gcc',   CXX: 'g++'     }
           - { CC: 'clang', CXX: 'clang++' }
+        # ENABLE_COVERAGE only supports the GNU compiler (CMakeLists.txt), so
+        # clang combinations are excluded for coverage legs.
+        exclude:
+          - image: { coverage: 'On' }
+            env:   { CC: 'clang', CXX: 'clang++' }
 
     container: ghcr.io/rnpgp/ci-rnp-${{ matrix.image.container }}
 
