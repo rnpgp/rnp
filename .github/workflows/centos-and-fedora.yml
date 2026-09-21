@@ -227,7 +227,17 @@ jobs:
       - name: Coverage
         if: env.BUILD_MODE == 'coverage'
         run: |
-          curl 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x27034e7fdb850e0bbc2c62ff806bb28aed779869' | gpg --no-default-keyring --keyring trustedkeys.gpg --import # One-time step
+          # The keyserver connection fails intermittently, so retry a few
+          # times before giving up and failing the coverage upload.
+          keyserver_ok=0
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS --connect-timeout 15 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x27034e7fdb850e0bbc2c62ff806bb28aed779869' | gpg --no-default-keyring --keyring trustedkeys.gpg --import; then
+              keyserver_ok=1
+              break
+            fi
+            sleep 10
+          done
+          [ "$keyserver_ok" -eq 1 ] || exit 1
           curl -Os https://uploader.codecov.io/latest/linux/codecov
           curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
           curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
