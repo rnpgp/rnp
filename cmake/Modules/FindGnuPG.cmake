@@ -134,4 +134,3 @@ find_package_handle_standard_args(GnuPG
   VERSION_VAR GNUPG_VERSION
   HANDLE_COMPONENTS
 )
-

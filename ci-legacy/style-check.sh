@@ -11,4 +11,3 @@ if [ "$diffs" != "" ]; then
   echo "$diffs"
   exit 1
 fi
-

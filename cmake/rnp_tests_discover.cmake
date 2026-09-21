@@ -37,4 +37,3 @@ foreach(line ${output})
 endforeach()
 
 file(WRITE "${CTEST_FILE}" "${script}")
-

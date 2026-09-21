@@ -61,4 +61,3 @@ set_target_properties(rnp-common PROPERTIES
   POSITION_INDEPENDENT_CODE ON
   CXX_VISIBILITY_PRESET hidden
 )
-

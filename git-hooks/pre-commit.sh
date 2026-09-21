@@ -122,4 +122,3 @@ echo You should manually apply the patch with:
 echo "git apply --index \"$patchfile\""
 echo "Or use another method, and then restage."
 exit 1
-
