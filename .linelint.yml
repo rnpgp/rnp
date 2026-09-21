@@ -1,19 +1,19 @@
+# Configured for linelint 0.0.6, the version pinned by
+# fernandrone/linelint@0.0.6 in .github/workflows/lint.yml. That version
+# implements the end-of-file rule only, with gitignore-style `ignore`
+# patterns; the newer schemas on the project README are not compatible.
 rules:
-  trailing_whitespace:
-    enabled: true
-  end_of_file:
-    enabled: true
-  inserted_final_newline:
-    enabled: true
-  tabs:
-    enabled: true
-  conflicts:
-    enabled: true
-exclude:
+  end-of-file:
+    enable: true
+    single-new-line: true
+ignore:
   - 'src/tests/data/'
   - 'src/lib/nlohmann/'
   - 'src/libsexpp/'
   - 'cmake/Modules/FindWindowsSDK.cmake'
+  # Kept byte-identical to rnpgp/cmake-versioning, whose copy does not end
+  # with a newline; the version-cmake-up-to-date job diffs the two files.
+  - 'cmake/version.cmake'
   - 'ci/utf8-manifest'
   - 'docs/'
   - 'CHANGELOG.md'
