@@ -5172,7 +5172,7 @@ class Encryption(unittest.TestCase):
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'(?s)This is test message to be.*')
         self.assertRegex(err, r'(?s)Good signature made.*using SM2 key 3a143c1695ae14c9.*')
-        shutil.rmtree(RNPDIR2, ignore_errors=True)        
+        shutil.rmtree(RNPDIR2, ignore_errors=True)
 
     def test_decrypt_signonly_key(self):
         ret, _, err = run_proc(RNP, ['--keyfile', data_path('test_messages/key-rsas-rsae.asc'), '--decrypt', data_path('test_messages/message-encrypted-rsas.txt.pgp')])
@@ -5209,7 +5209,7 @@ class Encryption(unittest.TestCase):
             key = m.group(1)
             self.assertNotIn(key, keys)
             keys.add(key)
-        
+
         shutil.rmtree(RNPDIR2, ignore_errors=True)
         shutil.rmtree(GPGDIR2, ignore_errors=True)
 
