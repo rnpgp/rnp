@@ -285,6 +285,12 @@ stream_peek_packet_hdr(pgp_source_t *src, pgp_packet_hdr_t *hdr)
     hdr->hdr_len = hlen;
     hdr->tag = (pgp_pkt_type_t) get_packet_type(hdr->hdr[0]);
 
+    /* RFC 4880, section 4.3: packet tag 0 is reserved and must not be used. */
+    if (hdr->tag == PGP_PKT_RESERVED) {
+        RNP_LOG("bad packet tag 0 (reserved)");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
     if (stream_partial_pkt_len(src)) {
         hdr->partial = true;
     } else if (stream_old_indeterminate_pkt_len(src)) {
