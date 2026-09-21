@@ -218,11 +218,11 @@ jobs:
           # container in this matrix installs explicitly.
           # See rnpgp/rnp-ci-containers#24.
           if command -v su > /dev/null 2>&1; then
-            exec su rnpuser -c "ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure"
+            exec su rnpuser -c "ctest --parallel 1 --test-dir build --output-on-failure"
           else
-            exec sudo -u rnpuser ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure
+            exec sudo -u rnpuser ctest --parallel 1 --test-dir build --output-on-failure
           fi
-          exec su rnpuser -c "ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure -E '_slow$'"
+          exec su rnpuser -c "ctest --parallel 1 --test-dir build --output-on-failure -E '_slow$'"
 
       - name: Coverage
         if: env.BUILD_MODE == 'coverage'
