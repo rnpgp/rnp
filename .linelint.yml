@@ -1,4 +1,15 @@
 linelint:
+  rules:
+    trailing_whitespace:
+      enabled: true
+    end_of_file:
+      enabled: true
+    inserted_final_newline:
+      enabled: true
+    tabs:
+      enabled: true
+    conflicts:
+      enabled: true
   exclude:
     - 'src/tests/data/'
     - 'src/lib/nlohmann/'
@@ -6,3 +17,5 @@ linelint:
     - 'cmake/Modules/FindWindowsSDK.cmake'
     - 'ci/utf8-manifest'
     - 'docs/'
+    - 'CHANGELOG.md'
+    - '.github/issue_template.md'
