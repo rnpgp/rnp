@@ -65,6 +65,21 @@ class UserID {
     static const uint32_t Any = (uint32_t) -3;
 };
 
+/* Photo ID format constants — mirror RNP_PHOTO_FORMAT_* in rnp.h. */
+enum class PhotoFormat : uint8_t { Unknown = 0, JPEG = 1, PNG = 2 };
+
+/* Parse the body of a User Attribute packet (tag 17) and extract the first
+ * image attribute subpacket's image bytes plus its detected format.
+ *
+ * Returns false if the body is malformed or does not contain an image
+ * attribute. The format is detected from the image bytes' magic header
+ * (FF D8 FF for JPEG, 89 50 4E 47 for PNG) rather than the header's
+ * format byte, since real-world keys frequently leave the format byte
+ * at 0 even when the data is a valid JPEG. */
+bool parse_photo_attribute(const std::vector<uint8_t> &uid,
+                           std::vector<uint8_t> &      image,
+                           PhotoFormat &               format);
+
 } // namespace rnp
 
 #endif
