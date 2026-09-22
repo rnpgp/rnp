@@ -631,6 +631,7 @@ def retry_transient(func):
                       (attempt + 1, GPG_TRANSIENT_RETRIES, err.message), file=sys.stderr)
                 clear_workfiles()
                 time.sleep(1)
+        raise AssertionError('unreachable: the last attempt always re-raises')
     return wrapper
 
 def rerun_transient_gpg_tests():

@@ -173,6 +173,10 @@ def run_proc_windows(proc, params, stdin=None):
     pass_path = os.path.join(WORKDIR, 'pass.txt')
     passfd = 0
     passfo = None
+    # Initialised so the linter can see the passfo-branch locals are always
+    # defined before their use in the matching cleanup branch.
+    pass_fl = None
+    pass_cp = None
     try:
         idx = params.index('--pass-fd')
         if idx < len(params):
@@ -259,7 +263,9 @@ def run_proc(proc, params, stdin=None):
     if is_windows():
         return run_proc_windows(proc, params, stdin)
     paramline = u' '.join(map(_decode, _redact_sensitive_args(params)))
-    logging.debug((proc + ' ' + paramline).strip())
+    # The password values are fake and are masked by _redact_sensitive_args()
+    # above, so the clear-text warning is suppressed for this line.
+    logging.debug((proc + ' ' + paramline).strip())  # codeql[py/clear-text-logging-sensitive-data]
     param_bytes = list(map(lambda x: x.encode(CONSOLE_ENCODING), params))
     process = Popen([proc] + param_bytes, stdout=PIPE, stderr=PIPE,
                     stdin=PIPE if stdin else None, close_fds=False,
