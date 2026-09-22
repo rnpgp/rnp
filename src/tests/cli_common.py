@@ -264,8 +264,10 @@ def run_proc(proc, params, stdin=None):
         return run_proc_windows(proc, params, stdin)
     paramline = u' '.join(map(_decode, _redact_sensitive_args(params)))
     # The password values are fake and are masked by _redact_sensitive_args()
-    # above, so the clear-text warning is suppressed for this line.
-    logging.debug((proc + ' ' + paramline).strip())  # codeql[py/clear-text-logging-sensitive-data]
+    # above, so the clear-text warning is a false positive here. The inline
+    # suppression comment below applies to the logging call that follows it.
+    # codeql[py/clear-text-logging-sensitive-data]
+    logging.debug((proc + ' ' + paramline).strip())
     param_bytes = list(map(lambda x: x.encode(CONSOLE_ENCODING), params))
     process = Popen([proc] + param_bytes, stdout=PIPE, stderr=PIPE,
                     stdin=PIPE if stdin else None, close_fds=False,
