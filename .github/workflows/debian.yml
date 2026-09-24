@@ -145,6 +145,7 @@ jobs:
       - name: Coverage
         if: matrix.image.coverage == 'On'
         run: |
+          sudo apt-get update
           sudo apt-get -y install gcovr
           find "build" -type f -name '*.gcno' -exec gcov -p {} +
           bash <(curl -s https://codecov.io/bash) -Z || true
