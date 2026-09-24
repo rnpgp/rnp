@@ -180,7 +180,10 @@ jobs:
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
           export PATH="$PWD/build/src/lib:$PATH"
           # TEMPORARY debug step: capture the segfault backtrace (issue #2347).
-          bash -c 'ulimit -s 256; gdb -batch -ex run -ex "bt 40" -ex "info frame" --args build/src/tests/rnp_tests --gtest_filter=rnp_tests.test_ffi_key_export_autocrypt' || true
+          cmake -E copy_directory src/tests/data build/src/tests/data
+          cd build/src/tests
+          bash -c 'ulimit -s 256; gdb -batch -ex run -ex "bt 40" --args ./rnp_tests --gtest_filter=rnp_tests.test_ffi_key_export_autocrypt' || true
+          cd ../..
           # ulimit -s takes kilobytes; 256 KiB is the budget from issue #2347.
           ulimit -s 256
           ctest --parallel 1 --test-dir build --output-on-failure -E '_slow$'
