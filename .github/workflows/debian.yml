@@ -146,7 +146,13 @@ jobs:
         if: matrix.image.coverage == 'On'
         run: |
           find "build" -type f -name '*.gcno' -exec gcov -p {} +
-          bash <(curl -s https://codecov.io/bash) -Z || true
+      - name: Upload coverage artifacts
+        if: matrix.image.coverage == 'On'
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-debian-${{ matrix.image.container }}-${{ matrix.env.CC }}-${{ matrix.image.backend }}
+          path: '*.gcov'
+          retention-days: 5
 
       - name: Package
         run: cpack -G DEB -B debian --config build/CPackConfig.cmake
