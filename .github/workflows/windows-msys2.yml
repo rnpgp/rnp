@@ -152,7 +152,13 @@ jobs:
         shell: msys2 {0}
         run: |
           find "build" -type f -name '*.gcno' -exec gcov -p -b {} +
-          bash <(curl -s https://codecov.io/bash) -Z || true
+      - name: Upload coverage artifacts
+        if: matrix.coverage == 'On'
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-msys2-${{ matrix.msystem }}-${{ matrix.backend.name }}
+          path: '*.gcov'
+          retention-days: 5
 
       - name: Install
         run: cmake --install build
