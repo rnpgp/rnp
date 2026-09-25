@@ -31,11 +31,6 @@
 #include "key.hpp"
 #include "ffi-priv-types.h"
 #include "str-utils.h"
-#ifndef RNP_USE_STD_REGEX
-#include <regex.h>
-#else
-#include <regex>
-#endif
 
 static void
 check_key_properties(rnp_key_handle_t key,
@@ -4253,22 +4248,20 @@ TEST_F(rnp_tests, test_ffi_key_export_autocrypt)
     assert_rnp_success(rnp_output_to_memory(&output, 0));
     assert_rnp_success(
       rnp_key_export_autocrypt(key, NULL, "key0-uid2", output, RNP_KEY_EXPORT_BASE64));
-    /* Make sure it is base64-encoded */
-    const std::string reg = "^[A-Za-z0-9\\+\\/]+={0,2}$";
-    uint8_t *         buf = NULL;
-    size_t            len = 0;
+    /* Make sure it is base64-encoded. The check is done without regexes,
+     * since their backtracking implementations recurse per character and
+     * overflow the stack on multi-kilobyte values in constrained-stack
+     * environments. */
+    uint8_t *buf = NULL;
+    size_t   len = 0;
     assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
     std::string val((char *) buf, (char *) buf + len);
-#ifndef RNP_USE_STD_REGEX
-    static regex_t r;
-    regmatch_t     matches[1];
-    assert_int_equal(regcomp(&r, reg.c_str(), REG_EXTENDED), 0);
-    assert_int_equal(regexec(&r, val.c_str(), 1, matches, 0), 0);
-#else
-    static std::regex re(reg, std::regex_constants::extended | std::regex_constants::icase);
-    std::smatch       result;
-    assert_true(std::regex_search(val, result, re));
-#endif
+    size_t      bodysize = val.find_last_not_of('=');
+    bodysize = (bodysize == std::string::npos) ? 0 : bodysize + 1;
+    assert_true(val.size() - bodysize <= 2);
+    assert_true(val.find_first_not_of(
+                  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", 0, bodysize) ==
+                std::string::npos);
     /* Fails to load without base64 flag */
     assert_false(import_all_keys(ffi, buf, len));
     /* Now should succeed */
