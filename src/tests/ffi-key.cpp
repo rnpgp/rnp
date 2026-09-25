@@ -4259,8 +4259,9 @@ TEST_F(rnp_tests, test_ffi_key_export_autocrypt)
     size_t      bodysize = val.find_last_not_of('=');
     bodysize = (bodysize == std::string::npos) ? 0 : bodysize + 1;
     assert_true(val.size() - bodysize <= 2);
-    assert_true(val.find_first_not_of(
-                  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", 0, bodysize) ==
+    assert_true(val.substr(0, bodysize)
+                  .find_first_not_of(
+                    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/") ==
                 std::string::npos);
     /* Fails to load without base64 flag */
     assert_false(import_all_keys(ffi, buf, len));
