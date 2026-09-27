@@ -144,6 +144,7 @@ set(RNP_TEST_SOURCES
   issues/1030.cpp
   issues/1115.cpp
   issues/1171.cpp
+  issues/2468.cpp
   issues/2469.cpp
   issues/2397.cpp
   issues/2470.cpp

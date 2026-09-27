@@ -2252,8 +2252,8 @@ RNP_API rnp_result_t rnp_signature_get_signer(rnp_signature_handle_t sig,
  *
  * @param sig signature handle, cannot be NULL.
  * @param revoker on success hex-encoded revocation key fingerprint will be stored here, if
- *                available. Otherwise empty string will be stored. Must be freed via
- *                rnp_buffer_destroy().
+ *                available. Otherwise NULL will be stored. Must be freed via
+ *                rnp_buffer_destroy() if not NULL.
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_signature_get_revoker(rnp_signature_handle_t sig, char **revoker);
