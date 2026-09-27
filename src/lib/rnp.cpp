@@ -6887,7 +6887,8 @@ try {
     }
     auto &sig = handle->sig->sig;
     if (!sig.has_revoker()) {
-        return ret_str_value("", revoker);
+        *revoker = NULL;
+        return RNP_SUCCESS;
     }
     return ret_fingerprint(sig.revoker(), revoker);
 }
