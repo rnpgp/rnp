@@ -5048,8 +5048,7 @@ TEST_F(rnp_tests, test_ffi_designated_revokers)
     assert_rnp_failure(rnp_signature_get_revoker(NULL, &revoker));
     assert_rnp_failure(rnp_signature_get_revoker(sig, NULL));
     assert_rnp_success(rnp_signature_get_revoker(sig, &revoker));
-    assert_int_equal(strcmp(revoker, ""), 0);
-    rnp_buffer_destroy(revoker);
+    assert_null(revoker);
     rnp_signature_handle_destroy(sig);
     /* Now not empty */
     assert_rnp_success(rnp_key_get_signature_at(key, 1, &sig));
