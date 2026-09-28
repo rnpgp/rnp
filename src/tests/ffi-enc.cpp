@@ -1377,7 +1377,16 @@ TEST_F(rnp_tests, test_ffi_decrypt_pqc_pkesk_test_vector)
       {"data/draft-ietf-openpgp-pqc/v6-mldsa-87-sample-sk.asc",
        "data/draft-ietf-openpgp-pqc/v6-mldsa-87-sample-message.asc"},
       {"data/draft-ietf-openpgp-pqc/v6-slhdsa-128s-sample-sk.asc",
-       "data/draft-ietf-openpgp-pqc/v6-slhdsa-128s-sample-message.asc"}};
+       "data/draft-ietf-openpgp-pqc/v6-slhdsa-128s-sample-message.asc"},
+      /* additional nist/bp combinations */
+      {"data/draft-ietf-openpgp-pqc-nist-bp-comp/seckey-primary41-sub37.asc",
+       "data/draft-ietf-openpgp-pqc-nist-bp-comp/encrypted-alg37_signed-alg41.asc"},
+      {"data/draft-ietf-openpgp-pqc-nist-bp-comp/seckey-primary42-sub38.asc",
+       "data/draft-ietf-openpgp-pqc-nist-bp-comp/encrypted-alg38_signed-alg42.asc"},
+      {"data/draft-ietf-openpgp-pqc-nist-bp-comp/seckey-primary43-sub39.asc",
+       "data/draft-ietf-openpgp-pqc-nist-bp-comp/encrypted-alg39_signed-alg43.asc"},
+      {"data/draft-ietf-openpgp-pqc-nist-bp-comp/seckey-primary44-sub40.asc",
+       "data/draft-ietf-openpgp-pqc-nist-bp-comp/encrypted-alg40_signed-alg44.asc"}};
 
     for (auto key_msg_pair : key_msg_pairs) {
         rnp_ffi_t    ffi = NULL;
