@@ -27,7 +27,8 @@
 #include "backend_version.h"
 #include "logging.h"
 #if defined(CRYPTO_BACKEND_BOTAN)
-#include <botan/version.h>
+#include <botan/ffi.h>
+#include <cstdio>
 #elif defined(CRYPTO_BACKEND_OPENSSL)
 #include <openssl/opensslv.h>
 #include <openssl/crypto.h>
@@ -63,7 +64,16 @@ const char *
 backend_version()
 {
 #if defined(CRYPTO_BACKEND_BOTAN)
-    return Botan::short_version_cstr();
+    static char version[32] = {};
+    if (!version[0]) {
+        snprintf(version,
+                 sizeof(version),
+                 "%u.%u.%u",
+                 botan_version_major(),
+                 botan_version_minor(),
+                 botan_version_patch());
+    }
+    return version;
 #elif defined(CRYPTO_BACKEND_OPENSSL)
     /* Use regexp to retrieve version (second word) from version string
      * like "OpenSSL 1.1.1l  24 Aug 2021"
