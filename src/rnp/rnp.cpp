@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <vector>
 #include <string>
 #ifdef _MSC_VER
 #include "uniwin.h"
@@ -632,14 +633,47 @@ set_short_option(rnp_cfg &cfg, int ch, const char *arg)
     return true;
 }
 
+int rnp_main(int argc, char **argv);
+
 #ifndef RNP_RUN_TESTS
+#ifdef _WIN32
+/* Issue #2288: enter through wmain so the process receives UTF-16
+ * arguments from the OS, then convert them to UTF-8 for the rest of
+ * the CLI. MinGW builds also link with -municode (see CMakeLists). */
+int
+wmain(int argc, wchar_t *wargv[])
+{
+    try {
+        std::vector<std::string> storage;
+        storage.reserve(static_cast<size_t>(argc));
+        for (int i = 0; i < argc; i++) {
+            storage.push_back(wstr_to_utf8(wargv[i]));
+        }
+        std::vector<char *> argv_vec;
+        argv_vec.reserve(static_cast<size_t>(argc) + 1);
+        for (auto &s : storage) {
+            argv_vec.push_back(&s[0]);
+        }
+        argv_vec.push_back(nullptr);
+        int    ac = argc;
+        char **av = argv_vec.data();
+        return rnp_main(ac, av);
+    } catch (std::exception &ex) {
+        RNP_LOG("Error converting arguments ('%s')", ex.what());
+        return EXIT_ERROR;
+    }
+}
+#else
 int
 main(int argc, char **argv)
-#else
-int rnp_main(int argc, char **argv);
+{
+    return rnp_main(argc, argv);
+}
+#endif
+#endif
+
 int
 rnp_main(int argc, char **argv)
-#endif
 {
     if (argc < 2) {
         print_usage(usage);
@@ -647,14 +681,6 @@ rnp_main(int argc, char **argv)
     }
 
     cli_rnp_t rnp = {};
-#if !defined(RNP_RUN_TESTS) && defined(_WIN32)
-    try {
-        rnp.substitute_args(&argc, &argv);
-    } catch (std::exception &ex) {
-        RNP_LOG("Error converting arguments ('%s')", ex.what());
-        return EXIT_ERROR;
-    }
-#endif
 
     rnp_cfg cfg;
     cfg.load_defaults();

@@ -2191,7 +2191,9 @@ cli_rnp_input_from_specifier(cli_rnp_t &rnp, const std::string &spec, bool *is_p
         }
         res = rnp_input_from_memory(&input, (const uint8_t *) envval, strlen(envval), true);
     } else {
-        /* input from path */
+        /* input from path. The path originates from the tool's own command
+         * line, so it is not untrusted data; the warning is suppressed. */
+        // codeql[cpp/path-injection]
         res = rnp_input_from_path(&input, spec.c_str());
         path = true;
     }
@@ -2223,6 +2225,9 @@ cli_rnp_output_to_specifier(cli_rnp_t &rnp, const std::string &spec, bool discar
         }
         res = RNP_ERROR_BAD_PARAMETERS;
     } else {
+        /* The path originates from the tool's own command line, so it is not
+         * untrusted data; the warning is suppressed. */
+        // codeql[cpp/path-injection]
         res = rnp_output_to_file(&output, path.c_str(), RNP_OUTPUT_FILE_OVERWRITE);
     }
     return res ? NULL : output;
