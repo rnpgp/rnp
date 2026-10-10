@@ -187,16 +187,6 @@ struct BNCtxDeleter {
 
 using BNCtx = std::unique_ptr<BN_CTX, BNCtxDeleter>;
 
-struct BNRecpCtxDeleter {
-    void
-    operator()(BN_RECP_CTX *ptr) const
-    {
-        BN_RECP_CTX_free(ptr);
-    }
-};
-
-using BNRecpCtx = std::unique_ptr<BN_RECP_CTX, BNRecpCtxDeleter>;
-
 struct BNMontCtxDeleter {
     void
     operator()(BN_MONT_CTX *ptr) const

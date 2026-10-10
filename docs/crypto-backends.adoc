@@ -1,0 +1,218 @@
+= Crypto backends
+
+`librnp` supports two pluggable crypto backends, selected at configure time
+via `-DCRYPTO_BACKEND=<value>`:
+
+* `botan` (default) — link against https://botan.randombit.net[Botan] 2.x or 3.x.
+* `botan3` — require https://botan.randombit.net[Botan] 3.x or newer.
+* `openssl` — link against any libcrypto that ships the OpenSSL 1.1 stable
+  API. This covers https://www.openssl.org[OpenSSL] 1.1.x and 3.x, and the
+  OpenSSL 1.1-compatible fork https://www.libressl.org[LibreSSL].
+
+This document describes how each `openssl`-family backend differs, which
+platforms ship each by default, and which OpenPGP features each lacks.
+
+== Backend selection at a glance
+
+[cols="1,2,2,2,2", options="header"]
+|===
+| Backend | Project | Default on | Provider system | PQC (post-quantum)
+| `openssl` (OpenSSL 3.x) | OpenSSL Project | most Linux distros, Homebrew | yes (default + legacy + fips) | only via the third-party `oqs-provider` (not wired into rnp)
+| `openssl` (OpenSSL 1.1.x) | OpenSSL Project | older LTS distros (EOL 2023-09) | n/a | not available
+| `openssl` (LibreSSL) | OpenBSD project | OpenBSD (system), Chimera; macOS `/usr/lib` (no headers); optional on Alpine, Void, Gentoo, FreeBSD | n/a | ML-KEM (LibreSSL 4.x)
+| `botan` (2.x or 3.x) | Botan project | rnp default | n/a | Botan 3.x with PQ module
+|===
+
+== Platforms
+
+=== LibreSSL
+
+LibreSSL is the maintained successor to the OpenSSL 1.1 API line. It is the
+default system libcrypto on:
+
+* **OpenBSD** — the only libcrypto in base; this is upstream's own deployment.
+* **Chimera Linux** — system libcrypto.
+* **macOS** — `/usr/lib/libcrypto.dylib` is LibreSSL 3.x. Apple does not ship
+  headers, so developers install via `brew install libressl` and pass
+  `-DOPENSSL_ROOT_DIR=$(brew --prefix libressl)` to rnp's CMake.
+* **Alpine Linux** — optional (`apk add libressl libressl-dev`); the default
+  remains OpenSSL.
+* **Void Linux** — available as `libressl` alongside OpenSSL.
+* **Gentoo** — historically via `USE=libressl`; the flag was deprecated in
+  2022 but the package remains in tree.
+* **FreeBSD** — available as the `security/libressl` port.
+
+rnp treats LibreSSL like OpenSSL 1.1.x (`OPENSSL_VERSION_NUMBER <
+0x30000000L` on every released LibreSSL), so it never enters the
+provider/`EVP_KEYMGMT` code path.
+
+== Why BoringSSL is not supported
+
+https://boringssl.googlesource.com/boringssl[BoringSSL] is Google's
+internal fork of OpenSSL. It is API-unstable, intentionally has no
+versioned releases, and curates a much smaller algorithm set than
+OpenSSL or LibreSSL. BoringSSL is the system libcrypto on Android and
+is embedded by Chromium, Chrome, gRPC, Cloudflare quiche, and similar
+projects; no traditional distro ships it as system libcrypto.
+
+rnp cannot build against BoringSSL because BoringSSL omits several
+algorithms that rnp requires at CMake configure time. The most
+load-bearing gap is SHA-3: BoringSSL does not implement `SHA3-256` or
+`SHA3-512`, which are required for OpenPGP's salted hash and
+SEIP-D-S2K. Also missing: DSA and DH (NIDs are declared but the
+algorithms are not implemented), `AES-OCB`, `Camellia`, `IDEA`,
+`Blowfish`, `CAST5`, `SM2`, `SM3`, `SM4`, `RIPEMD-160`, and
+`ChaCha20` as an `EVP_CIPHER` name.
+
+BoringSSL also removes public-key method enumeration
+(`EVP_PKEY_asn1_*` and `EVP_PKEY_meth_*` are both absent), the secure
+heap (`OPENSSL_secure_zalloc`, `CRYPTO_secure_allocated`,
+`OPENSSL_secure_clear_free`), and the `EVP_CIPHER_do_all_sorted` /
+`EVP_MD_do_all_sorted` enumeration callbacks — so rnp's
+`findopensslfeatures.c` feature-detection helper would need a
+BoringSSL-specific path. None of those gaps are blockers on their own;
+the algorithm gaps are.
+
+Supporting BoringSSL would require either making SHA-3 optional
+(restricted OpenPGP feature set) or vendoring SHA-3 into rnp. Either
+path is a substantial change and is outside the scope of LibreSSL
+support.
+
+== [[features]] Feature comparison
+
+[cols="2,1,1,1,1", options="header"]
+|===
+| Feature | OpenSSL 1.1 | OpenSSL 3.x | LibreSSL | Botan 3
+| RSA, DSA, DH, ECDSA, ECDH | yes | yes | yes | yes
+| X25519, Ed25519 | yes | yes | yes | yes
+| X448, Ed448 | yes | yes | yes | yes
+| Brainpool curves | yes | yes | yes | yes
+| secp256k1 | yes | yes | yes | yes
+| AES-128/192/256 (ECB, CBC, CTR) | yes | yes | yes | yes
+| Camellia | yes | yes | yes | yes
+| 3DES | yes | yes | yes | yes
+| Blowfish, CAST5, IDEA | yes (legacy) | yes (legacy provider) | yes | yes
+| Twofish | no | no | no | yes
+| RIPEMD-160 | yes | yes (3.0.7+ in default) | yes | yes
+| SM2, SM3, SM4 | yes | yes | yes | yes
+| AES-OCB (AEAD-OCB) | yes | yes | no | yes
+| AEAD-EAX | no | no | no | yes
+| HKDF | yes | yes | yes | yes
+| SHA-3 | yes | yes | yes | yes
+| ML-KEM (post-quantum KEM) | via provider (3.x) | via provider | yes (4.x) | yes
+| ML-DSA (post-quantum signature) | via provider (3.x) | via provider | no | yes
+| SLH-DSA (SPHINCS+) | via provider (3.x) | via provider | no | yes
+|===
+
+== What you lose when not using Botan
+
+Botan is the only backend that exposes the full set of algorithms rnp
+supports. Switching to an OpenSSL-family backend loses the following
+functionality, in addition to the per-backend cells above:
+
+* **PQC key exchange and signatures** — `ENABLE_PQC` is gated off for the
+  OpenSSL backend (see `src/lib/CMakeLists.txt`:
+  `openssl_nope(ENABLE_PQC, "not yet implemented")`). Use `botan` with the
+  Botan 3 PQ module to enable rnp's PQC key types.
+* **SM2** — gated off for OpenSSL, on the roadmap
+  (https://github.com/rnpgp/rnp/issues/1877[#1877]).
+* **Twofish** — not supported by any OpenSSL fork
+  (https://github.com/openssl/openssl/issues/2046[upstream won't add it]).
+* **AEAD-EAX** — not supported by any OpenSSL fork.
+* **AEAD-OCB** — supported by OpenSSL and Botan, but not by LibreSSL. On
+  LibreSSL rnp disables `ENABLE_AEAD_OCB` and emits a notice at configure
+  time.
+
+== Provider and legacy model
+
+OpenSSL 3.x introduced the provider system: algorithms live in loadable
+modules (`default`, `legacy`, `fips`) that the application loads at startup.
+rnp auto-loads `default` always and `legacy` when one of IDEA, Blowfish,
+CAST5, or pre-3.0.7 RIPEMD-160 is enabled (`OPENSSL_LOAD_LEGACY` in
+`src/lib/crypto/backend_version.cpp`).
+
+LibreSSL does not have a provider system. It keeps the OpenSSL 1.1 model
+where every algorithm is compiled into libcrypto directly. rnp handles
+this via `OPENSSL_VERSION_NUMBER < 0x30000000L` guards throughout the
+OpenSSL backend; the `LEGACY` feature flag in `findopensslfeatures.c`
+reports `default\nlegacy` for any backend below 3.0 so the
+optional-legacy-gated features resolve to "available" without needing to
+load anything at runtime.
+
+== Detection and version handling
+
+rnp identifies the backend by include probes, not by string comparison:
+
+[cols="2,4", options="header"]
+|===
+| Macro | Backend
+| `LIBRESSL_VERSION_NUMBER` | LibreSSL
+| `OPENSSL_VERSION_NUMBER >= 0x30000000L` | OpenSSL 3.x
+| none of the above | OpenSSL 1.1.x
+|===
+
+`backend_string()` reports `"LibreSSL"` when running on LibreSSL; the
+version regex matches both `"OpenSSL "` and `"LibreSSL "` prefixes in the
+`OpenSSL_version(OPENSSL_VERSION)` output.
+
+LibreSSL omits several OpenSSL-internal APIs that rnp's OpenSSL backend
+must avoid:
+
+[cols="2,3", options="header"]
+|===
+| Code site | Behaviour on LibreSSL
+
+| `findopensslfeatures.c::list_publickey`
+| Uses `EVP_PKEY_asn1_*` (not the OpenSSL-internal `EVP_PKEY_meth_*`).
+
+| `mem.h::ossl_allocator`
+| Falls back to `calloc` / `OPENSSL_cleanse` / `free` when the secure
+  heap is unavailable.
+
+| `elgamal_ossl.cpp` (subgroup check)
+| Uses `BN_mod_mul` (not `BN_RECP_CTX`).
+
+| `elgamal_ossl.cpp` (secret BIGNUMs)
+| Uses `BN_new` (not `BN_secure_new`).
+
+| `ec_ossl.cpp`, `rsa_ossl.cpp`, `dl_ossl.cpp`
+| Skip the `EVP_PKEY_check` family of low-level key checks; rnp's
+  callers perform higher-level sanity checks elsewhere.
+
+| `dsa_ossl.cpp`
+| Uses `EVP_PKEY_CTX_ctrl` directly. LibreSSL ships the control
+  constant but not the `EVP_PKEY_CTX_set_dsa_paramgen_q_bits` macro
+  wrapper.
+|===
+
+== Build recipes
+
+=== OpenSSL (any flavour)
+
+[source,console]
+----
+cmake -S rnp -B rnp-build -DCRYPTO_BACKEND=openssl \
+  -DOPENSSL_ROOT_DIR=/path/to/openssl-install
+cmake --build rnp-build
+----
+
+=== LibreSSL
+
+Same as OpenSSL. On macOS with Homebrew:
+
+[source,console]
+----
+brew install libressl
+cmake -S rnp -B rnp-build -DCRYPTO_BACKEND=openssl \
+  -DOPENSSL_ROOT_DIR=$(brew --prefix libressl)
+cmake --build rnp-build
+----
+
+== References
+
+* https://github.com/rnpgp/rnp/issues/2440[#2440] — findopensslfeatures.c
+  uses OpenSSL-internal `EVP_PKEY_meth_*`, blocking the LibreSSL backend.
+* https://github.com/openssl/openssl/issues/2046[openssl/openssl#2046] —
+  Twofish is not coming to OpenSSL.
+* https://github.com/rnpgp/rnp/issues/1877[#1877] — SM2 is on rnp's
+  roadmap for the OpenSSL backend.

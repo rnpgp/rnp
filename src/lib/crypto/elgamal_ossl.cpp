@@ -85,13 +85,12 @@ Key::validate(bool secret) const noexcept
         return false;
     }
     /* check for small order subgroups */
-    rnp::ossl::BNRecpCtx rctx(BN_RECP_CTX_new());
-    if (!rctx || !BN_RECP_CTX_set(rctx.get(), op.get(), ctx.get()) || !BN_copy(r, og.get())) {
-        RNP_LOG("Failed to init RECP context.");
+    if (!BN_copy(r, og.get())) {
+        RNP_LOG("Failed to init subgroup check value.");
         return false;
     }
     for (size_t i = 2; i < (1 << 17); i++) {
-        if (!BN_mod_mul_reciprocal(r, r, og.get(), rctx.get(), ctx.get())) {
+        if (!BN_mod_mul(r, r, og.get(), op.get(), ctx.get())) {
             /* LCOV_EXCL_START */
             RNP_LOG("Multiplication failed.");
             return false;
@@ -189,7 +188,7 @@ Key::encrypt_pkcs1(rnp::RNG &rng, Encrypted &out, const rnp::secure_bytes &in) c
     BN_CTX_start(ctx.get());
     auto    c1 = BN_CTX_get(ctx.get());
     auto    c2 = BN_CTX_get(ctx.get());
-    rnp::bn k(BN_secure_new());
+    rnp::bn k(BN_new());
     if (!m || !op || !og || !oy || !c1 || !c2 || !k) {
         /* LCOV_EXCL_START */
         RNP_LOG("Allocation failed.");
@@ -268,7 +267,7 @@ Key::decrypt_pkcs1(rnp::RNG &rng, rnp::secure_bytes &out, const Encrypted &in) c
     rnp::bn c2(in.m);
     BN_CTX_start(ctx.get());
     auto    s = BN_CTX_get(ctx.get());
-    rnp::bn m(BN_secure_new());
+    rnp::bn m(BN_new());
     if (!op || !og || !ox || !c1 || !c2 || !m) {
         /* LCOV_EXCL_START */
         RNP_LOG("Allocation failed.");
