@@ -39,6 +39,15 @@
 
 enum class Operation { EncryptOrSign, Verify, Enarmor, Dearmor, Dump };
 
+#if defined(_WIN32)
+/* DLL side-loading protection (issue #2411): when the executable itself is
+ * digitally signed, verifies that every module from the executable's directory
+ * which is part of its import chain (rnp.dll and friends) is properly signed
+ * as well. Returns false, after printing a diagnostic, when an unsigned or
+ * invalidly signed module was found - i.e. a likely side-loaded replacement. */
+bool cli_rnp_verify_module_signatures();
+#endif
+
 class cli_rnp_t {
   private:
     rnp_cfg cfg_{};
