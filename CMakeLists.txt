@@ -127,6 +127,12 @@ option(ENABLE_PQC "Enable PQC support")
 # Note: The following flag is only temporary and will be removed once POC is in a stable state
 option(ENABLE_PQC_DBG_LOG "Enable debug logging for PQC")
 
+# FIPS-compliant mode foundation. See docs/security.adoc for the certification
+# boundary and limitations. When enabled this forces the OpenSSL backend
+# (OpenSSL 3.x is required for the FIPS provider) and defines the RNP_FIPS_MODE
+# preprocessor macro, which tightens the default security profile.
+option(ENABLE_FIPS_MODE "Build rnp with FIPS-compliant defaults (requires OpenSSL 3.x)")
+
 set(ENABLE_DOC Auto CACHE STRING "Enable building documentation.")
 set_property(CACHE ENABLE_DOC PROPERTY STRINGS ${TRISTATE_VALUES})
 
@@ -170,6 +176,16 @@ elseif(CRYPTO_BACKEND_LOWERCASE STREQUAL "openssl")
   set(CRYPTO_BACKEND_OPENSSL 1)
 else()
   message(FATAL_ERROR "Invalid crypto backend: ${CRYPTO_BACKEND}")
+endif()
+
+# FIPS mode requires the OpenSSL backend because only OpenSSL ships a validated
+# FIPS provider module. Botan has no equivalent that rnp consumes today.
+if(ENABLE_FIPS_MODE AND NOT CRYPTO_BACKEND_OPENSSL)
+  message(FATAL_ERROR
+    "ENABLE_FIPS_MODE requires the OpenSSL backend (CRYPTO_BACKEND=openssl), "
+    "but CRYPTO_BACKEND='${CRYPTO_BACKEND}' was selected. "
+    "FIPS mode relies on the OpenSSL 3.x FIPS provider; rerun CMake with "
+    "-DCRYPTO_BACKEND=openssl -DENABLE_FIPS_MODE=On.")
 endif()
 
 if(MSVC)

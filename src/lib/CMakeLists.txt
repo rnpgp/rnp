@@ -76,6 +76,21 @@ if (CRYPTO_BACKEND_OPENSSL)
   set(CRYPTO_BACKEND_VERSION "${OPENSSL_VERSION}")
 endif()
 
+# FIPS mode requires OpenSSL 3.x, since the FIPS provider is a 3.x feature.
+# OpenSSL 1.1.1 has no FIPS provider module at all.
+if(ENABLE_FIPS_MODE AND NOT CRYPTO_BACKEND_OPENSSL3)
+  message(FATAL_ERROR
+    "ENABLE_FIPS_MODE requires OpenSSL 3.x (the FIPS provider is a 3.x feature), "
+    "but the detected OpenSSL version is '${OPENSSL_VERSION}'. "
+    "Install OpenSSL 3.x and rerun CMake.")
+endif()
+
+# Record whether FIPS mode is enabled so the library source can pick it up via
+# target_compile_definitions() once the librnp-obj target exists (see below).
+if(ENABLE_FIPS_MODE)
+  set(RNP_FIPS_MODE_ENABLED ON)
+endif()
+
 if(CRYPTO_BACKEND_BOTAN3)
   set(CMAKE_CXX_STANDARD 20)
 endif()
@@ -543,6 +558,13 @@ if (ENABLE_SANITIZERS OR _comp_sanitizers)
 endif()
 
 set_target_properties(librnp-obj PROPERTIES POSITION_INDEPENDENT_CODE ON)
+# Expose FIPS mode to the C++ sources as the RNP_FIPS_MODE preprocessor macro.
+# This is intentionally PUBLIC on the object library so that consumers linking
+# against librnp-obj (librnp, librnp-static) inherit the same macro, keeping the
+# public header's view of the FIPS build consistent with the implementation.
+if(RNP_FIPS_MODE_ENABLED)
+  target_compile_definitions(librnp-obj PUBLIC RNP_FIPS_MODE)
+endif()
 target_include_directories(librnp-obj
   PUBLIC
     "$<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/lib>"
@@ -614,14 +636,19 @@ else()
   add_library(librnp-static ALIAS librnp)
 endif()
 
-foreach (prop LINK_LIBRARIES INTERFACE_LINK_LIBRARIES INCLUDE_DIRECTORIES INTERFACE_INCLUDE_DIRECTORIES)
+foreach (prop LINK_LIBRARIES INTERFACE_LINK_LIBRARIES INCLUDE_DIRECTORIES INTERFACE_INCLUDE_DIRECTORIES INTERFACE_COMPILE_DEFINITIONS)
   get_target_property(val librnp-obj ${prop})
-  if (BUILD_SHARED_LIBS)
-    set_property(TARGET librnp-static PROPERTY ${prop} ${val})
-    list(REMOVE_ITEM val "$<LINK_ONLY:${SEXPP_TARGET}>")
-    set_property(TARGET librnp PROPERTY ${prop} ${val})
-  else()
-    set_property(TARGET librnp PROPERTY ${prop} ${val})
+  # get_target_property() leaves val as the literal 'val-NOTFOUND' when the
+  # property is unset; forwarding that would inject -Dval-NOTFOUND via
+  # INTERFACE_COMPILE_DEFINITIONS and poison every TU naming a parameter 'val'.
+  if (NOT val MATCHES "-NOTFOUND$")
+    if (BUILD_SHARED_LIBS)
+      set_property(TARGET librnp-static PROPERTY ${prop} ${val})
+      list(REMOVE_ITEM val "$<LINK_ONLY:${SEXPP_TARGET}>")
+      set_property(TARGET librnp PROPERTY ${prop} ${val})
+    else()
+      set_property(TARGET librnp PROPERTY ${prop} ${val})
+    endif()
   endif()
 
 endforeach()
