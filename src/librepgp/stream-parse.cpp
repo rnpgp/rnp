@@ -2397,6 +2397,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
 static rnp_result_t
 init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *readsrc)
 {
+    bool pub_decrypt_tried = false;
     if (!init_src_common(src, 0)) {
         return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
     }
@@ -2511,6 +2512,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
 
             /* Try to initialize the decryption */
             rnp::LogStop logstop(hidden);
+            pub_decrypt_tried = true;
             if (encrypted_try_key(param, pubenc, *seckey, handler->ctx->sec_ctx)) {
                 have_key = true;
                 /* inform handler that we used this pubenc */
@@ -2558,6 +2560,11 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
 
     if (!have_key) {
         RNP_LOG("failed to obtain decrypting key or password");
+        if (pub_decrypt_tried && (errcode == RNP_ERROR_NO_SUITABLE_KEY)) {
+            /* A suitable key was found but its session-key decryption failed: report that
+             * instead of the misleading "no suitable key" (issue #2465). */
+            errcode = RNP_ERROR_DECRYPT_FAILED;
+        }
         if (!errcode) {
             errcode = RNP_ERROR_NO_SUITABLE_KEY;
         }

@@ -726,6 +726,53 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk)
     rnp_ffi_destroy(ffi);
 }
 
+/* Issue #2465: when a suitable key is found but its session-key decryption fails,
+ * the error must be RNP_ERROR_DECRYPT_FAILED rather than RNP_ERROR_NO_SUITABLE_KEY. */
+TEST_F(rnp_tests, test_ffi_decrypt_corrupted_pkesk)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider,
+                                                 (void *) "password"));
+    assert_true(
+      load_keys_gpg(ffi, "data/keyrings/1/pubring.gpg", "data/keyrings/1/secring.gpg"));
+
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "key0-uid2", &key));
+
+    rnp_input_t      input = NULL;
+    rnp_output_t     output = NULL;
+    rnp_op_encrypt_t op = NULL;
+    assert_rnp_success(rnp_input_from_memory(&input, (const uint8_t *) "data", 4, false));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
+    assert_rnp_success(rnp_op_encrypt_add_recipient(op, key));
+    assert_rnp_success(rnp_op_encrypt_set_armor(op, false));
+    assert_rnp_success(rnp_op_encrypt_execute(op));
+    rnp_op_encrypt_destroy(op);
+    rnp_input_destroy(input);
+    rnp_key_handle_destroy(key);
+
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    /* Corrupt one byte inside the RSA-encrypted session key of the first PKESK
+     * packet: version (1) + keyid (8) + alg (1) + mpi header (2) put the start of
+     * the ciphertext past offset 12, so offset 60 is well inside it. The packet
+     * stays structurally valid but the session-key decryption fails. */
+    assert_true(len > 64);
+    buf[60] ^= 0xff;
+
+    assert_rnp_success(rnp_input_from_memory(&input, buf, len, false));
+    rnp_output_t decout = NULL;
+    assert_rnp_success(rnp_output_to_memory(&decout, 0));
+    assert_int_equal(rnp_decrypt(ffi, input, decout), RNP_ERROR_DECRYPT_FAILED);
+    rnp_input_destroy(input);
+    rnp_output_destroy(decout);
+    rnp_output_destroy(output);
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_select_deprecated_ciphers)
 {
     rnp_ffi_t        ffi = NULL;
