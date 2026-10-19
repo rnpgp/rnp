@@ -2597,3 +2597,105 @@ TEST_F(rnp_tests, test_no_plaintext_leakage)
 
     rnp_ffi_destroy(ffi);
 }
+
+static void
+encrypt_aead_password(rnp_ffi_t                   ffi,
+                      const std::vector<uint8_t> &data,
+                      bool                        seipdv2,
+                      int                         bits,
+                      std::vector<uint8_t> &      msg)
+{
+    rnp_input_t      input = NULL;
+    rnp_output_t     output = NULL;
+    rnp_op_encrypt_t op = NULL;
+    assert_rnp_success(rnp_input_from_memory(&input, data.data(), data.size(), false));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
+    assert_rnp_success(rnp_op_encrypt_add_password(op, "password", NULL, 0, NULL));
+    assert_rnp_success(rnp_op_encrypt_set_cipher(op, "AES256"));
+    assert_rnp_success(rnp_op_encrypt_set_aead(op, "OCB"));
+    assert_rnp_success(rnp_op_encrypt_set_aead_bits(op, bits));
+    assert_rnp_success(rnp_op_encrypt_set_compression(op, "Uncompressed", 0));
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (seipdv2) {
+        assert_rnp_success(rnp_op_encrypt_enable_skesk_v6(op));
+    }
+#endif
+    assert_rnp_success(rnp_op_encrypt_execute(op));
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    msg.assign(buf, buf + len);
+    rnp_op_encrypt_destroy(op);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+}
+
+static rnp_result_t
+decrypt_to_vector(rnp_ffi_t ffi, const std::vector<uint8_t> &msg, std::vector<uint8_t> &out)
+{
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
+    out.clear();
+    rnp_result_t ret = rnp_input_from_memory(&input, msg.data(), msg.size(), false);
+    if (!ret) {
+        ret = rnp_output_to_memory(&output, 0);
+    }
+    if (!ret) {
+        ret = rnp_decrypt(ffi, input, output);
+    }
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    if (!ret && !rnp_output_memory_get_buf(output, &buf, &len, false)) {
+        out.assign(buf, buf + len);
+    }
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    return ret;
+}
+
+TEST_F(rnp_tests, test_ffi_decrypt_aead_chunk_buf_size)
+{
+    if (!aead_ocb_enabled()) {
+        GTEST_SKIP() << "AEAD-OCB support is disabled, skipping.";
+    }
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
+
+    /* larger than the stream cache, so the chunk is decrypted in several parts */
+    std::vector<uint8_t> data(100000);
+    for (size_t i = 0; i < data.size(); i++) {
+        data[i] = (uint8_t) i;
+    }
+
+    std::vector<bool> seipdv2s = {false};
+#if defined(ENABLE_CRYPTO_REFRESH)
+    seipdv2s.push_back(true);
+#endif
+    for (bool seipdv2 : seipdv2s) {
+        /* 16 is the largest chunk size octet rnp writes */
+        std::vector<uint8_t> msg;
+        std::vector<uint8_t> out;
+        encrypt_aead_password(ffi, data, seipdv2, 16, msg);
+        assert_rnp_success(decrypt_to_vector(ffi, msg, out));
+        assert_true(out == data);
+
+        /* version, AES256, OCB, chunk size octet of the encrypted data packet */
+        const uint8_t hdr[4] = {(uint8_t)(seipdv2 ? 2 : 1), 9, 2, 16};
+        auto          pos = std::search(msg.begin(), msg.end(), hdr, hdr + 4);
+        assert_true(pos != msg.end());
+        size_t off = pos - msg.begin() + 3;
+        /* A changed chunk size octet fails authentication. Until then the withheld plaintext
+         * must take its own size in memory, not the up to 2^62 bytes the header declares. */
+        for (int octet : {17, 40, 56}) {
+            msg[off] = (uint8_t) octet;
+            rnp_result_t ret = decrypt_to_vector(ffi, msg, out);
+            assert_rnp_failure(ret);
+            assert_int_not_equal(ret, RNP_ERROR_OUT_OF_MEMORY);
+        }
+    }
+
+    rnp_ffi_destroy(ffi);
+}
