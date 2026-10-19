@@ -31,6 +31,7 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include "types.h"
+#include "crypto/mem.h"
 #include "stream-common.h"
 #include "enc_material.hpp"
 #include "fingerprint.hpp"
@@ -53,13 +54,12 @@ typedef struct pgp_packet_hdr_t {
 /* structure for convenient writing or parsing of non-stream packets */
 typedef struct pgp_packet_body_t {
   private:
-    pgp_pkt_type_t       tag_;  /* packet tag */
-    std::vector<uint8_t> data_; /* packet bytes */
+    pgp_pkt_type_t    tag_;  /* packet tag */
+    rnp::secure_bytes data_; /* packet bytes, may hold secret key data, so always wiped */
     /* fields below are filled only for parsed packet */
     uint8_t hdr_[PGP_MAX_HEADER_SIZE]{}; /* packet header bytes */
     size_t  hdr_len_{};                  /* number of bytes in hdr */
     size_t  pos_{};                      /* current read position in packet data */
-    bool secure_{}; /* contents of the packet are secure so must be wiped in the destructor */
   public:
     /** @brief initialize writing of packet body
      *  @param tag tag of the packet
@@ -76,7 +76,6 @@ typedef struct pgp_packet_body_t {
     pgp_packet_body_t(pgp_packet_body_t &&src) = delete;
     pgp_packet_body_t &operator=(const pgp_packet_body_t &) = delete;
     pgp_packet_body_t &operator=(pgp_packet_body_t &&) = delete;
-    ~pgp_packet_body_t();
 
     /** @brief pointer to the data, kept in the packet */
     uint8_t *data() noexcept;
@@ -165,8 +164,6 @@ typedef struct pgp_packet_body_t {
      *  @param hdr write packet's header or not
      **/
     void write(pgp_dest_t &dst, bool hdr = true) noexcept;
-    /** @brief mark contents as secure, so secure_clear() must be called in the destructor */
-    void mark_secure(bool secure = true) noexcept;
 } pgp_packet_body_t;
 
 /** public-key encrypted session key packet */
