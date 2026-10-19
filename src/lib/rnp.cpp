@@ -7663,11 +7663,12 @@ rnp_key_is_revoked_with_code(rnp_key_handle_t handle, bool *result, int code)
         return RNP_ERROR_NULL_POINTER;
     }
     auto *key = get_key_prefer_public(handle);
-    if (!key || !key->revoked()) {
+    if (!key) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    *result = key->revocation().code == code;
+    /* a key which is not revoked at all is a normal state, reported as false */
+    *result = key->revoked() && (key->revocation().code == code);
     return RNP_SUCCESS;
 }
 

@@ -2731,6 +2731,13 @@ TEST_F(rnp_tests, test_ffi_revocations)
     assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
     assert_rnp_success(rnp_key_is_revoked(key, &revoked));
     assert_false(revoked);
+    // issue #2467: predicates on a non-revoked key succeed with false
+    assert_rnp_success(rnp_key_is_superseded(key, &revoked));
+    assert_false(revoked);
+    assert_rnp_success(rnp_key_is_compromised(key, &revoked));
+    assert_false(revoked);
+    assert_rnp_success(rnp_key_is_retired(key, &revoked));
+    assert_false(revoked);
     assert_rnp_failure(rnp_key_get_revocation_signature(NULL, &sig));
     assert_rnp_failure(rnp_key_get_revocation_signature(key, NULL));
     assert_rnp_success(rnp_key_get_revocation_signature(key, &sig));
