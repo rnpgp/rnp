@@ -29,6 +29,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include "keygen.hpp"
+#include "crypto/s2k.h"
 
 bool
 rsa_sec_empty(const pgp::KeyMaterial &key)
@@ -310,4 +311,67 @@ TEST_F(rnp_tests, test_key_protect_sec_data)
     assert_int_not_equal(memcmp(raw_ssub, ssubpkt->sec_data.data(), 32), 0);
     assert_int_equal(ssubpkt->sec_protection.s2k.specifier, PGP_S2KS_ITERATED_AND_SALTED);
     delete ssubpkt;
+}
+
+TEST_F(rnp_tests, test_key_protect_sec_data_algs)
+{
+    /* secret key fields are written to and parsed from the packet bodies: check that they are
+     * kept as is over protect/unprotect for each algorithm */
+    struct {
+        pgp_pubkey_alg_t alg;
+        bool             primary;
+    } keys[] = {
+        {PGP_PKA_RSA, true},
+#if defined(ENABLE_CRYPTO_REFRESH)
+        {PGP_PKA_ED25519, true},
+        {PGP_PKA_X25519, false},
+        {PGP_PKA_X448, false},
+#endif
+#if defined(ENABLE_PQC)
+        {PGP_PKA_KYBER768_X25519, false},
+#endif
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
+        {PGP_PKA_KYBER1024_X448, false},
+        {PGP_PKA_DILITHIUM3_ED25519, true},
+        {PGP_PKA_DILITHIUM5_ED448, true},
+        {PGP_PKA_SPHINCSPLUS_SHAKE_128f, true},
+#endif
+    };
+
+    for (size_t i = 0; i < ARRAY_SIZE(keys); i++) {
+        rnp::KeygenParams keygen(keys[i].alg, global_ctx);
+        if (keys[i].alg == PGP_PKA_RSA) {
+            auto &rsa = dynamic_cast<pgp::RSAKeyParams &>(keygen.key_params());
+            rsa.set_bits(1024);
+        }
+        pgp_key_pkt_t seckey;
+        assert_true(keygen.generate(seckey, keys[i].primary));
+        auto cleartext = seckey.sec_data;
+        assert_false(cleartext.empty());
+        /* protect */
+        seckey.sec_protection.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
+        seckey.sec_protection.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
+        seckey.sec_protection.s2k.hash_alg = PGP_HASH_SHA256;
+        seckey.sec_protection.s2k.iterations = pgp_s2k_round_iterations(1024);
+        seckey.sec_protection.symm_alg = PGP_SA_AES_256;
+        seckey.sec_protection.cipher_mode = PGP_CIPHER_MODE_CFB;
+        assert_rnp_success(encrypt_secret_key(&seckey, "password", global_ctx.rng));
+        assert_false(seckey.material->secret());
+        assert_true(seckey.sec_data != cleartext);
+        /* unprotect */
+        assert_rnp_failure(decrypt_secret_key(&seckey, "wrong"));
+        assert_false(seckey.material->secret());
+        assert_rnp_success(decrypt_secret_key(&seckey, "password"));
+        assert_true(seckey.material->secret());
+        /* write cleartext secret fields once again and parse them back */
+        seckey.sec_protection.s2k.usage = PGP_S2KU_NONE;
+        assert_rnp_success(encrypt_secret_key(&seckey, NULL, global_ctx.rng));
+        assert_true(seckey.sec_data == cleartext);
+        seckey.material->clear_secret();
+        assert_false(seckey.material->secret());
+        assert_rnp_success(decrypt_secret_key(&seckey, NULL));
+        assert_true(seckey.material->secret());
+        assert_rnp_success(encrypt_secret_key(&seckey, NULL, global_ctx.rng));
+        assert_true(seckey.sec_data == cleartext);
+    }
 }
