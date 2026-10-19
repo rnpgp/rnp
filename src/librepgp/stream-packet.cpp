@@ -457,26 +457,17 @@ pgp_packet_body_t::pgp_packet_body_t(pgp_pkt_type_t tag)
 {
     data_.reserve(16);
     tag_ = tag;
-    secure_ = is_secret_key_pkt(tag);
 }
 
 pgp_packet_body_t::pgp_packet_body_t(const uint8_t *data, size_t len)
 {
     data_.assign(data, data + len);
     tag_ = PGP_PKT_RESERVED;
-    secure_ = false;
 }
 
 pgp_packet_body_t::pgp_packet_body_t(const std::vector<uint8_t> &data)
     : pgp_packet_body_t(data.data(), data.size())
 {
-}
-
-pgp_packet_body_t::~pgp_packet_body_t()
-{
-    if (secure_) {
-        secure_clear(data_.data(), data_.size());
-    }
 }
 
 uint8_t *
@@ -966,12 +957,6 @@ pgp_packet_body_t::write(pgp_dest_t &dst, bool hdr) noexcept
         dst_write(&dst, hdrbt, hlen);
     }
     dst_write(&dst, data_.data(), data_.size());
-}
-
-void
-pgp_packet_body_t::mark_secure(bool secure) noexcept
-{
-    secure_ = secure;
 }
 
 void
