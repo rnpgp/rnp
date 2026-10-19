@@ -2146,14 +2146,15 @@ get_compressed_src_alg(pgp_source_t *src, uint8_t *alg)
 static bool
 parse_aead_chunk_size(uint8_t chunk_size_octet, size_t &chunk_size)
 {
-    if (chunk_size_octet > 56) {
+    /* the chunk size must fit size_t: up to 2^62 bytes, or 2^31 with a 32-bit size_t */
+    if ((chunk_size_octet > 56) || (chunk_size_octet + 6 >= sizeof(size_t) * 8)) {
         RNP_LOG("too large chunk size: %d", chunk_size_octet);
         return false;
     }
     if (chunk_size_octet > 16) {
         RNP_LOG("Warning: AEAD chunk bits > 16.");
     }
-    chunk_size = 1L << (chunk_size_octet + 6);
+    chunk_size = (size_t) 1 << (chunk_size_octet + 6);
     return true;
 }
 
