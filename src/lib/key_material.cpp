@@ -1468,13 +1468,11 @@ Ed25519KeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 bool
 Ed25519KeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 {
-    auto                 ec_desc = ec::Curve::get(PGP_CURVE_ED25519);
-    std::vector<uint8_t> buf(ec_desc->bytes());
-    if (!pkt.get(buf.data(), buf.size())) {
+    auto ec_desc = ec::Curve::get(PGP_CURVE_ED25519);
+    if (!pkt.get(key_.priv, ec_desc->bytes())) {
         RNP_LOG("failed to parse Ed25519 secret key data");
         return false;
     }
-    key_.priv = buf;
     secret_ = true;
     return true;
 }
@@ -1608,13 +1606,11 @@ X25519KeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 bool
 X25519KeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 {
-    auto                 ec_desc = ec::Curve::get(PGP_CURVE_25519);
-    std::vector<uint8_t> buf(ec_desc->bytes());
-    if (!pkt.get(buf.data(), buf.size())) {
+    auto ec_desc = ec::Curve::get(PGP_CURVE_25519);
+    if (!pkt.get(key_.priv, ec_desc->bytes())) {
         RNP_LOG("failed to parse X25519 secret key data");
         return false;
     }
-    key_.priv = buf;
     secret_ = true;
     return true;
 }
@@ -1738,13 +1734,11 @@ Ed448KeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 bool
 Ed448KeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 {
-    auto                 ec_desc = ec::Curve::get(PGP_CURVE_ED448);
-    std::vector<uint8_t> buf(BITS_TO_BYTES(ec_desc->bitlen));
-    if (!pkt.get(buf.data(), buf.size())) {
+    auto ec_desc = ec::Curve::get(PGP_CURVE_ED448);
+    if (!pkt.get(key_.priv, BITS_TO_BYTES(ec_desc->bitlen))) {
         RNP_LOG("failed to parse Ed448 secret key data");
         return false;
     }
-    key_.priv = buf;
     secret_ = true;
     return true;
 }
@@ -1877,13 +1871,11 @@ X448KeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 bool
 X448KeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 {
-    auto                 ec_desc = ec::Curve::get(PGP_CURVE_448);
-    std::vector<uint8_t> buf(BITS_TO_BYTES(ec_desc->bitlen));
-    if (!pkt.get(buf.data(), buf.size())) {
+    auto ec_desc = ec::Curve::get(PGP_CURVE_448);
+    if (!pkt.get(key_.priv, BITS_TO_BYTES(ec_desc->bitlen))) {
         RNP_LOG("failed to parse X448 secret key data");
         return false;
     }
-    key_.priv = buf;
     secret_ = true;
     return true;
 }
@@ -2007,7 +1999,7 @@ MlkemEcdhKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 bool
 MlkemEcdhKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 {
-    std::vector<uint8_t> buf(pgp_kyber_ecdh_composite_private_key_t::encoded_size(alg()));
+    rnp::secure_bytes buf(pgp_kyber_ecdh_composite_private_key_t::encoded_size(alg()));
     if (!pkt.get(buf.data(), buf.size())) {
         RNP_LOG("failed to parse mkem-ecdh secret key data");
         return false;
@@ -2130,7 +2122,7 @@ DilithiumEccKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 bool
 DilithiumEccKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 {
-    std::vector<uint8_t> buf(pgp_dilithium_exdsa_composite_private_key_t::encoded_size(alg()));
+    rnp::secure_bytes buf(pgp_dilithium_exdsa_composite_private_key_t::encoded_size(alg()));
     if (!pkt.get(buf.data(), buf.size())) {
         RNP_LOG("failed to parse mldsa-ecdsa/eddsa secret key data");
         return false;
@@ -2266,12 +2258,12 @@ SlhdsaKeyMaterial::parse(pgp_packet_body_t &pkt) noexcept
 bool
 SlhdsaKeyMaterial::parse_secret(pgp_packet_body_t &pkt) noexcept
 {
-    std::vector<uint8_t> buf(sphincsplus_privkey_size(alg()));
+    rnp::secure_bytes buf(sphincsplus_privkey_size(alg()));
     if (!pkt.get(buf.data(), buf.size())) {
         RNP_LOG("failed to parse SLH-DSA secret key data");
         return false;
     }
-    key_.priv = pgp_sphincsplus_private_key_t(buf, alg());
+    key_.priv = pgp_sphincsplus_private_key_t(buf.data(), buf.size(), alg());
     secret_ = true;
     return true;
 }
