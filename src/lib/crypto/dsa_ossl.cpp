@@ -225,6 +225,12 @@ Key::sign(rnp::RNG &rng, Signature &sig, const rnp::secure_bytes &hash) const
 rnp_result_t
 Key::verify(const Signature &sig, const rnp::secure_bytes &hash) const
 {
+    size_t q_order = q.size();
+    if ((sig.r.size() > q_order) || (sig.s.size() > q_order)) {
+        RNP_LOG("Wrong signature");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
     /* Load secret key to EVP key */
     auto evpkey = load_key(*this, false);
     if (!evpkey) {
@@ -245,7 +251,7 @@ Key::verify(const Signature &sig, const rnp::secure_bytes &hash) const
         return RNP_ERROR_GENERIC;
     }
     /* signature is two q-group numbers + DER encoding, 16 safe enough */
-    std::vector<uint8_t> dersig(2 * q.size() + 16);
+    std::vector<uint8_t> dersig(2 * q_order + 16);
     size_t               siglen = dersig.size();
     if (!encode_sig(dersig.data(), &siglen, sig)) {
         return RNP_ERROR_GENERIC;

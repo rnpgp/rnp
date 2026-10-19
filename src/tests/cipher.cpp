@@ -689,6 +689,41 @@ TEST_F(rnp_tests, test_dsa_verify_negative)
     assert_int_equal(key1.verify(global_ctx, sig, hash), RNP_ERROR_SIGNATURE_INVALID);
 }
 
+TEST_F(rnp_tests, test_dsa_verify_rs_size_check)
+{
+    uint8_t       message[PGP_MAX_HASH_SIZE];
+    pgp_key_pkt_t sec_key;
+
+    global_ctx.rng.get(message, sizeof(message));
+
+    rnp::KeygenParams keygen(PGP_PKA_DSA, global_ctx);
+    keygen.set_hash(PGP_HASH_SHA256);
+    auto &dsa = dynamic_cast<pgp::DSAKeyParams &>(keygen.key_params());
+    dsa.set_bits(1024);
+    dsa.set_qbits(160);
+    assert_true(keygen.generate(sec_key, true));
+
+    auto &              key = *sec_key.material;
+    rnp::secure_bytes   hash(message, message + rnp::Hash::size(keygen.hash()));
+    pgp::DSASigMaterial sig(keygen.hash());
+    assert_rnp_success(key.sign(global_ctx, sig, hash));
+    assert_rnp_success(key.verify(global_ctx, sig, hash));
+
+    // r and s must not be longer than q, on every backend
+    std::vector<uint8_t> big(512, 0xAB);
+    pgp::DSASigMaterial  big_r(sig);
+    big_r.sig.r.assign(big.data(), big.size());
+    assert_int_equal(key.verify(global_ctx, big_r, hash), RNP_ERROR_BAD_PARAMETERS);
+    pgp::DSASigMaterial big_s(sig);
+    big_s.sig.s.assign(big.data(), big.size());
+    assert_int_equal(key.verify(global_ctx, big_s, hash), RNP_ERROR_BAD_PARAMETERS);
+    // r as long as q but not below it goes to the signature check
+    std::vector<uint8_t> top(dsa.qbits() / 8, 0xFF);
+    pgp::DSASigMaterial  top_r(sig);
+    top_r.sig.r.assign(top.data(), top.size());
+    assert_int_equal(key.verify(global_ctx, top_r, hash), RNP_ERROR_SIGNATURE_INVALID);
+}
+
 #if defined(ENABLE_PQC)
 TEST_F(rnp_tests, kyber_ecdh_roundtrip)
 {
