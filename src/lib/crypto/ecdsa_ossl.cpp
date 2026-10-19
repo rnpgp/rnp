@@ -62,7 +62,14 @@ encode_sig(uint8_t *data, size_t *len, const ec::Signature &sig)
         return false;
     }
     ECDSA_SIG_set0(dsig, r.own(), s.own());
-    int outlen = i2d_ECDSA_SIG(dsig, &data);
+    /* *len is the size of data: check that the encoding fits before writing it */
+    int outlen = i2d_ECDSA_SIG(dsig, NULL);
+    if ((outlen <= 0) || ((size_t) outlen > *len)) {
+        RNP_LOG("Failed to encode signature.");
+        ECDSA_SIG_free(dsig);
+        return false;
+    }
+    outlen = i2d_ECDSA_SIG(dsig, &data);
     ECDSA_SIG_free(dsig);
     if (outlen < 0) {
         RNP_LOG("Failed to encode signature.");

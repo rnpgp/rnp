@@ -65,7 +65,13 @@ encode_sig(uint8_t *data, size_t *len, const Signature &sig)
         return false;
     }
     DSA_SIG_set0(dsig.get(), r.own(), s.own());
-    auto outlen = i2d_DSA_SIG(dsig.get(), &data);
+    /* *len is the size of data: check that the encoding fits before writing it */
+    auto outlen = i2d_DSA_SIG(dsig.get(), NULL);
+    if ((outlen <= 0) || ((size_t) outlen > *len)) {
+        RNP_LOG("Failed to encode signature.");
+        return false;
+    }
+    outlen = i2d_DSA_SIG(dsig.get(), &data);
     if (outlen < 0) {
         RNP_LOG("Failed to encode signature.");
         return false;
