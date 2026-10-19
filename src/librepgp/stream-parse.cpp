@@ -1746,6 +1746,12 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     if (err) {
         return false;
     }
+    /* decrypt() may report success yet return an empty buffer (for example
+     * PKCS#1 v1.5 unpadding of a zero-length payload), so guard the decbuf[0]
+     * read and the erase() below against an empty session-key buffer. */
+    if (decbuf.empty()) {
+        return false;
+    }
 
     /* This is always true for non-experimental pqc/crypto refresh */
     if (do_encrypt_pkesk_v3_alg_id(sesskey.alg)) {

@@ -2177,6 +2177,29 @@ TEST_F(rnp_tests, test_ffi_decrypt_small_eg)
     rnp_ffi_destroy(ffi);
 }
 
+/* Regression test for encrypted_try_key() (src/librepgp/stream-parse.cpp):
+ * a PKESK whose RSA session-key material decrypts (PKCS#1 v1.5) to a zero-length
+ * buffer must be rejected cleanly. decrypt() can report success yet return an
+ * empty buffer, and the code then read decbuf[0] and called
+ * decbuf.erase(decbuf.begin()) on that empty buffer. The empty-buffer guard makes
+ * rnp_decrypt() fail without any out-of-bounds access. */
+TEST_F(rnp_tests, test_ffi_decrypt_rsa_empty_sesskey)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_all_keys(ffi, "data/test_key_validity/rsa_key_small_sig-sec.asc"));
+    rnp_input_t input = NULL;
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.enc-rsa-empty-sesskey"));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_null(&output));
+    /* Must fail cleanly (empty decrypted session-key buffer, no OOB access). */
+    assert_rnp_failure(rnp_decrypt(ffi, input, output));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+    rnp_ffi_destroy(ffi);
+}
+
 /* Regression test for #1275 / PR #2391: rnp_op_verify_get_used_recipient must
  * return the actual key that was used for decryption, even when the recipient
  * was hidden in the PKESK packet (keyid all zeroes). The fix patches the
