@@ -765,3 +765,78 @@ TEST_F(rnp_tests, test_key_validity_subkey_latest_binding)
     assert_false(sub->usable_for(PGP_OP_ENCRYPT));
     delete secring;
 }
+
+static void
+add_key_revocation(rnp::Key &            key,
+                   rnp::Key &            target,
+                   uint64_t              creation,
+                   pgp_revocation_type_t code,
+                   rnp::SecurityContext &ctx)
+{
+    pgp::pkt::Signature rev;
+    key.sign_init(ctx.rng, rev, PGP_HASH_SHA256, creation, key.version());
+    rev.set_revocation_reason(code, "");
+    if (target.is_primary()) {
+        rev.set_type(PGP_SIG_REV_KEY);
+        key.sign_direct(target.pkt(), rev, ctx);
+    } else {
+        rev.set_type(PGP_SIG_REV_SUBKEY);
+        key.sign_binding(target.pkt(), rev, ctx);
+    }
+    target.add_sig(rev);
+}
+
+TEST_F(rnp_tests, test_key_revocation_compromised_priority)
+{
+    auto secring = new rnp::KeyStore(KEYSIG_PATH "alice-sub-sec.pgp", global_ctx);
+    assert_true(secring->load());
+    rnp::Key *key = nullptr;
+    assert_non_null(key = rnp_tests_key_search(secring, "Alice <alice@rnp>"));
+    assert_true(key->valid());
+    pgp_password_provider_t pprov(string_copy_password_callback, (void *) "password");
+    assert_true(key->unlock(pprov));
+
+    /* key is revoked as superseded, and later added revocation is earlier one */
+    uint64_t now = global_ctx.time();
+    add_key_revocation(*key, *key, now - 100, PGP_REVOCATION_SUPERSEDED, global_ctx);
+    add_key_revocation(*key, *key, now - 200, PGP_REVOCATION_RETIRED, global_ctx);
+    key->revalidate(*secring);
+    assert_true(key->revoked());
+    assert_false(key->valid());
+    assert_int_equal(key->revocation().code, PGP_REVOCATION_RETIRED);
+    assert_int_equal(key->valid_till(), now - 200);
+    /* compromised revocation takes priority whatever the order is */
+    add_key_revocation(*key, *key, now - 50, PGP_REVOCATION_COMPROMISED, global_ctx);
+    add_key_revocation(*key, *key, now - 10, PGP_REVOCATION_SUPERSEDED, global_ctx);
+    key->revalidate(*secring);
+    assert_true(key->revoked());
+    assert_int_equal(key->revocation().code, PGP_REVOCATION_COMPROMISED);
+    assert_int_equal(key->valid_till(), 0);
+    key->lock();
+    delete secring;
+}
+
+TEST_F(rnp_tests, test_subkey_revocation_compromised_priority)
+{
+    auto secring = new rnp::KeyStore(KEYSIG_PATH "alice-sub-sec.pgp", global_ctx);
+    assert_true(secring->load());
+    rnp::Key *key = nullptr;
+    assert_non_null(key = rnp_tests_key_search(secring, "Alice <alice@rnp>"));
+    rnp::Key *sub = nullptr;
+    assert_non_null(sub = rnp_tests_get_key_by_id(secring, "dd23ceb7febeff17"));
+    assert_true(sub->valid());
+    pgp_password_provider_t pprov(string_copy_password_callback, (void *) "password");
+    assert_true(key->unlock(pprov));
+
+    uint64_t now = global_ctx.time();
+    add_key_revocation(*key, *sub, now - 100, PGP_REVOCATION_SUPERSEDED, global_ctx);
+    add_key_revocation(*key, *sub, now - 50, PGP_REVOCATION_COMPROMISED, global_ctx);
+    key->revalidate(*secring);
+    assert_true(key->valid());
+    assert_true(sub->revoked());
+    assert_false(sub->valid());
+    assert_int_equal(sub->revocation().code, PGP_REVOCATION_COMPROMISED);
+    assert_int_equal(sub->valid_till(), 0);
+    key->lock();
+    delete secring;
+}

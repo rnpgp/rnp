@@ -2381,6 +2381,23 @@ Key::add_sub_binding(Key &                subsec,
 }
 
 void
+Key::update_revocation(Signature &sig)
+{
+    /* use the revocation which limits key validity most: compromised one, or the earliest */
+    if (revoked_) {
+        if (revocation_.code == PGP_REVOCATION_COMPROMISED) {
+            return;
+        }
+        if ((sig.sig.revocation_code() != PGP_REVOCATION_COMPROMISED) &&
+            (get_sig(revocation_.sigid).sig.creation() <= sig.sig.creation())) {
+            return;
+        }
+    }
+    revoked_ = true;
+    revocation_ = Revocation(sig);
+}
+
+void
 Key::refresh_revokers()
 {
     revokers_.clear();
@@ -2407,11 +2424,7 @@ Key::refresh_revocations()
             continue;
         }
         if (is_revocation(sig)) {
-            if (revoked_) {
-                continue;
-            }
-            revoked_ = true;
-            revocation_ = Revocation(sig);
+            update_revocation(sig);
             continue;
         }
         if (is_uid_revocation(sig)) {
@@ -2526,14 +2539,12 @@ Key::refresh_data(Key *primary, const SecurityContext &ctx)
         if (!rev.validity.valid() || !is_revocation(rev) || !is_authorized(rev)) {
             continue;
         }
-        revoked_ = true;
         try {
-            revocation_ = Revocation(rev);
+            update_revocation(rev);
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
             return false;
         }
-        break;
     }
     /* valid till */
     if (primary) {

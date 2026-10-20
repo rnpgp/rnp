@@ -78,6 +78,7 @@ class Key {
     void       merge_validity(const pgp_validity_t &src);
     uint64_t   valid_till_common(bool expiry) const;
     void       refresh_revokers();
+    void       update_revocation(Signature &sig);
     bool       write_sec_pgp(pgp_dest_t &       dst,
                              pgp_key_pkt_t &    seckey,
                              const std::string &password,
