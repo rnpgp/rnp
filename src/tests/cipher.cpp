@@ -687,6 +687,10 @@ TEST_F(rnp_tests, test_dsa_verify_negative)
     // different message
     hash[0] = ~hash[0];
     assert_int_equal(key1.verify(global_ctx, sig, hash), RNP_ERROR_SIGNATURE_INVALID);
+    // r and s larger than q
+    sig.sig.r.resize(256, 0xff);
+    sig.sig.s.resize(256, 0xff);
+    assert_int_equal(key1.verify(global_ctx, sig, hash), RNP_ERROR_BAD_PARAMETERS);
 }
 
 #if defined(ENABLE_PQC)

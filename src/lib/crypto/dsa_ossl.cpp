@@ -244,6 +244,11 @@ Key::verify(const Signature &sig, const rnp::secure_bytes &hash) const
         RNP_LOG("Failed to initialize verify: %lu", ERR_peek_last_error());
         return RNP_ERROR_GENERIC;
     }
+    /* r and s must fit in the q-group, otherwise the DER buffer below overflows */
+    if ((sig.r.size() > q.size()) || (sig.s.size() > q.size())) {
+        RNP_LOG("Wrong signature");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
     /* signature is two q-group numbers + DER encoding, 16 safe enough */
     std::vector<uint8_t> dersig(2 * q.size() + 16);
     size_t               siglen = dersig.size();
