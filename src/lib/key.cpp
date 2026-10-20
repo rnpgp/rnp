@@ -1583,7 +1583,7 @@ Key::latest_binding(bool validated)
         if (validated && !sig.validity.valid()) {
             continue;
         }
-        if (!is_binding(sig)) {
+        if (!is_binding(sig) || !is_authorized(sig)) {
             continue;
         }
 
@@ -1624,17 +1624,39 @@ Key::latest_uid_selfcert(uint32_t uid)
     return res;
 }
 
+static bool
+is_issuer(const pgp::pkt::Signature &sig, const pgp::Fingerprint &fp)
+{
+    /* if we have fingerprint let's check it */
+    if (sig.has_keyfp()) {
+        return sig.keyfp() == fp;
+    }
+    if (!sig.has_keyid()) {
+        return false;
+    }
+    return fp.keyid() == sig.keyid();
+}
+
 bool
 Key::is_signer(const Signature &sig) const
 {
-    /* if we have fingerprint let's check it */
-    if (sig.sig.has_keyfp()) {
-        return sig.sig.keyfp() == fp();
+    return is_issuer(sig.sig, fp());
+}
+
+bool
+Key::is_authorized(const Signature &sig) const
+{
+    /* subkey binding and revocation must be issued by the primary key. Without known primary
+     * key subkey is not valid anyway. */
+    if (is_subkey()) {
+        return !has_primary_fp() || is_issuer(sig.sig, primary_fp());
     }
-    if (!sig.sig.has_keyid()) {
-        return false;
+    if (is_signer(sig)) {
+        return true;
     }
-    return keyid() == sig.sig.keyid();
+    /* key revocation may be issued by the designated revoker as well */
+    return (sig.sig.type() == PGP_SIG_REV_KEY) && sig.sig.has_keyfp() &&
+           has_revoker(sig.sig.keyfp());
 }
 
 bool
@@ -1991,6 +2013,8 @@ Key::validate_primary(KeyStore &keyring)
 {
     /* validate signatures if needed */
     validate_self_signatures(keyring.secctx);
+    /* designated revokers may have changed */
+    refresh_revokers();
 
     /* consider public key as valid on this level if it is not expired and has at least one
      * valid self-signature, and is not revoked */
@@ -2004,7 +2028,7 @@ Key::validate_primary(KeyStore &keyring)
         if (!sig.validity.valid()) {
             continue;
         }
-        if (is_revocation(sig)) {
+        if (is_revocation(sig) && is_authorized(sig)) {
             return;
         }
     }
@@ -2076,7 +2100,7 @@ Key::validate_subkey(Key *primary, const SecurityContext &ctx)
     bool has_expired = false;
     for (auto &sigid : sigs_) {
         auto &sig = get_sig(sigid);
-        if (!sig.validity.valid()) {
+        if (!sig.validity.valid() || !is_authorized(sig)) {
             continue;
         }
 
@@ -2364,12 +2388,29 @@ Key::add_sub_binding(Key &                subsec,
 }
 
 void
+Key::refresh_revokers()
+{
+    revokers_.clear();
+    for (auto &sigid : sigs_) {
+        auto &sig = get_sig(sigid);
+        /* pick designated revokers only from direct-key signatures */
+        if (!sig.validity.valid() || !is_direct_self(sig)) {
+            continue;
+        }
+        if (!sig.sig.has_revoker()) {
+            continue;
+        }
+        add_revoker(sig.sig.revoker());
+    }
+}
+
+void
 Key::refresh_revocations()
 {
     clear_revokes();
     for (auto &sigid : sigs_) {
         auto &sig = get_sig(sigid);
-        if (!sig.validity.valid()) {
+        if (!sig.validity.valid() || !is_authorized(sig)) {
             continue;
         }
         if (is_revocation(sig)) {
@@ -2433,18 +2474,7 @@ Key::refresh_data(const SecurityContext &ctx)
         flags_ = pgp_pk_alg_capabilities(alg());
     }
     /* designated revokers */
-    revokers_.clear();
-    for (auto &sigid : sigs_) {
-        auto &sig = get_sig(sigid);
-        /* pick designated revokers only from direct-key signatures */
-        if (!sig.validity.valid() || !is_direct_self(sig)) {
-            continue;
-        }
-        if (!sig.sig.has_revoker()) {
-            continue;
-        }
-        add_revoker(sig.sig.revoker());
-    }
+    refresh_revokers();
     /* revocation(s) */
     refresh_revocations();
     /* valid till */
@@ -2500,7 +2530,7 @@ Key::refresh_data(Key *primary, const SecurityContext &ctx)
     clear_revokes();
     for (auto &sigid : sigs_) {
         auto &rev = get_sig(sigid);
-        if (!rev.validity.valid() || !is_revocation(rev)) {
+        if (!rev.validity.valid() || !is_revocation(rev) || !is_authorized(rev)) {
             continue;
         }
         revoked_ = true;
