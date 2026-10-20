@@ -77,6 +77,7 @@ class Key {
     void       validate_primary(KeyStore &keyring);
     void       merge_validity(const pgp_validity_t &src);
     uint64_t   valid_till_common(bool expiry) const;
+    void       refresh_revokers();
     bool       write_sec_pgp(pgp_dest_t &       dst,
                              pgp_key_pkt_t &    seckey,
                              const std::string &password,
@@ -297,6 +298,13 @@ class Key {
 
     /** @brief Returns true if signature is produced by the key itself. */
     bool is_signer(const Signature &sig) const;
+
+    /**
+     * @brief Check whether signature's issuer may make it over the key: the key itself, or
+     *        the designated revoker for the key revocation. Subkey's binding and revocation
+     *        must be issued by its primary key.
+     */
+    bool is_authorized(const Signature &sig) const;
 
     /** @brief Returns true if key is expired according to sig. */
     bool expired_with(const Signature &sig, uint64_t at) const;

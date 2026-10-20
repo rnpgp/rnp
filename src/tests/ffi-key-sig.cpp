@@ -2729,3 +2729,169 @@ TEST_F(rnp_tests, test_ffi_verify_detached_pqc_test_vector)
     }
 }
 #endif
+
+static void
+check_key_sigs(rnp_key_handle_t key)
+{
+    /* check each signature against its issuer, as application listing them would do */
+    size_t count = 0;
+    assert_rnp_success(rnp_key_get_signature_count(key, &count));
+    for (size_t idx = 0; idx < count; idx++) {
+        rnp_signature_handle_t sig = NULL;
+        assert_rnp_success(rnp_key_get_signature_at(key, idx, &sig));
+        rnp_signature_is_valid(sig, RNP_SIGNATURE_REVALIDATE);
+        rnp_signature_handle_destroy(sig);
+    }
+    size_t uids = 0;
+    assert_rnp_success(rnp_key_get_uid_count(key, &uids));
+    for (size_t uidx = 0; uidx < uids; uidx++) {
+        rnp_uid_handle_t uid = NULL;
+        assert_rnp_success(rnp_key_get_uid_handle_at(key, uidx, &uid));
+        assert_rnp_success(rnp_uid_get_signature_count(uid, &count));
+        for (size_t idx = 0; idx < count; idx++) {
+            rnp_signature_handle_t sig = NULL;
+            assert_rnp_success(rnp_uid_get_signature_at(uid, idx, &sig));
+            rnp_signature_is_valid(sig, RNP_SIGNATURE_REVALIDATE);
+            rnp_signature_handle_destroy(sig);
+        }
+        rnp_uid_handle_destroy(uid);
+    }
+}
+
+TEST_F(rnp_tests, test_ffi_key_revocation_nondesignated_signer)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_all_keys(ffi, KEYSIG_PATH "basil-sec.asc"));
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "alice-pub.asc"));
+    rnp_key_handle_t alice = get_key_by_uid(ffi, "Alice <alice@rnp>");
+    rnp_key_handle_t basil = get_key_by_uid(ffi, "Basil <basil@rnp>");
+    /* Basil is not a designated revoker of Alice's key */
+    rnp_signature_handle_t sig = NULL;
+    assert_rnp_success(rnp_key_revocation_signature_create(basil, alice, &sig));
+    assert_rnp_success(rnp_key_signature_set_revocation_reason(sig, "compromised", "basil"));
+    rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password");
+    assert_rnp_success(rnp_key_signature_sign(sig));
+    rnp_signature_handle_destroy(sig);
+    assert_true(check_key_revoked(alice, false));
+    auto keydata = export_key(alice);
+    rnp_key_handle_destroy(alice);
+    rnp_key_handle_destroy(basil);
+    rnp_ffi_destroy(ffi);
+
+    /* Basil's revocation is a valid signature, but must not revoke Alice's key */
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "basil-pub.asc"));
+    assert_true(import_pub_keys(ffi, keydata.data(), keydata.size()));
+    alice = get_key_by_uid(ffi, "Alice <alice@rnp>");
+    assert_true(check_key_revoked(alice, false));
+    assert_true(check_key_valid(alice, true));
+    check_key_sigs(alice);
+    assert_rnp_success(rnp_key_remove_signatures(alice, RNP_KEY_SIGNATURE_INVALID, NULL, NULL));
+    assert_true(check_key_revoked(alice, false));
+    assert_true(check_key_valid(alice, true));
+    rnp_key_handle_destroy(alice);
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_uid_revocation_nonself_signer)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_all_keys(ffi, KEYSIG_PATH "basil-sec.asc"));
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "alice-pub.asc"));
+    rnp_key_handle_t alice = get_key_by_uid(ffi, "Alice <alice@rnp>");
+    rnp_key_handle_t basil = get_key_by_uid(ffi, "Basil <basil@rnp>");
+    /* Basil revokes his certification of Alice's userid */
+    auto *signer = basil->sec;
+    auto *target = alice->pub;
+    pgp_password_provider_t pprov(string_copy_password_callback, (void *) "password");
+    assert_true(signer->unlock(pprov));
+    pgp::pkt::Signature rev;
+    signer->sign_init(ffi->rng(), rev, PGP_HASH_SHA256, ffi->context.time(), signer->version());
+    rev.set_type(PGP_SIG_REV_CERT);
+    rev.set_revocation_reason(PGP_REVOCATION_NO_LONGER_VALID, "");
+    auto uidpkt = target->get_uid(0).pkt;
+    signer->sign_cert(target->pkt(), uidpkt, rev, ffi->context);
+    signer->lock();
+    assert_non_null(ffi->pubring->add_key_sig(target->fp(), rev, &uidpkt, false));
+    assert_true(check_uid_valid(alice, 0, true));
+    auto keydata = export_key(alice);
+    rnp_key_handle_destroy(alice);
+    rnp_key_handle_destroy(basil);
+    rnp_ffi_destroy(ffi);
+
+    /* Basil's certification revocation must not revoke Alice's userid */
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "basil-pub.asc"));
+    assert_true(import_pub_keys(ffi, keydata.data(), keydata.size()));
+    alice = get_key_by_uid(ffi, "Alice <alice@rnp>");
+    assert_true(check_uid_valid(alice, 0, true));
+    check_key_sigs(alice);
+    assert_rnp_success(rnp_key_remove_signatures(alice, RNP_KEY_SIGNATURE_INVALID, NULL, NULL));
+    assert_true(check_uid_valid(alice, 0, true));
+    assert_true(check_key_valid(alice, true));
+    rnp_key_handle_destroy(alice);
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_subkey_sigs_nonprimary_signer)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_all_keys(ffi, KEYSIG_PATH "basil-sec.asc"));
+    assert_true(import_all_keys(ffi, KEYSIG_PATH "alice-sub-sec.pgp"));
+    rnp_key_handle_t alice = get_key_by_uid(ffi, "Alice <alice@rnp>");
+    rnp_key_handle_t basil = get_key_by_uid(ffi, "Basil <basil@rnp>");
+    rnp_key_handle_t sub = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &sub));
+    /* Alice expires her subkey */
+    rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password");
+    assert_rnp_success(rnp_key_set_expiration(sub, 100));
+    assert_true(check_key_valid(sub, false));
+    /* Basil binds Alice's subkey to his key without expiration, and revokes it */
+    auto *signer = basil->sec;
+    auto *target = sub->pub;
+    pgp_password_provider_t pprov(string_copy_password_callback, (void *) "password");
+    assert_true(signer->unlock(pprov));
+    pgp::pkt::Signature bind;
+    signer->sign_init(ffi->rng(), bind, PGP_HASH_SHA256, ffi->context.time(), signer->version());
+    bind.set_type(PGP_SIG_SUBKEY);
+    bind.set_key_flags(PGP_KF_ENCRYPT);
+    signer->sign_binding(target->pkt(), bind, ffi->context);
+    assert_non_null(ffi->pubring->add_key_sig(target->fp(), bind, nullptr, false));
+    pgp::pkt::Signature rev;
+    signer->sign_init(ffi->rng(), rev, PGP_HASH_SHA256, ffi->context.time(), signer->version());
+    rev.set_type(PGP_SIG_REV_SUBKEY);
+    rev.set_revocation_reason(PGP_REVOCATION_COMPROMISED, "");
+    signer->sign_binding(target->pkt(), rev, ffi->context);
+    assert_non_null(ffi->pubring->add_key_sig(target->fp(), rev, nullptr, false));
+    signer->lock();
+    assert_true(check_key_valid(sub, false));
+    assert_true(check_key_revoked(sub, false));
+    auto keydata = export_key(alice);
+    rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(alice);
+    rnp_key_handle_destroy(basil);
+    rnp_ffi_destroy(ffi);
+
+    /* Basil's signatures are valid, but must not change validity of Alice's subkey */
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "basil-pub.asc"));
+    assert_true(import_pub_keys(ffi, keydata.data(), keydata.size()));
+    alice = get_key_by_uid(ffi, "Alice <alice@rnp>");
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &sub));
+    assert_true(check_key_valid(sub, false));
+    assert_true(check_key_revoked(sub, false));
+    check_key_sigs(sub);
+    assert_rnp_success(rnp_key_remove_signatures(alice, RNP_KEY_SIGNATURE_INVALID, NULL, NULL));
+    assert_true(check_key_valid(sub, false));
+    assert_true(check_key_revoked(sub, false));
+    uint32_t expiry = 0;
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, 100);
+    assert_true(check_key_valid(alice, true));
+    rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(alice);
+    rnp_ffi_destroy(ffi);
+}
