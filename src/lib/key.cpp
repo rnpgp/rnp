@@ -2087,8 +2087,8 @@ Key::validate_primary(KeyStore &keyring)
 void
 Key::validate_subkey(Key *primary, const SecurityContext &ctx)
 {
-    /* consider subkey as valid on this level if it has valid primary key, has at least one
-     * non-expired binding signature, and is not revoked. */
+    /* consider subkey as valid on this level if it has valid primary key, its latest binding
+     * signature is not expired, and it is not revoked. */
     validity_.reset();
     validity_.validated = true;
     if (!primary || (!primary->valid() && !primary->expired())) {
@@ -2097,29 +2097,22 @@ Key::validate_subkey(Key *primary, const SecurityContext &ctx)
     /* validate signatures if needed */
     validate_self_signatures(*primary, ctx);
 
-    bool has_binding = false;
-    bool has_expired = false;
     for (auto &sigid : sigs_) {
         auto &sig = get_sig(sigid);
-        if (!sig.validity.valid() || !is_authorized(sig)) {
-            continue;
-        }
-
-        if (is_binding(sig) && !has_binding) {
-            /* check whether subkey is expired */
-            if (expired_with(sig, ctx.time())) {
-                has_expired = true;
-                continue;
-            }
-            has_binding = true;
-        } else if (is_revocation(sig)) {
+        if (sig.validity.valid() && is_revocation(sig) && is_authorized(sig)) {
             return;
         }
     }
-    validity_.valid = has_binding && primary->valid();
-    if (!validity_.valid) {
-        validity_.expired = has_expired;
+    /* expiration is taken from the latest binding, see refresh_data() */
+    auto binding = latest_binding();
+    if (!binding) {
+        return;
     }
+    if (expired_with(*binding, ctx.time())) {
+        validity_.expired = true;
+        return;
+    }
+    validity_.valid = primary->valid();
 }
 
 void
