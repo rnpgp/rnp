@@ -729,3 +729,39 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
     delete secring;
     delete pubring;
 }
+
+TEST_F(rnp_tests, test_key_validity_subkey_latest_binding)
+{
+    auto secring = new rnp::KeyStore(KEYSIG_PATH "alice-sub-sec.pgp", global_ctx);
+    assert_true(secring->load());
+    rnp::Key *key = nullptr;
+    assert_non_null(key = rnp_tests_key_search(secring, "Alice <alice@rnp>"));
+    rnp::Key *sub = nullptr;
+    assert_non_null(sub = rnp_tests_get_key_by_id(secring, "dd23ceb7febeff17"));
+    assert_true(sub->valid());
+    assert_int_equal(sub->expiration(), 0);
+    auto *oldbind = sub->latest_binding();
+    assert_non_null(oldbind);
+
+    /* add later binding which expires the subkey, old one without expiration stays */
+    pgp::pkt::Signature sig;
+    key->sign_init(
+      global_ctx.rng, sig, PGP_HASH_SHA256, oldbind->sig.creation() + 1, key->version());
+    sig.set_type(PGP_SIG_SUBKEY);
+    sig.set_key_flags(oldbind->sig.key_flags());
+    sig.set_key_expiration(100);
+    pgp_password_provider_t pprov(string_copy_password_callback, (void *) "password");
+    assert_true(key->unlock(pprov));
+    key->sign_binding(sub->pkt(), sig, global_ctx);
+    key->lock();
+    sub->add_sig(sig);
+    key->revalidate(*secring);
+    /* validity must be taken from the latest binding, as expiration is */
+    assert_non_null(sub->latest_binding());
+    assert_int_equal(sub->latest_binding()->sig.key_expiration(), 100);
+    assert_int_equal(sub->expiration(), 100);
+    assert_true(sub->expired());
+    assert_false(sub->valid());
+    assert_false(sub->usable_for(PGP_OP_ENCRYPT));
+    delete secring;
+}
