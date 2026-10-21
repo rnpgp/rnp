@@ -414,6 +414,56 @@ TEST_F(rnp_tests, test_stream_signatures)
     delete secring;
 }
 
+TEST_F(rnp_tests, test_stream_signature_embedded_depth)
+{
+    pgp::pkt::Signature inner;
+    pgp_source_t        sigsrc = {};
+    assert_rnp_success(init_file_src(&sigsrc, "data/test_stream_signatures/source.txt.sig"));
+    assert_rnp_success(inner.parse(sigsrc));
+    sigsrc.close();
+
+    /* embed the signature into EmbeddedSignature subpackets, one level at a time; each
+     * level carries only the newly embedded signature, so the nesting depth grows by one */
+    const pgp::pkt::Signature base = inner;
+    for (size_t depth = 1; depth <= pgp::pkt::sigsub::MAX_EMBEDDED_SIGNATURE_DEPTH; depth++) {
+        pgp::pkt::Signature outer;
+        outer.version = base.version;
+        outer.palg = base.palg;
+        outer.halg = base.halg;
+        outer.lbits = base.lbits;
+        outer.material_buf = base.material_buf;
+        outer.set_type(base.type());
+        pgp::pkt::sigsub::EmbeddedSignature emb;
+        emb.set_signature(inner);
+        emb.write();
+        outer.subpkts.items.push_back(emb.clone());
+        outer.fill_hashed_data();
+        auto                body = outer.write(false);
+        pgp_packet_body_t   pkt(body.data(), body.size());
+        pgp::pkt::Signature parsed;
+        assert_rnp_success(parsed.parse(pkt));
+        inner = std::move(parsed);
+    }
+
+    /* one level more than allowed is rejected */
+    pgp::pkt::Signature outer;
+    outer.version = base.version;
+    outer.palg = base.palg;
+    outer.halg = base.halg;
+    outer.lbits = base.lbits;
+    outer.material_buf = base.material_buf;
+    outer.set_type(base.type());
+    pgp::pkt::sigsub::EmbeddedSignature emb;
+    emb.set_signature(inner);
+    emb.write();
+    outer.subpkts.items.push_back(emb.clone());
+    outer.fill_hashed_data();
+    auto                body = outer.write(false);
+    pgp_packet_body_t   pkt(body.data(), body.size());
+    pgp::pkt::Signature parsed;
+    assert_rnp_failure(parsed.parse(pkt));
+}
+
 TEST_F(rnp_tests, test_stream_signatures_revoked_key)
 {
     pgp::pkt::Signature sig = {};

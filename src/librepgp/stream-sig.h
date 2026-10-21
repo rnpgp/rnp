@@ -45,9 +45,9 @@ class Signature {
     std::vector<uint8_t> preferred(sigsub::Type type) const;
     void                 set_preferred(const std::vector<uint8_t> &data, sigsub::Type type);
     rnp_result_t         parse_v2v3(pgp_packet_body_t &pkt);
-    rnp_result_t         parse_v4up(pgp_packet_body_t &pkt);
+    rnp_result_t         parse_v4up(pgp_packet_body_t &pkt, size_t depth);
     bool                 get_subpkt_len(pgp_packet_body_t &pkt, size_t &len);
-    bool                 parse_subpackets(uint8_t *buf, size_t len, bool hashed);
+    bool                 parse_subpackets(uint8_t *buf, size_t len, bool hashed, size_t depth);
     static bool          version_supported(pgp_version_t version);
 
     const sigsub::RevocationKey *revoker_subpkt() const noexcept;
@@ -397,7 +397,7 @@ class Signature {
      * @param pkt packet body with data.
      * @return RNP_SUCCESS or error code if failed. May also throw an exception.
      */
-    rnp_result_t parse(pgp_packet_body_t &pkt);
+    rnp_result_t parse(pgp_packet_body_t &pkt, size_t depth = 0);
 
     /**
      * @brief Parse signature packet from source.
