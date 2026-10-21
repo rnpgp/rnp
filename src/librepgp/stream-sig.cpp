@@ -812,7 +812,7 @@ Signature::parse_v2v3(pgp_packet_body_t &pkt)
 #define MAX_SUBPACKETS 64
 
 bool
-Signature::parse_subpackets(uint8_t *buf, size_t len, bool hashed)
+Signature::parse_subpackets(uint8_t *buf, size_t len, bool hashed, size_t depth)
 {
     bool res = true;
 
@@ -853,7 +853,7 @@ Signature::parse_subpackets(uint8_t *buf, size_t len, bool hashed)
             return false;
         }
 
-        auto subpkt = sigsub::Raw::create(buf, splen, hashed);
+        auto subpkt = sigsub::Raw::create(buf, splen, hashed, depth);
         if (!subpkt) {
             res = false;
         } else {
@@ -919,7 +919,7 @@ Signature::find_subpkt(sigsub::Type type, bool hashed, size_t skip) const
 }
 
 rnp_result_t
-Signature::parse_v4up(pgp_packet_body_t &pkt)
+Signature::parse_v4up(pgp_packet_body_t &pkt, size_t depth)
 {
     /* parse v4 (and up) specific fields, not the whole signature */
     uint8_t buf[3];
@@ -960,7 +960,7 @@ Signature::parse_v4up(pgp_packet_body_t &pkt)
         return RNP_ERROR_BAD_FORMAT;
     }
     /* parsing hashed subpackets */
-    if (!parse_subpackets(hashed_data.data() + 4 + splen_size, splen, true)) {
+    if (!parse_subpackets(hashed_data.data() + 4 + splen_size, splen, true, depth)) {
         RNP_LOG("failed to parse hashed subpackets");
         return RNP_ERROR_BAD_FORMAT;
     }
@@ -974,7 +974,7 @@ Signature::parse_v4up(pgp_packet_body_t &pkt)
         RNP_LOG("not enough data for unhashed subpackets");
         return RNP_ERROR_BAD_FORMAT;
     }
-    if (!parse_subpackets(pkt.cur(), splen, false)) {
+    if (!parse_subpackets(pkt.cur(), splen, false, depth)) {
         RNP_LOG("failed to parse unhashed subpackets");
         return RNP_ERROR_BAD_FORMAT;
     }
@@ -983,7 +983,7 @@ Signature::parse_v4up(pgp_packet_body_t &pkt)
 }
 
 rnp_result_t
-Signature::parse(pgp_packet_body_t &pkt)
+Signature::parse(pgp_packet_body_t &pkt, size_t depth)
 {
     uint8_t ver = 0;
     if (!pkt.get(ver)) {
@@ -1006,7 +1006,7 @@ Signature::parse(pgp_packet_body_t &pkt)
         FALLTHROUGH_STATEMENT;
     case PGP_V6:
 #endif
-        res = parse_v4up(pkt);
+        res = parse_v4up(pkt, depth);
         break;
     default:
         RNP_LOG("unknown signature version: %d", (int) ver);

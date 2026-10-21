@@ -66,8 +66,9 @@ Raw::parse_data(const uint8_t *data, size_t size)
 };
 
 bool
-Raw::parse(const uint8_t *data, size_t size)
+Raw::parse(const uint8_t *data, size_t size, size_t depth)
 {
+    parse_depth_ = depth;
     if (!check_size(size)) {
         RNP_LOG("wrong len %zu of subpacket type %" PRIu8, size, raw_type_);
         return false;
@@ -192,7 +193,7 @@ Raw::create(Type type, bool hashed, bool critical)
 }
 
 RawPtr
-Raw::create(const uint8_t *data, size_t size, bool hashed)
+Raw::create(const uint8_t *data, size_t size, bool hashed, size_t depth)
 {
     if (!size) {
         RNP_LOG("got subpacket with 0 length");
@@ -202,7 +203,7 @@ Raw::create(const uint8_t *data, size_t size, bool hashed)
     uint8_t type = data[0] & 0x7f;
     auto    sub = create(type, hashed, critical);
     if (!sub || ((sub->type() == Type::Unknown) && critical) ||
-        !sub->parse(data + 1, size - 1)) {
+        !sub->parse(data + 1, size - 1, depth)) {
         return nullptr;
     }
     return sub;
@@ -670,9 +671,13 @@ EmbeddedSignature::check_size(size_t size) const noexcept
 bool
 EmbeddedSignature::parse_data(const uint8_t *data, size_t size)
 {
+    if (parse_depth_ >= MAX_EMBEDDED_SIGNATURE_DEPTH) {
+        RNP_LOG("embedded signature nesting is too deep: %zu", parse_depth_);
+        return false;
+    }
     pgp_packet_body_t pkt(data, size);
     Signature         sig;
-    if (sig.parse(pkt)) {
+    if (sig.parse(pkt, parse_depth_ + 1)) {
         return false;
     }
     signature_ = std::unique_ptr<Signature>(new Signature(std::move(sig)));
