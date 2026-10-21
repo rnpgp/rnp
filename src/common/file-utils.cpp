@@ -30,10 +30,10 @@
 #include "file-utils.h"
 #include "config.h"
 #include <stdlib.h>
+#include <errno.h>
 #ifdef _MSC_VER
 #include <stdio.h>
 #include "uniwin.h"
-#include <errno.h>
 #else
 #include <unistd.h>
 #include <fcntl.h>
