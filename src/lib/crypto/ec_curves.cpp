@@ -257,7 +257,7 @@ static const Curve ec_curves[] = {
   },
 #if defined(ENABLE_CRYPTO_REFRESH)
   {PGP_CURVE_ED448,
-   255,
+   456, /* encoded key size: 57 bytes, not the 448-bit field size */
    {0x2B, 0x65, 0x71},
    "Ed448",
    "Ed448",

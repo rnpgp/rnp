@@ -273,6 +273,40 @@ TEST_F(rnp_tests, rnp_test_eddsa)
     assert_rnp_failure(seckey.material->verify(global_ctx, sig, hash));
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+TEST_F(rnp_tests, rnp_test_ed448)
+{
+    rnp::KeygenParams keygen(PGP_PKA_ED448, global_ctx);
+    pgp_key_pkt_t     seckey;
+    assert_true(keygen.generate(seckey, true));
+
+    auto &ed = dynamic_cast<pgp::Ed448KeyMaterial &>(*seckey.material);
+    assert_int_equal(ed.pub().size(), 57);
+    assert_int_equal(ed.priv().size(), 57);
+
+    /* Write the secret key fields and parse them back: both use the curve's encoded key
+     * size, which is 57 bytes for Ed448, not BITS_TO_BYTES(448). */
+    auto cleartext = seckey.sec_data;
+    assert_false(cleartext.empty());
+    seckey.sec_protection.s2k.usage = PGP_S2KU_NONE;
+    assert_rnp_success(encrypt_secret_key(&seckey, NULL, global_ctx.rng));
+    assert_true(seckey.sec_data == cleartext);
+    seckey.material->clear_secret();
+    assert_false(seckey.material->secret());
+    assert_rnp_success(decrypt_secret_key(&seckey, NULL));
+    assert_true(seckey.material->secret());
+    auto &parsed = dynamic_cast<pgp::Ed448KeyMaterial &>(*seckey.material);
+    assert_int_equal(parsed.priv().size(), 57);
+    assert_int_equal(parsed.pub().size(), 57);
+
+    rnp::secure_bytes hash(64);
+    global_ctx.rng.get(hash.data(), hash.size());
+    pgp::Ed448SigMaterial sig(PGP_HASH_SHA512);
+    assert_rnp_success(seckey.material->sign(global_ctx, sig, hash));
+    assert_rnp_success(seckey.material->verify(global_ctx, sig, hash));
+}
+#endif
+
 TEST_F(rnp_tests, rnp_test_x25519)
 {
     rnp::KeygenParams keygen(PGP_PKA_ECDH, global_ctx);
