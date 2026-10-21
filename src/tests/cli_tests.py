@@ -40,6 +40,9 @@ GPG_ELG = False
 GPG_3DES = False
 GPG_IDEA = False
 GPG_CAST5 = False
+# GnuPG 2.5.24 imports unprotected ECDH secret keys with a broken keygrip, so they
+# cannot be used to decrypt (https://dev.gnupg.org/T8469, fixed after 2.5.24).
+GPG_BROKEN_ECDH_IMPORT = False
 TESTS_SUCCEEDED = []
 TESTS_FAILED = []
 TEST_WORKFILES = []
@@ -933,7 +936,7 @@ def rnp_cleartext_signing_gpg_to_rnp(filesize):
 
 def gpg_check_features():
     global GPG_ELG, GPG_AEAD, GPG_AEAD_EAX, GPG_AEAD_OCB, GPG_NO_OLD, GPG_BRAINPOOL
-    global GPG_3DES, GPG_IDEA, GPG_CAST5
+    global GPG_3DES, GPG_IDEA, GPG_CAST5, GPG_BROKEN_ECDH_IMPORT
     _, out, _ = run_proc(GPG, ["--version"])
     # El Gamal
     GPG_ELG = re.match(r'(?s)^.*ELG.*', out) is not None
@@ -958,6 +961,8 @@ def gpg_check_features():
     if ver >= [2, 4, 0]:
         GPG_AEAD_OCB = True
         GPG_AEAD_EAX = False
+    # GnuPG 2.5.24 imports unprotected ECDH secret keys with a broken keygrip (T8469)
+    GPG_BROKEN_ECDH_IMPORT = ver == [2, 5, 24]
     GPG_AEAD = GPG_AEAD_OCB or GPG_AEAD_EAX
     # Check whether Brainpool curves are supported
     _, out, _ = run_proc(GPG, ["--with-colons", "--list-config", "curve"])
@@ -966,6 +971,7 @@ def gpg_check_features():
     print('GPG_AEAD_EAX: ' + str(GPG_AEAD_EAX))
     print('GPG_AEAD_OCB: ' + str(GPG_AEAD_OCB))
     print('GPG_NO_OLD: ' + str(GPG_NO_OLD))
+    print('GPG_BROKEN_ECDH_IMPORT: ' + str(GPG_BROKEN_ECDH_IMPORT))
     print('GPG_BRAINPOOL: ' + str(GPG_BRAINPOOL))
 
 def rnp_check_features():
@@ -3489,13 +3495,14 @@ class Misc(unittest.TestCase):
         self.assertRegex(out, r'(?s)^.*Cv25519 key bits are set correctly and do not require fixing.*$')
         ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '-d', data_path(MSG_ES_25519)])
         self.assertEqual(ret, 0)
-        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', os.path.join(RNPDIR, SECRING)])
-        self.assertEqual(ret, 0)
-        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '-d', data_path(MSG_ES_25519)])
-        self.assertEqual(ret, 0)
-        # Remove key
-        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--yes', '--delete-secret-key', 'dde0ee539c017d2bd3f604a53176fc1486aa2528'])
-        self.assertEqual(ret, 0)
+        if not GPG_BROKEN_ECDH_IMPORT:
+            ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', os.path.join(RNPDIR, SECRING)])
+            self.assertEqual(ret, 0)
+            ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '-d', data_path(MSG_ES_25519)])
+            self.assertEqual(ret, 0)
+            # Remove key
+            ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--yes', '--delete-secret-key', 'dde0ee539c017d2bd3f604a53176fc1486aa2528'])
+            self.assertEqual(ret, 0)
         ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', '--force', 'dde0ee539c017d2bd3f604a53176fc1486aa2528'])
         self.assertEqual(ret, 0)
         # Make sure protected secret key works the same way
@@ -5022,10 +5029,11 @@ class Encryption(unittest.TestCase):
         ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--yes', '--delete-secret-key', 'dde0ee539c017d2bd3f604a53176fc1486aa2528'])
         self.assertEqual(ret, 0)
         # Make sure GPG imports tweaked key and successfully decrypts message
-        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', data_path('test_key_edge_cases/key-25519-tweaked-sec.asc')])
-        self.assertEqual(ret, 0)
-        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '-d', data_path(MSG_ES_25519)])
-        self.assertEqual(ret, 0)
+        if not GPG_BROKEN_ECDH_IMPORT:
+            ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', data_path('test_key_edge_cases/key-25519-tweaked-sec.asc')])
+            self.assertEqual(ret, 0)
+            ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '-d', data_path(MSG_ES_25519)])
+            self.assertEqual(ret, 0)
         # Generate
         pipe = pswd_pipe(PASSWORD)
         ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid',
@@ -5110,7 +5118,7 @@ class Encryption(unittest.TestCase):
         ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', PASSWORD, '--list-packets', enc])
         self.assertEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*gpg: encrypted with .*dummy1@rnp.*')
-        self.assertRegex(out, r'(?s)^.*:pubkey enc packet: version 3.*:encrypted data packet:.*mdc_method: 2.*' \
+        self.assertRegex(out, r'(?s)^.*:pubkey enc packet: version 3.*:encrypted data packet:.*mdc(_method)?: 2.*' \
                               r':onepass_sig packet:.*:literal data packet.*:signature packet.*')
         # Decrypt with GnuPG
         ret, _, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', PASSWORD, '--output', dec, '-d', enc])
@@ -5263,9 +5271,10 @@ class Compression(unittest.TestCase):
             rnp_encrypt_file_ex(src, enc, [], None, None, None, z, False)
 
             # Decrypt encrypted file with GPG
-            gpg_decrypt_file(enc, dst, PASSWORD)
-            compare_files(src, dst, GPG_DATA_DIFFERS)
-            remove_files(dst)
+            if not GPG_BROKEN_ECDH_IMPORT:
+                gpg_decrypt_file(enc, dst, PASSWORD)
+                compare_files(src, dst, GPG_DATA_DIFFERS)
+                remove_files(dst)
             # Decrypt encrypted file with RNP
             rnp_decrypt_file(enc, dst)
             compare_files(src, dst, RNP_DATA_DIFFERS)
