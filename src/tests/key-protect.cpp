@@ -326,6 +326,7 @@ TEST_F(rnp_tests, test_key_protect_sec_data_algs)
         {PGP_PKA_ED25519, true},
         {PGP_PKA_X25519, false},
         {PGP_PKA_X448, false},
+        {PGP_PKA_ED448, true},
 #endif
 #if defined(ENABLE_PQC)
         {PGP_PKA_KYBER768_X25519, false},
