@@ -169,8 +169,9 @@ if (BOTAN_FOUND)
 endif()
 
 if (BOTAN_FOUND AND NOT TARGET Botan::Botan)
-  # create the new library target
-  add_library(Botan::Botan UNKNOWN IMPORTED)
+  # create the new library target; GLOBAL so that directories added before
+  # src/lib (such as src/fuzzing) can link against it
+  add_library(Botan::Botan UNKNOWN IMPORTED GLOBAL)
   # set the required include dirs for the target
   if (BOTAN_INCLUDE_DIRS)
     set_target_properties(Botan::Botan
