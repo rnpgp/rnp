@@ -37,7 +37,7 @@ concurrency:
 env:
   CORES: 2
   RNP_LOG_CONSOLE: 1
-  CODECOV_TOKEN: dbecf176-ea3f-4832-b743-295fd71d0fad
+  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
 jobs:
   tests:
