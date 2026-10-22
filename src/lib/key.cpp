@@ -1848,8 +1848,13 @@ Key::validate_binding(SignatureInfo &        sinfo,
     }
     auto hash = signature_hash_binding(*sinfo.sig, pkt(), subkey.pkt());
     validate_sig(sinfo, *hash, ctx);
-    /* Check whether subkey is capable of signing and return otherwise */
-    if (!sinfo.validity.valid() || !(sinfo.sig->key_flags() & PGP_KF_SIGN)) {
+    /* Check whether subkey is capable of signing and return otherwise. Without key flags
+     * the subkey gets the algorithm's capabilities, see refresh_data(). */
+    pgp_key_flags_t realkf = (pgp_key_flags_t) sinfo.sig->key_flags();
+    if (!sinfo.sig->has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
+        realkf = pgp_pk_alg_capabilities(subkey.alg());
+    }
+    if (!sinfo.validity.valid() || !(realkf & PGP_KF_SIGN)) {
         return;
     }
 

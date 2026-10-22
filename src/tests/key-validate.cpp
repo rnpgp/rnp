@@ -334,6 +334,49 @@ TEST_F(rnp_tests, test_forged_key_validate)
 
 #define KEYSIG_PATH "data/test_key_validity/"
 
+TEST_F(rnp_tests, test_forged_sign_subkey_no_backsig)
+{
+    /* Alice's ECDSA signing subkey bound to Basil's primary key. The binding signature has
+     * no key flags, so the subkey is signing-capable by its algorithm, but it has no primary
+     * key binding signature, which only Alice could make. Such binding must not be valid. */
+    pgp_source_t           src = {};
+    pgp_transferable_key_t alice;
+    assert_rnp_success(init_file_src(&src, KEYSIG_PATH "alice-sign-sub-pub.pgp"));
+    assert_rnp_success(process_pgp_key(src, alice, false));
+    src.close();
+    assert_int_equal(alice.subkeys.size(), 1);
+
+    auto secring = new rnp::KeyStore(KEYSIG_PATH "basil-sec.asc", global_ctx);
+    assert_true(secring->load());
+    rnp::Key *basil = nullptr;
+    assert_non_null(basil = rnp_tests_key_search(secring, "Basil <basil@rnp>"));
+    pgp_password_provider_t pprov(string_copy_password_callback, (void *) "password");
+    assert_true(basil->unlock(pprov));
+
+    pgp::pkt::Signature sig;
+    basil->sign_init(
+      global_ctx.rng, sig, PGP_HASH_SHA256, global_ctx.time(), basil->pkt().version);
+    sig.set_type(PGP_SIG_SUBKEY);
+    basil->sign_binding(alice.subkeys[0].subkey, sig, global_ctx);
+
+    pgp_transferable_key_t forged;
+    assert_rnp_success(init_file_src(&src, KEYSIG_PATH "basil-pub.asc"));
+    assert_rnp_success(process_pgp_key(src, forged, false));
+    src.close();
+    forged.subkeys.push_back(alice.subkeys[0]);
+    forged.subkeys[0].signatures.clear();
+    forged.subkeys[0].signatures.push_back(sig);
+
+    auto pubring = new rnp::KeyStore("", global_ctx);
+    assert_true(pubring->add_ts_key(forged));
+    rnp::Key *subkey = nullptr;
+    assert_non_null(subkey = rnp_tests_get_key_by_id(pubring, "22F3A217C0E439CB"));
+    assert_false(subkey->valid());
+
+    delete pubring;
+    delete secring;
+}
+
 TEST_F(rnp_tests, test_key_validity)
 {
     /* Case1:
