@@ -5794,6 +5794,63 @@ class EncryptSignRSA(Encrypt, Sign):
     def tearDownClass(cls):
         Encrypt.tearDownClass()
 
+class PkeskV6(unittest.TestCase):
+    '''RFC 9580 PKESK v6 + SEIPD v2 to a v4 ECDH Curve25519Legacy subkey.
+
+    Messages are from Delta Chat / rpgp (anonymous recipient) and sq (recipient
+    fingerprint). See https://github.com/rnpgp/rnp/issues/1770.
+    '''
+
+    def test_ecdh_legacy_interop(self):
+        if not RNP_CRYPTO_REFRESH or not RNP_AEAD_OCB:
+            self.skipTest('crypto refresh with OCB is required')
+        base = 'test_messages/pkeskv6-ecdh'
+        seckey = data_path(base + '/seckey.asc')
+        v1 = data_path(base + '/seipdv1-anon.asc')
+        v2 = data_path(base + '/seipdv2-anon.asc')
+        v2_fp = data_path(base + '/seipdv2-fp.asc')
+        dec = os.path.join(WORKDIR, 'pkeskv6.dec')
+        plain = 'hello from deltachat core'
+        hidden_ignored = r'(?s)^.*Warning: message has hidden recipient, but it was ignored\..*'
+        hidden_try = r'(?s)^.*This message has hidden recipient\. Will attempt to use all secret keys.*'
+        good_sig = r'(?s)^.*Signature\(s\) verified successfully.*'
+
+        ret, _, err = run_proc(RNP, ['--keyfile', seckey, '--notty', '-d', v2_fp, '--output', dec])
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(err, r'hidden recipient')
+        self.assertEqual(file_text(dec), 'hello v2 visible\n')
+        ret, _, err = run_proc(RNP, ['--keyfile', seckey, '--notty', '-v', v2_fp])
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(err, r'Signature verification failure')
+        remove_files(dec)
+
+        ret, _, err = run_proc(RNP, ['--keyfile', seckey, '--notty', '-d', v2, '--output', dec])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, hidden_ignored)
+        ret, _, err = run_proc(RNP, ['--keyfile', seckey, '--notty', '--allow-hidden', '-d', v2, '--output', dec])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, hidden_try)
+        self.assertRegex(err, good_sig)
+        self.assertEqual(file_text(dec), plain)
+        ret, _, err = run_proc(RNP, ['--keyfile', seckey, '--notty', '--allow-hidden', '-v', v2])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, good_sig)
+        remove_files(dec)
+
+        ret, _, err = run_proc(RNP, ['--keyfile', seckey, '--notty', '-d', v1, '--output', dec])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, hidden_ignored)
+        ret, _, err = run_proc(RNP, ['--keyfile', seckey, '--notty', '--allow-hidden', '-d', v1, '--output', dec])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, hidden_try)
+        self.assertRegex(err, good_sig)
+        self.assertEqual(file_text(dec), plain)
+        ret, _, err = run_proc(RNP, ['--keyfile', seckey, '--notty', '--allow-hidden', '-v', v1])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, good_sig)
+        remove_files(dec)
+
+
 def test_suites(tests):
     if hasattr(tests, '__iter__'):
         for x in tests:
