@@ -2177,6 +2177,25 @@ TEST_F(rnp_tests, test_ffi_decrypt_small_eg)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_decrypt_empty_sesskey)
+{
+    /* PKESK to 1ed63ee56fadc34d with a valid PKCS#1 block holding an empty message */
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_sec_keys(ffi, "data/keyrings/1/secring.gpg"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
+    rnp_input_t input = NULL;
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.enc-empty-sesskey"));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_failure(rnp_decrypt(ffi, input, output));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+    rnp_ffi_destroy(ffi);
+}
+
 /* Regression test for #1275 / PR #2391: rnp_op_verify_get_used_recipient must
  * return the actual key that was used for decryption, even when the recipient
  * was hidden in the PKESK packet (keyid all zeroes). The fix patches the

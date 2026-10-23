@@ -1738,6 +1738,10 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
 
     /* This is always true for non-experimental pqc/crypto refresh */
     if (do_encrypt_pkesk_v3_alg_id(sesskey.alg)) {
+        if (decbuf.empty()) {
+            RNP_LOG("empty decrypted session key");
+            return false;
+        }
         sesskey.salg = static_cast<pgp_symm_alg_t>(decbuf[0]);
         decbuf.erase(decbuf.begin());
     }
