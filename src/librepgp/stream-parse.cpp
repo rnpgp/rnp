@@ -1753,8 +1753,11 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         return false;
     }
 
-    /* This is always true for non-experimental pqc/crypto refresh */
-    if (do_encrypt_pkesk_v3_alg_id(sesskey.alg)) {
+    /* Only a v3 PKESK encrypts a leading symmetric-algorithm octet with the
+     * session key (RFC 9580 §5.1.1, §5.1.3, §11.5). A v6 PKESK does not: the
+     * cipher is carried in the v2 SEIPD header. Stripping a byte here shifts
+     * the following checksum and rejects a valid ECDH/RSA/ElGamal session key. */
+    if (do_encrypt_pkesk_v3_alg_id(sesskey.alg) && (sesskey.version == PGP_PKSK_V3)) {
         sesskey.salg = static_cast<pgp_symm_alg_t>(decbuf[0]);
         decbuf.erase(decbuf.begin());
     }
@@ -1779,9 +1782,12 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
 
 #if defined(ENABLE_CRYPTO_REFRESH)
     if (sesskey.version == PGP_PKSK_V6) { // PGP_PKSK_V6
-        /* NOTEMTG: salg not part of the v6 PKESK, assignment here just to make the following
-         * call "happy" */
-        return encrypted_start_aead(param, param->aead_hdr.ealg, decbuf.data());
+        /* The cipher id is not inside the v6 PKESK. It comes from the v2 SEIPD. */
+        if (!encrypted_start_aead(param, param->aead_hdr.ealg, decbuf.data())) {
+            return false;
+        }
+        param->salg = param->aead_hdr.ealg;
+        return true;
     }
 #endif
     /* v3 PKSK by default */
@@ -2457,6 +2463,12 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
 #endif
                 search = rnp::KeySearch::create(pubenc.key_id);
 #if defined(ENABLE_CRYPTO_REFRESH)
+            } else if (!pubenc.fp.size()) {
+                /* Anonymous v6 PKESK (RFC 9580 §5.1.8): no fingerprint was
+                 * stored. Reuse the wildcard Key ID search so every secret
+                 * key is tried, under the same hidden-recipient gate as a v3
+                 * all-zero Key ID. */
+                search = rnp::KeySearch::create(pgp::KeyID({}));
             } else { // PGP_PKSK_V6
                 search = rnp::KeySearch::create(pubenc.fp);
             }

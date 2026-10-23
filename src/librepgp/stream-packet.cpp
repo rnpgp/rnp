@@ -1216,10 +1216,17 @@ pgp_pk_sesskey_t::write(pgp_dest_t &dst) const
 #endif
         pktbody.add(key_id);
 #if defined(ENABLE_CRYPTO_REFRESH)
-    } else {                             // PGP_PKSK_V6
-        pktbody.add_byte(1 + fp.size()); // A one-octet size of the following two fields.
-        pktbody.add_byte((fp.size() == PGP_FINGERPRINT_V6_SIZE) ? PGP_V6 : PGP_V4);
-        pktbody.add(fp.vec());
+    } else { // PGP_PKSK_V6
+        /* RFC 9580 §5.1.2: a zero size omits the key version and the
+         * fingerprint (anonymous recipient). A non-zero size is one octet
+         * of version plus the fingerprint. */
+        if (!fp.size()) {
+            pktbody.add_byte(0);
+        } else {
+            pktbody.add_byte(1 + fp.size());
+            pktbody.add_byte((fp.size() == PGP_FINGERPRINT_V6_SIZE) ? PGP_V6 : PGP_V4);
+            pktbody.add(fp.vec());
+        }
     }
 #endif
     pktbody.add_byte(alg);
@@ -1268,42 +1275,54 @@ pgp_pk_sesskey_t::parse(pgp_source_t &src)
             RNP_LOG("Error when reading length of next two fields");
             return RNP_ERROR_BAD_FORMAT;
         }
-        if ((fp_and_key_ver_len != 1 + PGP_FINGERPRINT_V4_SIZE) &&
-            (fp_and_key_ver_len != 1 + PGP_FINGERPRINT_V6_SIZE)) {
-            RNP_LOG("Invalid size for key version + length field");
-            return RNP_ERROR_BAD_FORMAT;
-        }
+        /* RFC 9580 §5.1.2: a zero size omits the key version and the
+         * fingerprint. That is an anonymous recipient (§5.1.8). */
+        if (!fp_and_key_ver_len) {
+            fp = pgp::Fingerprint();
+        } else {
+            if ((fp_and_key_ver_len != 1 + PGP_FINGERPRINT_V4_SIZE) &&
+                (fp_and_key_ver_len != 1 + PGP_FINGERPRINT_V6_SIZE)) {
+                RNP_LOG("Invalid size for key version + length field");
+                return RNP_ERROR_BAD_FORMAT;
+            }
 
-        size_t  fp_len;
-        uint8_t fp_key_version;
-        if (!pkt.get(fp_key_version)) {
-            RNP_LOG("Error when reading key version");
-            return RNP_ERROR_BAD_FORMAT;
+            size_t  fp_len;
+            uint8_t fp_key_version;
+            if (!pkt.get(fp_key_version)) {
+                RNP_LOG("Error when reading key version");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            switch (fp_key_version) {
+            case PGP_V4:
+                fp_len = PGP_FINGERPRINT_V4_SIZE;
+                break;
+            case PGP_V6:
+                fp_len = PGP_FINGERPRINT_V6_SIZE;
+                break;
+            default:
+                RNP_LOG("wrong key version used with PKESK v6");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            if (fp_len + 1 != fp_and_key_ver_len) {
+                RNP_LOG("size mismatch (fingerprint size and fp+key version length field)");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            std::vector<uint8_t> vec(fp_len, 0);
+            if (!pkt.get(vec.data(), vec.size())) {
+                RNP_LOG("Error when reading fingerprint");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            fp = pgp::Fingerprint(vec.data(), vec.size());
+            /* A v6 PKESK has no Key ID field. Derive one so recipient
+             * reporting matches the key (RFC 9580 §5.5.4): the low 64 bits
+             * of a v4 fingerprint, the high 64 bits of a v6 fingerprint.
+             * An anonymous packet leaves the all-zero sentinel in place. */
+            if (fp_key_version == PGP_V4) {
+                memcpy(key_id.data(), vec.data() + fp_len - PGP_KEY_ID_SIZE, key_id.size());
+            } else {
+                memcpy(key_id.data(), vec.data(), key_id.size());
+            }
         }
-        switch (fp_key_version) {
-        case 0: // anonymous
-            fp_len = 0;
-            break;
-        case PGP_V4:
-            fp_len = PGP_FINGERPRINT_V4_SIZE;
-            break;
-        case PGP_V6:
-            fp_len = PGP_FINGERPRINT_V6_SIZE;
-            break;
-        default:
-            RNP_LOG("wrong key version used with PKESK v6");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        if (fp_len && (fp_len + 1 != fp_and_key_ver_len)) {
-            RNP_LOG("size mismatch (fingerprint size and fp+key version length field)");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        std::vector<uint8_t> vec(fp_len, 0);
-        if (!pkt.get(vec.data(), vec.size())) {
-            RNP_LOG("Error when reading fingerprint");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        fp = pgp::Fingerprint(vec.data(), vec.size());
     }
 #endif
 
