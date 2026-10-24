@@ -126,8 +126,6 @@ KeyStore::write()
 
     /* write g10 key store to the directory */
     if (format == KeyFormat::G10) {
-        char chpath[MAXPATHLEN];
-
         struct stat path_stat;
         if (rnp_stat(path.c_str(), &path_stat) != -1) {
             if (!S_ISDIR(path_stat.st_mode)) {
@@ -147,9 +145,11 @@ KeyStore::write()
 
         for (auto &key : keys) {
             auto grip = bin_to_hex(key.grip().data(), key.grip().size());
-            snprintf(chpath, sizeof(chpath), "%s/%s.key", path.c_str(), grip.c_str());
+            /* no MAXPATHLEN-sized buffer: GNU/Hurd does not define it, and a
+             * std::string cannot truncate long paths */
+            std::string chpath = path + "/" + grip + ".key";
 
-            if (init_tmpfile_dest(&keydst, chpath, true)) {
+            if (init_tmpfile_dest(&keydst, chpath.c_str(), true)) {
                 RNP_LOG("failed to create file");
                 return false;
             }
