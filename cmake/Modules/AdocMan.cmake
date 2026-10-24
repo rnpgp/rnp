@@ -239,7 +239,7 @@ function(add_adoc_man SRC COMPONENT_VERSION)
 
   add_custom_target("${TARGET_NAME}" ALL DEPENDS ${DST})
   install(FILES ${DST}
-    DESTINATION "${CMAKE_INSTALL_FULL_MANDIR}/man${MAN_NUM}"
+    DESTINATION "${CMAKE_INSTALL_MANDIR}/man${MAN_NUM}"
     COMPONENT doc
   )
 endfunction(add_adoc_man)
