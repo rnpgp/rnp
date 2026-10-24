@@ -145,6 +145,16 @@ target_link_libraries(fuzz_keyring_g10
     librnp-static
 )
 
+# keyring_g10.cpp includes internal headers that pull in backend-specific
+# cryptography headers; librnp-static links the backend privately, so its
+# include directories do not propagate to this target. The Botan target is
+# created in src/lib, which is added after this directory, so the check must
+# not use if(TARGET); it is GLOBAL (see FindBotan.cmake) and this is a no-op
+# for the OpenSSL backend, whose headers reach here through the system paths.
+if (CRYPTO_BACKEND STREQUAL "botan")
+  target_link_libraries(fuzz_keyring_g10 PRIVATE Botan::Botan)
+endif ()
+
 if (ENABLE_SANITIZERS)
   foreach(tgt fuzz_dump fuzz_keyring fuzz_keyimport fuzz_sigimport fuzz_verify fuzz_verify_detached fuzz_keyring_kbx fuzz_keyring_g10)
     set_target_properties(${tgt} PROPERTIES LINKER_LANGUAGE CXX)

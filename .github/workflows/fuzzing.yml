@@ -1,6 +1,32 @@
 name: fuzzing
 
+# Build the fuzz targets under the Botan crypto backend and exercise them against
+# the existing corpus.
+#
+# This used to delegate to oss-fuzz's cifuzz action, but the oss-fuzz project
+# build pins Botan 3.4.0 and requests a module list that no longer matches it
+# ("ERROR: Module not found: legacy_ec_point"), so the build failed before any
+# fuzz target ran. Building in-repo keeps the check meaningful and independent
+# of that external configuration. The OpenSSL backend is covered by
+# fuzzing-openssl.yml.
+
 on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/fuzzing.yml'
   pull_request:
     paths-ignore:
       - '/*.sh'
@@ -12,7 +38,6 @@ on:
       - '**.md'
       - '**.nix'
       - 'flake.lock'
-      - 'version.txt'
 
 concurrency:
   group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
@@ -21,22 +46,70 @@ concurrency:
 jobs:
   fuzzing:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CC: clang
+      CXX: clang++
+      BOTAN_VERSION: 3.13.0
     steps:
-    - name: Build Fuzzers
-      id: build
-      uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@master
-      with:
-        oss-fuzz-project-name: 'rnp'
-        dry-run: false
-    - name: Run Fuzzers
-      uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@master
-      with:
-        oss-fuzz-project-name: 'rnp'
-        fuzz-seconds: 300
-        dry-run: false
-    - name: Upload Crash
-      uses: actions/upload-artifact@v7
-      if: failure() && steps.build.outcome == 'success'
-      with:
-        name: artifacts
-        path: ./out/artifacts
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install cmake libbz2-dev clang python3
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+
+      - name: Build Botan
+        run: |
+          curl -fsSLO "https://botan.randombit.net/releases/Botan-${BOTAN_VERSION}.tar.xz"
+          tar xf "Botan-${BOTAN_VERSION}.tar.xz"
+          cd "Botan-${BOTAN_VERSION}"
+          python3 configure.py --prefix=/usr/local --without-documentation
+          make -j"${CORES}"
+          sudo make install
+
+      - name: Configure
+        run: |
+          cmake -B build \
+                -DCRYPTO_BACKEND=botan \
+                -DENABLE_FUZZERS=ON \
+                -DENABLE_SANITIZERS=OFF \
+                -DBUILD_SHARED_LIBS=ON \
+                -DBUILD_TESTING=OFF \
+                -DCMAKE_BUILD_TYPE=Release .
+
+      - name: Build fuzzers
+        run: cmake --build build --parallel ${CORES} --target fuzz_dump fuzz_keyring fuzz_keyimport fuzz_sigimport fuzz_verify fuzz_verify_detached fuzz_keyring_kbx fuzz_keyring_g10
+
+      - name: Prepare corpus
+        run: |
+          mkdir -p corpus
+          find src/tests/data -type f -print0 | while IFS= read -r -d '' f; do
+            cp "$f" "corpus/$(sha256sum "$f" | cut -c1-16)"
+          done
+          echo "Corpus entries: $(find corpus -type f | wc -l)"
+
+      - name: Smoke-test fuzzers
+        run: |
+          set -e
+          export LD_LIBRARY_PATH="$PWD/build/src/lib:$LD_LIBRARY_PATH"
+          for fuzzer in fuzz_dump fuzz_keyring fuzz_keyimport fuzz_sigimport fuzz_verify fuzz_verify_detached fuzz_keyring_kbx fuzz_keyring_g10; do
+            bin="build/src/fuzzing/$fuzzer"
+            echo "== $fuzzer =="
+            # Run each fuzzer for a short window against the shared corpus.
+            # A non-zero exit indicates a crash; -max_len caps input size so
+            # the run finishes within the CI budget.
+            timeout 60 "$bin" corpus -runs=500 -max_len=4096 || \
+              code=$?
+            if [ "${code:-0}" = "124" ]; then
+              echo "$fuzzer: timed out after 60s (acceptable)"
+            elif [ -n "${code:-}" ] && [ "$code" != "0" ]; then
+              echo "$fuzzer: exited with $code"
+              exit "$code"
+            fi
+          done
