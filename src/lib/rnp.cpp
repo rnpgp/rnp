@@ -3389,10 +3389,13 @@ ffi_decrypt_key_provider(const pgp_key_request_ctx_t *ctx, void *userdata)
     if (!hidden) {
         return ffi->key_provider.callback(ctx, ffi->key_provider.userdata);
     }
-    /* if we had hidden request and last key is NULL then key search was exhausted */
-    if (!kparam->op->allow_hidden || (kparam->has_hidden && !kparam->last)) {
+    if (!kparam->op->allow_hidden) {
         return NULL;
     }
+    /* Iterate over the loaded secret keys, returning the next one on each call. Once the
+     * search is exhausted NULL is returned and kparam->last is reset, so the next hidden
+     * PKESK (a message may contain several of them, e.g. Delta Chat with anonymous v6
+     * PKESKs) starts again from the first key instead of being skipped. */
     /* inform user about the hidden recipient before searching through the loaded keys */
     if (!kparam->has_hidden) {
         call_key_callback(ffi, ctx->search, ctx->secret);
