@@ -579,7 +579,8 @@ Signature &
 Key::add_sig(const pgp::pkt::Signature &sig, size_t uid, bool begin)
 {
     auto sigid = sig.get_id();
-    sigs_map_.erase(sigid);
+    /* signature id doesn't cover the userid, so drop any earlier copy from its old place */
+    del_sig(sigid);
     auto &res = sigs_map_.emplace(std::make_pair(sigid, sig)).first->second;
     res.uid = uid;
     if (uid == UserID::None) {

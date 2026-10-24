@@ -961,6 +961,61 @@ TEST_F(rnp_tests, test_ffi_sig_validity)
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 
+TEST_F(rnp_tests, test_ffi_sig_validity_copied_cert)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* Alice has self-signed userids 'Fake <fake@rnp>' and 'Alice <alice@rnp>'. Basil's
+     * certification of 'Alice <alice@rnp>' is copied under 'Fake <fake@rnp>' as well. */
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "basil-pub.asc"));
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "alice-copied-cert.pgp"));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
+    /* copied certification must not show up under the fake userid */
+    rnp_uid_handle_t uid = NULL;
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    char *uidstr = NULL;
+    assert_rnp_success(rnp_key_get_uid_at(key, 0, &uidstr));
+    assert_string_equal(uidstr, "Fake <fake@rnp>");
+    rnp_buffer_destroy(uidstr);
+    size_t count = 0;
+    assert_rnp_success(rnp_uid_get_signature_count(uid, &count));
+    for (size_t i = 0; i < count; i++) {
+        rnp_signature_handle_t sig = NULL;
+        assert_rnp_success(rnp_uid_get_signature_at(uid, i, &sig));
+        char *keyid = NULL;
+        assert_rnp_success(rnp_signature_get_keyid(sig, &keyid));
+        bool basil = !strcmp(keyid, "0B2B09F7D7EA6E0E");
+        rnp_buffer_destroy(keyid);
+        if (basil) {
+            assert_int_not_equal(rnp_signature_is_valid(sig, RNP_SIGNATURE_REVALIDATE),
+                                 RNP_SUCCESS);
+        }
+        rnp_signature_handle_destroy(sig);
+    }
+    rnp_uid_handle_destroy(uid);
+    /* while the original one is still valid */
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 1, &uid));
+    assert_rnp_success(rnp_key_get_uid_at(key, 1, &uidstr));
+    assert_string_equal(uidstr, "Alice <alice@rnp>");
+    rnp_buffer_destroy(uidstr);
+    assert_rnp_success(rnp_uid_get_signature_count(uid, &count));
+    assert_int_equal(count, 2);
+    rnp_signature_handle_t sig = NULL;
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 1, &sig));
+    char *keyid = NULL;
+    assert_rnp_success(rnp_signature_get_keyid(sig, &keyid));
+    assert_string_equal(keyid, "0B2B09F7D7EA6E0E");
+    rnp_buffer_destroy(keyid);
+    assert_rnp_success(rnp_signature_is_valid(sig, RNP_SIGNATURE_REVALIDATE));
+    rnp_signature_handle_destroy(sig);
+    rnp_uid_handle_destroy(uid);
+    rnp_key_handle_destroy(key);
+
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
+
 TEST_F(rnp_tests, test_ffi_get_signature_type)
 {
     rnp_ffi_t ffi = NULL;
