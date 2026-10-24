@@ -59,11 +59,18 @@ class LogStop {
 };
 } // namespace rnp
 
-/* remove "src" */
+/* MSVC builds crop the computed prefix (plus the leading "src") from __FILE__;
+ * other builds get a relative __FILE__ via -fmacro-prefix-map, so no cropping
+ * is needed - and offset arithmetic here would corrupt paths when the build
+ * system applies its own prefix mapping */
 #ifndef SOURCE_PATH_SIZE
 #define SOURCE_PATH_SIZE 0
 #endif
+#if SOURCE_PATH_SIZE
 #define __SOURCE_PATH_FILE__ (&(__FILE__[SOURCE_PATH_SIZE + 3]))
+#else
+#define __SOURCE_PATH_FILE__ (__FILE__)
+#endif
 
 #define RNP_LOG_FD(fd, ...)                                                              \
     do {                                                                                 \
