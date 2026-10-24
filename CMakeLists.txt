@@ -133,9 +133,19 @@ set_property(CACHE ENABLE_DOC PROPERTY STRINGS ${TRISTATE_VALUES})
 # so we can use our bundled finders
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules")
 
-# add source path prefix length to be able to crop it in logs
-string(LENGTH "${CMAKE_SOURCE_DIR}/" SOURCE_PATH_SIZE)
-add_definitions("-DSOURCE_PATH_SIZE=${SOURCE_PATH_SIZE}")
+# crop the source path prefix in logged file names. GCC and Clang do this at
+# preprocessing time via -fmacro-prefix-map, which stays correct even when the
+# build system applies its own prefix mapping (Debian's reproducible builds do),
+# where manual offset stripping of __FILE__ would corrupt the logged path.
+# MSVC keeps the computed prefix length instead.
+if (MSVC)
+  string(LENGTH "${CMAKE_SOURCE_DIR}/" SOURCE_PATH_SIZE)
+  add_definitions("-DSOURCE_PATH_SIZE=${SOURCE_PATH_SIZE}")
+else()
+  # map away from "<srcdir>/src" so logged paths keep their historical "/lib/..." shape
+  add_compile_options("-fmacro-prefix-map=${CMAKE_SOURCE_DIR}/src=")
+  add_definitions("-DSOURCE_PATH_SIZE=0")
+endif()
 
 # required modules
 include(CTest)
