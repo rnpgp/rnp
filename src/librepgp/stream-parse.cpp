@@ -103,7 +103,7 @@ typedef struct pgp_source_encrypted_param_t {
     /* RFC 9580 §5.16.2: plaintext from a chunk must NOT be released until the
      * chunk's auth tag is verified. We accumulate decrypted-but-unverified
      * plaintext in chunk_buf and only copy to cache after the tag succeeds. */
-    std::vector<uint8_t> chunk_buf;        /* plaintext accumulator for current chunk */
+    rnp::secure_bytes    chunk_buf;        /* plaintext accumulator for current chunk */
     size_t               chunk_buflen{};   /* bytes accumulated so far in chunk_buf */
     size_t               chunk_bufpos{};   /* read offset for releasing verified data */
     bool                 chunk_verified{}; /* chunk tag verified; chunk_buf is releasable */
@@ -564,6 +564,31 @@ encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool
     return pgp_cipher_aead_start(&param->decrypt, nonce, nlen);
 }
 
+/* Append decrypted, not yet verified plaintext of the current chunk to chunk_buf. The buffer
+ * grows with the data actually decrypted: the chunk size comes from the packet header, which
+ * allows chunks of up to 2^62 bytes, so it must not decide the allocation. */
+static void
+encrypted_chunk_buf_append(pgp_source_encrypted_param_t *param,
+                           const uint8_t *               data,
+                           size_t                        len)
+{
+    if (!len) {
+        return;
+    }
+    size_t need = param->chunk_buflen + len;
+    if (param->chunk_buf.size() < need) {
+        /* double the buffer, but do not go beyond the chunk size */
+        size_t alloc = 2 * param->chunk_buf.size();
+        if (alloc > param->chunklen) {
+            alloc = param->chunklen;
+        }
+        param->chunk_buf.reserve(alloc > need ? alloc : need);
+        param->chunk_buf.resize(need);
+    }
+    memcpy(param->chunk_buf.data() + param->chunk_buflen, data, len);
+    param->chunk_buflen += len;
+}
+
 /* read and decrypt bytes to the cache. Should be called only on empty cache. */
 static bool
 encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
@@ -658,13 +683,7 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
             if (res) {
                 /* Withhold plaintext until the chunk tag is verified: accumulate
                  * it in chunk_buf instead of exposing it via cachelen. */
-                if (param->chunk_buf.empty()) {
-                    param->chunk_buf.resize(param->chunklen);
-                }
-                if (param->chunk_buflen + used <= param->chunk_buf.size()) {
-                    memcpy(param->chunk_buf.data() + param->chunk_buflen, param->cache, used);
-                    param->chunk_buflen += used;
-                }
+                encrypted_chunk_buf_append(param, param->cache, used);
                 param->rawbytes = param->rawbytes + read - used;
                 /* Compact the un-decrypted remainder to the front of cache. */
                 if (used > 0 && param->rawbytes > 0) {
@@ -702,15 +721,7 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
              * sits right after this piece in cache. */
             size_t final_used = finlen - taglen;
             param->chunkin += final_used;
-            if (param->chunk_buf.empty() && param->chunklen > 0) {
-                param->chunk_buf.resize(param->chunklen);
-            }
-            if (final_used > 0 &&
-                param->chunk_buflen + final_used <= param->chunk_buf.size()) {
-                memcpy(
-                  param->chunk_buf.data() + param->chunk_buflen, param->cache, final_used);
-            }
-            param->chunk_buflen += final_used;
+            encrypted_chunk_buf_append(param, param->cache, final_used);
             param->rawbytes = 0;
             param->chunk_verified = true;
             param->chunk_bufpos = 0;
@@ -2135,14 +2146,15 @@ get_compressed_src_alg(pgp_source_t *src, uint8_t *alg)
 static bool
 parse_aead_chunk_size(uint8_t chunk_size_octet, size_t &chunk_size)
 {
-    if (chunk_size_octet > 56) {
+    /* the chunk size must fit size_t: up to 2^62 bytes, or 2^31 with a 32-bit size_t */
+    if ((chunk_size_octet > 56) || (chunk_size_octet + 6 >= sizeof(size_t) * 8)) {
         RNP_LOG("too large chunk size: %d", chunk_size_octet);
         return false;
     }
     if (chunk_size_octet > 16) {
         RNP_LOG("Warning: AEAD chunk bits > 16.");
     }
-    chunk_size = 1L << (chunk_size_octet + 6);
+    chunk_size = (size_t) 1 << (chunk_size_octet + 6);
     return true;
 }
 
