@@ -259,7 +259,14 @@ process_pgp_keys(pgp_source_t &src, pgp_key_sequence_t &keys, bool skiperrors)
             continue;
         }
         has_secret |= (curkey.key.tag == PGP_PKT_SECRET_KEY);
-        has_public |= (curkey.key.tag == PGP_PKT_PUBLIC_KEY);
+        /* public primary key with secret subkey(s) is not a public key, see #1469 */
+        if (curkey.key.tag == PGP_PKT_PUBLIC_KEY) {
+            bool sec_sub = false;
+            for (auto &subkey : curkey.subkeys) {
+                sec_sub |= (subkey.subkey.tag == PGP_PKT_SECRET_SUBKEY);
+            }
+            has_public |= !sec_sub;
+        }
 
         keys.keys.emplace_back(std::move(curkey));
     }
