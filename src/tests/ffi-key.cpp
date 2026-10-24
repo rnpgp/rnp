@@ -5195,3 +5195,86 @@ TEST_F(rnp_tests, test_armored_keys_extra_line)
 
     rnp_ffi_destroy(ffi);
 }
+
+static bool
+key_has_secret(rnp_ffi_t ffi, const char *fp)
+{
+    rnp_key_handle_t key = NULL;
+    bool             secret = false;
+    if (rnp_locate_key(ffi, "fingerprint", fp, &key) || !key) {
+        return false;
+    }
+    if (rnp_key_have_secret(key, &secret)) {
+        secret = false;
+    }
+    rnp_key_handle_destroy(key);
+    return secret;
+}
+
+static void
+save_secring(rnp_ffi_t ffi, const char *format, std::vector<uint8_t> &data)
+{
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_save_keys(ffi, format, output, RNP_LOAD_SAVE_SECRET_KEYS));
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    data.assign(buf, buf + len);
+    rnp_output_destroy(output);
+}
+
+TEST_F(rnp_tests, test_ffi_import_public_primary_secret_subkey)
+{
+    /* Public primary key + one secret and one public subkey, see issue #1469 */
+    const char *primary = "7AE71BE8A4A0AEEECEEAC3C6590B5F5305187E61";
+    const char *encsub = "3CF0E2934F84F530FD06D157CA893EF35A9F168B";
+    const char *signsub = "96FAA4C621C9B58F15E027AEF6511310189115A1";
+    rnp_ffi_t   ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_all_keys(ffi, "data/test_key_edge_cases/key-pub-primary-sec-subkey.pgp"));
+    assert_false(key_has_secret(ffi, primary));
+    assert_true(key_has_secret(ffi, encsub));
+    assert_false(key_has_secret(ffi, signsub));
+
+    /* secret subkey must be saved, together with the public primary key */
+    std::vector<uint8_t> secdata;
+    save_secring(ffi, "GPG", secdata);
+    assert_false(secdata.empty());
+    /* KBX writer must not fail on the public subkey, missing in secret store */
+    std::vector<uint8_t> kbxdata;
+    save_secring(ffi, "KBX", kbxdata);
+    assert_false(kbxdata.empty());
+
+    /* save/load roundtrip via the import */
+    reload_keyrings(&ffi);
+    assert_false(key_has_secret(ffi, primary));
+    assert_true(key_has_secret(ffi, encsub));
+    assert_false(key_has_secret(ffi, signsub));
+    /* and once more, secret subkey must survive the second save as well */
+    reload_keyrings(&ffi);
+    assert_true(key_has_secret(ffi, encsub));
+
+    /* save/load roundtrip via rnp_load_keys(), like Thunderbird does */
+    save_secring(ffi, "GPG", secdata);
+    rnp_ffi_destroy(ffi);
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_pub_keys(ffi, "data/test_key_edge_cases/key-pub-primary-sec-subkey.pgp"));
+    rnp_input_t input = NULL;
+    assert_rnp_success(rnp_input_from_memory(&input, secdata.data(), secdata.size(), false));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    assert_false(key_has_secret(ffi, primary));
+    assert_true(key_has_secret(ffi, encsub));
+    assert_false(key_has_secret(ffi, signsub));
+    save_secring(ffi, "GPG", secdata);
+    assert_false(secdata.empty());
+
+    /* secret subkey is usable for decryption after the roundtrip */
+    rnp_key_handle_t sub = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "fingerprint", encsub, &sub));
+    bool locked = false;
+    assert_rnp_success(rnp_key_is_locked(sub, &locked));
+    rnp_key_handle_destroy(sub);
+    rnp_ffi_destroy(ffi);
+}
