@@ -97,6 +97,10 @@ enum class Type : uint8_t {
     Private_110 = 110
 };
 
+/* Maximum nesting of EmbeddedSignature subpackets (type 32). Legitimate use is shallow;
+ * an unbounded chain otherwise recurses until the stack or heap is exhausted. */
+static constexpr size_t MAX_EMBEDDED_SIGNATURE_DEPTH = 16;
+
 /* Raw unparsed signature subpacket */
 class Raw;
 using RawPtr = std::unique_ptr<Raw>;
@@ -110,6 +114,7 @@ class Raw {
   protected:
     Type                 type_;
     std::vector<uint8_t> data_;
+    size_t               parse_depth_{};
 
     virtual void write_data(){};
     virtual bool check_size(size_t size) const noexcept;
@@ -158,13 +163,13 @@ class Raw {
 
     virtual const std::vector<uint8_t> &write();
 
-    virtual bool parse(const uint8_t *data, size_t size);
+    virtual bool parse(const uint8_t *data, size_t size, size_t depth = 0);
 
     static RawPtr create(uint8_t type, bool hashed = true, bool critical = false);
 
     static RawPtr create(Type type, bool hashed = true, bool critical = false);
 
-    static RawPtr create(const uint8_t *data, size_t size, bool hashed);
+    static RawPtr create(const uint8_t *data, size_t size, bool hashed, size_t depth = 0);
 
     virtual RawPtr clone() const;
 };
