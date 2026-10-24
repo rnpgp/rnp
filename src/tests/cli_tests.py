@@ -4225,6 +4225,18 @@ class Misc(unittest.TestCase):
         self.assertNotEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*Conflicting commands!*')
 
+    def test_hidden_recipient_v6_two_anonymous(self):
+        # Delta Chat (rpgp) style: v6 PKESKs with anonymous recipient + SEIPDv2.
+        # Our key may be the first or the second of several anonymous recipients.
+        seckey = data_path('test_messages/dc-anon-v6/sec.asc')
+        for name in ['msg-one-anon.pgp', 'msg-two-anon-first.pgp', 'msg-two-anon-second.pgp']:
+            msg = data_path('test_messages/dc-anon-v6/' + name)
+            ret, out, _ = run_proc(RNP, ['--keyfile', seckey, '--notty', '--allow-hidden', '-d', msg, '--output', '-'])
+            if not RNP_CRYPTO_REFRESH:
+                continue
+            self.assertEqual(ret, 0, name)
+            self.assertIn('hello from deltachat core', out)
+
     def test_hidden_recipient(self):
         seckey = data_path(SECRING_1)
         msg1 = data_path('test_messages/message.txt.enc-hidden-1')

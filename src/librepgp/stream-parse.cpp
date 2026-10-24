@@ -2460,6 +2460,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             auto seckey = handler->key_provider->request_key(*search, PGP_OP_DECRYPT, true);
             if (!seckey) {
                 pubidx++;
+                hidden_tries = 0;
                 continue;
             }
             /* Check whether key fits our needs */
