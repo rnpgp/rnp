@@ -1935,6 +1935,62 @@ copy_store_keys(rnp_ffi_t ffi, rnp::KeyStore *dest, rnp::KeyStore *src)
     return true;
 }
 
+/* Secret subkey may be stored without the secret primary key (i.e. when public primary key
+ * with secret subkey was imported). Such subkeys would be silently dropped on save, since
+ * keyring formats require the primary key packet to precede the subkey. So add the public
+ * part of the primary key from the pubring, it is written together with the secret subkey.
+ * The public primary is not added to ffi->secring, so this doesn't affect have_secret(). */
+static bool
+add_orphan_subkey_primaries(rnp_ffi_t ffi, rnp::KeyStore *dest)
+{
+    if (dest->format == rnp::KeyFormat::G10) {
+        /* G10 stores keys independently, by grip */
+        return true;
+    }
+    std::vector<rnp::Key *> orphans;
+    for (auto &key : dest->keys) {
+        if (key.is_subkey() && key.is_secret() && !dest->primary_key(key)) {
+            orphans.push_back(&key);
+        }
+    }
+    for (auto *subkey : orphans) {
+        if (dest->primary_key(*subkey)) {
+            /* already added for the previous subkey */
+            continue;
+        }
+        auto *primary = ffi->pubring->primary_key(*subkey);
+        if (!primary || (primary->format != rnp::KeyFormat::GPG)) {
+            FFI_LOG(ffi, "Warning: primary key for secret subkey is not available.");
+            continue;
+        }
+        try {
+            rnp::Key pubcp(*primary, true);
+            /* keep only subkeys which are present in dest, otherwise writers would complain
+             * about (or, for KBX, fail on) the missing ones */
+            auto sfps = pubcp.subkey_fps();
+            for (auto &sfp : sfps) {
+                if (!dest->get_key(sfp)) {
+                    pubcp.remove_subkey_fp(sfp);
+                }
+            }
+            auto *added = dest->add_key(pubcp);
+            if (!added) {
+                return false; // LCOV_EXCL_LINE
+            }
+            /* make sure orphaned subkey is linked even if it doesn't have primary fp */
+            if (!dest->primary_key(*subkey)) {
+                added->link_subkey_fp(*subkey);
+            }
+        } catch (const std::exception &e) {
+            /* LCOV_EXCL_START */
+            FFI_LOG(ffi, "%s", e.what());
+            return false;
+            /* LCOV_EXCL_END */
+        }
+    }
+    return true;
+}
+
 static rnp_result_t
 do_save_keys(rnp_ffi_t ffi, rnp_output_t output, rnp::KeyFormat format, key_type_t key_type)
 {
@@ -1963,6 +2019,9 @@ do_save_keys(rnp_ffi_t ffi, rnp_output_t output, rnp::KeyFormat format, key_type
     // include the secret keys, if desired
     if (key_type == KEY_TYPE_SECRET || key_type == KEY_TYPE_ANY) {
         if (!copy_store_keys(ffi, tmp_store, ffi->secring)) {
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+        }
+        if (!add_orphan_subkey_primaries(ffi, tmp_store)) {
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
     }
