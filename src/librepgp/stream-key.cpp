@@ -735,7 +735,6 @@ encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rnp::RNG &rng)
     try {
         /* build secret key data */
         pgp_packet_body_t body(PGP_PKT_RESERVED);
-        body.mark_secure();
         write_secret_key_mpis(body, *key);
 
         /* check whether data is not encrypted */
