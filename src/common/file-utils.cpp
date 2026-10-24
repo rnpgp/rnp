@@ -43,7 +43,7 @@
 #include "str-utils.h"
 #include <algorithm>
 #ifdef _WIN32
-#include <Shlobj.h>
+#include <shlobj.h>
 #include <random> // for rnp_mkstemp
 #define CATCH_AND_RETURN(v) \
     catch (...)             \
