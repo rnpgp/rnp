@@ -122,7 +122,11 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry_multiple_uids)
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
     assert_int_equal(expiry, 674700647);
     assert_rnp_success(rnp_key_is_expired(key, &expired));
-    assert_false(expired);
+    /* the fixture's key expires creation + 674700647, somewhere in 2041 - compare with
+     * the actual time instead of asserting a fixed date, so the test keeps passing */
+    uint32_t creation = 0;
+    assert_rnp_success(rnp_key_get_creation(key, &creation));
+    assert_int_equal(expired, time(NULL) >= (time_t) creation + expiry);
     assert_true(check_uid_valid(key, 0, true));
     assert_true(check_uid_valid(key, 1, true));
     assert_true(check_uid_valid(key, 2, true));
