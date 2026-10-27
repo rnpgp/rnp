@@ -162,6 +162,12 @@ signature_validate(const pgp::pkt::Signature & sig,
         res.add_error(RNP_ERROR_SIG_PUB_ALG_MISMATCH);
     }
 
+    /* Signature with an unknown critical subpacket must be treated as invalid */
+    if (sig.has_unknown_critical()) {
+        RNP_LOG("Unknown critical subpacket, marking signature as invalid.");
+        res.add_error(RNP_ERROR_SIG_UNHANDLED_CRITICAL);
+    }
+
     /* Check signature security */
     auto action =
       sig.is_document() ? rnp::SecurityAction::VerifyData : rnp::SecurityAction::VerifyKey;
