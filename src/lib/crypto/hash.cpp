@@ -24,6 +24,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 #include "hash_botan.hpp"
 #include "logging.h"
 #include <cassert>
@@ -53,13 +54,15 @@ Hash_Botan::Hash_Botan(pgp_hash_alg_t alg) : Hash(alg)
         throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
-    fn_ = Botan::HashFunction::create(name);
-    if (!fn_) {
+    if (botan_hash_init(&fn_, name, 0)) {
         RNP_LOG("Error creating hash object for '%s'", name);
+        fn_ = nullptr;
         throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
-    assert(size_ == fn_->output_length());
+    size_t outlen = 0;
+    botan_hash_output_length(fn_, &outlen);
+    assert(size_ == outlen);
 }
 
 Hash_Botan::Hash_Botan(const Hash_Botan &src) : Hash(src.alg_)
@@ -67,11 +70,16 @@ Hash_Botan::Hash_Botan(const Hash_Botan &src) : Hash(src.alg_)
     if (!src.fn_) {
         throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    fn_ = src.fn_->copy_state();
+    if (botan_hash_copy_state(&fn_, src.fn_)) {
+        throw rnp_exception(RNP_ERROR_GENERIC);
+    }
 }
 
 Hash_Botan::~Hash_Botan()
 {
+    if (fn_) {
+        botan_hash_destroy(fn_);
+    }
 }
 
 std::unique_ptr<Hash_Botan>
@@ -92,7 +100,9 @@ Hash_Botan::add(const void *buf, size_t len)
     if (!fn_) {
         throw rnp_exception(RNP_ERROR_NULL_POINTER);
     }
-    fn_->update(static_cast<const uint8_t *>(buf), len);
+    if (botan_hash_update(fn_, static_cast<const uint8_t *>(buf), len)) {
+        throw rnp_exception(RNP_ERROR_GENERIC);
+    }
 }
 
 void
@@ -103,8 +113,9 @@ Hash_Botan::finish(uint8_t *digest)
         return;
     }
     if (digest) {
-        fn_->final(digest);
+        botan_hash_final(fn_, digest);
     }
+    botan_hash_destroy(fn_);
     fn_ = nullptr;
     size_ = 0;
 }
@@ -117,16 +128,21 @@ Hash_Botan::name_backend(pgp_hash_alg_t alg)
 
 CRC24_Botan::CRC24_Botan()
 {
-    fn_ = Botan::HashFunction::create("CRC24");
-    if (!fn_) {
+    if (botan_hash_init(&fn_, "CRC24", 0)) {
         RNP_LOG("Error creating CRC24 object");
+        fn_ = nullptr;
         throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    assert(3 == fn_->output_length());
+    size_t outlen = 0;
+    botan_hash_output_length(fn_, &outlen);
+    assert(3 == outlen);
 }
 
 CRC24_Botan::~CRC24_Botan()
 {
+    if (fn_) {
+        botan_hash_destroy(fn_);
+    }
 }
 
 std::unique_ptr<CRC24_Botan>
@@ -141,7 +157,9 @@ CRC24_Botan::add(const void *buf, size_t len)
     if (!fn_) {
         throw rnp_exception(RNP_ERROR_NULL_POINTER);
     }
-    fn_->update(static_cast<const uint8_t *>(buf), len);
+    if (botan_hash_update(fn_, static_cast<const uint8_t *>(buf), len)) {
+        throw rnp_exception(RNP_ERROR_GENERIC);
+    }
 }
 
 std::array<uint8_t, 3>
@@ -151,7 +169,8 @@ CRC24_Botan::finish()
         throw rnp_exception(RNP_ERROR_NULL_POINTER);
     }
     std::array<uint8_t, 3> crc{};
-    fn_->final(crc.data());
+    botan_hash_final(fn_, crc.data());
+    botan_hash_destroy(fn_);
     fn_ = nullptr;
     return crc;
 }
