@@ -27,6 +27,7 @@
 #include <string.h>
 #include <cassert>
 #include <botan/ffi.h>
+#include <botan/version.h>
 #include "eddsa.h"
 #include "utils.h"
 #include "botan_utils.hpp"
@@ -91,6 +92,15 @@ validate_key(rnp::RNG &rng, const ec::Key &key, bool secret)
     return RNP_SUCCESS;
 }
 
+#if BOTAN_VERSION_CODE >= BOTAN_VERSION_CODE_FOR(3, 6, 0)
+static int
+view_raw_to_vector(botan_view_ctx ctx, const uint8_t buf[], size_t len)
+{
+    static_cast<std::vector<uint8_t> *>(ctx)->assign(buf, buf + len);
+    return 0;
+}
+#endif
+
 rnp_result_t
 generate(rnp::RNG &rng, ec::Key &key)
 {
@@ -99,6 +109,21 @@ generate(rnp::RNG &rng, ec::Key &key)
         return RNP_ERROR_GENERIC;
     }
 
+#if BOTAN_VERSION_CODE >= BOTAN_VERSION_CODE_FOR(3, 6, 0)
+    /* view_raw returns the same 64 bytes: seed followed by the public key */
+    std::vector<uint8_t> key_bits;
+    if (botan_privkey_view_raw(eddsa.get(), &key_bits, view_raw_to_vector) ||
+        key_bits.size() != 64) {
+        return RNP_ERROR_GENERIC;
+    }
+
+    // First 32 bytes of key_bits are the EdDSA seed (private key)
+    // Second 32 bytes are the EdDSA public key
+    key.x.assign(key_bits.data(), 32);
+    // insert the required 0x40 prefix on the public key
+    key_bits[31] = 0x40;
+    key.p.assign(key_bits.data() + 31, 33);
+#else
     uint8_t key_bits[64];
 #if BOTAN_VERSION_CODE >= BOTAN_VERSION_CODE_FOR(3, 6, 0)
     rnp_botan_view_buf vb{key_bits, sizeof(key_bits)};
@@ -117,6 +142,7 @@ generate(rnp::RNG &rng, ec::Key &key)
     // insert the required 0x40 prefix on the public key
     key_bits[31] = 0x40;
     key.p.assign(key_bits + 31, 33);
+#endif
     key.curve = PGP_CURVE_ED25519;
     return RNP_SUCCESS;
 }
