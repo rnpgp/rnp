@@ -102,7 +102,8 @@ KeyStore::load_pgp_key(pgp_source_t &src, bool skiperrors)
     pgp_transferable_key_t key;
     rnp_result_t           ret = process_pgp_key_auto(src, key, true, skiperrors);
 
-    if (ret && (!skiperrors || (ret != RNP_ERROR_BAD_FORMAT))) {
+    if (ret && (ret != RNP_ERROR_NOT_SUPPORTED) &&
+        (!skiperrors || (ret != RNP_ERROR_BAD_FORMAT))) {
         return ret;
     }
 
@@ -126,6 +127,10 @@ KeyStore::load_pgp(pgp_source_t &src, bool skiperrors)
     if (is_subkey_pkt(stream_pkt_type(src))) {
         pgp_transferable_subkey_t tskey;
         rnp_result_t              ret = process_pgp_subkey(src, tskey, skiperrors);
+        if (ret == RNP_ERROR_NOT_SUPPORTED) {
+            /* subkey with unsupported algorithm: skip it */
+            return RNP_SUCCESS;
+        }
         if (ret) {
             return ret;
         }

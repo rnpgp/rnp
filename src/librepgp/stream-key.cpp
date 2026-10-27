@@ -250,7 +250,8 @@ process_pgp_keys(pgp_source_t &src, pgp_key_sequence_t &keys, bool skiperrors)
         /* Attempt to read the next key */
         pgp_transferable_key_t curkey;
         rnp_result_t ret = process_pgp_key_auto(armor.src(), curkey, false, skiperrors);
-        if (ret && (!skiperrors || (ret != RNP_ERROR_BAD_FORMAT))) {
+        if (ret && (ret != RNP_ERROR_NOT_SUPPORTED) &&
+            (!skiperrors || (ret != RNP_ERROR_BAD_FORMAT))) {
             keys.keys.clear();
             return ret;
         }
@@ -299,6 +300,21 @@ process_pgp_key(pgp_source_t &src, pgp_transferable_key_t &key, bool skiperrors)
     }
 
     rnp_result_t ret = key.key.parse(armor.src());
+    if (ret == RNP_ERROR_NOT_SUPPORTED) {
+        /* unknown or unsupported-in-this-build key algorithm: skip the rest of
+         * this transferable key (user ids, subkeys) and let the caller continue
+         * with the next one, see issue #2370 */
+        RNP_LOG("skipping key with unsupported algorithm at %" PRIu64, keypos);
+        key.key = {};
+        skip_pgp_packets(armor.src(),
+                         {PGP_PKT_TRUST,
+                          PGP_PKT_SIGNATURE,
+                          PGP_PKT_USER_ID,
+                          PGP_PKT_USER_ATTR,
+                          PGP_PKT_PUBLIC_SUBKEY,
+                          PGP_PKT_SECRET_SUBKEY});
+        return ret;
+    }
     if (ret) {
         RNP_LOG("failed to parse key pkt at %" PRIu64, keypos);
         key.key = {};
@@ -341,9 +357,10 @@ process_pgp_key(pgp_source_t &src, pgp_transferable_key_t &key, bool skiperrors)
 
         pgp_transferable_subkey_t subkey;
         ret = process_pgp_subkey(armor.src(), subkey, skiperrors);
-        if ((ret == RNP_ERROR_BAD_FORMAT) && skiperrors &&
+        if (((ret == RNP_ERROR_BAD_FORMAT) && skiperrors ||
+             (ret == RNP_ERROR_NOT_SUPPORTED)) &&
             skip_pgp_packets(armor.src(), {PGP_PKT_TRUST, PGP_PKT_SIGNATURE})) {
-            /* skip malformed subkey */
+            /* skip malformed subkey or subkey with unsupported algorithm */
             continue;
         }
         if (ret) {
@@ -1147,8 +1164,13 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
     alg = (pgp_pubkey_alg_t) analg;
     material = pgp::KeyMaterial::create(alg);
     if (!material) {
+        /* Unknown or unsupported-in-this-build algorithm (for example a PQC
+         * algorithm when the build has ENABLE_PQC off, issue #2370). The whole
+         * packet is already framed and read, so skip the rest of it and let the
+         * caller skip the key while continuing with the rest of the keyring. */
         RNP_LOG("unknown key algorithm: %d", (int) alg);
-        return RNP_ERROR_BAD_FORMAT;
+        pkt.skip(pkt.left());
+        return RNP_ERROR_NOT_SUPPORTED;
     }
     switch (version) {
     case PGP_V2:
