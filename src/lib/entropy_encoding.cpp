@@ -121,6 +121,11 @@ EntropyEncodingConfig::validate(std::string &error) const
             error = "checksum_bits must be a multiple of bits_per_char";
             return false;
         }
+        /* checksum is taken from the SHA-256 digest of the entropy */
+        if (checksum_bits > rnp::Hash::size(PGP_HASH_SHA256) * 8) {
+            error = "checksum_bits must not exceed the SHA-256 digest size";
+            return false;
+        }
         if (checksum_chars() > group_size) {
             error = "checksum must fit in one group";
             return false;
