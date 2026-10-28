@@ -2796,7 +2796,8 @@ TEST_F(rnp_tests, test_ffi_key_revocation_nondesignated_signer)
     assert_true(check_key_revoked(alice, false));
     assert_true(check_key_valid(alice, true));
     check_key_sigs(alice);
-    assert_rnp_success(rnp_key_remove_signatures(alice, RNP_KEY_SIGNATURE_INVALID, NULL, NULL));
+    assert_rnp_success(
+      rnp_key_remove_signatures(alice, RNP_KEY_SIGNATURE_INVALID, NULL, NULL));
     assert_true(check_key_revoked(alice, false));
     assert_true(check_key_valid(alice, true));
     rnp_key_handle_destroy(alice);
@@ -2812,12 +2813,13 @@ TEST_F(rnp_tests, test_ffi_uid_revocation_nonself_signer)
     rnp_key_handle_t alice = get_key_by_uid(ffi, "Alice <alice@rnp>");
     rnp_key_handle_t basil = get_key_by_uid(ffi, "Basil <basil@rnp>");
     /* Basil revokes his certification of Alice's userid */
-    auto *signer = basil->sec;
-    auto *target = alice->pub;
+    auto *                  signer = basil->sec;
+    auto *                  target = alice->pub;
     pgp_password_provider_t pprov(string_copy_password_callback, (void *) "password");
     assert_true(signer->unlock(pprov));
     pgp::pkt::Signature rev;
-    signer->sign_init(ffi->rng(), rev, PGP_HASH_SHA256, ffi->context.time(), signer->version());
+    signer->sign_init(
+      ffi->rng(), rev, PGP_HASH_SHA256, ffi->context.time(), signer->version());
     rev.set_type(PGP_SIG_REV_CERT);
     rev.set_revocation_reason(PGP_REVOCATION_NO_LONGER_VALID, "");
     auto uidpkt = target->get_uid(0).pkt;
@@ -2837,7 +2839,8 @@ TEST_F(rnp_tests, test_ffi_uid_revocation_nonself_signer)
     alice = get_key_by_uid(ffi, "Alice <alice@rnp>");
     assert_true(check_uid_valid(alice, 0, true));
     check_key_sigs(alice);
-    assert_rnp_success(rnp_key_remove_signatures(alice, RNP_KEY_SIGNATURE_INVALID, NULL, NULL));
+    assert_rnp_success(
+      rnp_key_remove_signatures(alice, RNP_KEY_SIGNATURE_INVALID, NULL, NULL));
     assert_true(check_uid_valid(alice, 0, true));
     assert_true(check_key_valid(alice, true));
     rnp_key_handle_destroy(alice);
@@ -2859,18 +2862,20 @@ TEST_F(rnp_tests, test_ffi_subkey_sigs_nonprimary_signer)
     assert_rnp_success(rnp_key_set_expiration(sub, 100));
     assert_true(check_key_valid(sub, false));
     /* Basil binds Alice's subkey to his key without expiration, and revokes it */
-    auto *signer = basil->sec;
-    auto *target = sub->pub;
+    auto *                  signer = basil->sec;
+    auto *                  target = sub->pub;
     pgp_password_provider_t pprov(string_copy_password_callback, (void *) "password");
     assert_true(signer->unlock(pprov));
     pgp::pkt::Signature bind;
-    signer->sign_init(ffi->rng(), bind, PGP_HASH_SHA256, ffi->context.time(), signer->version());
+    signer->sign_init(
+      ffi->rng(), bind, PGP_HASH_SHA256, ffi->context.time(), signer->version());
     bind.set_type(PGP_SIG_SUBKEY);
     bind.set_key_flags(PGP_KF_ENCRYPT);
     signer->sign_binding(target->pkt(), bind, ffi->context);
     assert_non_null(ffi->pubring->add_key_sig(target->fp(), bind, nullptr, false));
     pgp::pkt::Signature rev;
-    signer->sign_init(ffi->rng(), rev, PGP_HASH_SHA256, ffi->context.time(), signer->version());
+    signer->sign_init(
+      ffi->rng(), rev, PGP_HASH_SHA256, ffi->context.time(), signer->version());
     rev.set_type(PGP_SIG_REV_SUBKEY);
     rev.set_revocation_reason(PGP_REVOCATION_COMPROMISED, "");
     signer->sign_binding(target->pkt(), rev, ffi->context);
@@ -2893,7 +2898,8 @@ TEST_F(rnp_tests, test_ffi_subkey_sigs_nonprimary_signer)
     assert_true(check_key_valid(sub, false));
     assert_true(check_key_revoked(sub, false));
     check_key_sigs(sub);
-    assert_rnp_success(rnp_key_remove_signatures(alice, RNP_KEY_SIGNATURE_INVALID, NULL, NULL));
+    assert_rnp_success(
+      rnp_key_remove_signatures(alice, RNP_KEY_SIGNATURE_INVALID, NULL, NULL));
     assert_true(check_key_valid(sub, false));
     assert_true(check_key_revoked(sub, false));
     uint32_t expiry = 0;
