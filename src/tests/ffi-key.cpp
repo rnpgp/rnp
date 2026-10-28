@@ -5239,7 +5239,8 @@ TEST_F(rnp_tests, test_ffi_import_public_primary_secret_subkey)
     const char *signsub = "96FAA4C621C9B58F15E027AEF6511310189115A1";
     rnp_ffi_t   ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_true(import_all_keys(ffi, "data/test_key_edge_cases/key-pub-primary-sec-subkey.pgp"));
+    assert_true(
+      import_all_keys(ffi, "data/test_key_edge_cases/key-pub-primary-sec-subkey.pgp"));
     assert_false(key_has_secret(ffi, primary));
     assert_true(key_has_secret(ffi, encsub));
     assert_false(key_has_secret(ffi, signsub));
@@ -5266,7 +5267,8 @@ TEST_F(rnp_tests, test_ffi_import_public_primary_secret_subkey)
     save_secring(ffi, "GPG", secdata);
     rnp_ffi_destroy(ffi);
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_true(import_pub_keys(ffi, "data/test_key_edge_cases/key-pub-primary-sec-subkey.pgp"));
+    assert_true(
+      import_pub_keys(ffi, "data/test_key_edge_cases/key-pub-primary-sec-subkey.pgp"));
     rnp_input_t input = NULL;
     assert_rnp_success(rnp_input_from_memory(&input, secdata.data(), secdata.size(), false));
     assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));

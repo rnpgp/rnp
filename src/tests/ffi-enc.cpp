@@ -732,8 +732,8 @@ TEST_F(rnp_tests, test_ffi_decrypt_corrupted_pkesk)
 {
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider,
-                                                 (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
     assert_true(
       load_keys_gpg(ffi, "data/keyrings/1/pubring.gpg", "data/keyrings/1/secring.gpg"));
 
