@@ -5430,13 +5430,16 @@ class SignDefault(unittest.TestCase):
         # Make sure we can import a public key
         ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR2, '--import', data_path('test_stream_key_load/dsa4096-eg4096.pub.asc')])
         self.assertEqual(ret, 0)
-        if RNP_BACKEND == 'botan':
-            self.assertRegex(out, r'(?s)^.*pub.*4096/DSA.*7146fc248bf7c656.*SC.*sub.*4096/ElGamal.*0e6f2feced5d0e7f.*')
-            self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 2 new public keys.*')
-        else:
+        self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 2 new public keys.*')
+        # OpenSSL cannot use DSA for signature operations at all. Since Botan 3.14
+        # DSA keys are restricted to the FIPS 186-4 (L, N) size ranges, see
+        # https://github.com/randombit/botan/pull/6039 - so the out-of-range
+        # 4096-bit DSA key is imported, but is listed as invalid and cannot be
+        # used for the signature operations below.
+        if RNP_BACKEND != 'botan' or re.search(r'INVALID', out):
             self.assertRegex(out, r'(?s)^.*pub.*4096/DSA.*7146fc248bf7c656.*INVALID.*sub.*4096/ElGamal.*0e6f2feced5d0e7f.*')
-            self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 2 new public keys.*')
             return
+        self.assertRegex(out, r'(?s)^.*pub.*4096/DSA.*7146fc248bf7c656.*SC.*sub.*4096/ElGamal.*0e6f2feced5d0e7f.*')
 
         # Make sure we can verify signature
         ret, _, err = run_proc(RNP, ['--homedir', RNPDIR2, '--verify', data_path('test_messages/message.txt.signed-dsa4096')])
