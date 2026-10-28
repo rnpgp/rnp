@@ -28,6 +28,7 @@
 #include <string.h>
 #include <vector>
 #include <botan/ffi.h>
+#include <botan/version.h>
 #include "botan_utils.hpp"
 #include <rnp/rnp_def.h>
 #include "dsa.h"
@@ -35,6 +36,28 @@
 
 namespace pgp {
 namespace dsa {
+
+/* Since Botan 3.14 DSA keys are restricted to the FIPS 186-4 (L, N) size pairs,
+ * see https://github.com/randombit/botan/pull/6039 - so out-of-range keys, such
+ * as the legacy 4096-bit DSA, can no longer be loaded by the backend. */
+static void
+log_size_hint(const mpi &p, const mpi &q)
+{
+#if BOTAN_VERSION_CODE >= BOTAN_VERSION_CODE_FOR(3, 14, 0)
+    size_t pbits = p.bits();
+    size_t qbits = q.bits();
+    bool   fips =
+      ((pbits == 1024) && (qbits == 160)) || ((pbits == 2048) && ((qbits == 224) || (qbits == 256))) ||
+      ((pbits == 3072) && (qbits == 256));
+    if (!fips) {
+        RNP_LOG("DSA key with %zu-bit p and %zu-bit q cannot be used: since Botan 3.14 DSA "
+                "keys are restricted to the FIPS 186-4 size ranges (1024/160, 2048/224, "
+                "2048/256, 3072/256), see https://github.com/randombit/botan/pull/6039",
+                pbits,
+                qbits);
+    }
+#endif
+}
 
 rnp_result_t
 Key::validate(rnp::RNG &rng, bool secret) const noexcept
@@ -51,6 +74,7 @@ Key::validate(rnp::RNG &rng, bool secret) const noexcept
     }
 
     rnp::botan::Pubkey pkey;
+    log_size_hint(p, q);
     if (botan_pubkey_load_dsa(&pkey.get(), bp.get(), bq.get(), bg.get(), by.get()) ||
         botan_pubkey_check_key(pkey.get(), rng.handle(), 0)) {
         return RNP_ERROR_GENERIC;
@@ -93,6 +117,7 @@ Key::sign(rnp::RNG &rng, Signature &sig, const rnp::secure_bytes &hash) const
     }
 
     rnp::botan::Privkey dsa_key;
+    log_size_hint(p, q);
     if (botan_privkey_load_dsa(&dsa_key.get(), bp.get(), bq.get(), bg.get(), bx.get())) {
         RNP_LOG("Can't load key");
         return RNP_ERROR_SIGNING_FAILED;
@@ -143,6 +168,7 @@ Key::verify(const Signature &sig, const rnp::secure_bytes &hash) const
     }
 
     rnp::botan::Pubkey dsa_key;
+    log_size_hint(p, q);
     if (botan_pubkey_load_dsa(&dsa_key.get(), bp.get(), bq.get(), bg.get(), by.get())) {
         RNP_LOG("Wrong key");
         return RNP_ERROR_GENERIC;
