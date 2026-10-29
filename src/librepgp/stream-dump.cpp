@@ -347,7 +347,7 @@ dst_print_vec(pgp_dest_t &                dst,
     if (!dumpbin) {
         dst_printf(dst, "%s\n", name);
     } else {
-        std::vector<char> hex(2 * data.size());
+        std::vector<char> hex(2 * data.size() + 1);
         vsnprinthex(hex.data(), hex.size(), data.data(), data.size());
         dst_printf(dst, "%s, %s\n", name, hex.data());
     }
