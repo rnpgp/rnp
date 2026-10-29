@@ -39,6 +39,10 @@
 #endif
 #include <cassert>
 
+/* Buffer for the AES key wrap algorithm name, like "AES-256", including the
+ * terminating zero */
+static constexpr size_t AESKW_ALG_NAME_LEN = 16;
+
 pgp_kyber_ecdh_composite_key_t::~pgp_kyber_ecdh_composite_key_t()
 {
 }
@@ -363,7 +367,7 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(
 #if defined(CRYPTO_BACKEND_BOTAN)
     /* Compute sessionKey := AESKeyUnwrap(KEK, C) with AES-256 as per [RFC3394],
      * aborting if the 64 bit integrity check fails */
-    char name[16];
+    char name[AESKW_ALG_NAME_LEN];
     snprintf(name, sizeof(name), "AES-%zu", 8 * kek_vec.size());
     std::vector<uint8_t> tmp_out(enc->wrapped_sesskey.size());
     size_t               tmp_out_len = tmp_out.size();
@@ -540,7 +544,7 @@ pgp_kyber_ecdh_composite_public_key_t::encrypt(rnp::RNG *                  rng,
     /* Compute C := AESKeyWrap(KEK, sessionKey) with AES-256 as per [RFC3394],
      * including the 64 bit integrity check */
     {
-        char name[16];
+        char name[AESKW_ALG_NAME_LEN];
         snprintf(name, sizeof(name), "AES-%zu", 8 * kek_vec.size());
         out->wrapped_sesskey.assign(session_key_len + 8, 0);
         size_t wrapped_len = out->wrapped_sesskey.size();

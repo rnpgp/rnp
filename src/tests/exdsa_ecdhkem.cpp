@@ -28,7 +28,7 @@
 
 #include "rnp_tests.h"
 #include "crypto/exdsa_ecdhkem.h"
-#include "crypto/bn.h"
+#include "crypto/x25519_x448.h"
 
 TEST_F(rnp_tests, test_ecdh_kem)
 {
@@ -62,7 +62,8 @@ TEST_F(rnp_tests, test_ecdh_kem)
         /* test invalid ciphertext */
         ciphertext.data()[4] += 1;
         if (curve != PGP_CURVE_25519) { // Curve25519 accepts any 32-byte array
-            assert_throw(
+            /* decapsulate reports the failure via the return code, not via an exception */
+            assert_rnp_failure(
               key_pair.priv.decapsulate(&global_ctx.rng, ciphertext, symmetric_key));
         }
     }
@@ -101,6 +102,50 @@ TEST_F(rnp_tests, test_exdsa)
         msg.data()[4] += 1;
         sig.data()[4] -= 1;
         assert_rnp_failure(key_pair.pub.verify(sig, msg.data(), msg.size(), hash_alg));
+    }
+}
+
+TEST_F(rnp_tests, test_x25519_x448_native_kem)
+{
+    /* native X25519 KEM encryption roundtrip */
+    {
+        std::vector<uint8_t> priv, pub;
+        assert_rnp_success(generate_x25519_native(&global_ctx.rng, priv, pub));
+        assert_int_equal(pub.size(), X25519_KEY_LEN);
+
+        const std::vector<uint8_t> plaintext(32, 0xa7);
+        pgp_x25519_encrypted_t     enc;
+        assert_rnp_success(x25519_native_encrypt(
+          &global_ctx.rng, pub, plaintext.data(), plaintext.size(), &enc));
+        assert_int_equal(enc.eph_key.size(), X25519_KEY_LEN);
+
+        std::vector<uint8_t> dec(X25519_KEY_LEN);
+        size_t               dec_len = dec.size();
+        assert_rnp_success(
+          x25519_native_decrypt(&global_ctx.rng, {pub, priv}, &enc, dec.data(), &dec_len));
+        assert_int_equal(dec_len, plaintext.size());
+        assert_memory_equal(dec.data(), plaintext.data(), dec_len);
+    }
+
+    /* native X448 KEM encryption roundtrip: the ephemeral key is 56 bytes,
+     * regression test for the wrong X448 size check in x448_native_decrypt */
+    {
+        std::vector<uint8_t> priv, pub;
+        assert_rnp_success(generate_x448_native(&global_ctx.rng, priv, pub));
+        assert_int_equal(pub.size(), X448_KEY_LEN);
+
+        const std::vector<uint8_t> plaintext(32, 0x5a);
+        pgp_x448_encrypted_t       enc;
+        assert_rnp_success(
+          x448_native_encrypt(&global_ctx.rng, pub, plaintext.data(), plaintext.size(), &enc));
+        assert_int_equal(enc.eph_key.size(), X448_KEY_LEN);
+
+        std::vector<uint8_t> dec(X448_KEY_LEN);
+        size_t               dec_len = dec.size();
+        assert_rnp_success(
+          x448_native_decrypt(&global_ctx.rng, {pub, priv}, &enc, dec.data(), &dec_len));
+        assert_int_equal(dec_len, plaintext.size());
+        assert_memory_equal(dec.data(), plaintext.data(), dec_len);
     }
 }
 

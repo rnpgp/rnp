@@ -34,6 +34,12 @@
 #include "crypto/rng.h"
 #include "crypto/ec.h"
 
+/* Raw X25519/X448 key sizes: private scalar and public key */
+enum : size_t {
+    X25519_KEY_LEN = 32,
+    X448_KEY_LEN = 56,
+};
+
 rnp_result_t generate_x25519_native(rnp::RNG *            rng,
                                     std::vector<uint8_t> &privkey,
                                     std::vector<uint8_t> &pubkey);
