@@ -2275,9 +2275,27 @@ class Misc(unittest.TestCase):
                   path_for_gpg(dst), path_for_gpg(src)]
         ret, _, _ = run_proc(GPG, params)
         self.assertEqual(ret, 0, 'gpg symmetric encryption failed')
-        # Decrypt encrypted file with RNP
+        # Note: modern GnuPG ignores --disable-mdc and still produces SEIPD, so this must work
         rnp_decrypt_file(dst, dec)
         compare_files(src, dec, RNP_DATA_DIFFERS)
+        remove_files(src, dst, dec)
+
+    def test_decryption_unprotected_sed(self):
+        # Symmetrically Encrypted Data packet (tag 9) must be refused by default (#2136)
+        dec = os.path.join(WORKDIR, 'no-mdc.dec')
+        params = ['--homedir', data_path(KEYRING_DIR_1), '--password', 'password', '--decrypt',
+                  data_path('test_messages/message.txt.enc-no-mdc'), '--output', dec]
+        ret, _, err = run_proc(RNP, params)
+        self.assertNotEqual(ret, 0, 'unprotected data was decrypted')
+        self.assertRegex(err, r'(?s)^.*Refusing to decrypt Symmetrically Encrypted Data packet.*')
+        self.assertFalse(os.path.isfile(dec) and os.path.getsize(dec) > 0, 'data was output')
+        remove_files(dec)
+        # Explicitly allowed: decrypted with warning
+        ret, _, err = run_proc(RNP, params + ['--allow-unprotected'])
+        self.assertEqual(ret, 0, 'rnp decryption failed')
+        self.assertRegex(err, r'(?s)^.*Warning: message was not integrity protected.*')
+        compare_files(data_path('test_messages/message.txt'), dec, RNP_DATA_DIFFERS)
+        remove_files(dec)
 
     def test_encryption_s2k(self):
         src, dst, dec = reg_workfiles('cleartext', '.txt', '.gpg', '.rnp')

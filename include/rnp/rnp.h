@@ -147,6 +147,7 @@ typedef uint32_t rnp_result_t;
 #define RNP_VERIFY_IGNORE_SIGS_ON_DECRYPT (1U << 0)
 #define RNP_VERIFY_REQUIRE_ALL_SIGS (1U << 1)
 #define RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT (1U << 2)
+#define RNP_VERIFY_ALLOW_UNPROTECTED (1U << 3)
 
 /**
  * Revocation key flags.
@@ -3297,6 +3298,11 @@ RNP_API rnp_result_t rnp_op_verify_detached_create(rnp_op_verify_t *op,
  *                valid for successful run of rnp_op_verify_execute().
  *              RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT - allow hidden recipient during the
  *                decryption.
+ *              RNP_VERIFY_ALLOW_UNPROTECTED - allow decryption of the obsolete Symmetrically
+ *                Encrypted Data packets (tag 9), which have no integrity protection and are
+ *                malleable. By default such messages are refused with RNP_ERROR_DECRYPT_FAILED
+ *                before any data is output. If allowed, rnp_op_verify_get_protection_info()
+ *                reports mode "cfb" with valid == false, and caller MUST warn the user.
  *
  *              Note: all flags are set at once, if some flag is not present in the subsequent
  *              call then it will be unset.
