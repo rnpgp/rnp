@@ -84,6 +84,7 @@ static const char *usage =
   "    --allow-sha1-key-sigs Allow usage of a SHA-1 key signatures.\n"
   "  --clearsign             Cleartext-sign data.\n"
   "  -d, --decrypt           Decrypt and output data, verifying signatures.\n"
+  "    --allow-unprotected   Allow decryption of data without integrity protection.\n"
   "  -v, --verify            Verify signatures, without outputting data.\n"
   "    --verify-cat          Verify signatures, and output the data (like --decrypt,\n"
   "                          but for signed-only or detached-signature messages).\n"
@@ -175,6 +176,7 @@ enum optdefs {
     OPT_ALLOW_OLD_CIPHERS,
     OPT_SETFNAME,
     OPT_ALLOW_HIDDEN,
+    OPT_ALLOW_UNPROTECTED,
     OPT_S2K_ITER,
     OPT_S2K_MSEC,
 
@@ -247,6 +249,7 @@ static struct option options[] = {
   {"allow-old-ciphers", no_argument, NULL, OPT_ALLOW_OLD_CIPHERS},
   {"set-filename", required_argument, NULL, OPT_SETFNAME},
   {"allow-hidden", no_argument, NULL, OPT_ALLOW_HIDDEN},
+  {"allow-unprotected", no_argument, NULL, OPT_ALLOW_UNPROTECTED},
   {"s2k-iterations", required_argument, NULL, OPT_S2K_ITER},
   {"s2k-msec", required_argument, NULL, OPT_S2K_MSEC},
   {"allow-weak-hash", no_argument, NULL, OPT_ALLOW_WEAK_HASH},
@@ -550,6 +553,9 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
         return true;
     case OPT_ALLOW_HIDDEN:
         cfg.set_bool(CFG_ALLOW_HIDDEN, true);
+        return true;
+    case OPT_ALLOW_UNPROTECTED:
+        cfg.set_bool(CFG_ALLOW_UNPROTECTED, true);
         return true;
     case OPT_S2K_ITER: {
         int iterations = 0;
