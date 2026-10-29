@@ -24,7 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #include "ed25519_ed448.h"
 #include "logging.h"
 #include "utils.h"
@@ -49,7 +48,7 @@ generate_ed25519_native(rnp::RNG *            rng,
     if (botan_privkey_view_raw(private_key.get(), &vb, rnp_botan_view_bin)) {
         return RNP_ERROR_GENERIC;
     }
-    const size_t key_len = 32;
+    const size_t key_len = ED25519_KEY_LEN;
     privkey.assign(key_bits, key_bits + key_len);
     pubkey.assign(key_bits + key_len, key_bits + 2 * key_len);
     return RNP_SUCCESS;
@@ -62,7 +61,7 @@ ed25519_sign_native(rnp::RNG *                  rng,
                     const uint8_t *             hash,
                     size_t                      hash_len)
 {
-    if (key.size() != 32) {
+    if (key.size() != ED25519_KEY_LEN) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     rnp::botan::Privkey priv_key;
@@ -89,7 +88,7 @@ ed25519_verify_native(const std::vector<uint8_t> &sig,
                       const uint8_t *             hash,
                       size_t                      hash_len)
 {
-    if (key.size() != 32) {
+    if (key.size() != ED25519_KEY_LEN) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     rnp::botan::Pubkey pub_key;
@@ -110,7 +109,7 @@ ed25519_verify_native(const std::vector<uint8_t> &sig,
 rnp_result_t
 ed25519_validate_key_native(rnp::RNG *rng, const pgp_ed25519_key_t *key, bool secret)
 {
-    if (key->pub.size() != 32) {
+    if (key->pub.size() != ED25519_KEY_LEN) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     rnp::botan::Pubkey pub_key;
@@ -120,7 +119,7 @@ ed25519_validate_key_native(rnp::RNG *rng, const pgp_ed25519_key_t *key, bool se
     }
 
     if (secret) {
-        if (key->priv.size() != 32) {
+        if (key->priv.size() != ED25519_KEY_LEN) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
         rnp::botan::Privkey priv_key;
@@ -143,7 +142,7 @@ generate_ed448_native(rnp::RNG *            rng,
     if (botan_privkey_create(&private_key.get(), "Ed448", NULL, rng->handle())) {
         return RNP_ERROR_GENERIC;
     }
-    uint8_t            priv[57];
+    uint8_t            priv[ED448_KEY_LEN];
     rnp_botan_view_buf priv_vb{priv, sizeof(priv)};
     if (botan_privkey_view_raw(private_key.get(), &priv_vb, rnp_botan_view_bin)) {
         return RNP_ERROR_GENERIC;
@@ -152,13 +151,13 @@ generate_ed448_native(rnp::RNG *            rng,
     if (botan_privkey_export_pubkey(&pub_key.get(), private_key.get())) {
         return RNP_ERROR_GENERIC;
     }
-    uint8_t            pub[57];
+    uint8_t            pub[ED448_KEY_LEN];
     rnp_botan_view_buf pub_vb{pub, sizeof(pub)};
     if (botan_pubkey_view_raw(pub_key.get(), &pub_vb, rnp_botan_view_bin)) {
         return RNP_ERROR_GENERIC;
     }
-    privkey.assign(priv, priv + 57);
-    pubkey.assign(pub, pub + 57);
+    privkey.assign(priv, priv + ED448_KEY_LEN);
+    pubkey.assign(pub, pub + ED448_KEY_LEN);
     return RNP_SUCCESS;
 }
 
@@ -169,7 +168,7 @@ ed448_sign_native(rnp::RNG *                  rng,
                   const uint8_t *             hash,
                   size_t                      hash_len)
 {
-    if (key.size() != 57) {
+    if (key.size() != ED448_KEY_LEN) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     rnp::botan::Privkey priv_key;
@@ -196,7 +195,7 @@ ed448_verify_native(const std::vector<uint8_t> &sig,
                     const uint8_t *             hash,
                     size_t                      hash_len)
 {
-    if (key.size() != 57) {
+    if (key.size() != ED448_KEY_LEN) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     rnp::botan::Pubkey pub_key;
@@ -217,7 +216,7 @@ ed448_verify_native(const std::vector<uint8_t> &sig,
 rnp_result_t
 ed448_validate_key_native(rnp::RNG *rng, const pgp_ed448_key_t *key, bool secret)
 {
-    if (key->pub.size() != 57) {
+    if (key->pub.size() != ED448_KEY_LEN) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     rnp::botan::Pubkey pub_key;
@@ -226,7 +225,7 @@ ed448_validate_key_native(rnp::RNG *rng, const pgp_ed448_key_t *key, bool secret
         return RNP_ERROR_BAD_PARAMETERS;
     }
     if (secret) {
-        if (key->priv.size() != 57) {
+        if (key->priv.size() != ED448_KEY_LEN) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
         rnp::botan::Privkey priv_key;

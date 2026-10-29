@@ -24,7 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #include "x25519_x448.h"
 #include "exdsa_ecdhkem.h"
 #include "hkdf.hpp"
@@ -145,7 +144,7 @@ x25519_native_decrypt(rnp::RNG *                    rng,
     std::vector<uint8_t> shared_key;
     std::vector<uint8_t> derived_key;
 
-    static const size_t x25519_pubkey_size = 32;
+    static const size_t x25519_pubkey_size = X25519_KEY_LEN;
     if (encrypted->eph_key.size() != x25519_pubkey_size) {
         RNP_LOG("Wrong ephemeral public key size");
         return RNP_ERROR_BAD_FORMAT;
@@ -184,7 +183,7 @@ x25519_native_decrypt(rnp::RNG *                    rng,
 rnp_result_t
 x25519_validate_key_native(rnp::RNG *rng, const pgp_x25519_key_t *key, bool secret)
 {
-    if (key->priv.size() != 32) {
+    if (key->priv.size() != X25519_KEY_LEN) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     rnp::botan::Pubkey pub_key;
@@ -212,14 +211,14 @@ generate_x25519_native(rnp::RNG *            rng,
         return RNP_ERROR_GENERIC;
     }
     /* public value (32 bytes) */
-    pubkey.assign(32, 0);
+    pubkey.assign(X25519_KEY_LEN, 0);
     size_t publen = pubkey.size();
     if (botan_pk_op_key_agreement_export_public(priv_key.get(), pubkey.data(), &publen)) {
         return RNP_ERROR_GENERIC;
     }
     pubkey.resize(publen);
     /* private scalar (32 bytes) */
-    privkey.assign(32, 0);
+    privkey.assign(X25519_KEY_LEN, 0);
     rnp_botan_view_buf vb{privkey.data(), privkey.size()};
     if (botan_privkey_view_raw(priv_key.get(), &vb, rnp_botan_view_bin)) {
         return RNP_ERROR_GENERIC;
@@ -237,13 +236,13 @@ generate_x448_native(rnp::RNG *            rng,
     if (botan_privkey_create(&priv_key.get(), "X448", NULL, rng->handle())) {
         return RNP_ERROR_GENERIC;
     }
-    pubkey.assign(56, 0);
+    pubkey.assign(X448_KEY_LEN, 0);
     size_t publen = pubkey.size();
     if (botan_pk_op_key_agreement_export_public(priv_key.get(), pubkey.data(), &publen)) {
         return RNP_ERROR_GENERIC;
     }
     pubkey.resize(publen);
-    privkey.assign(56, 0);
+    privkey.assign(X448_KEY_LEN, 0);
     rnp_botan_view_buf vb{privkey.data(), privkey.size()};
     if (botan_privkey_view_raw(priv_key.get(), &vb, rnp_botan_view_bin)) {
         return RNP_ERROR_GENERIC;
@@ -290,7 +289,7 @@ x448_native_decrypt(rnp::RNG *                  rng,
     std::vector<uint8_t> shared_key;
     std::vector<uint8_t> derived_key;
 
-    static const size_t x448_pubkey_size = 32;
+    static const size_t x448_pubkey_size = X448_KEY_LEN;
     if (encrypted->eph_key.size() != x448_pubkey_size) {
         RNP_LOG("Wrong ephemeral public key size");
         return RNP_ERROR_BAD_FORMAT;
@@ -328,7 +327,7 @@ x448_native_decrypt(rnp::RNG *                  rng,
 rnp_result_t
 x448_validate_key_native(rnp::RNG *rng, const pgp_x448_key_t *key, bool secret)
 {
-    if (key->priv.size() != 56) {
+    if (key->priv.size() != X448_KEY_LEN) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     rnp::botan::Pubkey pub_key;

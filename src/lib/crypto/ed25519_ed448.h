@@ -36,6 +36,12 @@
 
 /* implements Ed25519 and Ed448 with native format (V6 and PQC) */
 
+/* Raw EdDSA key sizes: private seed and public key */
+enum : size_t {
+    ED25519_KEY_LEN = 32,
+    ED448_KEY_LEN = 57,
+};
+
 rnp_result_t generate_ed25519_native(rnp::RNG *            rng,
                                      std::vector<uint8_t> &privkey,
                                      std::vector<uint8_t> &pubkey);

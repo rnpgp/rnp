@@ -25,7 +25,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #include "exdsa_ecdhkem.h"
 #include <botan/ffi.h>
 #include "botan_utils.hpp"
@@ -134,10 +133,12 @@ ecdh_kem_private_key_t::get_pubkey_encoded(rnp::RNG *rng) const
     bool                ok = false;
     switch (curve_) {
     case PGP_CURVE_25519:
-        ok = (key_.size() == 32) && !botan_privkey_load_x25519(&priv.get(), key_.data());
+        ok = (key_.size() == X25519_KEY_LEN) &&
+             !botan_privkey_load_x25519(&priv.get(), key_.data());
         break;
     case PGP_CURVE_448:
-        ok = (key_.size() == 56) && !botan_privkey_load_x448(&priv.get(), key_.data());
+        ok =
+          (key_.size() == X448_KEY_LEN) && !botan_privkey_load_x448(&priv.get(), key_.data());
         break;
     default:
         ok = load_ec_privkey(priv, botan_privkey_load_ecdh, key_.data(), key_.size(), curve_);
@@ -208,10 +209,12 @@ ecdh_kem_private_key_t::decapsulate(rnp::RNG *                  rng,
     bool                ok = false;
     switch (curve_) {
     case PGP_CURVE_25519:
-        ok = (key_.size() == 32) && !botan_privkey_load_x25519(&priv.get(), key_.data());
+        ok = (key_.size() == X25519_KEY_LEN) &&
+             !botan_privkey_load_x25519(&priv.get(), key_.data());
         break;
     case PGP_CURVE_448:
-        ok = (key_.size() == 56) && !botan_privkey_load_x448(&priv.get(), key_.data());
+        ok =
+          (key_.size() == X448_KEY_LEN) && !botan_privkey_load_x448(&priv.get(), key_.data());
         break;
     default:
         ok = load_ec_privkey(priv, botan_privkey_load_ecdh, key_.data(), key_.size(), curve_);
@@ -371,10 +374,12 @@ exdsa_public_key_t::is_valid(rnp::RNG *rng) const
     bool               ok = false;
     switch (curve_) {
     case PGP_CURVE_ED25519:
-        ok = (key_.size() == 32) && !botan_pubkey_load_ed25519(&pub_key.get(), key_.data());
+        ok = (key_.size() == ED25519_KEY_LEN) &&
+             !botan_pubkey_load_ed25519(&pub_key.get(), key_.data());
         break;
     case PGP_CURVE_ED448:
-        ok = (key_.size() == 57) && !botan_pubkey_load_ed448(&pub_key.get(), key_.data());
+        ok = (key_.size() == ED448_KEY_LEN) &&
+             !botan_pubkey_load_ed448(&pub_key.get(), key_.data());
         break;
     default:
         ok = load_ec_pubkey(
@@ -391,10 +396,12 @@ exdsa_private_key_t::is_valid(rnp::RNG *rng) const
     bool                ok = false;
     switch (curve_) {
     case PGP_CURVE_ED25519:
-        ok = (key_.size() == 32) && !botan_privkey_load_ed25519(&priv_key.get(), key_.data());
+        ok = (key_.size() == ED25519_KEY_LEN) &&
+             !botan_privkey_load_ed25519(&priv_key.get(), key_.data());
         break;
     case PGP_CURVE_ED448:
-        ok = (key_.size() == 57) && !botan_privkey_load_ed448(&priv_key.get(), key_.data());
+        ok = (key_.size() == ED448_KEY_LEN) &&
+             !botan_privkey_load_ed448(&priv_key.get(), key_.data());
         break;
     default:
         ok = load_ec_privkey(
@@ -411,10 +418,12 @@ ecdh_kem_public_key_t::is_valid(rnp::RNG *rng) const
     bool               ok = false;
     switch (curve_) {
     case PGP_CURVE_25519:
-        ok = (key_.size() == 32) && !botan_pubkey_load_x25519(&pub_key.get(), key_.data());
+        ok = (key_.size() == X25519_KEY_LEN) &&
+             !botan_pubkey_load_x25519(&pub_key.get(), key_.data());
         break;
     case PGP_CURVE_448:
-        ok = (key_.size() == 56) && !botan_pubkey_load_x448(&pub_key.get(), key_.data());
+        ok = (key_.size() == X448_KEY_LEN) &&
+             !botan_pubkey_load_x448(&pub_key.get(), key_.data());
         break;
     default:
         ok = load_ec_pubkey(
@@ -431,10 +440,12 @@ ecdh_kem_private_key_t::is_valid(rnp::RNG *rng) const
     bool                ok = false;
     switch (curve_) {
     case PGP_CURVE_25519:
-        ok = (key_.size() == 32) && !botan_privkey_load_x25519(&priv_key.get(), key_.data());
+        ok = (key_.size() == X25519_KEY_LEN) &&
+             !botan_privkey_load_x25519(&priv_key.get(), key_.data());
         break;
     case PGP_CURVE_448:
-        ok = (key_.size() == 56) && !botan_privkey_load_x448(&priv_key.get(), key_.data());
+        ok = (key_.size() == X448_KEY_LEN) &&
+             !botan_privkey_load_x448(&priv_key.get(), key_.data());
         break;
     default:
         ok =
