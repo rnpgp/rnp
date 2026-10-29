@@ -181,16 +181,28 @@ signature_validate(const pgp::pkt::Signature & sig,
     /* Finalize hash */
     auto hval = signature_hash_finish(sig, hash, hdr);
     /* compare lbits */
-    if (memcmp(hval.data(), sig.lbits.data(), 2)) {
-        RNP_LOG("wrong lbits");
-        res.add_error(RNP_ERROR_SIG_LBITS_MISMATCH);
-    }
+    bool lbits_ok = !memcmp(hval.data(), sig.lbits.data(), 2);
 
     /* validate signature */
     /* We check whether material could be parsed during the signature parsing */
     auto material = sig.parse_material();
     assert(material);
     auto ret = key.verify(ctx, *material, hval);
+    /* RFC 9580, 5.2.4: v6 signatures with wrong left 16 bits MUST be rejected. For older
+     * versions behaviour is not defined, and some real-world keys have broken lbits
+     * (see #2191), so do not fail a cryptographically valid signature because of them. */
+    bool lbits_strict = false;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    lbits_strict = sig.version == PGP_V6;
+#endif
+    if (!lbits_ok) {
+        if (ret || lbits_strict) {
+            RNP_LOG("wrong lbits");
+            res.add_error(RNP_ERROR_SIG_LBITS_MISMATCH);
+        } else {
+            RNP_LOG("Warning: wrong lbits in v%d signature, ignoring.", (int) sig.version);
+        }
+    }
     if (ret) {
         res.add_error(ret);
     }

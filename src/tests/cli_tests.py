@@ -3424,6 +3424,20 @@ class Misc(unittest.TestCase):
         self.assertEqual(ret, 0)
         self.assertRegex(err, WRONG_MPI_BITS)
 
+    def test_key_wrong_lbits(self):
+        # v4 self-signatures with wrong left 16 bits but valid material, see #2191
+        kdir = os.path.join(WORKDIR, '.rnp-lbits')
+        os.makedirs(kdir, exist_ok=True)
+        try:
+            ret, _, _ = run_proc(RNPK, ['--homedir', kdir, '--import', data_path('test_key_edge_cases/key-wrong-lbits-0001.asc')])
+            self.assertEqual(ret, 0)
+            ret, out, _ = run_proc(RNPK, ['--homedir', kdir, '--list-keys', '--with-sigs'])
+            self.assertEqual(ret, 0)
+            self.assertRegex(out, r'(?s)^.*pub +2048/RSA 3b132d4dbbae5d31 2016-01-03 \[SC\].*Paul Wouters.*sub +2048/RSA 39d749ae2942c932 2016-01-03 \[E\].*$')
+            self.assertNotRegex(out, r'(?s)^.*(\[INVALID\]|\[invalid\]).*$')
+        finally:
+            shutil.rmtree(kdir, ignore_errors=True)
+
     def test_eddsa_small_x(self):
         os.rename(RNPDIR, RNPDIR + '-old')
         os.environ['HOME'] = WORKDIR

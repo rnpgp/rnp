@@ -2343,7 +2343,8 @@ RNP_API rnp_result_t rnp_signature_error_count(rnp_signature_handle_t sig, size_
  *        RNP_ERROR_SIG_HASH_ALG_MISMATCH : used hash algorithm is not allowed by signature
  *                                          algorithm
  *        RNP_ERROR_SIG_LBITS_MISMATCH : left 16 bits of hash, stored in signature, do not
- *                                       match hash value
+ *                                       match hash value. For pre-v6 signatures this is
+ *                                       reported only if signature verification failed.
  *        RNP_ERROR_SIG_FROM_FUTURE : signature with timestamp from the future
  *        RNP_ERROR_SIG_EXPIRED : signature is expired
  *        RNP_ERROR_SIG_OLDER_KEY : signature is older than the key
