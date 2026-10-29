@@ -2,6 +2,10 @@
 
 ### Unreleased
 
+#### General
+
+* Do not mark cryptographically valid v3/v4/v5 signatures as invalid only because of mismatching left 16 bits of the hash (v6 signatures are still rejected, as required by RFC 9580). Fixes import of some real-world keys (#2191).
+
 #### Security
 
 * Refuse to decrypt obsolete Symmetrically Encrypted Data packets (tag 9, no integrity protection) by default,
