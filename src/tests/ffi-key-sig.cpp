@@ -2911,6 +2911,24 @@ TEST_F(rnp_tests, test_ffi_subkey_sigs_nonprimary_signer)
     rnp_ffi_destroy(ffi);
 }
 
+static void
+check_verify_sig_errors(rnp_op_verify_t verify, const std::vector<uint32_t> &expected)
+{
+    rnp_op_verify_signature_t vsig = NULL;
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &vsig));
+    rnp_signature_handle_t sig = NULL;
+    assert_rnp_success(rnp_op_verify_signature_get_handle(vsig, &sig));
+    size_t errors = 255;
+    assert_rnp_success(rnp_signature_error_count(sig, &errors));
+    assert_int_equal(errors, expected.size());
+    for (size_t idx = 0; idx < expected.size(); idx++) {
+        uint32_t error = 0;
+        assert_rnp_success(rnp_signature_error_at(sig, idx, &error));
+        assert_int_equal(error, expected[idx]);
+    }
+    rnp_signature_handle_destroy(sig);
+}
+
 TEST_F(rnp_tests, test_ffi_v4_sig_wrong_lbits)
 {
     /* Key with lbits 0x0001 in both self-signatures, while signatures are valid, see #2191 */
@@ -2931,7 +2949,7 @@ TEST_F(rnp_tests, test_ffi_v4_sig_wrong_lbits)
     rnp_signature_handle_t sig = NULL;
     assert_rnp_success(rnp_uid_get_signature_at(uid, 0, &sig));
     assert_rnp_success(rnp_signature_is_valid(sig, 0));
-    size_t errors = 0;
+    size_t errors = 255;
     assert_rnp_success(rnp_signature_error_count(sig, &errors));
     assert_int_equal(errors, 0);
     rnp_signature_handle_destroy(sig);
@@ -2942,6 +2960,9 @@ TEST_F(rnp_tests, test_ffi_v4_sig_wrong_lbits)
     assert_true(valid);
     assert_rnp_success(rnp_key_get_signature_at(sub, 0, &sig));
     assert_rnp_success(rnp_signature_is_valid(sig, 0));
+    errors = 255;
+    assert_rnp_success(rnp_signature_error_count(sig, &errors));
+    assert_int_equal(errors, 0);
     rnp_signature_handle_destroy(sig);
     rnp_key_handle_destroy(sub);
     rnp_key_handle_destroy(key);
@@ -2967,6 +2988,8 @@ TEST_F(rnp_tests, test_ffi_v4_sig_wrong_lbits)
       rnp_input_from_path(&signature, "data/test_messages/message.txt.sig-wrong-lbits-bad"));
     assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, input, signature));
     assert_int_equal(rnp_op_verify_execute(verify), RNP_ERROR_SIGNATURE_INVALID);
+    check_verify_sig_errors(verify,
+                            {RNP_ERROR_SIG_LBITS_MISMATCH, RNP_ERROR_SIGNATURE_INVALID});
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(input);
     rnp_input_destroy(signature);
@@ -2999,6 +3022,7 @@ TEST_F(rnp_tests, test_ffi_v6_sig_wrong_lbits)
     assert_rnp_success(rnp_output_to_null(&output));
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
     assert_int_equal(rnp_op_verify_execute(verify), RNP_ERROR_SIGNATURE_INVALID);
+    check_verify_sig_errors(verify, {RNP_ERROR_SIG_LBITS_MISMATCH});
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(input);
     rnp_output_destroy(output);
