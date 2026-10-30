@@ -3272,6 +3272,48 @@ TEST_F(rnp_tests, test_ffi_v6_sig_subpackets)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_v6_primary_add_subkey_version)
+{
+    /* RFC 9580, 10.1.1: every subkey of a version 6 primary key must be a
+     * version 6 subkey. A subkey added to an existing v6 primary (without
+     * an explicit version request) must inherit the primary's version. */
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, unused_getpasscb, NULL));
+
+    rnp_op_generate_t op = NULL;
+    assert_rnp_success(rnp_op_generate_create(&op, ffi, "EDDSA"));
+    assert_rnp_success(rnp_op_generate_set_v6_key(op));
+    assert_rnp_success(rnp_op_generate_set_userid(op, "test"));
+    assert_rnp_success(rnp_op_generate_add_usage(op, "sign"));
+    assert_rnp_success(rnp_op_generate_add_usage(op, "certify"));
+    assert_rnp_success(rnp_op_generate_set_expiration(op, 0));
+    assert_rnp_success(rnp_op_generate_execute(op));
+    rnp_key_handle_t primary = NULL;
+    assert_rnp_success(rnp_op_generate_get_key(op, &primary));
+    uint32_t version = 0;
+    assert_rnp_success(rnp_key_get_version(primary, &version));
+    assert_int_equal(version, PGP_V6);
+
+    rnp_op_generate_t subop = NULL;
+    assert_rnp_success(rnp_op_generate_subkey_create(&subop, ffi, primary, "ECDH"));
+    assert_rnp_success(rnp_op_generate_set_curve(subop, "NIST P-256"));
+    assert_rnp_success(rnp_op_generate_add_usage(subop, "encrypt"));
+    assert_rnp_success(rnp_op_generate_set_expiration(subop, 0));
+    assert_rnp_success(rnp_op_generate_execute(subop));
+    rnp_key_handle_t sub = NULL;
+    assert_rnp_success(rnp_op_generate_get_key(subop, &sub));
+    assert_rnp_success(rnp_key_get_version(sub, &version));
+    assert_int_equal(version, PGP_V6);
+
+    rnp_key_handle_destroy(sub);
+    rnp_op_generate_destroy(subop);
+    rnp_key_handle_destroy(primary);
+    rnp_op_generate_destroy(op);
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_v6_cert_import)
 {
     rnp_ffi_t   ffi = NULL;
