@@ -5421,6 +5421,10 @@ try {
     }
 
     *op = new rnp_op_generate_st(ffi, key_alg, primary);
+    /* RFC 9580, 10.1.1: every subkey of a version 6 primary key must be a
+     * version 6 subkey. Inherit the primary key's version so that added
+     * subkeys always match it. */
+    (*op)->keygen.set_version(primary->pub->version());
     return RNP_SUCCESS;
 }
 FFI_GUARD
