@@ -1192,6 +1192,13 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
     /* fill hashed data used for signatures */
     pub_data.assign(pkt.data(), pkt.data() + pkt.size() - pkt.left());
 
+    /* the algorithm-specific fields must exactly fill a public key packet
+     * body; secret key packets continue with the protection fields below */
+    if (!is_secret_key_pkt(tag) && pkt.left()) {
+        RNP_LOG("extra data at the end of the key packet");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
     /* secret key fields if any */
     if (is_secret_key_pkt(tag)) {
         uint8_t usage = 0;
