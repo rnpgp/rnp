@@ -118,6 +118,9 @@ class Signature {
 
     /* @brief Check whether v4 signature has subpacket of the specified type/hashedness */
     bool has_subpkt(uint8_t stype, bool hashed = true) const;
+    /** @brief Check whether signature has an unknown critical subpacket. Such signature
+     *         must be treated as invalid, see RFC 9580: 5.2.3.16. */
+    bool has_unknown_critical() const;
     /* @brief Check whether signature has signing key id (via v3 field, or v4 key id/key fp
      * subpacket) */
     bool has_keyid() const;

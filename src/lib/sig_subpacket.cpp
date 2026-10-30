@@ -202,8 +202,10 @@ Raw::create(const uint8_t *data, size_t size, bool hashed, size_t depth)
     bool    critical = data[0] & 0x80;
     uint8_t type = data[0] & 0x7f;
     auto    sub = create(type, hashed, critical);
-    if (!sub || ((sub->type() == Type::Unknown) && critical) ||
-        !sub->parse(data + 1, size - 1, depth)) {
+    /* Unknown subpacket (including the critical one) is kept as unparsed Raw subpacket,
+     * so the signature can still be loaded. Signature with the unknown critical subpacket
+     * is marked as invalid during the validation, see RFC 9580: 5.2.3.16. */
+    if (!sub || !sub->parse(data + 1, size - 1, depth)) {
         return nullptr;
     }
     return sub;

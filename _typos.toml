@@ -4,6 +4,11 @@ extend-ignore-identifiers-re = [
     ".*FPR.*",
     ".*[0-9a-fA-F]{4,}",
 ]
+# Base64 payloads (armored OpenPGP keys, encoded test vectors) are data, not
+# prose, and regularly contain letter sequences which trip the spell checker.
+extend-ignore-re = [
+    '(?s)-----BEGIN PGP (PUBLIC KEY|PRIVATE KEY|SIGNATURE) BLOCK-----.*?-----END PGP (PUBLIC KEY|PRIVATE KEY|SIGNATURE) BLOCK-----',
+]
 
 [default.extend-identifiers]
 validate_desig_revokes = "validate_desig_revokes"
