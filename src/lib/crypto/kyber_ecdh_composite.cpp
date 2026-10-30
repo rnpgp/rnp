@@ -357,9 +357,15 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(
     std::vector<uint8_t> kyber_encapsulated_keyshare = std::vector<uint8_t>(
       enc->composite_ciphertext.begin() + ecdh_curve_ephemeral_size(curve),
       enc->composite_ciphertext.end());
-    /* kyber decapsulation reports failures via rnp::rnp_exception */
-    kyber_keyshare = kyber_key_->decapsulate(
-      rng, kyber_encapsulated_keyshare.data(), kyber_encapsulated_keyshare.size());
+    /* kyber decapsulation reports failures via rnp::rnp_exception; map it to
+     * the error code here, so this method does not throw */
+    try {
+        kyber_keyshare = kyber_key_->decapsulate(
+          rng, kyber_encapsulated_keyshare.data(), kyber_encapsulated_keyshare.size());
+    } catch (const rnp::rnp_exception &e) {
+        RNP_LOG("error when decrypting kyber-ecdh encrypted session key");
+        return e.code();
+    }
 
     // Compute KEK
     std::vector<uint8_t> kek_vec =
