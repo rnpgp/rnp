@@ -130,7 +130,9 @@ pgp_kyber_private_key_t::decapsulate(rnp::RNG *     rng,
                                      size_t         ciphertext_len)
 {
     (void) rng;
-    assert(is_initialized_);
+    if (!is_initialized_) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
     rnp::botan::Privkey priv;
     if (botan_privkey_load_ml_kem(&priv.get(),
                                   key_encoded_.data(),
