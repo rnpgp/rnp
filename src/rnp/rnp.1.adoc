@@ -345,6 +345,12 @@ Allow hidden recipient support. +
 Sender of an encrypted message may wish to hide recipient's key by setting a Key ID field to all zeroes.
 In this case receiver has to try every available secret key, checking for a valid decrypted session key. This option is disabled by default.
 
+*--allow-unprotected* ::
+Allow decryption of messages without integrity protection. +
++
+Obsolete Symmetrically Encrypted Data packets (tag 9) carry no integrity protection, so their contents may be modified by an attacker.
+By default *rnp* refuses to decrypt them. With this option such messages are decrypted, and a warning is printed.
+
 == EXIT STATUS
 
 _0_::

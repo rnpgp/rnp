@@ -3196,6 +3196,21 @@ cli_rnp_print_signatures(cli_rnp_t *rnp, const std::vector<rnp_op_verify_signatu
 }
 
 static void
+cli_rnp_inform_of_unprotected(rnp_op_verify_t op)
+{
+    /* RFC 9580, 5.7: warn clearly if non-integrity-protected data was processed */
+    char *mode = NULL;
+    bool  valid = false;
+    if (rnp_op_verify_get_protection_info(op, &mode, NULL, &valid)) {
+        return; // LCOV_EXCL_LINE
+    }
+    if (mode && !strcmp(mode, "cfb")) {
+        ERR_MSG("Warning: message was not integrity protected, it may have been modified.");
+    }
+    rnp_buffer_destroy(mode);
+}
+
+static void
 cli_rnp_inform_of_hidden_recipient(rnp_op_verify_t op)
 {
     size_t recipients = 0;
@@ -3290,6 +3305,10 @@ cli_rnp_process_file(cli_rnp_t *rnp)
                 /* Allow hidden recipient */
                 flags = flags | RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT;
             }
+            if (rnp->cfg().get_bool(CFG_ALLOW_UNPROTECTED)) {
+                /* Allow obsolete SED packets without integrity protection */
+                flags = flags | RNP_VERIFY_ALLOW_UNPROTECTED;
+            }
             ret = rnp_op_verify_set_flags(verify, flags);
         }
     }
@@ -3303,6 +3322,9 @@ cli_rnp_process_file(cli_rnp_t *rnp)
     /* Check whether we had hidden recipient on verification/decryption failure */
     if (!res && !rnp->cfg().get_bool(CFG_ALLOW_HIDDEN)) {
         cli_rnp_inform_of_hidden_recipient(verify);
+    }
+    if (res) {
+        cli_rnp_inform_of_unprotected(verify);
     }
 
     rnp_op_verify_get_signature_count(verify, &scount);

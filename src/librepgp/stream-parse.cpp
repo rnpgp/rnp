@@ -2441,6 +2441,16 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
         handler->on_recipients(param->pubencs, param->symencs, handler->param);
     }
 
+    /* RFC 9580, 5.7: Symmetrically Encrypted Data packet is obsolete and malleable, so it
+     * should be rejected. Do this before any session key decryption so no data is output. */
+    if ((param->auth_type == rnp::AuthType::None) &&
+        (!handler->ctx || !handler->ctx->allow_unprotected)) {
+        RNP_LOG("Refusing to decrypt Symmetrically Encrypted Data packet without integrity "
+                "protection (allow it explicitly to override).");
+        errcode = RNP_ERROR_DECRYPT_FAILED;
+        goto finish;
+    }
+
     bool have_key;
     have_key = false;
     /* Trying public-key decryption */
