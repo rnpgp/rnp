@@ -867,6 +867,19 @@ TEST_F(rnp_tests, test_stream_key_load_errors)
     }
 }
 
+TEST_F(rnp_tests, test_stream_key_trailing_bytes)
+{
+    /* a public key packet with trailing bytes after the algorithm-specific
+     * fields must be rejected (RFC 4880, 5.5.2) */
+    pgp_source_t       src = {0};
+    pgp_key_sequence_t keys;
+    assert_rnp_success(
+      init_file_src(&src, "data/test_stream_key_load/key-trailing-bytes.pub.pgp"));
+    assert_rnp_failure(process_pgp_keys(src, keys, false));
+    assert_true(keys.keys.empty());
+    src.close();
+}
+
 TEST_F(rnp_tests, test_stream_key_decrypt)
 {
     pgp_source_t               keysrc = {0};
