@@ -181,7 +181,7 @@ signature_validate(const pgp::pkt::Signature & sig,
     /* Finalize hash */
     auto hval = signature_hash_finish(sig, hash, hdr);
     /* compare lbits */
-    bool lbits_ok = !memcmp(hval.data(), sig.lbits.data(), 2);
+    bool lbits_ok = !memcmp(hval.data(), sig.lbits.data(), sig.lbits.size());
 
     /* validate signature */
     /* We check whether material could be parsed during the signature parsing */
