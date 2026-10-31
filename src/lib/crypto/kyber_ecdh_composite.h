@@ -39,7 +39,7 @@
 #include <memory>
 
 struct pgp_kyber_ecdh_key_t;                  /* forward declaration */
-struct pgp_kyber_ecdh_composite_public_key_t; /* forward declaration */
+class pgp_kyber_ecdh_composite_public_key_t; /* forward declaration */
 
 class pgp_kyber_ecdh_composite_key_t {
   public:
