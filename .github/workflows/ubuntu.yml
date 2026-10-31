@@ -240,7 +240,8 @@ jobs:
           ctest --parallel 1 --test-dir build --output-on-failure -E '_slow$'
 
   cmake-offline-googletest-src:
-    runs-on: ubuntu-latest
+    # pinned: ubuntu-latest migrated to 26.04, whose apt dropped botan2
+    runs-on: ubuntu-24.04
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 30
     steps:
@@ -281,7 +282,8 @@ jobs:
           [ ! -d "build/src/tests/googletest-src" ]
 
   cmake-offline-googletest:
-    runs-on: ubuntu-latest
+    # pinned: ubuntu-latest migrated to 26.04, whose apt dropped botan2
+    runs-on: ubuntu-24.04
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 30
     steps:
@@ -328,7 +330,8 @@ jobs:
 
   cmake-system-sexpp:
     name: system-sexpp, sexpp shared libs ${{ matrix.sexpp_shared_libs }}, rnp shared libs ${{ matrix.rnp_shared_libs }}
-    runs-on: ubuntu-latest
+    # pinned: ubuntu-latest migrated to 26.04, whose apt dropped botan2
+    runs-on: ubuntu-24.04
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 30
     strategy:
@@ -393,7 +396,8 @@ jobs:
           ctest --parallel 1 --test-dir build -R rnp_tests --output-on-failure -E '_slow$'
 
   package-source:
-    runs-on: ubuntu-latest
+    # pinned: ubuntu-latest migrated to 26.04, whose apt dropped botan2
+    runs-on: ubuntu-24.04
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 30
     steps:
@@ -435,7 +439,8 @@ jobs:
           retention-days: 1
 
   package:
-    runs-on: ubuntu-latest
+    # pinned: ubuntu-latest migrated to 26.04, whose apt dropped botan2
+    runs-on: ubuntu-24.04
     needs: package-source
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 30
@@ -478,7 +483,8 @@ jobs:
           retention-days: 5
 
   debian-tests:
-    runs-on: ubuntu-latest
+    # pinned: ubuntu-latest migrated to 26.04, whose apt dropped botan2
+    runs-on: ubuntu-24.04
     needs: package
     timeout-minutes: 30
     steps:
