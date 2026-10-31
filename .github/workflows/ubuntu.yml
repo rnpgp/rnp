@@ -140,7 +140,9 @@ jobs:
   # Botan 2.19.1 (older 2.x than noble's 2.19.3) and OpenSSL 3.0, and GnuPG
   # 2.2, keeping the same coverage the native ubuntu-22.04 runner provided.
   # Node.js 22 is installed before checkout because JS actions need it and
-  # the bare ubuntu image does not ship it.
+  # the bare ubuntu image does not ship it; the test suite runs as a
+  # non-root user (as in opensuse.yml) because several tests exercise
+  # permission-denied paths.
   tests-jammy-container:
     name: ubuntu:22.04 container [CC gcc; ${{ matrix.backend.name }}; GnuPG stable]
     runs-on: ubuntu-24.04
@@ -161,7 +163,7 @@ jobs:
       - name: Install container toolchain
         run: |
           apt-get -y update
-          apt-get -y install curl ca-certificates git gnupg python3 build-essential cmake libbz2-dev zlib1g-dev ${{ matrix.backend.package }}
+          apt-get -y install curl ca-certificates git gnupg python3 sudo build-essential cmake libbz2-dev zlib1g-dev ${{ matrix.backend.package }}
           curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
           apt-get -y install nodejs
 
@@ -170,6 +172,12 @@ jobs:
         with:
           fetch-depth: 1
           submodules: true
+
+      - name: Setup environment
+        run: |
+          groupadd rnpuser
+          useradd -g rnpuser -m rnpuser
+          printf "\nrnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
 
       - name: Configure
         run: |
@@ -187,7 +195,8 @@ jobs:
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
           export PATH="$PWD/build/src/lib:$PATH"
-          ctest --parallel 1 --test-dir build --output-on-failure -E '_slow$'
+          chown -R rnpuser:rnpuser "$PWD" "build/Testing/Temporary"
+          exec su rnpuser -c "ctest --parallel 1 --test-dir build --output-on-failure -E '_slow$'"
 
   # Issue #2347: some code paths can overrun the default stack size.
   # This leg runs the unit tests under a 256 KiB stack so overruns fail
