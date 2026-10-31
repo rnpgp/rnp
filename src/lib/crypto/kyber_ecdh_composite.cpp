@@ -336,7 +336,15 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(
     }
 
     // Compute (eccKeyShare) := eccKem.decap(eccCipherText, eccPrivateKey)
-    pgp_curve_t          curve = pk_alg_to_curve_id(pk_alg_);
+    pgp_curve_t curve = pk_alg_to_curve_id(pk_alg_);
+    /* the composite ciphertext must hold the ECDH ephemeral key share and
+     * the ML-KEM ciphertext, exactly as assembled on the encrypting side */
+    if (enc->composite_ciphertext.size() !=
+        ecdh_curve_ephemeral_size(curve) +
+          kyber_ciphertext_size(pk_alg_to_kyber_id(pk_alg_))) {
+        RNP_LOG("invalid kyber-ecdh composite ciphertext length");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
     std::vector<uint8_t> ecdh_encapsulated_keyshare = std::vector<uint8_t>(
       enc->composite_ciphertext.data(),
       enc->composite_ciphertext.data() + ecdh_curve_ephemeral_size(curve));
@@ -350,11 +358,14 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(
     std::vector<uint8_t> kyber_encapsulated_keyshare = std::vector<uint8_t>(
       enc->composite_ciphertext.begin() + ecdh_curve_ephemeral_size(curve),
       enc->composite_ciphertext.end());
-    kyber_keyshare = kyber_key_->decapsulate(
-      rng, kyber_encapsulated_keyshare.data(), kyber_encapsulated_keyshare.size());
-    if (res) {
+    /* kyber decapsulation reports failures via rnp::rnp_exception; map it to
+     * the error code here, so this method does not throw */
+    try {
+        kyber_keyshare = kyber_key_->decapsulate(
+          rng, kyber_encapsulated_keyshare.data(), kyber_encapsulated_keyshare.size());
+    } catch (const rnp::rnp_exception &e) {
         RNP_LOG("error when decrypting kyber-ecdh encrypted session key");
-        return res;
+        return e.code();
     }
 
     // Compute KEK

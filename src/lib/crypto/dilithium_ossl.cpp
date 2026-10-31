@@ -141,7 +141,9 @@ dilithium_generate_keypair(rnp::RNG *rng, dilithium_parameter_e dilithium_param)
 std::vector<uint8_t>
 pgp_dilithium_private_key_t::sign(rnp::RNG *rng, const uint8_t *msg, size_t msg_len) const
 {
-    assert(is_initialized_);
+    if (!is_initialized_) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
     auto pkey = load_dilithium_privkey(key_encoded_, dilithium_param_);
     if (!pkey) {
         RNP_LOG("failed to load ML-DSA private key: %s", rnp::ossl::latest_err());
@@ -173,7 +175,9 @@ pgp_dilithium_public_key_t::verify_signature(const uint8_t *msg,
                                              const uint8_t *signature,
                                              size_t         signature_len) const
 {
-    assert(is_initialized_);
+    if (!is_initialized_) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
     auto pkey = load_dilithium_pubkey(key_encoded_, dilithium_param_);
     if (!pkey) {
         RNP_LOG("failed to load ML-DSA public key: %s", rnp::ossl::latest_err());

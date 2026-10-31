@@ -139,7 +139,9 @@ kyber_generate_keypair(rnp::RNG *rng, kyber_parameter_e kyber_param)
 kyber_encap_result_t
 pgp_kyber_public_key_t::encapsulate(rnp::RNG *rng) const
 {
-    assert(is_initialized_);
+    if (!is_initialized_) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
     auto pkey = load_mlkem_pubkey(key_encoded_, kyber_mode_);
     if (!pkey) {
         RNP_LOG("failed to load ML-KEM public key: %s", rnp::ossl::latest_err());
@@ -174,7 +176,9 @@ pgp_kyber_private_key_t::decapsulate(rnp::RNG *     rng,
                                      const uint8_t *ciphertext,
                                      size_t         ciphertext_len)
 {
-    assert(is_initialized_);
+    if (!is_initialized_) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
     auto pkey = load_mlkem_privkey(key_encoded_, kyber_mode_);
     if (!pkey) {
         RNP_LOG("failed to load ML-KEM private key: %s", rnp::ossl::latest_err());

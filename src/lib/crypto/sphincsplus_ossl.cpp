@@ -148,7 +148,9 @@ pgp_sphincsplus_private_key_t::sign(rnp::RNG *                   rng,
                                     const uint8_t *              msg,
                                     size_t                       msg_len) const
 {
-    assert(is_initialized_);
+    if (!is_initialized_) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
     auto pkey = load_slhdsa_privkey(key_encoded_, pk_alg_);
     if (!pkey) {
         RNP_LOG("failed to load SLH-DSA private key: %s", rnp::ossl::latest_err());
@@ -179,7 +181,9 @@ pgp_sphincsplus_public_key_t::verify(const pgp_sphincsplus_signature_t *sig,
                                      const uint8_t *                    msg,
                                      size_t                             msg_len) const
 {
-    assert(is_initialized_);
+    if (!is_initialized_) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
     auto pkey = load_slhdsa_pubkey(key_encoded_, pk_alg_);
     if (!pkey) {
         RNP_LOG("failed to load SLH-DSA public key: %s", rnp::ossl::latest_err());
