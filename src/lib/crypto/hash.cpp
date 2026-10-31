@@ -24,7 +24,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #include "hash_botan.hpp"
 #include "logging.h"
 #include <cassert>

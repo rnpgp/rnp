@@ -25,7 +25,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #include "dilithium.h"
 #include <botan/ffi.h>
 #include "botan_utils.hpp"
