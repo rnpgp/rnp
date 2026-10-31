@@ -340,7 +340,8 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(
     /* the composite ciphertext must hold the ECDH ephemeral key share and
      * the ML-KEM ciphertext, exactly as assembled on the encrypting side */
     if (enc->composite_ciphertext.size() !=
-        ecdh_curve_ephemeral_size(curve) + kyber_ciphertext_size(pk_alg_to_kyber_id(pk_alg_))) {
+        ecdh_curve_ephemeral_size(curve) +
+          kyber_ciphertext_size(pk_alg_to_kyber_id(pk_alg_))) {
         RNP_LOG("invalid kyber-ecdh composite ciphertext length");
         return RNP_ERROR_BAD_PARAMETERS;
     }
