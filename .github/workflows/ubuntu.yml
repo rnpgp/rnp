@@ -83,6 +83,19 @@ jobs:
         # containers in centos-and-fedora.yml (RHEL 8 ubi) and debian.yml
         # (Debian 11), both of which ship openssl 1.1 in their distro repos.
 
+          # Ubuntu 26.04 LTS: GA runner image, and the ubuntu-latest target
+          # since the migration completed 2026-11 (actions/runner-images#14748).
+          # 26.04 apt no longer carries botan2, so its Botan leg covers botan3.
+          - os: ubuntu-26.04
+            shared_libs: 'on'
+            backend: { name: 'botan3',   package: 'libbotan-3-dev' }
+            env: { CC: gcc, CXX: g++ }
+
+          - os: ubuntu-26.04
+            shared_libs: 'on'
+            backend: { name: 'openssl',  package: 'libssl-dev' }
+            env: { CC: gcc, CXX: g++ }
+
           # Static-link sanity check
           - os: ubuntu-24.04
             shared_libs: 'off'
