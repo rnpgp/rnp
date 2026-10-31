@@ -116,8 +116,11 @@ sphincsplus_generate_keypair(rnp::RNG *rng, pgp_pubkey_alg_t alg)
     rnp::ossl::evp::PKey pkey(pkey_raw);
 
     size_t pub_len = 0, priv_len = 0;
-    EVP_PKEY_get_raw_public_key(pkey.get(), NULL, &pub_len);
-    EVP_PKEY_get_raw_private_key(pkey.get(), NULL, &priv_len);
+    if (EVP_PKEY_get_raw_public_key(pkey.get(), NULL, &pub_len) <= 0 ||
+        EVP_PKEY_get_raw_private_key(pkey.get(), NULL, &priv_len) <= 0) {
+        RNP_LOG("failed to get SLH-DSA key sizes: %s", rnp::ossl::latest_err());
+        throw rnp::rnp_exception(RNP_ERROR_GENERIC);
+    }
 
     std::vector<uint8_t> pub(pub_len);
     std::vector<uint8_t> priv(priv_len);
