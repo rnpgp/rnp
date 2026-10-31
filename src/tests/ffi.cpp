@@ -6327,12 +6327,8 @@ TEST_F(rnp_tests, test_ffi_security_rule_enumeration)
     /* The FIPS default profile appends 12 Disabled rules (5 symmetric, 3 hash,
      * 4 public-key), see sec_profile.cpp */
     const size_t fips_rules = 12;
-    const size_t fips_symm = 5;
-    const size_t fips_hash_dupes = 2; /* MD5 + SHA1, RIPEMD needs CRYPTO_REFRESH */
 #else
     const size_t fips_rules = 0;
-    const size_t fips_symm = 0;
-    const size_t fips_hash_dupes = 0;
 #endif
     /* 2 SHA1 (data + key) + MD5 + 4 symmetric ciphers + optional RIPEMD */
     assert_int_equal(count, 3 + 4 + add_ripemd + fips_rules);
