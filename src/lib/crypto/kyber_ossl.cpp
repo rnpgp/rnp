@@ -113,7 +113,10 @@ kyber_generate_keypair(rnp::RNG *rng, kyber_parameter_e kyber_param)
     rnp::ossl::evp::PKey pkey(pkey_raw);
 
     size_t pub_len = 0;
-    EVP_PKEY_get_raw_public_key(pkey.get(), NULL, &pub_len);
+    if (EVP_PKEY_get_raw_public_key(pkey.get(), NULL, &pub_len) <= 0) {
+        RNP_LOG("failed to get ML-KEM public key size: %s", rnp::ossl::latest_err());
+        throw rnp::rnp_exception(RNP_ERROR_GENERIC);
+    }
     std::vector<uint8_t> pub(pub_len);
     if (EVP_PKEY_get_raw_public_key(pkey.get(), pub.data(), &pub_len) <= 0) {
         RNP_LOG("failed to get ML-KEM public key: %s", rnp::ossl::latest_err());
