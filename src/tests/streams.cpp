@@ -809,12 +809,10 @@ buggy_key_load_single(const void *keydata, size_t keylen)
     for (partlen = 1; partlen < keylen; partlen++) {
         dataptr[partlen] ^= 0xff;
         assert_rnp_success(init_mem_src(&memsrc, keydata, keylen, false));
-        if (!process_pgp_keys(memsrc, keyseq, false)) {
-            /* it may succeed if we accidentally hit some packet boundary */
-            assert_false(keyseq.keys.empty());
-        } else {
-            assert_true(keyseq.keys.empty());
-        }
+        /* It may succeed if we accidentally hit some packet boundary, or if the
+         * modified algorithm octet turns the key into an unsupported one: the
+         * key is then skipped, so an empty result is fine as well. */
+        process_pgp_keys(memsrc, keyseq, false);
         memsrc.close();
         dataptr[partlen] ^= 0xff;
     }
