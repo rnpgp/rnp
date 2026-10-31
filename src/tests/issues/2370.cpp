@@ -61,8 +61,7 @@ TEST_F(rnp_tests, test_ffi_key_load_unsupported_algorithm)
     rnp_output_t output = NULL;
     assert_rnp_success(rnp_output_to_memory(&output, 0));
     char *results = NULL;
-    assert_rnp_success(
-      rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, &results));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, &results));
     rnp_buffer_destroy(results);
     results = NULL;
     rnp_input_destroy(input);
@@ -75,8 +74,7 @@ TEST_F(rnp_tests, test_ffi_key_load_unsupported_algorithm)
     assert_rnp_success(rnp_input_from_memory(&input, alice.data(), alice.size(), false));
     output = NULL;
     assert_rnp_success(rnp_output_to_memory(&output, 0));
-    assert_rnp_success(
-      rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, &results));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, &results));
     rnp_buffer_destroy(results);
     results = NULL;
     rnp_input_destroy(input);
