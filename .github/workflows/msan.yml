@@ -1,0 +1,134 @@
+name: msan
+
+# MemorySanitizer leg: covers the uninitialized-memory error class, which the
+# ASan/UBSan/LSan builds do not detect. MSan requires every linked C++ component
+# to be instrumented, so this job builds an MSan-instrumented libc++ and Botan
+# first, then librnp and the test suite against them (Botan backend only, to
+# keep the number of instrumented dependencies manageable).
+#
+# Runs on a weekly schedule and on demand only, so it does not add load to
+# per-PR CI. It also runs on pull requests that touch this file, so workflow
+# changes are validated before they land.
+
+on:
+  schedule:
+    # Mondays 03:23 UTC
+    - cron: '23 3 * * 1'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/msan.yml'
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  msan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      CC: clang
+      CXX: clang++
+      BOTAN_VERSION: 3.13.0
+      LLVM_VERSION: 18.1.8
+      MSAN_PREFIX: /usr/local/msan
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install cmake ninja-build clang python3
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+
+      - name: Build MSan libc++
+        run: |
+          git clone --depth 1 --branch "llvmorg-${LLVM_VERSION}" \
+            https://github.com/llvm/llvm-project.git /tmp/llvm-project
+          cmake -G Ninja \
+            -S /tmp/llvm-project/runtimes -B /tmp/libcxx-msan-build \
+            -DLLVM_ENABLE_RUNTIMES='libcxx;libcxxabi' \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="${MSAN_PREFIX}" \
+            -DLLVM_USE_SANITIZER=MemoryWithOrigins \
+            -DLIBCXX_ENABLE_SHARED=OFF \
+            -DLIBCXX_INSTALL_HEADERS=ON
+          cmake --build /tmp/libcxx-msan-build
+          sudo cmake --install /tmp/libcxx-msan-build
+
+      - name: Build MSan zlib and bzip2
+        run: |
+          # rnp links zlib (required) and bzip2 (auto); both must be
+          # instrumented, since data written by uninstrumented libraries
+          # stays poisoned under MSan.
+          curl -fsSLO "https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz"
+          tar xf "zlib-1.3.1.tar.gz"
+          cd "zlib-1.3.1"
+          CFLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer" \
+            ./configure --static --prefix="${MSAN_PREFIX}"
+          make -j"${CORES}"
+          sudo make install
+          cd ..
+          curl -fsSLO "https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz"
+          tar xf "bzip2-1.0.8.tar.gz"
+          cd "bzip2-1.0.8"
+          make -j"${CORES}" CFLAGS="-w -O2 -fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer" libbz2.a bzip2
+          sudo make install PREFIX="${MSAN_PREFIX}"
+
+      - name: Build MSan Botan
+        run: |
+          curl -fsSLO "https://botan.randombit.net/releases/Botan-${BOTAN_VERSION}.tar.xz"
+          tar xf "Botan-${BOTAN_VERSION}.tar.xz"
+          cd "Botan-${BOTAN_VERSION}"
+          # rnp does its own compression, so Botan's zlib/bzip2 modules are
+          # disabled to keep every linked component instrumented.
+          python3 configure.py \
+            --prefix=/usr/local \
+            --without-documentation \
+            --disable-shared \
+            --disable-modules=zlib,bzip2 \
+            --cc=clang \
+            --cxx-flags="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -nostdinc++ -isystem ${MSAN_PREFIX}/include/c++/v1" \
+            --ldflags="-L${MSAN_PREFIX}/lib -L${MSAN_PREFIX}/lib/x86_64-unknown-linux-gnu -fsanitize=memory"
+          make -j"${CORES}"
+          sudo make install
+
+      - name: Configure
+        run: |
+          MSAN_CXXFLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -nostdinc++ -isystem ${MSAN_PREFIX}/include/c++/v1"
+          MSAN_LDFLAGS="-fsanitize=memory -L${MSAN_PREFIX}/lib -L${MSAN_PREFIX}/lib/x86_64-unknown-linux-gnu -stdlib=libc++"
+          cmake -B build \
+                -DCRYPTO_BACKEND=botan \
+                -DENABLE_CRYPTO_REFRESH=ON \
+                -DENABLE_PQC=ON \
+                -DBUILD_SHARED_LIBS=OFF \
+                -DBUILD_TESTING=ON \
+                -DZLIB_ROOT="${MSAN_PREFIX}" \
+                -DZLIB_USE_STATIC_LIBS=ON \
+                -DBZIP2_ROOT="${MSAN_PREFIX}" \
+                -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+                -DCMAKE_C_FLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer" \
+                -DCMAKE_CXX_FLAGS="${MSAN_CXXFLAGS}" \
+                -DCMAKE_EXE_LINKER_FLAGS="${MSAN_LDFLAGS}" \
+                -DCMAKE_SHARED_LINKER_FLAGS="${MSAN_LDFLAGS}" \
+                -GNinja .
+
+      - name: Build tests
+        run: |
+          cmake --build build --parallel "${CORES}" --target rnp_tests
+
+      - name: Run tests
+        run: |
+          set -o pipefail
+          # Exclude the slow oss-fuzz timeout-regression drivers; everything
+          # else in rnp_tests runs against the instrumented library.
+          ctest --test-dir build -R 'rnp_tests.test_' -E '_slow|timeout' \
+            --output-on-failure | tee msan-tests.log
