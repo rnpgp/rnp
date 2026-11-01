@@ -1960,6 +1960,32 @@ class Keystore(unittest.TestCase):
         self.assertRegex(out, RE_MULTIPLE_SUBKEY_3, KEY_LIST_WRONG)
         clear_keyrings()
 
+    def test_edit_key_add_subkey_v6(self):
+        '''
+        Generate v6 key (primary + initial subkey) via the expert mode, then
+        add one more subkey through the --edit-key --add-subkey flow.
+        RFC 9580, 10.1.1: every subkey of a v6 primary key must be a v6 subkey.
+        '''
+        if not RNP_CRYPTO_REFRESH:
+            self.skipTest('No crypto-refresh support')
+        clear_keyrings()
+        # Generate v6 primary with the initial subkey
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--password', PASSWORD,
+                                    '--userid', 'v6_add_subkey@rnp', '--expert', '--generate-key'],
+                             '23\n')
+        self.assertEqual(ret, 0, KEY_GEN_FAILED)
+        # Add another subkey with default parameters
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--password', PASSWORD,
+                                    '--edit-key', '--add-subkey', 'v6_add_subkey@rnp'])
+        self.assertEqual(ret, 0, 'Failed to add new subkey')
+        # Both secret subkeys must be v6 packets
+        params = ['--homedir', RNPDIR, '--list-packets', os.path.join(RNPDIR, SECRING)]
+        ret, out, _ = run_proc(RNP, params)
+        self.assertEqual(ret, 0, 'Failed to list packets')
+        versions = re.findall(r'Secret subkey packet\n\s*version: (\d+)', out)
+        self.assertEqual(versions, ['6', '6'], 'Subkeys of a v6 primary must be v6')
+        clear_keyrings()
+
     def test_expert_mode_no_endless_loop(self):
         TOO_MANY=r'(?s)Too many attempts. Aborting.'
         UID='noendlessloop@rnp'
