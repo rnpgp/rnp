@@ -25,7 +25,6 @@
  */
 
 #include <string.h>
-#include <cassert>
 #include "crypto/signatures.h"
 #include "librepgp/stream-packet.h"
 #include "librepgp/stream-sig.h"
@@ -190,9 +189,14 @@ signature_validate(const pgp::pkt::Signature & sig,
     bool lbits_ok = !memcmp(hval.data(), sig.lbits.data(), sig.lbits.size());
 
     /* validate signature */
-    /* We check whether material could be parsed during the signature parsing */
+    /* Signature material parsing was checked during the signature parsing,
+     * but the signature could also be constructed in-process */
     auto material = sig.parse_material();
-    assert(material);
+    if (!material) {
+        RNP_LOG("failed to parse signature material.");
+        res.add_error(RNP_ERROR_BAD_FORMAT);
+        return res;
+    }
     auto ret = key.verify(ctx, *material, hval);
     /* RFC 9580, 5.2.4: v6 signatures with wrong left 16 bits MUST be rejected. For older
      * versions behaviour is not defined, and some real-world keys have broken lbits
