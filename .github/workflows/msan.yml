@@ -98,7 +98,7 @@ jobs:
             --disable-shared \
             --disable-modules=zlib,bzip2 \
             --cc=clang \
-            --cxx-flags="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -nostdinc++ -isystem ${MSAN_PREFIX}/include/c++/v1" \
+            --cxxflags="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -nostdinc++ -isystem ${MSAN_PREFIX}/include/c++/v1" \
             --ldflags="-L${MSAN_PREFIX}/lib -L${MSAN_PREFIX}/lib/x86_64-unknown-linux-gnu -fsanitize=memory"
           make -j"${CORES}"
           sudo make install
