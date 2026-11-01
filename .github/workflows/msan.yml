@@ -55,11 +55,13 @@ jobs:
             https://github.com/llvm/llvm-project.git /tmp/llvm-project
           cmake -G Ninja \
             -S /tmp/llvm-project/runtimes -B /tmp/libcxx-msan-build \
-            -DLLVM_ENABLE_RUNTIMES='libcxx;libcxxabi' \
+            -DLLVM_ENABLE_RUNTIMES='libcxx;libcxxabi;libunwind' \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX="${MSAN_PREFIX}" \
             -DLLVM_USE_SANITIZER=MemoryWithOrigins \
             -DLIBCXX_ENABLE_SHARED=OFF \
+            -DLIBCXXABI_ENABLE_SHARED=OFF \
+            -DLIBUNWIND_ENABLE_SHARED=OFF \
             -DLIBCXX_INSTALL_HEADERS=ON
           cmake --build /tmp/libcxx-msan-build
           sudo cmake --install /tmp/libcxx-msan-build
