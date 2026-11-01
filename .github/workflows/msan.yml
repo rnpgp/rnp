@@ -82,7 +82,7 @@ jobs:
           curl -fsSLO "https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz"
           tar xf "bzip2-1.0.8.tar.gz"
           cd "bzip2-1.0.8"
-          make -j"${CORES}" CFLAGS="-w -O2 -fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer" libbz2.a bzip2
+          make -j"${CORES}" CC=clang CFLAGS="-w -O2 -fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer" libbz2.a bzip2
           sudo make install PREFIX="${MSAN_PREFIX}"
 
       - name: Build MSan Botan
