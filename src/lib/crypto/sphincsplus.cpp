@@ -88,7 +88,9 @@ pgp_sphincsplus_private_key_t::sign(rnp::RNG *                   rng,
                                     const uint8_t *              msg,
                                     size_t                       msg_len) const
 {
-    assert(is_initialized_);
+    if (!is_initialized_) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
     rnp::botan::Privkey priv_key;
     if (botan_privkey_load_slh_dsa(&priv_key.get(),
                                    key_encoded_.data(),
@@ -121,7 +123,9 @@ pgp_sphincsplus_public_key_t::verify(const pgp_sphincsplus_signature_t *sig,
                                      const uint8_t *                    msg,
                                      size_t                             msg_len) const
 {
-    assert(is_initialized_);
+    if (!is_initialized_) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
     rnp::botan::Pubkey pub_key;
     if (botan_pubkey_load_slh_dsa(&pub_key.get(),
                                   key_encoded_.data(),
