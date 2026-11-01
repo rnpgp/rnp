@@ -25,7 +25,6 @@
  */
 
 #include <string.h>
-#include <cassert>
 #include "crypto/signatures.h"
 #include "librepgp/stream-packet.h"
 #include "librepgp/stream-sig.h"
@@ -187,9 +186,14 @@ signature_validate(const pgp::pkt::Signature & sig,
     }
 
     /* validate signature */
-    /* We check whether material could be parsed during the signature parsing */
+    /* Signature material parsing was checked during the signature parsing,
+     * but the signature could also be constructed in-process */
     auto material = sig.parse_material();
-    assert(material);
+    if (!material) {
+        RNP_LOG("failed to parse signature material.");
+        res.add_error(RNP_ERROR_BAD_FORMAT);
+        return res;
+    }
     auto ret = key.verify(ctx, *material, hval);
     if (ret) {
         res.add_error(ret);
