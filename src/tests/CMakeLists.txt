@@ -102,6 +102,7 @@ set(RNP_TEST_SOURCES
   ../fuzzing/dump.c
   ../fuzzing/verify_detached.c
   ../fuzzing/verify.c
+  ../fuzzing/ffi_ops.c
   cipher.cpp
   cipher_cxx.cpp
   cli.cpp
@@ -158,6 +159,7 @@ set(RNP_TEST_SOURCES
   fuzz_dump.cpp
   fuzz_verify_detached.cpp
   fuzz_verify.cpp
+  fuzz_ffi_ops.cpp
   )
 
 if(ENABLE_CRYPTO_REFRESH)
