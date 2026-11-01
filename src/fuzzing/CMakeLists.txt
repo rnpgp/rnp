@@ -117,6 +117,19 @@ target_link_libraries(fuzz_verify_detached
     librnp
 )
 
+add_executable(fuzz_ffi_ops ffi_ops.c)
+
+target_include_directories(fuzz_ffi_ops
+  PRIVATE
+    "${PROJECT_SOURCE_DIR}/src"
+    "${PROJECT_SOURCE_DIR}/src/lib"
+)
+
+target_link_libraries(fuzz_ffi_ops
+  PRIVATE
+    librnp
+)
+
 add_executable(fuzz_keyring_kbx keyring_kbx.c)
 
 target_include_directories(fuzz_keyring_kbx
@@ -156,7 +169,7 @@ if (CRYPTO_BACKEND STREQUAL "botan")
 endif ()
 
 if (ENABLE_SANITIZERS)
-  foreach(tgt fuzz_dump fuzz_keyring fuzz_keyimport fuzz_sigimport fuzz_verify fuzz_verify_detached fuzz_keyring_kbx fuzz_keyring_g10)
+  foreach(tgt fuzz_dump fuzz_keyring fuzz_keyimport fuzz_sigimport fuzz_verify fuzz_verify_detached fuzz_ffi_ops fuzz_keyring_kbx fuzz_keyring_g10)
     set_target_properties(${tgt} PROPERTIES LINKER_LANGUAGE CXX)
   endforeach()
 endif()
