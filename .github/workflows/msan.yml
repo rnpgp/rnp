@@ -79,7 +79,7 @@ jobs:
           curl -fsSLO "https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz"
           tar xf "zlib-1.3.1.tar.gz"
           cd "zlib-1.3.1"
-          CFLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer" \
+          CFLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fsanitize-recover=memory -fno-omit-frame-pointer" \
             ./configure --static --prefix="${MSAN_PREFIX}"
           make -j"${CORES}"
           sudo make install
@@ -87,7 +87,7 @@ jobs:
           curl -fsSLO "https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz"
           tar xf "bzip2-1.0.8.tar.gz"
           cd "bzip2-1.0.8"
-          make -j"${CORES}" CC=clang CFLAGS="-w -O2 -fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer" libbz2.a bzip2
+          make -j"${CORES}" CC=clang CFLAGS="-w -O2 -fsanitize=memory -fsanitize-memory-track-origins=2 -fsanitize-recover=memory -fno-omit-frame-pointer" libbz2.a bzip2
           sudo make install PREFIX="${MSAN_PREFIX}"
 
       - name: Build MSan Botan
@@ -103,14 +103,14 @@ jobs:
             --disable-shared \
             --disable-modules=zlib,bzip2 \
             --cc=clang \
-            --cxxflags="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -nostdinc++ -isystem ${MSAN_PREFIX}/include/c++/v1" \
+            --cxxflags="-fsanitize=memory -fsanitize-memory-track-origins=2 -fsanitize-recover=memory -fno-omit-frame-pointer -nostdinc++ -isystem ${MSAN_PREFIX}/include/c++/v1" \
             --ldflags="-L${MSAN_PREFIX}/lib -L${MSAN_PREFIX}/lib/x86_64-unknown-linux-gnu -fsanitize=memory -stdlib=libc++ -lc++abi"
           make -j"${CORES}"
           sudo make install
 
       - name: Configure
         run: |
-          MSAN_CXXFLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -nostdinc++ -isystem ${MSAN_PREFIX}/include/c++/v1"
+          MSAN_CXXFLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fsanitize-recover=memory -fno-omit-frame-pointer -nostdinc++ -isystem ${MSAN_PREFIX}/include/c++/v1"
           MSAN_LDFLAGS="-fsanitize=memory -L${MSAN_PREFIX}/lib -L${MSAN_PREFIX}/lib/x86_64-unknown-linux-gnu -stdlib=libc++ -lc++abi"
           cmake -B build \
                 -DCRYPTO_BACKEND=botan \
@@ -122,7 +122,7 @@ jobs:
                 -DZLIB_USE_STATIC_LIBS=ON \
                 -DBZIP2_ROOT="${MSAN_PREFIX}" \
                 -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-                -DCMAKE_C_FLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer" \
+                -DCMAKE_C_FLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fsanitize-recover=memory -fno-omit-frame-pointer" \
                 -DCMAKE_CXX_FLAGS="${MSAN_CXXFLAGS}" \
                 -DCMAKE_EXE_LINKER_FLAGS="${MSAN_LDFLAGS}" \
                 -DCMAKE_SHARED_LINKER_FLAGS="${MSAN_LDFLAGS}" \
@@ -147,10 +147,12 @@ jobs:
           # test_dsa_roundtrip are excluded: both ran clean under MSan but
           # take 30-50 minutes each with origin tracking, which does not fit
           # the scheduled budget.
-          MSAN_OPTIONS=halt_on_error=0 \
-            ctest --test-dir build -R 'rnp_tests.test_' \
+          # ctest may exit non-zero when tests abort; the scan below is the
+          # pass/fail gate for this step.
+          export MSAN_OPTIONS=halt_on_error=0
+          (ctest --test-dir build -R 'rnp_tests.test_' \
             -E '_slow|timeout|validate_key_material|dsa_roundtrip' \
-            -V --output-on-failure | tee msan-tests.log
+            -V --output-on-failure | tee msan-tests.log || true)
           python3 - <<'EOF'
           import re
           log = open('msan-tests.log', errors='replace').read()
