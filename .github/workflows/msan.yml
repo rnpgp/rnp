@@ -79,7 +79,7 @@ jobs:
           curl -fsSLO "https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz"
           tar xf "zlib-1.3.1.tar.gz"
           cd "zlib-1.3.1"
-          CFLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fsanitize-recover=memory -fno-omit-frame-pointer" \
+          CFLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer" \
             ./configure --static --prefix="${MSAN_PREFIX}"
           make -j"${CORES}"
           sudo make install
@@ -87,7 +87,7 @@ jobs:
           curl -fsSLO "https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz"
           tar xf "bzip2-1.0.8.tar.gz"
           cd "bzip2-1.0.8"
-          make -j"${CORES}" CC=clang CFLAGS="-w -O2 -fsanitize=memory -fsanitize-memory-track-origins=2 -fsanitize-recover=memory -fno-omit-frame-pointer" libbz2.a bzip2
+          make -j"${CORES}" CC=clang CFLAGS="-w -O2 -fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer" libbz2.a bzip2
           sudo make install PREFIX="${MSAN_PREFIX}"
 
       - name: Build MSan Botan
@@ -103,14 +103,14 @@ jobs:
             --disable-shared \
             --disable-modules=zlib,bzip2 \
             --cc=clang \
-            --cxxflags="-fsanitize=memory -fsanitize-memory-track-origins=2 -fsanitize-recover=memory -fno-omit-frame-pointer -nostdinc++ -isystem ${MSAN_PREFIX}/include/c++/v1" \
+            --cxxflags="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -nostdinc++ -isystem ${MSAN_PREFIX}/include/c++/v1" \
             --ldflags="-L${MSAN_PREFIX}/lib -L${MSAN_PREFIX}/lib/x86_64-unknown-linux-gnu -fsanitize=memory -stdlib=libc++ -lc++abi"
           make -j"${CORES}"
           sudo make install
 
       - name: Configure
         run: |
-          MSAN_CXXFLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fsanitize-recover=memory -fno-omit-frame-pointer -nostdinc++ -isystem ${MSAN_PREFIX}/include/c++/v1"
+          MSAN_CXXFLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -nostdinc++ -isystem ${MSAN_PREFIX}/include/c++/v1"
           MSAN_LDFLAGS="-fsanitize=memory -L${MSAN_PREFIX}/lib -L${MSAN_PREFIX}/lib/x86_64-unknown-linux-gnu -stdlib=libc++ -lc++abi"
           cmake -B build \
                 -DCRYPTO_BACKEND=botan \
@@ -122,7 +122,7 @@ jobs:
                 -DZLIB_USE_STATIC_LIBS=ON \
                 -DBZIP2_ROOT="${MSAN_PREFIX}" \
                 -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-                -DCMAKE_C_FLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fsanitize-recover=memory -fno-omit-frame-pointer" \
+                -DCMAKE_C_FLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer" \
                 -DCMAKE_CXX_FLAGS="${MSAN_CXXFLAGS}" \
                 -DCMAKE_EXE_LINKER_FLAGS="${MSAN_LDFLAGS}" \
                 -DCMAKE_SHARED_LINKER_FLAGS="${MSAN_LDFLAGS}" \
@@ -135,12 +135,14 @@ jobs:
       - name: Run tests
         run: |
           set -o pipefail
-          # MSan reports do not abort the process (halt_on_error=0), so one
-          # known third-party finding does not mask the rest of the run: the
-          # Botan 3.13.0 secp521r1 precomputed mul-table construction reads
-          # the padding of the 521-bit (word-unaligned) representation during
-          # static initialization. Every test process first-touching P-521
-          # triggers it. The step fails below on any NEW report.
+          # One known third-party finding (randombit/botan#6086): the Botan
+          # 3.13.0 secp521r1 BEEA inversion reads uninitialized word padding
+          # during base-mul table construction, aborting every test process
+          # that first touches P-521 (~20 tests). Recoverable checks are not
+          # an option: the report sits inside a loop and under
+          # halt_on_error=0 prints continuously (hundreds of MB of log per run), so
+          # tests abort, ctest exits non-zero, and the scan below is the
+          # pass/fail gate for this step: it fails only on NEW reports.
           #
           # Verbose output is required so that reports from passing tests
           # land in the log for the scan. test_validate_key_material and
@@ -149,7 +151,6 @@ jobs:
           # the scheduled budget.
           # ctest may exit non-zero when tests abort; the scan below is the
           # pass/fail gate for this step.
-          export MSAN_OPTIONS=halt_on_error=0
           (ctest --test-dir build -R 'rnp_tests.test_' \
             -E '_slow|timeout|validate_key_material|dsa_roundtrip' \
             -V --output-on-failure | tee msan-tests.log || true)
@@ -165,81 +166,3 @@ jobs:
           if new:
               raise SystemExit(1)
           EOF
-
-  # TEMPORARY validation job: minimal Botan-only reproducer for the secp521r1
-  # MSan report on x86-64, built with Botan's own sanitizer mode, to confirm
-  # whether the report belongs to Botan or to the embedding build. Remove once
-  # the question is settled.
-  botan-repro:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 90
-    env:
-      CC: clang
-      CXX: clang++
-      BOTAN_VERSION: 3.13.0
-      LLVM_VERSION: 18.1.8
-      MSAN_PREFIX: /usr/local/msan
-    steps:
-      - name: Install dependencies
-        run: |
-          sudo apt-get -y update
-          sudo apt-get -y install cmake ninja-build clang python3 curl xz-utils
-          echo CORES="$(nproc --all)" >> $GITHUB_ENV
-
-      - name: Build MSan libc++
-        run: |
-          git clone --depth 1 --branch "llvmorg-${LLVM_VERSION}" \
-            https://github.com/llvm/llvm-project.git /tmp/llvm-project
-          cmake -G Ninja \
-            -S /tmp/llvm-project/runtimes -B /tmp/libcxx-msan-build \
-            -DLLVM_ENABLE_RUNTIMES='libcxx;libcxxabi;libunwind' \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX="${MSAN_PREFIX}" \
-            -DLLVM_USE_SANITIZER=MemoryWithOrigins \
-            -DLIBCXX_ENABLE_SHARED=OFF \
-            -DLIBCXXABI_ENABLE_SHARED=OFF \
-            -DLIBUNWIND_ENABLE_SHARED=OFF \
-            -DLIBCXX_STATICALLY_LINK_ABI_IN_STATIC_LIBRARY=ON
-          cmake --build /tmp/libcxx-msan-build
-          sudo cmake --install /tmp/libcxx-msan-build
-
-      - name: Build MSan Botan (own sanitizer mode)
-        run: |
-          curl -fsSLO "https://botan.randombit.net/releases/Botan-${BOTAN_VERSION}.tar.xz"
-          tar xf "Botan-${BOTAN_VERSION}.tar.xz"
-          cd "Botan-${BOTAN_VERSION}"
-          python3 configure.py \
-            --prefix=/usr/local/botan-msan \
-            --without-documentation \
-            --disable-shared \
-            --cc=clang \
-            --enable-sanitizers=memory \
-            --cxxflags="-fno-omit-frame-pointer -g -nostdinc++ -isystem ${MSAN_PREFIX}/include/c++/v1" \
-            --ldflags="-L${MSAN_PREFIX}/lib -fsanitize=memory -stdlib=libc++ -lc++abi"
-          make -j"${CORES}" libs
-
-      - name: Run minimal P-521 driver
-        run: |
-          cat > driver.c <<'EOF'
-          #include <botan/ffi.h>
-          #include <stdio.h>
-          int main(void) {
-              botan_rng_t rng;
-              botan_privkey_t key;
-              if (botan_rng_init(&rng, "system") != 0) { printf("rng fail\n"); return 2; }
-              int rc = botan_privkey_create_ecdsa(&key, rng, "secp521r1");
-              printf("create_ecdsa(secp521r1) rc=%d\n", rc);
-              botan_privkey_destroy(key);
-              botan_rng_destroy(rng);
-              return rc == 0 ? 0 : 3;
-          }
-          EOF
-          clang -fsanitize=memory -fno-omit-frame-pointer -g \
-            -I "Botan-${BOTAN_VERSION}/build/include/public" \
-            -I "Botan-${BOTAN_VERSION}/build/include/internal" \
-            driver.c "Botan-${BOTAN_VERSION}/libbotan-3.a" \
-            "${MSAN_PREFIX}/lib/libc++.a" "${MSAN_PREFIX}/lib/libc++abi.a" \
-            -fsanitize=memory -o driver
-          echo "===== RUN Botan ${BOTAN_VERSION} x86-64, own sanitizer mode ====="
-          ./driver
-          echo "DRIVER_EXIT=$?"
