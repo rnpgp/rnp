@@ -6,6 +6,10 @@ name: msan
 # first, then librnp and the test suite against them (Botan backend only, to
 # keep the number of instrumented dependencies manageable).
 #
+# Reports are collected with halt_on_error=0 and the step fails on any new
+# finding; one known third-party report (Botan's secp521r1 table construction,
+# see the Run tests step) is tolerated until Botan fixes it.
+#
 # Runs on a weekly schedule and on demand only, so it does not add load to
 # per-PR CI. It also runs on pull requests that touch this file, so workflow
 # changes are validated before they land.
@@ -29,7 +33,7 @@ permissions:
 jobs:
   msan:
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 300
     env:
       CC: clang
       CXX: clang++
@@ -126,12 +130,36 @@ jobs:
 
       - name: Build tests
         run: |
-          cmake --build build --parallel "${CORES}" --target rnp_tests
+          cmake --build build --parallel "${CORES}" --target rnp_tests generate encrypt decrypt sign verify dump
 
       - name: Run tests
         run: |
           set -o pipefail
-          # Exclude the slow oss-fuzz timeout-regression drivers; everything
-          # else in rnp_tests runs against the instrumented library.
-          ctest --test-dir build -R 'rnp_tests.test_' -E '_slow|timeout' \
-            --output-on-failure | tee msan-tests.log
+          # MSan reports do not abort the process (halt_on_error=0), so one
+          # known third-party finding does not mask the rest of the run: the
+          # Botan 3.13.0 secp521r1 precomputed mul-table construction reads
+          # the padding of the 521-bit (word-unaligned) representation during
+          # static initialization. Every test process first-touching P-521
+          # triggers it. The step fails below on any NEW report.
+          #
+          # Verbose output is required so that reports from passing tests
+          # land in the log for the scan. test_validate_key_material and
+          # test_dsa_roundtrip are excluded: both ran clean under MSan but
+          # take 30-50 minutes each with origin tracking, which does not fit
+          # the scheduled budget.
+          MSAN_OPTIONS=halt_on_error=0 \
+            ctest --test-dir build -R 'rnp_tests.test_' \
+            -E '_slow|timeout|validate_key_material|dsa_roundtrip' \
+            -V --output-on-failure | tee msan-tests.log
+          python3 - <<'EOF'
+          import re
+          log = open('msan-tests.log', errors='replace').read()
+          reports = re.findall(r'WARNING: MemorySanitizer.*?\n(.*?\n.*?\n)', log)
+          known = 'secp521r1'
+          new = [r for r in reports if known not in r]
+          print(f'MemorySanitizer reports: {len(reports)} total, {len(new)} new')
+          for r in new:
+              print(r)
+          if new:
+              raise SystemExit(1)
+          EOF
