@@ -165,3 +165,81 @@ jobs:
           if new:
               raise SystemExit(1)
           EOF
+
+  # TEMPORARY validation job: minimal Botan-only reproducer for the secp521r1
+  # MSan report on x86-64, built with Botan's own sanitizer mode, to confirm
+  # whether the report belongs to Botan or to the embedding build. Remove once
+  # the question is settled.
+  botan-repro:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      CC: clang
+      CXX: clang++
+      BOTAN_VERSION: 3.13.0
+      LLVM_VERSION: 18.1.8
+      MSAN_PREFIX: /usr/local/msan
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install cmake ninja-build clang python3 curl xz-utils
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+
+      - name: Build MSan libc++
+        run: |
+          git clone --depth 1 --branch "llvmorg-${LLVM_VERSION}" \
+            https://github.com/llvm/llvm-project.git /tmp/llvm-project
+          cmake -G Ninja \
+            -S /tmp/llvm-project/runtimes -B /tmp/libcxx-msan-build \
+            -DLLVM_ENABLE_RUNTIMES='libcxx;libcxxabi;libunwind' \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="${MSAN_PREFIX}" \
+            -DLLVM_USE_SANITIZER=MemoryWithOrigins \
+            -DLIBCXX_ENABLE_SHARED=OFF \
+            -DLIBCXXABI_ENABLE_SHARED=OFF \
+            -DLIBUNWIND_ENABLE_SHARED=OFF \
+            -DLIBCXX_STATICALLY_LINK_ABI_IN_STATIC_LIBRARY=ON
+          cmake --build /tmp/libcxx-msan-build
+          sudo cmake --install /tmp/libcxx-msan-build
+
+      - name: Build MSan Botan (own sanitizer mode)
+        run: |
+          curl -fsSLO "https://botan.randombit.net/releases/Botan-${BOTAN_VERSION}.tar.xz"
+          tar xf "Botan-${BOTAN_VERSION}.tar.xz"
+          cd "Botan-${BOTAN_VERSION}"
+          python3 configure.py \
+            --prefix=/usr/local/botan-msan \
+            --without-documentation \
+            --disable-shared \
+            --cc=clang \
+            --enable-sanitizers=memory \
+            --cxxflags="-fno-omit-frame-pointer -g -nostdinc++ -isystem ${MSAN_PREFIX}/include/c++/v1" \
+            --ldflags="-L${MSAN_PREFIX}/lib -fsanitize=memory -stdlib=libc++ -lc++abi"
+          make -j"${CORES}" libs
+
+      - name: Run minimal P-521 driver
+        run: |
+          cat > driver.c <<'EOF'
+          #include <botan/ffi.h>
+          #include <stdio.h>
+          int main(void) {
+              botan_rng_t rng;
+              botan_privkey_t key;
+              if (botan_rng_init(&rng, "system") != 0) { printf("rng fail\n"); return 2; }
+              int rc = botan_privkey_create_ecdsa(&key, rng, "secp521r1");
+              printf("create_ecdsa(secp521r1) rc=%d\n", rc);
+              botan_privkey_destroy(key);
+              botan_rng_destroy(rng);
+              return rc == 0 ? 0 : 3;
+          }
+          EOF
+          clang -fsanitize=memory -fno-omit-frame-pointer -g \
+            -I "Botan-${BOTAN_VERSION}/build/include/public" \
+            -I "Botan-${BOTAN_VERSION}/build/include/internal" \
+            driver.c "Botan-${BOTAN_VERSION}/libbotan-3.a" \
+            "${MSAN_PREFIX}/lib/libc++.a" "${MSAN_PREFIX}/lib/libc++abi.a" \
+            -fsanitize=memory -o driver
+          echo "===== RUN Botan ${BOTAN_VERSION} x86-64, own sanitizer mode ====="
+          ./driver
+          echo "DRIVER_EXIT=$?"
