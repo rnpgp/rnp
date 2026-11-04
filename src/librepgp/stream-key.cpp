@@ -80,6 +80,15 @@ skip_pgp_packets(pgp_source_t &src, const std::set<pgp_pkt_type_t> &pkts)
     return true;
 }
 
+bool
+error_skippable(rnp_result_t ret, bool skiperrors) noexcept
+{
+    if (ret == RNP_ERROR_NOT_SUPPORTED) {
+        return true;
+    }
+    return skiperrors && (ret == RNP_ERROR_BAD_FORMAT);
+}
+
 static rnp_result_t
 process_pgp_key_signatures(pgp_source_t &src, pgp::pkt::Signatures &sigs, bool skiperrors)
 {
@@ -250,8 +259,7 @@ process_pgp_keys(pgp_source_t &src, pgp_key_sequence_t &keys, bool skiperrors)
         /* Attempt to read the next key */
         pgp_transferable_key_t curkey;
         rnp_result_t ret = process_pgp_key_auto(armor.src(), curkey, false, skiperrors);
-        if (ret && (ret != RNP_ERROR_NOT_SUPPORTED) &&
-            (!skiperrors || (ret != RNP_ERROR_BAD_FORMAT))) {
+        if (ret && !error_skippable(ret, skiperrors)) {
             keys.keys.clear();
             return ret;
         }

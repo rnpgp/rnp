@@ -102,8 +102,7 @@ KeyStore::load_pgp_key(pgp_source_t &src, bool skiperrors)
     pgp_transferable_key_t key;
     rnp_result_t           ret = process_pgp_key_auto(src, key, true, skiperrors);
 
-    if (ret && (ret != RNP_ERROR_NOT_SUPPORTED) &&
-        (!skiperrors || (ret != RNP_ERROR_BAD_FORMAT))) {
+    if (ret && !error_skippable(ret, skiperrors)) {
         return ret;
     }
 
