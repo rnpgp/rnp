@@ -166,3 +166,97 @@ jobs:
           if new:
               raise SystemExit(1)
           EOF
+
+  # TEMPORARY debug job: full MSan stack + rnp_tests, running
+  # test_stream_signatures with -g and origin tracking to pin the
+  # uninitialized bytes fed into the signature hash (see audit note
+  # F18). Remove once the finding is fixed.
+  f18-debug:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      CC: clang
+      CXX: clang++
+      BOTAN_VERSION: 3.13.0
+      LLVM_VERSION: 18.1.8
+      MSAN_PREFIX: /usr/local/msan
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install cmake ninja-build clang python3 curl xz-utils
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+
+      - name: Build MSan libc++
+        run: |
+          git clone --depth 1 --branch "llvmorg-${LLVM_VERSION}" \
+            https://github.com/llvm/llvm-project.git /tmp/llvm-project
+          cmake -G Ninja \
+            -S /tmp/llvm-project/runtimes -B /tmp/libcxx-msan-build \
+            -DLLVM_ENABLE_RUNTIMES='libcxx;libcxxabi;libunwind' \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="${MSAN_PREFIX}" \
+            -DLLVM_USE_SANITIZER=MemoryWithOrigins \
+            -DLIBCXX_ENABLE_SHARED=OFF \
+            -DLIBCXXABI_ENABLE_SHARED=OFF \
+            -DLIBUNWIND_ENABLE_SHARED=OFF \
+            -DLIBCXX_STATICALLY_LINK_ABI_IN_STATIC_LIBRARY=ON
+          cmake --build /tmp/libcxx-msan-build
+          sudo cmake --install /tmp/libcxx-msan-build
+
+      - name: Build MSan zlib and bzip2
+        run: |
+          curl -fsSLO "https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz"
+          tar xf "zlib-1.3.1.tar.gz"
+          cd "zlib-1.3.1"
+          CFLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -g" \
+            ./configure --static --prefix="${MSAN_PREFIX}"
+          make -j"${CORES}"
+          sudo make install
+          cd ..
+          curl -fsSLO "https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz"
+          tar xf "bzip2-1.0.8.tar.gz"
+          cd "bzip2-1.0.8"
+          make -j"${CORES}" CC=clang CFLAGS="-w -O2 -fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -g" libbz2.a bzip2
+          sudo make install PREFIX="${MSAN_PREFIX}"
+
+      - name: Build MSan Botan
+        run: |
+          curl -fsSLO "https://botan.randombit.net/releases/Botan-${BOTAN_VERSION}.tar.xz"
+          tar xf "Botan-${BOTAN_VERSION}.tar.xz"
+          cd "Botan-${BOTAN_VERSION}"
+          python3 configure.py \
+            --prefix=/usr/local \
+            --without-documentation \
+            --disable-shared \
+            --disable-modules=zlib,bzip2 \
+            --cc=clang \
+            --cxxflags="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -g -nostdinc++ -isystem ${MSAN_PREFIX}/include/c++/v1" \
+            --ldflags="-L${MSAN_PREFIX}/lib -fsanitize=memory -stdlib=libc++ -lc++abi"
+          make -j"${CORES}" libs
+          sudo make install
+
+      - name: Build rnp_tests
+        run: |
+          cmake -B build -G Ninja \
+                -DCRYPTO_BACKEND=botan \
+                -DENABLE_CRYPTO_REFRESH=ON \
+                -DENABLE_PQC=ON \
+                -DBUILD_SHARED_LIBS=OFF \
+                -DBUILD_TESTING=ON \
+                -DZLIB_ROOT="${MSAN_PREFIX}" \
+                -DZLIB_USE_STATIC_LIBS=ON \
+                -DBZIP2_ROOT="${MSAN_PREFIX}" \
+                -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+                -DCMAKE_C_FLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -g" \
+                -DCMAKE_CXX_FLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -g -nostdinc++ -isystem ${MSAN_PREFIX}/include/c++/v1" \
+                -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=memory -L${MSAN_PREFIX}/lib -stdlib=libc++ -lc++abi" \
+                -GNinja .
+          cmake --build build --parallel "${CORES}" --target rnp_tests
+
+      - name: Run test_stream_signatures
+        run: |
+          ./build/src/tests/rnp_tests --gtest_filter='rnp_tests.test_stream_signatures' \
+            > f18-report.txt 2>&1 || true
+          echo "reports: $(grep -c 'WARNING: MemorySanitizer' f18-report.txt || true)"
+          cat f18-report.txt
