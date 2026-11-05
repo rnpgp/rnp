@@ -408,7 +408,6 @@ TEST_F(rnp_tests, test_stream_signatures)
           (int) sig.type(), (int) sig.palg, (int) sig.halg, sig.subpkts.items.size());
     }
 #endif
-#endif
     /* try to sign without decrypting of the secret key */
     hash = hash_orig->clone();
     assert_throw(signature_calculate(sig, *key->material(), *hash, global_ctx));
