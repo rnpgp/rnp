@@ -393,6 +393,18 @@ TEST_F(rnp_tests, test_stream_signatures)
     }
     sig.add_notation("dummy@example.com", "make codecov happy!", false);
     sig.fill_hashed_data();
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+    {
+        long off = __msan_test_shadow(sig.hashed_data.data(), sig.hashed_data.size());
+        printf("DEBUG poison probe after fill: offset %ld of %zu\n", off,
+          sig.hashed_data.size());
+        /* dump subpacket boundaries for mapping the offset */
+        printf("DEBUG version=%d type=%d palg=%d halg=%d subpkts=%zu\n", (int) sig.version,
+          (int) sig.type(), (int) sig.palg, (int) sig.halg, sig.subpkts.items.size());
+    }
+#endif
+#endif
     /* try to sign without decrypting of the secret key */
     hash = hash_orig->clone();
     assert_throw(signature_calculate(sig, *key->material(), *hash, global_ctx));
