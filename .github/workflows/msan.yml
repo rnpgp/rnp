@@ -181,6 +181,12 @@ jobs:
       LLVM_VERSION: 18.1.8
       MSAN_PREFIX: /usr/local/msan
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: true
+
       - name: Install dependencies
         run: |
           sudo apt-get -y update
