@@ -262,7 +262,7 @@ jobs:
 
       - name: Run test_stream_signatures
         run: |
-          ./build/src/tests/rnp_tests --gtest_filter='rnp_tests.test_stream_signatures' \
-            > f18-report.txt 2>&1 || true
+          ctest --test-dir build -R 'test_stream_signatures' \
+            -V --output-on-failure > f18-report.txt 2>&1 || true
           echo "reports: $(grep -c 'WARNING: MemorySanitizer' f18-report.txt || true)"
-          cat f18-report.txt
+          grep -aA16 'WARNING: MemorySanitizer' f18-report.txt | head -80 || true
