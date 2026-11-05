@@ -332,6 +332,70 @@ TEST_F(rnp_tests, test_stream_file)
     assert_int_equal(rnp_unlink(dirname), 0);
 }
 
+TEST_F(rnp_tests, test_stream_signature_deterministic)
+{
+    /* Signing the same data with the same key and the same subpackets
+     * (including a notation data subpacket) must produce identical
+     * signature material. The notation's flag octets were not fully
+     * initialized, which made the result depend on heap contents. */
+    rnp::KeyStore secring("data/test_stream_signatures/sec.asc", global_ctx);
+    assert_true(secring.load());
+    /* select the RSA secret signing key from the keyring */
+    rnp::Key *key = nullptr;
+    for (auto &k : secring.keys) {
+        if (k.is_secret() && (k.alg() == PGP_PKA_RSA)) {
+            key = &k;
+            break;
+        }
+    }
+    assert_non_null(key);
+    pgp_password_provider_t pswd_prov(rnp_password_provider_string, (void *) "password");
+    assert_true(key->unlock(pswd_prov));
+
+    uint8_t msgdata[32] = {0};
+    global_ctx.rng.get(msgdata, sizeof(msgdata));
+
+    pgp::pkt::Signature sigs[2];
+    /* fixed creation time: the two iterations must differ in nothing but heap state */
+    uint32_t create = time(NULL);
+    for (int i = 0; i < 2; i++) {
+        pgp::pkt::Signature sig;
+        sig.version = PGP_V4;
+        sig.halg = PGP_HASH_SHA256;
+        sig.palg = key->alg();
+        sig.set_type(PGP_SIG_BINARY);
+        sig.set_keyfp(key->fp());
+        sig.set_keyid(key->keyid());
+        sig.set_creation(create);
+        sig.set_expiration(0);
+        sig.add_notation("test@example.com", "determinism", true);
+        sig.fill_hashed_data();
+
+        auto hash = rnp::Hash::create(PGP_HASH_SHA256);
+        hash->add(msgdata, sizeof(msgdata));
+        signature_calculate(sig, *key->material(), *hash, global_ctx, NULL);
+        sigs[i] = std::move(sig);
+    }
+
+    /* notation flag octets: only bit 7 of the first octet is defined and set,
+     * the remaining octets must be zero (they were uninitialized heap before) */
+    for (auto &subpkt : sigs[0].subpkts.items) {
+        if (subpkt->type() != pgp::pkt::sigsub::Type::NotationData) {
+            continue;
+        }
+        const auto &data = subpkt->data();
+        assert_int_equal(data[0], 0x80);
+        assert_int_equal(data[1], 0);
+        assert_int_equal(data[2], 0);
+        assert_int_equal(data[3], 0);
+    }
+
+    auto m1 = sigs[0].write(false);
+    auto m2 = sigs[1].write(false);
+    assert_int_equal(m1.size(), m2.size());
+    assert_true(memcmp(m1.data(), m2.data(), m1.size()) == 0);
+}
+
 TEST_F(rnp_tests, test_stream_signatures)
 {
     pgp::pkt::Signature sig;
