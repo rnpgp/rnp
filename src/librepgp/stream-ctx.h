@@ -31,6 +31,7 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include "types.h"
+#include "stream-def.h"
 #include <string>
 #include <list>
 #include "key.hpp"
@@ -112,6 +113,8 @@ typedef struct rnp_ctx_t {
     bool           armor{};     /* whether to use ASCII armor on output */
     bool           no_wrap{};   /* do not wrap source in literal data packet */
     bool           allow_unprotected{}; /* allow SED packets without integrity protection */
+    uint64_t       max_decompressed{MAXIMUM_DECOMPRESSED_SIZE}; /* decompressed data limit per
+                                                                     message, 0 = unlimited */
 #if defined(ENABLE_CRYPTO_REFRESH)
     bool enable_pkesk_v6{}; /* allows pkesk v6 if list of recipients is suitable */
     bool enable_skesk_v6{}; /* allows skesk v6 if chosen cipher is suitable */

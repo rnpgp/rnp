@@ -1488,7 +1488,7 @@ rnp_result_t
 DumpContextDst::dump_compressed()
 {
     std::unique_ptr<Source> zsrc(new Source());
-    auto                    ret = init_compressed_src(&zsrc->src(), &src);
+    auto                    ret = init_compressed_src(&zsrc->src(), &src, nullptr);
     if (ret) {
         return ret;
     }
@@ -2595,7 +2595,7 @@ rnp_result_t
 DumpContextJson::dump_compressed(nlohmann::ordered_json &pkt)
 {
     std::unique_ptr<Source> zsrc(new Source());
-    auto                    ret = init_compressed_src(&zsrc->src(), &src);
+    auto                    ret = init_compressed_src(&zsrc->src(), &src, nullptr);
     if (ret) {
         return ret;
     }
