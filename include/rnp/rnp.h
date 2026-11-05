@@ -3323,6 +3323,19 @@ RNP_API rnp_result_t rnp_op_verify_set_flags(rnp_op_verify_t op, uint32_t flags)
  */
 RNP_API rnp_result_t rnp_op_verify_execute(rnp_op_verify_t op);
 
+/** @brief Set the limit for decompressed data during message processing.
+ *
+ *  The limit counts decompressed bytes over all compression layers of the message,
+ *  bounding the work a decompression bomb can force during verification/decryption.
+ *  When the limit is exceeded, processing fails with an error.
+ *
+ *  @param op opaque verification context.
+ *  @param limit maximum number of decompressed bytes allowed, summed across all
+ *         compression layers. Default is 16 GiB. Pass 0 to disable the limit.
+ *  @return RNP_SUCCESS if call succeeded.
+ */
+RNP_API rnp_result_t rnp_op_verify_set_output_limit(rnp_op_verify_t op, uint64_t limit);
+
 /** @brief Get number of the signatures for verified data.
  *  @param op opaque verification context. Must be initialized and have execute() called on it.
  *  @param count result will be stored here on success.

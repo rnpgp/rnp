@@ -66,6 +66,10 @@
 #define MAXIMUM_DUMP_PKTS 32768
 #define MAXIMUM_DUMP_DECOMPRESSED_SIZE (256 * 1024 * 1024)
 
+/* Maximum decompressed data per message, summed across all compression layers.
+ * Protects the message processing path from decompression bombs; 0 disables the limit. */
+#define MAXIMUM_DECOMPRESSED_SIZE (16ULL * 1024 * 1024 * 1024)
+
 /* Maximum text line length supported by GnuPG */
 #define MAXIMUM_GNUPG_LINELEN 19995
 
