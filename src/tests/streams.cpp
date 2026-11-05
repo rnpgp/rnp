@@ -40,6 +40,11 @@
 #include <librepgp/stream-armor.h>
 #include <librepgp/stream-write.h>
 #include <algorithm>
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+#include <sanitizer/msan_interface.h>
+#endif
+#endif
 #include "time-utils.h"
 
 static bool
@@ -393,7 +398,6 @@ TEST_F(rnp_tests, test_stream_signatures)
     }
     sig.add_notation("dummy@example.com", "make codecov happy!", false);
     sig.fill_hashed_data();
-#if defined(__has_feature)
 #if __has_feature(memory_sanitizer)
     {
         long off = __msan_test_shadow(sig.hashed_data.data(), sig.hashed_data.size());
