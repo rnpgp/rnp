@@ -401,11 +401,12 @@ TEST_F(rnp_tests, test_stream_signatures)
 #if __has_feature(memory_sanitizer)
     {
         long off = __msan_test_shadow(sig.hashed_data.data(), sig.hashed_data.size());
-        printf("DEBUG poison probe after fill: offset %ld of %zu\n", off,
+        fprintf(stderr, "DEBUG poison probe after fill: offset %ld of %zu\n", off,
           sig.hashed_data.size());
-        /* dump subpacket boundaries for mapping the offset */
-        printf("DEBUG version=%d type=%d palg=%d halg=%d subpkts=%zu\n", (int) sig.version,
-          (int) sig.type(), (int) sig.palg, (int) sig.halg, sig.subpkts.items.size());
+        fprintf(stderr, "DEBUG version=%d type=%d palg=%d halg=%d subpkts=%zu\n",
+          (int) sig.version, (int) sig.type(), (int) sig.palg, (int) sig.halg,
+          sig.subpkts.items.size());
+        fflush(stderr);
     }
 #endif
     /* try to sign without decrypting of the secret key */
