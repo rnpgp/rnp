@@ -3622,6 +3622,17 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_op_verify_set_output_limit(rnp_op_verify_t op, uint64_t limit)
+try {
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    op->rnpctx.max_decompressed = limit;
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_op_verify_execute(rnp_op_verify_t op)
 try {
     if (!op) {
