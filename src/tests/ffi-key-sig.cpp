@@ -2910,3 +2910,122 @@ TEST_F(rnp_tests, test_ffi_subkey_sigs_nonprimary_signer)
     rnp_key_handle_destroy(alice);
     rnp_ffi_destroy(ffi);
 }
+
+static void
+check_verify_sig_errors(rnp_op_verify_t verify, const std::vector<uint32_t> &expected)
+{
+    rnp_op_verify_signature_t vsig = NULL;
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &vsig));
+    rnp_signature_handle_t sig = NULL;
+    assert_rnp_success(rnp_op_verify_signature_get_handle(vsig, &sig));
+    size_t errors = 255;
+    assert_rnp_success(rnp_signature_error_count(sig, &errors));
+    assert_int_equal(errors, expected.size());
+    for (size_t idx = 0; idx < expected.size(); idx++) {
+        uint32_t error = 0;
+        assert_rnp_success(rnp_signature_error_at(sig, idx, &error));
+        assert_int_equal(error, expected[idx]);
+    }
+    rnp_signature_handle_destroy(sig);
+}
+
+TEST_F(rnp_tests, test_ffi_v4_sig_wrong_lbits)
+{
+    /* Key with lbits 0x0001 in both self-signatures, while signatures are valid, see #2191 */
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_pub_keys(ffi, "data/test_key_edge_cases/key-wrong-lbits-0001.asc"));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(
+      rnp_locate_key(ffi, "fingerprint", "7754C9B4B6B15364CA4A88183B132D4DBBAE5D31", &key));
+    assert_non_null(key);
+    bool valid = false;
+    assert_rnp_success(rnp_key_is_valid(key, &valid));
+    assert_true(valid);
+    rnp_uid_handle_t uid = NULL;
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    assert_rnp_success(rnp_uid_is_valid(uid, &valid));
+    assert_true(valid);
+    rnp_signature_handle_t sig = NULL;
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 0, &sig));
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
+    size_t errors = 255;
+    assert_rnp_success(rnp_signature_error_count(sig, &errors));
+    assert_int_equal(errors, 0);
+    rnp_signature_handle_destroy(sig);
+    rnp_uid_handle_destroy(uid);
+    rnp_key_handle_t sub = NULL;
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &sub));
+    assert_rnp_success(rnp_key_is_valid(sub, &valid));
+    assert_true(valid);
+    assert_rnp_success(rnp_key_get_signature_at(sub, 0, &sig));
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
+    errors = 255;
+    assert_rnp_success(rnp_signature_error_count(sig, &errors));
+    assert_int_equal(errors, 0);
+    rnp_signature_handle_destroy(sig);
+    rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(ffi);
+
+    /* Detached v4 data signature with wrong lbits but valid signature material:
+     * message.txt.sig with lbits replaced by 0x0001, -bad has signature material corrupted. */
+    test_ffi_init(&ffi);
+    rnp_input_t     input = NULL;
+    rnp_input_t     signature = NULL;
+    rnp_op_verify_t verify = NULL;
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt"));
+    assert_rnp_success(
+      rnp_input_from_path(&signature, "data/test_messages/message.txt.sig-wrong-lbits"));
+    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, input, signature));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_input_destroy(signature);
+    /* Wrong lbits together with corrupted material must still fail */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt"));
+    assert_rnp_success(
+      rnp_input_from_path(&signature, "data/test_messages/message.txt.sig-wrong-lbits-bad"));
+    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, input, signature));
+    assert_int_equal(rnp_op_verify_execute(verify), RNP_ERROR_SIGNATURE_INVALID);
+    check_verify_sig_errors(verify,
+                            {RNP_ERROR_SIG_LBITS_MISMATCH, RNP_ERROR_SIGNATURE_INVALID});
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_input_destroy(signature);
+    rnp_ffi_destroy(ffi);
+}
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+TEST_F(rnp_tests, test_ffi_v6_sig_wrong_lbits)
+{
+    /* RFC 9580, 5.2.4: v6 signature with wrong left 16 bits MUST be rejected.
+     * The -wrong-lbits.pgp file is the dearmored A.7 sample with both lbits octets inverted.
+     */
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_pub_keys(ffi, "data/RFC9580/A.3.transferable-pubkey-v6.asc"));
+    rnp_input_t     input = NULL;
+    rnp_output_t    output = NULL;
+    rnp_op_verify_t verify = NULL;
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/RFC9580/A.7.-sample-inline-signed-message.asc"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(rnp_input_from_path(
+      &input, "data/RFC9580/A.7.-sample-inline-signed-message-wrong-lbits.pgp"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_int_equal(rnp_op_verify_execute(verify), RNP_ERROR_SIGNATURE_INVALID);
+    check_verify_sig_errors(verify, {RNP_ERROR_SIG_LBITS_MISMATCH});
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    rnp_ffi_destroy(ffi);
+}
+#endif

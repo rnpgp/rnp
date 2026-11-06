@@ -8,6 +8,10 @@
   as recommended by RFC 9580 section 5.7. Use `RNP_VERIFY_ALLOW_UNPROTECTED` flag for `rnp_op_verify_set_flags()`
   or `--allow-unprotected` CLI option to override. (#2136)
 
+#### General
+
+* Do not mark cryptographically valid v3/v4/v5 signatures as invalid only because of mismatching left 16 bits of the hash (v6 signatures are still rejected, as required by RFC 9580). Fixes import of some real-world keys (#2191).
+
 ### 0.18.1 [2025-11-21]
 
 #### Security
