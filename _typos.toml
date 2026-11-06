@@ -24,6 +24,7 @@ clen = "clen"
 __THW_INTEL__ = "__THW_INTEL__"
 unexpect_eof = "unexpect_eof"
 unexpect_char = "unexpect_char"
+dout = "dout"
 
 [default.extend-words]
 MERCHANTIBILITY = "MERCHANTIBILITY"
