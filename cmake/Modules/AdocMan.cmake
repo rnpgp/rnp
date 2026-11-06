@@ -30,14 +30,15 @@
 #
 # Parameters
 # ^^^^^^^^^^
-# Required parameter is source with markdown file. Must have md extension with man category prepended, i.e. something like ${CMAKE_SOURCE_DIR}/src/utility.1.adoc
+# Required parameter is source with markdown file. Must have md extension with man category prepended, i.e. something like ${PROJECT_SOURCE_DIR}/src/utility.1.adoc
 # DST - optional parameter, which overrides where generated man will be stored.
-# If not specified then will be automatically set to ${CMAKE_BINARY_DIR}/src/utility.1
+# If not specified then will be automatically set to ${PROJECT_BINARY_DIR}/src/utility.1
 #
 # Generated man page will be installed via the target, named man_utility
 #
 
 set(ADOCCOMMAND_FOUND 0)
+set(ADOC_USING_CACHE 0)
 set(ADOC_BACKEND "")
 set(ADOC_MANPAGE_XSL "${CMAKE_CURRENT_LIST_DIR}/adoc-manpage.xsl")
 
@@ -99,7 +100,7 @@ elseif("${ADOC_BACKEND}" STREQUAL "asciidoctor")
 endif()
 
 if(NOT ADOC_BACKEND)
-  if(EXISTS "${CMAKE_SOURCE_DIR}/docs/man")
+  if(EXISTS "${PROJECT_SOURCE_DIR}/docs/man")
     set(ADOC_USING_CACHE 1)
     set(ADOC_MISSING_MSG "No AsciiDoc toolchain found (asciidoctor, or asciidoc + xsltproc); installing pre-generated man pages from docs/man/. Refresh them with ci/regen-man-pages.sh when the .adoc sources change.")
   else()
@@ -159,16 +160,16 @@ function(add_adoc_man SRC COMPONENT_VERSION)
   if(NOT DST)
     get_filename_component(SRC_PREFIX ${SRC} DIRECTORY)
 
-    # Ensure that SRC_PREFIX is within CMAKE_SOURCE_DIR
-    if(NOT(SRC_PREFIX MATCHES "^${CMAKE_SOURCE_DIR}"))
+    # Ensure that SRC_PREFIX is within PROJECT_SOURCE_DIR (rnp may be a subproject)
+    if(NOT(SRC_PREFIX MATCHES "^${PROJECT_SOURCE_DIR}"))
       message(FATAL_ERROR "Cannot build DST path as SRC is outside of the CMake sources dir.")
     endif()
-    STRING(REGEX REPLACE "^${CMAKE_SOURCE_DIR}/" "" SUBDIR_PATH ${SRC})
+    STRING(REGEX REPLACE "^${PROJECT_SOURCE_DIR}/" "" SUBDIR_PATH ${SRC})
 
     # Strip '.adoc' from the output subpath
     get_filename_component(SUBDIR_PATH_NAME_WLE ${SUBDIR_PATH} NAME_WLE)
     get_filename_component(SUBDIR_PATH_DIRECTORY ${SUBDIR_PATH} DIRECTORY)
-    set(DST "${CMAKE_BINARY_DIR}/${SUBDIR_PATH_DIRECTORY}/${SUBDIR_PATH_NAME_WLE}")
+    set(DST "${PROJECT_BINARY_DIR}/${SUBDIR_PATH_DIRECTORY}/${SUBDIR_PATH_NAME_WLE}")
   endif()
 
   # Check conformance of destination file name to pattern
@@ -181,7 +182,7 @@ function(add_adoc_man SRC COMPONENT_VERSION)
   # Pre-generated roff cache: docs/man/{name}.{man-number}, refreshed via
   # ci/regen-man-pages.sh and shipped in the repo / release archives, so
   # packagers don't need asciidoctor installed (#2395).
-  set(MAN_CACHE "${CMAKE_SOURCE_DIR}/docs/man/${FILE_NAME_WE}.${MAN_NUM}")
+  set(MAN_CACHE "${PROJECT_SOURCE_DIR}/docs/man/${FILE_NAME_WE}.${MAN_NUM}")
 
   if("${ADOC_BACKEND}" STREQUAL "asciidoctor")
     add_custom_command(
@@ -191,7 +192,7 @@ function(add_adoc_man SRC COMPONENT_VERSION)
       # argument as additional input files ("Too many arguments").
       COMMAND ${ADOCCOMMAND_PATH} -b manpage -a component-version=${COMPONENT_VERSION} -o ${DST} ${SRC}
       DEPENDS ${SRC}
-      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+      WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
       COMMENT "Generating man page ${SUBDIR_PATH_DIRECTORY}/${SUBDIR_PATH_NAME_WLE}"
       VERBATIM
     )

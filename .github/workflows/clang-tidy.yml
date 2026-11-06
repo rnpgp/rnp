@@ -62,13 +62,12 @@ concurrency:
 
 jobs:
   run:
-    name: clang-tidy (clang-${{ matrix.clang }}, ${{ matrix.backend }})
+    name: clang-tidy (${{ matrix.backend }})
     runs-on: ubuntu-latest
     container: ghcr.io/rnpgp/ci-rnp-debian-sid-amd64
     strategy:
       fail-fast: false
       matrix:
-        clang: [ '18' ]
         backend: [ 'botan', 'openssl' ]
 
     if: "!contains(github.event.head_commit.message, 'skip ci')"
@@ -77,8 +76,10 @@ jobs:
       - name: Install dependencies
         run: |
           apt-get -y update
+          # Debian sid moves fast and drops pinned LLVM versions; use the
+          # unversioned packages, which always track the current default
           DEBIAN_FRONTEND=noninteractive apt-get -y install \
-              build-essential clang-${{ matrix.clang }} clang-tidy-${{ matrix.clang }} \
+              build-essential clang clang-tidy \
               cmake ninja-build git \
               zlib1g-dev libbz2-dev \
               libbotan-3-dev libssl-dev
@@ -91,13 +92,13 @@ jobs:
 
       - name: Configure
         env:
-          CC: clang-${{ matrix.clang }}
-          CXX: clang++-${{ matrix.clang }}
+          CC: clang
+          CXX: clang++
         run: |
           cmake -B build -G Ninja \
                 -DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-                -DCMAKE_CXX_CLANG_TIDY="clang-tidy-${{ matrix.clang }};-p;build" \
+                -DCMAKE_CXX_CLANG_TIDY="clang-tidy;-p;build" \
                 -DCRYPTO_BACKEND=${{ matrix.backend }} \
                 -DENABLE_CRYPTO_REFRESH=ON \
                 -DBUILD_TESTING=ON .

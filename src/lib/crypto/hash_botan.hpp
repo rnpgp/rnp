@@ -28,12 +28,12 @@
 #define CRYPTO_HASH_BOTAN_HPP_
 
 #include "hash.hpp"
-#include <botan/hash.h>
+#include <botan/ffi.h>
 
 namespace rnp {
 class Hash_Botan : public Hash {
   private:
-    std::unique_ptr<Botan::HashFunction> fn_;
+    botan_hash_t fn_{nullptr};
 
     Hash_Botan(pgp_hash_alg_t alg);
     Hash_Botan(const Hash_Botan &src);
@@ -51,7 +51,7 @@ class Hash_Botan : public Hash {
 };
 
 class CRC24_Botan : public CRC24 {
-    std::unique_ptr<Botan::HashFunction> fn_;
+    botan_hash_t fn_{nullptr};
     CRC24_Botan();
 
   public:

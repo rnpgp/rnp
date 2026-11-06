@@ -102,6 +102,7 @@ set(RNP_TEST_SOURCES
   ../fuzzing/dump.c
   ../fuzzing/verify_detached.c
   ../fuzzing/verify.c
+  ../fuzzing/ffi_ops.c
   cipher.cpp
   cipher_cxx.cpp
   cli.cpp
@@ -149,6 +150,8 @@ set(RNP_TEST_SOURCES
   issues/2397.cpp
   issues/2470.cpp
   issues/1770.cpp
+  issues/2370.cpp
+  issues/2223.cpp
   issues/oss-fuzz-25489.cpp
   fuzz_keyring.cpp
   fuzz_keyring_g10.cpp
@@ -158,6 +161,7 @@ set(RNP_TEST_SOURCES
   fuzz_dump.cpp
   fuzz_verify_detached.cpp
   fuzz_verify.cpp
+  fuzz_ffi_ops.cpp
   )
 
 if(ENABLE_CRYPTO_REFRESH)
@@ -220,6 +224,9 @@ target_compile_definitions(rnp_tests
   PRIVATE
     RNP_RUN_TESTS
     RNP_STATIC
+    # let the crypto-refresh/pqc-gated test files see the feature flags
+    $<$<BOOL:${ENABLE_CRYPTO_REFRESH}>:ENABLE_CRYPTO_REFRESH>
+    $<$<BOOL:${ENABLE_PQC}>:ENABLE_PQC>
 )
 
 # Centos 7 with CLang 7.0.1 reports strange memory leak in GoogleTest, maybe there is a better solution
