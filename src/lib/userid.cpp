@@ -141,7 +141,7 @@ parse_photo_attribute(const std::vector<uint8_t> &uid,
         if (!skip_subpacket_length(uid, pos, sub_len)) {
             return false;
         }
-        if (sub_len == 0 || pos + sub_len > uid.size()) {
+        if (sub_len == 0 || sub_len > uid.size() - pos) {
             return false;
         }
         size_t         sub_end = pos + sub_len;
