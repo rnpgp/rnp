@@ -1386,6 +1386,17 @@ TEST_F(rnp_tests, test_parse_photo_attribute)
         assert_int_equal((int) fmt, (int) PhotoFormat::JPEG);
         assert_int_equal(out.size(), image.size());
     }
+
+    /* 5-byte length close to 2^32: pos + length wraps with a 32-bit size_t.
+     * The first one used to loop forever, the second one read past the buffer. */
+    {
+        std::vector<uint8_t> loop = {0xFF, 0xFF, 0xFF, 0xFF, 0xFB, 0x02};
+        std::vector<uint8_t> overread = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0xF0};
+        std::vector<uint8_t> out;
+        PhotoFormat          fmt = PhotoFormat::Unknown;
+        assert_false(parse_photo_attribute(loop, out, fmt));
+        assert_false(parse_photo_attribute(overread, out, fmt));
+    }
 }
 
 TEST_F(rnp_tests, test_sm2_enabled)
