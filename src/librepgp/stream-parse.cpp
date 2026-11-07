@@ -2442,11 +2442,17 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
     }
 
     /* RFC 9580, 5.7: Symmetrically Encrypted Data packet is obsolete and malleable, so it
-     * should be rejected. Do this before any session key decryption so no data is output. */
+     * should be rejected. Do this before any session key decryption so no data is output.
+     * Report the container first. The cipher is not known yet, and integrity is not
+     * validated: on_decryption_done is intentionally not called. Allowed SED still reports
+     * once, later, after the real cipher is known. */
     if ((param->auth_type == rnp::AuthType::None) &&
         (!handler->ctx || !handler->ctx->allow_unprotected)) {
         RNP_LOG("Refusing to decrypt Symmetrically Encrypted Data packet without integrity "
                 "protection (allow it explicitly to override).");
+        if (handler->on_decryption_info) {
+            handler->on_decryption_info(false, PGP_AEAD_NONE, PGP_SA_UNKNOWN, handler->param);
+        }
         errcode = RNP_ERROR_DECRYPT_FAILED;
         goto finish;
     }
