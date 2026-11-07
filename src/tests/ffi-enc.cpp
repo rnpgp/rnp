@@ -3062,6 +3062,14 @@ TEST_F(rnp_tests, test_ffi_entropy_encoding_roundtrip)
     bad.group_size = 4;
     assert_rnp_failure(rnp_entropy_encode_human_readable(ffi, &bad, &structured, &flat));
 
+    /* Invalid params: checksum longer than the SHA-256 digest it is taken from. */
+    bad = {};
+    bad.entropy_bits = 512;
+    bad.group_size = 128;
+    bad.checksum_bits = 512;
+    assert_rnp_failure(rnp_entropy_encode_human_readable(ffi, &bad, &structured, &flat));
+    assert_rnp_failure(rnp_entropy_encoding_validate("!0000 00000", &bad));
+
     rnp_ffi_destroy(ffi);
 }
 
