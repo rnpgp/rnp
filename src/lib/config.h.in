@@ -57,17 +57,41 @@
 #cmakedefine CRYPTO_BACKEND_OPENSSL3
 #cmakedefine CRYPTO_BACKEND_OPENSSL3_LEGACY
 
+/* The same flags may also arrive as compile definitions, so guard against
+ * redefinition warnings. */
+#ifndef ENABLE_SM2
 #cmakedefine ENABLE_SM2
+#endif
+#ifndef ENABLE_AEAD
 #cmakedefine ENABLE_AEAD
+#endif
+#ifndef ENABLE_TWOFISH
 #cmakedefine ENABLE_TWOFISH
+#endif
+#ifndef ENABLE_BRAINPOOL
 #cmakedefine ENABLE_BRAINPOOL
+#endif
+#ifndef ENABLE_IDEA
 #cmakedefine ENABLE_IDEA
+#endif
+#ifndef ENABLE_CRYPTO_REFRESH
 #cmakedefine ENABLE_CRYPTO_REFRESH
+#endif
+#ifndef ENABLE_PQC
 #cmakedefine ENABLE_PQC
+#endif
+#ifndef ENABLE_PQC_DBG_LOG
 #cmakedefine ENABLE_PQC_DBG_LOG
+#endif
+#ifndef ENABLE_BLOWFISH
 #cmakedefine ENABLE_BLOWFISH
+#endif
+#ifndef ENABLE_CAST5
 #cmakedefine ENABLE_CAST5
+#endif
+#ifndef ENABLE_RIPEMD160
 #cmakedefine ENABLE_RIPEMD160
+#endif
 
 /* Macro _GLIBCXX_USE_CXX11_ABI was first introduced with GCC 5.0, which
  * we assume to be bundled with a sane implementation of std::regex. */
