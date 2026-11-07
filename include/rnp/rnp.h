@@ -3302,8 +3302,11 @@ RNP_API rnp_result_t rnp_op_verify_detached_create(rnp_op_verify_t *op,
  *              RNP_VERIFY_ALLOW_UNPROTECTED - allow decryption of the obsolete Symmetrically
  *                Encrypted Data packets (tag 9), which have no integrity protection and are
  *                malleable. By default such messages are refused with RNP_ERROR_DECRYPT_FAILED
- *                before any data is output. If allowed, rnp_op_verify_get_protection_info()
- *                reports mode "cfb" with valid == false, and caller MUST warn the user.
+ *                before any session-key decryption or payload output.
+ *                rnp_op_verify_get_protection_info() then reports mode "cfb", cipher
+ *                "unknown", and valid == false. If decryption is allowed, that call reports
+ *                mode "cfb", the cipher that was used, and valid == false, and the caller
+ *                MUST warn the user.
  *
  *              Note: all flags are set at once, if some flag is not present in the subsequent
  *              call then it will be unset.
@@ -3320,7 +3323,10 @@ RNP_API rnp_result_t rnp_op_verify_set_flags(rnp_op_verify_t op, uint32_t flags)
  *
  *          To check number of signatures and their verification status use functions
  *          rnp_op_verify_get_signature_count() and rnp_op_verify_get_signature_at().
- *          To check data encryption status use function rnp_op_verify_get_protection_info().
+ *          To check data encryption status use rnp_op_verify_get_protection_info().
+ *          Success does not by itself mean that an encryption layer was present.
+ *          The caller owns the operation. It stays queryable after this call returns
+ *          an error, until rnp_op_verify_destroy().
  */
 RNP_API rnp_result_t rnp_op_verify_execute(rnp_op_verify_t op);
 
@@ -3379,11 +3385,21 @@ RNP_API rnp_result_t rnp_op_verify_get_format(rnp_op_verify_t op, char *format);
  *             - aead-ocb : message was encrypted in AEAD-OCB mode
  *             - aead-eax : message was encrypted in AEAD-EAX mode
  * @param cipher symmetric cipher, used for data encryption. May be NULL if information is not
- *               needed. Must be freed by rnp_buffer_destroy() call.
- * @param valid true if message integrity protection was used (i.e. MDC or AEAD), and it was
- *              validated successfully. Otherwise (even for raw cfb mode) will be false. May be
- *              NULL if information is not needed.
- * @return RNP_SUCCESS if call succeeded, or error code otherwise.
+ *               needed. Must be freed by rnp_buffer_destroy(). "unknown" means a cipher id was
+ *               not available, including a refused Symmetrically Encrypted Data packet whose
+ *               session key was not decrypted. "none" means the message was not encrypted.
+ * @param valid true only when integrity protection was present (MDC or AEAD) and the check
+ *              completed successfully. Otherwise false. false alone is not an integrity
+ *              failure: it also covers unencrypted data (mode "none"), a refused
+ *              Symmetrically Encrypted Data packet (mode "cfb", cipher "unknown",
+ *              execute() returns RNP_ERROR_DECRYPT_FAILED, no payload), raw CFB that was
+ *              explicitly allowed, and cases where decryption stopped before the check
+ *              (for example a bad password or no suitable key). Read it together with the
+ *              execute() result and the mode string. May be NULL if not needed.
+ * @return RNP_SUCCESS if the call succeeded, or an error code otherwise. The operation
+ *         remains owned by the caller after execute(), including when execute() failed,
+ *         until rnp_op_verify_destroy(). On success, each non-NULL mode or cipher
+ *         out-parameter is allocated for the caller.
  */
 RNP_API rnp_result_t rnp_op_verify_get_protection_info(rnp_op_verify_t op,
                                                        char **         mode,
@@ -4021,16 +4037,28 @@ RNP_API rnp_result_t rnp_op_encrypt_execute(rnp_op_encrypt_t op);
 RNP_API rnp_result_t rnp_op_encrypt_destroy(rnp_op_encrypt_t op);
 
 /**
- * @brief Decrypt encrypted data in input and write it to the output on success.
- *        If data is additionally signed then signatures are ignored.
- *        For more control over the decryption process see functions rnp_op_verify_create() and
- *        rnp_op_verify_execute(), which allows to verify signatures as well as decrypt data
- *        and retrieve encryption-related information.
+ * @brief Process an OpenPGP message from input and write its payload to output.
+ *        Success means the message was processed under the current integrity policy.
+ *        It does not mean an encryption layer was present: literal data and compressed
+ *        data succeed as well. When encryption integrity was validated, signatures on
+ *        that data are ignored (RNP_VERIFY_IGNORE_SIGS_ON_DECRYPT). A signature-only
+ *        message is not covered by that flag.
+ *
+ *        This function does not return protection details. It creates an operation,
+ *        sets only RNP_VERIFY_IGNORE_SIGS_ON_DECRYPT, executes, and destroys that
+ *        operation before returning, on both success and failure. The caller therefore
+ *        cannot query it afterwards. To read mode, cipher, the integrity flag, or
+ *        recipients, call rnp_op_verify_create(), rnp_op_verify_execute(), and
+ *        rnp_op_verify_get_protection_info(), then rnp_op_verify_destroy(). The caller
+ *        owns that operation. See rnp_op_verify_get_protection_info() for how to read
+ *        valid together with the result code and the mode string. A refused
+ *        Symmetrically Encrypted Data packet fails here with RNP_ERROR_DECRYPT_FAILED
+ *        and does not write a payload.
  *
  * @param ffi initialized FFI object. Cannot be NULL.
- * @param input source with encrypted data. Cannot be NULL.
- * @param output on success decrypted data will be written here. Cannot be NULL.
- * @return RNP_SUCCESS if data was successfully decrypted and written to the output, or any
+ * @param input source message. Cannot be NULL.
+ * @param output payload is written here when processing succeeds. Cannot be NULL.
+ * @return RNP_SUCCESS if the message was processed and the payload was written, or any
  *         other value on error.
  */
 RNP_API rnp_result_t rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output);
