@@ -57,9 +57,11 @@ rnp_result_t ed25519_verify_native(const std::vector<uint8_t> &sig,
                                    const uint8_t *             hash,
                                    size_t                      hash_len);
 
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
 rnp_result_t ed25519_validate_key_native(rnp::RNG *               rng,
                                          const pgp_ed25519_key_t *key,
                                          bool                     secret);
+#endif
 
 #if defined(ENABLE_CRYPTO_REFRESH)
 rnp_result_t generate_ed448_native(rnp::RNG *            rng,

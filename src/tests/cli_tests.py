@@ -2301,9 +2301,27 @@ class Misc(unittest.TestCase):
                   path_for_gpg(dst), path_for_gpg(src)]
         ret, _, _ = run_proc(GPG, params)
         self.assertEqual(ret, 0, 'gpg symmetric encryption failed')
-        # Decrypt encrypted file with RNP
+        # Note: modern GnuPG ignores --disable-mdc and still produces SEIPD, so this must work
         rnp_decrypt_file(dst, dec)
         compare_files(src, dec, RNP_DATA_DIFFERS)
+        remove_files(src, dst, dec)
+
+    def test_decryption_unprotected_sed(self):
+        # Symmetrically Encrypted Data packet (tag 9) must be refused by default (#2136)
+        dec = os.path.join(WORKDIR, 'no-mdc.dec')
+        params = ['--homedir', data_path(KEYRING_DIR_1), '--password', 'password', '--decrypt',
+                  data_path('test_messages/message.txt.enc-no-mdc'), '--output', dec]
+        ret, _, err = run_proc(RNP, params)
+        self.assertNotEqual(ret, 0, 'unprotected data was decrypted')
+        self.assertRegex(err, r'(?s)^.*Refusing to decrypt Symmetrically Encrypted Data packet.*')
+        self.assertFalse(os.path.isfile(dec) and os.path.getsize(dec) > 0, 'data was output')
+        remove_files(dec)
+        # Explicitly allowed: decrypted with warning
+        ret, _, err = run_proc(RNP, params + ['--allow-unprotected'])
+        self.assertEqual(ret, 0, 'rnp decryption failed')
+        self.assertRegex(err, r'(?s)^.*Warning: message was not integrity protected.*')
+        compare_files(data_path('test_messages/message.txt'), dec, RNP_DATA_DIFFERS)
+        remove_files(dec)
 
     def test_encryption_s2k(self):
         src, dst, dec = reg_workfiles('cleartext', '.txt', '.gpg', '.rnp')
@@ -5062,8 +5080,10 @@ class Encryption(unittest.TestCase):
         # Due to issue in GnuPG it reports successful import of non-tweaked secret key in batch mode
         ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', data_path(KEY_25519_NOTWEAK_SEC)])
         self.assertEqual(ret, 0)
-        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '-d', data_path(MSG_ES_25519)])
-        self.assertNotEqual(ret, 0)
+        # Older GnuPG versions fail to use the non-tweaked secret key, while newer ones tweak it for use and decrypt successfully
+        ret, dout, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '-d', data_path(MSG_ES_25519)])
+        if ret == 0:
+            self.assertEqual(dout, file_text(data_path('test_messages/message.txt')))
         ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--yes', '--delete-secret-key', 'dde0ee539c017d2bd3f604a53176fc1486aa2528'])
         self.assertEqual(ret, 0)
         # Make sure GPG imports tweaked key and successfully decrypts message
@@ -5456,13 +5476,16 @@ class SignDefault(unittest.TestCase):
         # Make sure we can import a public key
         ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR2, '--import', data_path('test_stream_key_load/dsa4096-eg4096.pub.asc')])
         self.assertEqual(ret, 0)
-        if RNP_BACKEND == 'botan':
-            self.assertRegex(out, r'(?s)^.*pub.*4096/DSA.*7146fc248bf7c656.*SC.*sub.*4096/ElGamal.*0e6f2feced5d0e7f.*')
-            self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 2 new public keys.*')
-        else:
+        self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 2 new public keys.*')
+        # OpenSSL cannot use DSA for signature operations at all. Since Botan 3.14
+        # DSA keys are restricted to the FIPS 186-4 (L, N) size ranges, see
+        # https://github.com/randombit/botan/pull/6039 - so the out-of-range
+        # 4096-bit DSA key is imported, but is listed as invalid and cannot be
+        # used for the signature operations below.
+        if RNP_BACKEND != 'botan' or re.search(r'INVALID', out):
             self.assertRegex(out, r'(?s)^.*pub.*4096/DSA.*7146fc248bf7c656.*INVALID.*sub.*4096/ElGamal.*0e6f2feced5d0e7f.*')
-            self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 2 new public keys.*')
             return
+        self.assertRegex(out, r'(?s)^.*pub.*4096/DSA.*7146fc248bf7c656.*SC.*sub.*4096/ElGamal.*0e6f2feced5d0e7f.*')
 
         # Make sure we can verify signature
         ret, _, err = run_proc(RNP, ['--homedir', RNPDIR2, '--verify', data_path('test_messages/message.txt.signed-dsa4096')])

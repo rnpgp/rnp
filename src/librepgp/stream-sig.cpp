@@ -250,6 +250,17 @@ Signature::has_subpkt(uint8_t stype, bool hashed) const
 }
 
 bool
+Signature::has_unknown_critical() const
+{
+    for (const auto &sub : subpkts.items) {
+        if ((sub->type() == sigsub::Type::Unknown) && sub->critical()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool
 Signature::has_keyid() const
 {
     return (version < PGP_V4) || has_subpkt(PGP_SIG_SUBPKT_ISSUER_KEY_ID, false) ||
