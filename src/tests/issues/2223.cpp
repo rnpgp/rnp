@@ -117,16 +117,15 @@ TEST_F(rnp_tests, test_ffi_key_load_unknown_critical_subpacket)
     assert_rnp_success(rnp_key_export(key, output, RNP_KEY_EXPORT_PUBLIC));
     uint8_t *exported = NULL;
     size_t   exported_len = 0;
-    assert_rnp_success(
-      rnp_output_memory_get_buf(output, &exported, &exported_len, false));
+    assert_rnp_success(rnp_output_memory_get_buf(output, &exported, &exported_len, false));
     std::vector<uint8_t> exported_vec(exported, exported + exported_len);
     rnp_output_destroy(output);
     rnp_key_handle_destroy(key);
     rnp_ffi_destroy(ffi);
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_rnp_success(rnp_input_from_memory(
-      &input, exported_vec.data(), exported_vec.size(), false));
+    assert_rnp_success(
+      rnp_input_from_memory(&input, exported_vec.data(), exported_vec.size(), false));
     assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, &results));
     rnp_buffer_destroy(results);
     rnp_input_destroy(input);

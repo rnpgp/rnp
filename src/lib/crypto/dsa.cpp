@@ -46,9 +46,9 @@ log_size_hint(const mpi &p, const mpi &q)
 #if BOTAN_VERSION_CODE >= BOTAN_VERSION_CODE_FOR(3, 14, 0)
     size_t pbits = p.bits();
     size_t qbits = q.bits();
-    bool   fips =
-      ((pbits == 1024) && (qbits == 160)) || ((pbits == 2048) && ((qbits == 224) || (qbits == 256))) ||
-      ((pbits == 3072) && (qbits == 256));
+    bool   fips = ((pbits == 1024) && (qbits == 160)) ||
+                ((pbits == 2048) && ((qbits == 224) || (qbits == 256))) ||
+                ((pbits == 3072) && (qbits == 256));
     if (!fips) {
         RNP_LOG("DSA key with %zu-bit p and %zu-bit q cannot be used: since Botan 3.14 DSA "
                 "keys are restricted to the FIPS 186-4 size ranges (1024/160, 2048/224, "
