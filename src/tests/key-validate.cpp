@@ -31,6 +31,8 @@
 #include "../librepgp/stream-packet.h"
 #include "../librepgp/stream-armor.h"
 #include "keygen.hpp"
+#include "crypto/signatures.h"
+#include "crypto/mem.h"
 
 static bool
 all_keys_valid(const rnp::KeyStore *keyring, rnp::Key *except = NULL)
@@ -883,3 +885,276 @@ TEST_F(rnp_tests, test_subkey_revocation_compromised_priority)
     key->lock();
     delete secring;
 }
+
+static pgp::pkt::sigsub::IssuerFingerprint *
+hashed_issuer_fp(pgp::pkt::Signature &sig)
+{
+    return dynamic_cast<pgp::pkt::sigsub::IssuerFingerprint *>(
+      sig.get_subpkt(pgp::pkt::sigsub::Type::IssuerFingerprint));
+}
+
+/* Sign a direct-key signature. issuer_version < 0 keeps the octet set_keyfp() wrote. */
+static bool
+sign_direct_at(rnp::Key &            signer,
+               pgp_version_t         sigver,
+               int                   issuer_version,
+               rnp::SecurityContext &ctx,
+               pgp::pkt::Signature & sig)
+{
+    sig = {};
+    signer.sign_init(ctx.rng, sig, PGP_HASH_SHA256, signer.creation(), sigver);
+    sig.set_type(PGP_SIG_DIRECT);
+    if (issuer_version >= 0) {
+        auto *sub = hashed_issuer_fp(sig);
+        if (!sub) {
+            return false;
+        }
+        sub->set_version(static_cast<uint8_t>(issuer_version));
+    }
+    signer.sign_direct(signer.pkt(), sig, ctx);
+    return true;
+}
+
+static void
+expect_direct(rnp::Key &            verifier,
+              pgp::pkt::Signature & sig,
+              bool                  accept,
+              rnp::SecurityContext &ctx)
+{
+    auto crypto_hash = signature_hash_direct(sig, verifier.pkt());
+    auto crypto = signature_validate(sig, *verifier.material(), *crypto_hash, ctx);
+    assert_true(crypto.errors().empty());
+    assert_true(sig.has_keyfp());
+    assert_true(sig.keyfp() == verifier.fp());
+
+    rnp::SignatureInfo info;
+    info.sig = &sig;
+    info.signer_valid = true;
+    info.ignore_expiry = true;
+    auto policy_hash = signature_hash_direct(sig, verifier.pkt());
+    verifier.validate_sig(info, *policy_hash, ctx);
+    rnp::Signature wrapped(sig);
+    if (accept) {
+        assert_true(info.validity.valid());
+        assert_true(verifier.is_signer(wrapped));
+        return;
+    }
+    assert_false(info.validity.valid());
+    assert_false(verifier.is_signer(wrapped));
+    assert_int_equal(info.validity.errors().size(), 1);
+    /* Bytes still match, so this is not RNP_ERROR_SIG_FP_MISMATCH. */
+    assert_int_equal(info.validity.errors().at(0), RNP_ERROR_SIG_ERROR);
+}
+
+static void
+clear_key_sigs(rnp::Key &key)
+{
+    pgp::SigIDs ids;
+    for (size_t i = 0; i < key.sig_count(); i++) {
+        ids.push_back(key.get_sig(i).sigid);
+    }
+    key.del_sigs(ids);
+}
+
+static bool
+generate_rsa(rnp::KeygenParams &keygen, rnp::Key &sec, rnp::Key &pub, const char *uid)
+{
+    auto &          rsa = dynamic_cast<pgp::RSAKeyParams &>(keygen.key_params());
+    rsa.set_bits(1024);
+    rnp::CertParams cert;
+    cert.userid = uid;
+    return keygen.generate(cert, sec, pub);
+}
+
+TEST_F(rnp_tests, test_issuer_fp_version_v4_rejected_when_resigned)
+{
+    rnp::KeygenParams keygen(PGP_PKA_RSA, global_ctx);
+    rnp::Key          sec;
+    rnp::Key          pub;
+    assert_true(generate_rsa(keygen, sec, pub, "v4"));
+    assert_int_equal(pub.version(), PGP_V4);
+
+    pgp::pkt::Signature mismatch;
+    assert_true(sign_direct_at(sec, PGP_V4, 6, global_ctx, mismatch));
+    auto *sub = hashed_issuer_fp(mismatch);
+    assert_non_null(sub);
+    assert_int_equal(sub->version(), 6);
+    expect_direct(pub, mismatch, false, global_ctx);
+
+    pgp::pkt::Signature match;
+    assert_true(sign_direct_at(sec, PGP_V4, -1, global_ctx, match));
+    sub = hashed_issuer_fp(match);
+    assert_non_null(sub);
+    assert_int_equal(sub->version(), PGP_V4);
+    expect_direct(pub, match, true, global_ctx);
+}
+
+static rnp::Key *
+primary_key(rnp::KeyStore &store)
+{
+    for (auto &key : store.keys) {
+        if (key.is_primary()) {
+            return &key;
+        }
+    }
+    return nullptr;
+}
+
+TEST_F(rnp_tests, test_issuer_fp_version_v5_writer_and_lookup)
+{
+    /* Fresh v5 RSA generation throws BAD_PARAMETERS while certifying, so use a real v5 key. */
+    rnp::KeyStore pubring("data/test_stream_key_load/v5-rsa-pub.asc", global_ctx);
+    assert_true(pubring.load());
+    auto *pub = primary_key(pubring);
+    assert_non_null(pub);
+    assert_int_equal(pub->version(), PGP_V5);
+    pub->revalidate(pubring);
+    assert_true(pub->valid());
+    assert_true(pub->sig_count() > 0);
+    auto *self = hashed_issuer_fp(pub->get_sig(0).sig);
+    assert_non_null(self);
+    assert_int_equal(self->version(), PGP_V5);
+
+    auto hex = rnp::bin_to_hex(pub->fp().data(), pub->fp().size());
+    auto search = rnp::KeySearch::create("fingerprint", hex);
+    assert_non_null(search.get());
+    assert_non_null(pubring.search(*search));
+
+    rnp::KeyStore secring("data/test_stream_key_load/v5-rsa-sec.asc", global_ctx);
+    assert_true(secring.load());
+    auto *sec = primary_key(secring);
+    assert_non_null(sec);
+    if (sec->encrypted()) {
+        pgp_password_provider_t pprov(string_copy_password_callback, (void *) "password");
+        assert_true(sec->unlock(pprov));
+    }
+
+    pgp::pkt::Signature fresh;
+    assert_true(sign_direct_at(*sec, PGP_V5, -1, global_ctx, fresh));
+    auto *fresh_sub = hashed_issuer_fp(fresh);
+    assert_non_null(fresh_sub);
+    /* Writer must emit 5 even when crypto-refresh is off. */
+    assert_int_equal(fresh_sub->version(), PGP_V5);
+    expect_direct(*pub, fresh, true, global_ctx);
+
+    /* LibrePGP does not require rejecting a v5 octet mismatch, and older RNP wrote 4. */
+    pgp::pkt::Signature legacy;
+    assert_true(sign_direct_at(*sec, PGP_V5, 4, global_ctx, legacy));
+    auto *legacy_sub = hashed_issuer_fp(legacy);
+    assert_non_null(legacy_sub);
+    assert_int_equal(legacy_sub->version(), 4);
+    expect_direct(*pub, legacy, true, global_ctx);
+}
+
+TEST_F(rnp_tests, test_issuer_fp_version_subkey_no_keyid_fallback)
+{
+    rnp::KeygenParams keygen(PGP_PKA_RSA, global_ctx);
+    rnp::Key          sec;
+    rnp::Key          pub;
+    assert_true(generate_rsa(keygen, sec, pub, "primary"));
+    rnp::Key                    subsec;
+    rnp::Key                    subpub;
+    rnp::BindingParams          binding;
+    pgp_password_provider_t     prov = {};
+    assert_true(keygen.generate(binding, sec, pub, subsec, subpub, prov));
+
+    rnp::Key badsub = subpub;
+    clear_key_sigs(badsub);
+    badsub.unset_primary_fp();
+    pgp::pkt::Signature bad;
+    sec.sign_init(global_ctx.rng, bad, PGP_HASH_SHA256, sec.creation(), PGP_V4);
+    bad.set_type(PGP_SIG_SUBKEY);
+    auto *issuer = hashed_issuer_fp(bad);
+    assert_non_null(issuer);
+    issuer->set_version(5);
+    assert_true(bad.has_keyid());
+    sec.sign_binding(badsub.pkt(), bad, global_ctx);
+    auto crypto_hash = signature_hash_binding(bad, sec.pkt(), badsub.pkt());
+    assert_true(
+      signature_validate(bad, *sec.material(), *crypto_hash, global_ctx).errors().empty());
+    assert_true(bad.keyfp() == sec.fp());
+    badsub.add_sig(bad);
+
+    /* Primary is added after the subkey, which runs refresh_subkey_grips. */
+    rnp::KeyStore late_primary(global_ctx);
+    assert_non_null(late_primary.add_key(badsub));
+    assert_non_null(late_primary.add_key(pub));
+    auto *stored = late_primary.get_key(badsub.fp());
+    assert_non_null(stored);
+    assert_false(stored->has_primary_fp());
+
+    /* Same packets, primary already present: add_subkey must not link either. */
+    rnp::KeyStore early_primary(global_ctx);
+    assert_non_null(early_primary.add_key(pub));
+    assert_non_null(early_primary.add_key(badsub));
+    stored = early_primary.get_key(badsub.fp());
+    assert_non_null(stored);
+    assert_false(stored->has_primary_fp());
+
+    /* Key id alone, with no issuer fingerprint, still associates the subkey. */
+    rnp::Key idsub = subpub;
+    clear_key_sigs(idsub);
+    idsub.unset_primary_fp();
+    pgp::pkt::Signature by_id;
+    sec.sign_init(global_ctx.rng, by_id, PGP_HASH_SHA256, sec.creation(), PGP_V4);
+    by_id.set_type(PGP_SIG_SUBKEY);
+    size_t fp_idx = by_id.find_subpkt(pgp::pkt::sigsub::Type::IssuerFingerprint);
+    assert_true(fp_idx != SIZE_MAX);
+    by_id.remove_subpkt(fp_idx);
+    assert_false(by_id.has_keyfp());
+    assert_true(by_id.has_keyid());
+    idsub.add_sig(by_id);
+    rnp::KeyStore by_id_store(global_ctx);
+    assert_non_null(by_id_store.add_key(idsub));
+    assert_non_null(by_id_store.add_key(pub));
+    stored = by_id_store.get_key(idsub.fp());
+    assert_non_null(stored);
+    assert_true(stored->has_primary_fp());
+}
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+TEST_F(rnp_tests, test_issuer_fp_version_v6)
+{
+    rnp::KeygenParams keygen(PGP_PKA_ED25519, global_ctx);
+    keygen.set_version(PGP_V6);
+    rnp::CertParams cert;
+    cert.userid = "v6";
+    rnp::Key sec;
+    rnp::Key pub;
+    assert_true(keygen.generate(cert, sec, pub));
+    assert_int_equal(pub.version(), PGP_V6);
+    assert_true(pub.sig_count() > 0);
+    bool saw_issuer = false;
+    for (size_t i = 0; i < pub.sig_count(); i++) {
+        auto *sub = hashed_issuer_fp(pub.get_sig(i).sig);
+        if (!sub) {
+            continue;
+        }
+        saw_issuer = true;
+        assert_int_equal(sub->version(), PGP_V6);
+        assert_int_equal(pub.get_sig(i).sig.version, PGP_V6);
+        auto &sig = pub.get_sig(i);
+        sig.validity.reset();
+        pub.validate_sig(pub, sig, global_ctx);
+        assert_true(sig.validity.valid());
+    }
+    assert_true(saw_issuer);
+
+    pgp::pkt::Signature mismatch;
+    assert_true(sign_direct_at(sec, PGP_V6, 5, global_ctx, mismatch));
+    expect_direct(pub, mismatch, false, global_ctx);
+    pgp::pkt::Signature match;
+    assert_true(sign_direct_at(sec, PGP_V6, -1, global_ctx, match));
+    auto *sub = hashed_issuer_fp(match);
+    assert_non_null(sub);
+    assert_int_equal(sub->version(), PGP_V6);
+    expect_direct(pub, match, true, global_ctx);
+
+    rnp::KeyStore store(global_ctx);
+    assert_true(store.add_key(pub));
+    auto hex = rnp::bin_to_hex(pub.fp().data(), pub.fp().size());
+    auto search = rnp::KeySearch::create("fingerprint", hex);
+    assert_non_null(search.get());
+    assert_non_null(store.search(*search));
+}
+#endif
