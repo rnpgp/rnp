@@ -1628,9 +1628,11 @@ Key::latest_uid_selfcert(uint32_t uid)
 static bool
 is_issuer(const pgp::pkt::Signature &sig, const pgp::Fingerprint &fp)
 {
-    /* if we have fingerprint let's check it */
+    /* A present issuer fingerprint is authoritative. A bad version octet must not
+     * fall through to the key id, which is weaker and, for a parsed v5/v6 fingerprint,
+     * may be all zeros. */
     if (sig.has_keyfp()) {
-        return sig.keyfp() == fp;
+        return sig.issuer_fp_version_matches() && (sig.keyfp() == fp);
     }
     if (!sig.has_keyid()) {
         return false;
@@ -1826,10 +1828,17 @@ Key::validate_sig(SignatureInfo &          sinfo,
         res.add_error(RNP_ERROR_SIG_EXPIRED_KEY);
     }
 
-    /* Check signer's fingerprint */
-    if (sinfo.sig->has_keyfp() && (sinfo.sig->keyfp() != fp())) {
-        RNP_LOG("issuer fingerprint doesn't match signer's one");
-        res.add_error(RNP_ERROR_SIG_FP_MISMATCH);
+    /* Check signer's fingerprint. RNP_ERROR_SIG_FP_MISMATCH stays "bytes differ".
+     * A v4/v6 version-octet mismatch is a malformed issuer fingerprint (RFC 9580
+     * §5.2.3.35) and is reported as a general signature error, without a new code. */
+    if (sinfo.sig->has_keyfp()) {
+        if (!sinfo.sig->issuer_fp_version_matches()) {
+            RNP_LOG("issuer fingerprint version does not match signature version");
+            res.add_error(RNP_ERROR_SIG_ERROR);
+        } else if (sinfo.sig->keyfp() != fp()) {
+            RNP_LOG("issuer fingerprint doesn't match signer's one");
+            res.add_error(RNP_ERROR_SIG_FP_MISMATCH);
+        }
     }
 
     /* Check for unknown critical notations */
