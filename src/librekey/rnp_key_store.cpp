@@ -240,9 +240,16 @@ KeyStore::refresh_subkey_grips(Key &key)
             if (subsig.sig.type() != PGP_SIG_SUBKEY) {
                 continue;
             }
-            if (subsig.sig.has_keyfp() && (key.fp() == subsig.sig.keyfp())) {
-                found = true;
-                break;
+            if (subsig.sig.has_keyfp()) {
+                /* Version mismatch: do not use this signature's key id. A matching
+                 * version with different fingerprint bytes still falls through, as before. */
+                if (!subsig.sig.issuer_fp_version_matches()) {
+                    continue;
+                }
+                if (key.fp() == subsig.sig.keyfp()) {
+                    found = true;
+                    break;
+                }
             }
             if (subsig.sig.has_keyid() && (key.keyid() == subsig.sig.keyid())) {
                 found = true;
@@ -649,9 +656,15 @@ KeyStore::primary_key(const Key &subkey)
         }
 
         Key *primary = get_signer(subsig.sig);
-        if (primary && primary->is_primary()) {
-            return primary;
+        if (!primary || !primary->is_primary()) {
+            continue;
         }
+        /* Fingerprint lookup ignores the version octet. Do not bind a subkey to a
+         * primary whose issuer fingerprint version does not match the signature. */
+        if (subsig.sig.has_keyfp() && !subsig.sig.issuer_fp_version_matches()) {
+            continue;
+        }
+        return primary;
     }
     return nullptr;
 }
