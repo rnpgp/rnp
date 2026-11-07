@@ -111,6 +111,7 @@ typedef struct rnp_ctx_t {
     bool           overwrite{}; /* allow to overwrite output file if exists */
     bool           armor{};     /* whether to use ASCII armor on output */
     bool           no_wrap{};   /* do not wrap source in literal data packet */
+    bool           allow_unprotected{}; /* allow SED packets without integrity protection */
 #if defined(ENABLE_CRYPTO_REFRESH)
     bool enable_pkesk_v6{}; /* allows pkesk v6 if list of recipients is suitable */
     bool enable_skesk_v6{}; /* allows skesk v6 if chosen cipher is suitable */

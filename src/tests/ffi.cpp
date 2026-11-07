@@ -4488,11 +4488,40 @@ TEST_F(rnp_tests, test_ffi_op_verify_get_protection_info)
     rnp_input_destroy(input);
     rnp_output_destroy(output);
 
-    /* message without MDC */
+    /* message without MDC: refused by default (#2136) */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-no-mdc"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_int_equal(rnp_op_verify_execute(verify), RNP_ERROR_DECRYPT_FAILED);
+    uint8_t *outbuf = NULL;
+    size_t   outlen = 1;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &outbuf, &outlen, false));
+    assert_int_equal(outlen, 0);
+    /* recipients are still reported */
+    size_t rcount = 0;
+    assert_rnp_success(rnp_op_verify_get_recipient_count(verify, &rcount));
+    assert_int_equal(rcount, 1);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    /* flags are reset by the subsequent call */
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.enc-no-mdc"));
     assert_rnp_success(rnp_output_to_null(&output));
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_set_flags(verify, RNP_VERIFY_ALLOW_UNPROTECTED));
+    assert_rnp_success(rnp_op_verify_set_flags(verify, 0));
+    assert_int_equal(rnp_op_verify_execute(verify), RNP_ERROR_DECRYPT_FAILED);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    /* message without MDC: explicitly allowed */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-no-mdc"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_set_flags(verify, RNP_VERIFY_ALLOW_UNPROTECTED));
     assert_rnp_success(rnp_op_verify_execute(verify));
     mode = NULL;
     cipher = NULL;
@@ -4740,6 +4769,7 @@ TEST_F(rnp_tests, test_ffi_op_verify_recipients_info)
       rnp_input_from_path(&input, "data/test_messages/message.txt.enc-no-mdc"));
     assert_rnp_success(rnp_output_to_null(&output));
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_set_flags(verify, RNP_VERIFY_ALLOW_UNPROTECTED));
     assert_rnp_success(rnp_op_verify_execute(verify));
     assert_rnp_success(rnp_op_verify_get_recipient_count(verify, &count));
     assert_int_equal(count, 1);

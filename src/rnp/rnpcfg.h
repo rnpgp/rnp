@@ -100,7 +100,8 @@
 #define CFG_CURTIME "curtime" /* date or timestamp to override the system's time */
 #define CFG_ALLOW_OLD_CIPHERS \
     "allow-old-ciphers" /* Allow to use 64-bit ciphers (CAST5, 3DES, IDEA, BLOWFISH) */
-#define CFG_ALLOW_HIDDEN "allow-hidden" /* allow hidden recipients */
+#define CFG_ALLOW_HIDDEN "allow-hidden"           /* allow hidden recipients */
+#define CFG_ALLOW_UNPROTECTED "allow-unprotected" /* allow SED packets without MDC */
 
 /* rnp keyring setup variables */
 #define CFG_KR_PUB_FORMAT "kr-pub-format"

@@ -809,12 +809,10 @@ buggy_key_load_single(const void *keydata, size_t keylen)
     for (partlen = 1; partlen < keylen; partlen++) {
         dataptr[partlen] ^= 0xff;
         assert_rnp_success(init_mem_src(&memsrc, keydata, keylen, false));
-        if (!process_pgp_keys(memsrc, keyseq, false)) {
-            /* it may succeed if we accidentally hit some packet boundary */
-            assert_false(keyseq.keys.empty());
-        } else {
-            assert_true(keyseq.keys.empty());
-        }
+        /* It may succeed if we accidentally hit some packet boundary, or if the
+         * modified algorithm octet turns the key into an unsupported one: the
+         * key is then skipped, so an empty result is fine as well. */
+        process_pgp_keys(memsrc, keyseq, false);
         memsrc.close();
         dataptr[partlen] ^= 0xff;
     }
@@ -1387,6 +1385,48 @@ TEST_F(rnp_tests, test_stream_dumper_y2k38)
     correct += ')';
     assert_true(std::search(written, last, correct.begin(), correct.end()) != last);
 }
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+static bool
+dump_mem_packet(const std::vector<uint8_t> &pkt, std::string &out)
+{
+    rnp::Source src;
+    rnp::Dest   dst;
+    if (init_mem_src(&src.src(), pkt.data(), pkt.size(), false) ||
+        init_mem_dest(&dst.dst(), NULL, 0)) {
+        return false;
+    }
+    rnp::DumpContextDst ctx(src.src(), dst.dst());
+    ctx.set_dump_mpi(true);
+    if (ctx.dump()) {
+        return false;
+    }
+    auto written = (const char *) mem_dest_get_memory(&dst.dst());
+    out.assign(written, written + dst.writeb());
+    return true;
+}
+
+TEST_F(rnp_tests, test_stream_dumper_vec)
+{
+    /* v3 X25519 PKESK: 32-byte ephemeral key, 1-byte encrypted session key */
+    std::vector<uint8_t> pkt = {
+      0xC1, 0x2D, 0x03, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x19};
+    pkt.insert(pkt.end(), 31, 0x11);
+    pkt.insert(pkt.end(), {0xEE, 0x02, 0x09, 0xAB});
+    std::string dump;
+    assert_true(dump_mem_packet(pkt, dump));
+    assert_true(dump.find("x25519 ephemeral public key, " + std::string(62, '1') + "ee\n") !=
+                std::string::npos);
+    assert_true(dump.find("x25519 encrypted session key, ab\n") != std::string::npos);
+
+    /* same, but the encrypted session key is empty */
+    pkt = {0xC1, 0x2C, 0x03, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x19};
+    pkt.insert(pkt.end(), 32, 0x11);
+    pkt.insert(pkt.end(), {0x01, 0x09});
+    assert_true(dump_mem_packet(pkt, dump));
+    assert_true(dump.find("x25519 encrypted session key, \n") != std::string::npos);
+}
+#endif
 
 TEST_F(rnp_tests, test_stream_dumper)
 {
