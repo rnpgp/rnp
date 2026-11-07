@@ -8,6 +8,15 @@
   as recommended by RFC 9580 section 5.7. Use `RNP_VERIFY_ALLOW_UNPROTECTED` flag for `rnp_op_verify_set_flags()`
   or `--allow-unprotected` CLI option to override. (#2136)
 
+#### FFI
+
+* When a Symmetrically Encrypted Data packet is refused, `rnp_op_verify_get_protection_info()`
+  reports mode `cfb`, cipher `unknown`, and valid false. Decryption still fails with
+  `RNP_ERROR_DECRYPT_FAILED` and no payload is written. `rnp_decrypt()` success does not
+  by itself mean that an encryption layer was present; use the verify operation to read
+  protection info. This does not change decryption of literal, compressed, signed, MDC,
+  or AEAD data. (#1826)
+
 ### 0.18.1 [2025-11-21]
 
 #### Security
