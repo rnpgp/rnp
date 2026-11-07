@@ -27,7 +27,9 @@
 #include <string.h>
 #include <cassert>
 #include <botan/ffi.h>
+#include <botan/version.h>
 #include "eddsa.h"
+#include "ed25519_ed448.h"
 #include "utils.h"
 #include "botan_utils.hpp"
 
@@ -91,6 +93,15 @@ validate_key(rnp::RNG &rng, const ec::Key &key, bool secret)
     return RNP_SUCCESS;
 }
 
+#if BOTAN_VERSION_CODE >= BOTAN_VERSION_CODE_FOR(3, 6, 0)
+static int
+view_raw_to_vector(botan_view_ctx ctx, const uint8_t buf[], size_t len)
+{
+    static_cast<std::vector<uint8_t> *>(ctx)->assign(buf, buf + len);
+    return 0;
+}
+#endif
+
 rnp_result_t
 generate(rnp::RNG &rng, ec::Key &key)
 {
@@ -99,24 +110,34 @@ generate(rnp::RNG &rng, ec::Key &key)
         return RNP_ERROR_GENERIC;
     }
 
-    uint8_t key_bits[64];
 #if BOTAN_VERSION_CODE >= BOTAN_VERSION_CODE_FOR(3, 6, 0)
-    rnp_botan_view_buf vb{key_bits, sizeof(key_bits)};
-    if (botan_privkey_view_raw(eddsa.get(), &vb, rnp_botan_view_bin)) {
+    /* view_raw returns the same 64 bytes as the old getter: the EdDSA seed
+     * followed by the public key */
+    std::vector<uint8_t> key_bits;
+    if (botan_privkey_view_raw(eddsa.get(), &key_bits, view_raw_to_vector) ||
+        key_bits.size() != 2 * ED25519_KEY_LEN) {
         return RNP_ERROR_GENERIC;
     }
+
+    // First ED25519_KEY_LEN bytes of key_bits are the EdDSA seed (private key)
+    // Second ED25519_KEY_LEN bytes are the EdDSA public key
+    key.x.assign(key_bits.data(), ED25519_KEY_LEN);
+    // insert the required 0x40 prefix on the public key
+    key_bits[ED25519_KEY_LEN - 1] = 0x40;
+    key.p.assign(key_bits.data() + ED25519_KEY_LEN - 1, ED25519_KEY_LEN + 1);
 #else
+    uint8_t key_bits[2 * ED25519_KEY_LEN];
     if (botan_privkey_ed25519_get_privkey(eddsa.get(), key_bits)) {
         return RNP_ERROR_GENERIC;
     }
-#endif
 
-    // First 32 bytes of key_bits are the EdDSA seed (private key)
-    // Second 32 bytes are the EdDSA public key
-    key.x.assign(key_bits, 32);
+    // First ED25519_KEY_LEN bytes of key_bits are the EdDSA seed (private key)
+    // Second ED25519_KEY_LEN bytes are the EdDSA public key
+    key.x.assign(key_bits, ED25519_KEY_LEN);
     // insert the required 0x40 prefix on the public key
-    key_bits[31] = 0x40;
-    key.p.assign(key_bits + 31, 33);
+    key_bits[ED25519_KEY_LEN - 1] = 0x40;
+    key.p.assign(key_bits + ED25519_KEY_LEN - 1, ED25519_KEY_LEN + 1);
+#endif
     key.curve = PGP_CURVE_ED25519;
     return RNP_SUCCESS;
 }

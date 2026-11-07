@@ -3610,6 +3610,8 @@ try {
     op->require_all_sigs = extract_flag(flags, RNP_VERIFY_REQUIRE_ALL_SIGS);
     /* Allow hidden recipients if any */
     op->allow_hidden = extract_flag(flags, RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT);
+    /* Allow obsolete SED packets without integrity protection */
+    op->rnpctx.allow_unprotected = extract_flag(flags, RNP_VERIFY_ALLOW_UNPROTECTED);
 
     if (flags) {
         FFI_LOG(op->ffi, "Unknown operation flags: %x", flags);
