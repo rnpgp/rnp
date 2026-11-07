@@ -145,6 +145,16 @@ class Signature {
      */
     Fingerprint keyfp() const noexcept;
 
+    /**
+     * @brief Whether the hashed issuer fingerprint used by has_keyfp()/keyfp() has an
+     *        acceptable version octet.
+     * RFC 9580 §5.2.3.35 requires that octet to equal the signature version. A mismatch makes
+     * the signature malformed. This is enforced for v4 and v6 only. LibrePGP does not require
+     * rejecting a v5 mismatch, and older RNP builds wrote octet 4 for every signature when
+     * crypto-refresh was off, so a v5 signature is not rejected here.
+     */
+    bool issuer_fp_version_matches() const noexcept;
+
     /** @brief Set signing key's fingerprint. Works only for signatures with version 4 and up,
      *         so version should be set prior to fingerprint. */
     void set_keyfp(const Fingerprint &fp);
