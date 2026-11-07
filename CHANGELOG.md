@@ -1,5 +1,13 @@
 ## Changelog
 
+### Unreleased
+
+#### Security
+
+* Refuse to decrypt obsolete Symmetrically Encrypted Data packets (tag 9, no integrity protection) by default,
+  as recommended by RFC 9580 section 5.7. Use `RNP_VERIFY_ALLOW_UNPROTECTED` flag for `rnp_op_verify_set_flags()`
+  or `--allow-unprotected` CLI option to override. (#2136)
+
 ### 0.18.1 [2025-11-21]
 
 #### Security
