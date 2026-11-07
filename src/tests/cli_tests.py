@@ -5055,9 +5055,9 @@ class Encryption(unittest.TestCase):
         ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', data_path(KEY_25519_NOTWEAK_SEC)])
         self.assertEqual(ret, 0)
         # Older GnuPG versions fail to use the non-tweaked secret key, while newer ones tweak it for use and decrypt successfully
-        ret, dout, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '-d', data_path(MSG_ES_25519)])
+        ret, dec_out, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '-d', data_path(MSG_ES_25519)])
         if ret == 0:
-            self.assertEqual(dout, file_text(data_path('test_messages/message.txt')))
+            self.assertEqual(dec_out, file_text(data_path('test_messages/message.txt')))
         ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--yes', '--delete-secret-key', 'dde0ee539c017d2bd3f604a53176fc1486aa2528'])
         self.assertEqual(ret, 0)
         # Make sure GPG imports tweaked key and successfully decrypts message
