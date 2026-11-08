@@ -47,7 +47,13 @@ find_package(ZLIB REQUIRED)
 
 # required packages
 if(ENABLE_CRYPTO_REFRESH AND CRYPTO_BACKEND_BOTAN)
-  find_package(Botan 3.6.0 REQUIRED)
+  find_package(Botan 3.6.0 QUIET)
+  if(NOT Botan_FOUND)
+    message(FATAL_ERROR
+      "The crypto-refresh (RFC 9580) support, which is enabled by default, requires "
+      "Botan 3.6.0 or newer. Install it, or configure with -DENABLE_CRYPTO_REFRESH=OFF "
+      "to build against the older Botan.")
+  endif()
   set(CRYPTO_BACKEND_BOTAN3 1)
 else()
   if (CRYPTO_BACKEND_BOTAN3)
