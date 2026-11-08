@@ -6075,6 +6075,7 @@ TEST_F(rnp_tests, test_ffi_message_with_noncritical_packet)
     rnp_ffi_destroy(ffi);
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
 TEST_F(rnp_tests, test_ffi_aead_gcm)
 {
     /* RFC 9580, A.11: the sample message, encrypted with AES-128 and GCM using
@@ -6161,6 +6162,7 @@ TEST_F(rnp_tests, test_ffi_aead_gcm)
     }
     rnp_ffi_destroy(ffi);
 }
+#endif
 
 #if defined(ENABLE_CRYPTO_REFRESH)
 static void
