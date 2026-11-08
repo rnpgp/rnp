@@ -198,6 +198,20 @@ if(ENABLE_FIPS_MODE AND NOT CRYPTO_BACKEND_OPENSSL)
     "-DCRYPTO_BACKEND=openssl -DENABLE_FIPS_MODE=On.")
 endif()
 
+# The crypto-refresh (RFC 9580) support is enabled by default, but it is not
+# available with Botan 2.x, so gracefully turn it off rather than fail the
+# configure. Done in the top-level scope, before subdirectories consume the
+# option.
+if(ENABLE_CRYPTO_REFRESH AND CRYPTO_BACKEND_BOTAN)
+  find_package(Botan 3.6.0 QUIET)
+  if(NOT Botan_FOUND)
+    set(ENABLE_CRYPTO_REFRESH OFF)
+    message(WARNING
+      "The crypto-refresh (RFC 9580) support requires Botan 3.6.0 or newer. "
+      "Building against the older Botan, so it is turned off.")
+  endif()
+endif()
+
 if(MSVC)
   # This works both for MSVC and CL on Windows
   # Recent version of MSVC toolset issues c++17 deprecation warning even if we use /std:c++11
