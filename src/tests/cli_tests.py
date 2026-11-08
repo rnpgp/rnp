@@ -4757,7 +4757,8 @@ class Encryption(unittest.TestCase):
         ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '--output', enc, '--cipher', 'CAMELLIA192', '--aead=ocb', '--aead-chunk-bits', '2', '-z', '0', '-c', src])
         if RNP_AEAD_OCB_AES:
             self.assertEqual(ret, 1)
-            self.assertRegex(err, r'(?s)^.*Only AES-OCB is supported by the OpenSSL backend')
+            self.assertRegex(
+              err, r'(?s)^.*Only AES with the OCB or GCM mode is supported by the OpenSSL backend')
         else:
             self.assertEqual(ret, 0)
             rnp_decrypt_file(enc, dst)
