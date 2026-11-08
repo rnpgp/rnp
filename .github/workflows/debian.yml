@@ -126,6 +126,7 @@ jobs:
           [ -n "${{ matrix.image.coverage }}" ] && cov_opt=(-DENABLE_COVERAGE=yes)
 
           cmake -B build                                           \
+                -DENABLE_CRYPTO_REFRESH=${{ matrix.image.backend == 'botan' && 'OFF' || 'ON' }} \
                 -DBUILD_SHARED_LIBS=ON                             \
                 -DCRYPTO_BACKEND=${{ matrix.image.backend }}       \
                 -DDOWNLOAD_GTEST=ON                                \

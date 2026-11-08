@@ -134,6 +134,7 @@ jobs:
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
           cmake -B build   -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}}   \
                            -DCRYPTO_BACKEND=${{ matrix.backend.name }}    \
+                           -DENABLE_CRYPTO_REFRESH=${{ matrix.backend.name == 'botan' && 'OFF' || 'ON' }} \
                            -DDOWNLOAD_GTEST=ON                            \
                            -DCMAKE_BUILD_TYPE=Release -DENABLE_DOC=Off .
 
@@ -197,6 +198,7 @@ jobs:
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
           cmake -B build   -DBUILD_SHARED_LIBS=on                     \
                            -DCRYPTO_BACKEND=${{ matrix.backend.name }} \
+                           -DENABLE_CRYPTO_REFRESH=${{ matrix.backend.name == 'botan' && 'OFF' || 'ON' }} \
                            -DDOWNLOAD_GTEST=ON                         \
                            -DCMAKE_BUILD_TYPE=Release -DENABLE_DOC=Off .
 
@@ -236,7 +238,8 @@ jobs:
       - name: Configure
         run: |
           cmake -B build -DBUILD_SHARED_LIBS=ON \
-                -DCRYPTO_BACKEND=botan \
+                -DCRYPTO_BACKEND=botan         \
+                -DENABLE_CRYPTO_REFRESH=OFF \
                 -DDOWNLOAD_GTEST=ON \
                 -DCMAKE_BUILD_TYPE=Release -DENABLE_DOC=Off .
 
@@ -274,6 +277,7 @@ jobs:
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
           cmake -B build   -DBUILD_SHARED_LIBS=ON              \
                            -DCRYPTO_BACKEND=botan              \
+                           -DENABLE_CRYPTO_REFRESH=OFF          \
                            -DDOWNLOAD_GTEST=OFF                \
                            -DGTEST_SOURCES=/usr/src/googletest \
                            -DCMAKE_BUILD_TYPE=Release          .
@@ -322,6 +326,7 @@ jobs:
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
           cmake -B build   -DBUILD_SHARED_LIBS=ON              \
                            -DCRYPTO_BACKEND=botan              \
+                           -DENABLE_CRYPTO_REFRESH=OFF          \
                            -DDOWNLOAD_GTEST=OFF                \
                            -DCMAKE_BUILD_TYPE=Release          .
 
@@ -432,6 +437,7 @@ jobs:
                   -DBUILD_TESTING=OFF         \
                   -DCMAKE_BUILD_TYPE=Release  \
                   -DCRYPTO_BACKEND=botan      \
+                  -DENABLE_CRYPTO_REFRESH=OFF \
                   -DCMAKE_INSTALL_PREFIX=/usr
 
       - name: Package source

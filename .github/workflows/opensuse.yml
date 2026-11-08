@@ -53,12 +53,12 @@ jobs:
       matrix:
         image:
           # openSUSE Leap -- botan 2.x system
-          - { container: 'opensuse-leap',                backend: 'botan' }
+          - { container: 'opensuse-leap',                backend: 'botan', refresh: 'OFF' }
           # openSUSE Tumbleweed -- botan 3.11.x system per @andreasstieger #2420.
           # Container renamed from 'opensuse-tumbleweed' to 'opensuse-tumbleweed-amd64'
           # in rnpgp/rnp-ci-containers#21 for naming consistency.
-          - { container: 'opensuse-tumbleweed-amd64',    backend: 'openssl', cxx_std: '17' }
-          - { container: 'opensuse-tumbleweed-amd64',    backend: 'botan',  cxx_std: '17' }
+          - { container: 'opensuse-tumbleweed-amd64',    backend: 'openssl', cxx_std: '17', refresh: 'ON' }
+          - { container: 'opensuse-tumbleweed-amd64',    backend: 'botan',  cxx_std: '17', refresh: 'ON' }
         env:
           - { CC: 'gcc',   CXX: 'g++'     }
           - { CC: 'clang', CXX: 'clang++' }
@@ -92,6 +92,7 @@ jobs:
           [ -n "$CXX_STD" ] && cxx_opt=(-DCMAKE_CXX_STANDARD=${CXX_STD})
 
           cmake -B build                                           \
+                -DENABLE_CRYPTO_REFRESH=${{ matrix.image.refresh }} \
                 -DBUILD_SHARED_LIBS=ON                             \
                 -DCRYPTO_BACKEND=${{ matrix.image.backend }}       \
                 -DDOWNLOAD_GTEST=Off                               \

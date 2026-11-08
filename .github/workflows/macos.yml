@@ -140,7 +140,8 @@ jobs:
                          -DCMAKE_INSTALL_PREFIX="$PWD/rnp-install"       \
                          -DDOWNLOAD_GTEST=OFF                            \
                          -DCMAKE_CXX_FLAGS="-DS2K_MINIMUM_TUNING_RATIO=4"\
-                         -DCRYPTO_BACKEND=${{ env.CRYPTO_BACKEND }}      .
+                         -DCRYPTO_BACKEND=${{ env.CRYPTO_BACKEND }}      \
+                         -DENABLE_CRYPTO_REFRESH=${{ env.CRYPTO_BACKEND == 'botan' && 'OFF' || 'ON' }} .
 
       - name: Build
         run: cmake --build build --config Release --parallel ${{ env.CORES }}
