@@ -76,6 +76,7 @@ static const id_str_pair packet_tag_map[] = {
   {PGP_PKT_SE_IP_DATA, "Symmetric Encrypted and Integrity Protected Data"},
   {PGP_PKT_MDC, "Modification Detection Code"},
   {PGP_PKT_AEAD_ENCRYPTED, "AEAD Encrypted Data Packet"},
+  {PGP_PKT_PADDING, "Padding"},
   {0x00, NULL},
 };
 

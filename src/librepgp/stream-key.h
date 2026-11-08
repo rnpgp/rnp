@@ -122,6 +122,10 @@ rnp_result_t process_pgp_key_auto(pgp_source_t &          src,
 
 rnp_result_t process_pgp_keys(pgp_source_t &src, pgp_key_sequence_t &keys, bool skiperrors);
 
+/* Skip packets which must be ignored per RFC 9580: unknown non-critical packets
+ * (type IDs 40-63) and padding packets. Returns false on a read error. */
+bool skip_ignorable_packets(pgp_source_t &src);
+
 rnp_result_t process_pgp_key(pgp_source_t &src, pgp_transferable_key_t &key, bool skiperrors);
 
 rnp_result_t process_pgp_subkey(pgp_source_t &             src,
