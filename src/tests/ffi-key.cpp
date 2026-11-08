@@ -3240,10 +3240,7 @@ TEST_F(rnp_tests, test_ffi_noncritical_packet_import)
      * RFC 9580, 4.3: packets with type IDs 40-63 are non-critical, so an unknown
      * packet of those types must be ignored wherever it is encountered. Padding
      * packets (section 5.14) must be ignored as well. */
-    for (auto file : {"pubkey-with-trailing-noncritical-pkt.asc",
-                      "pubkey-with-leading-noncritical-pkt.asc",
-                      "pubkey-with-mid-noncritical-pkt.asc",
-                      "pubkey-with-trailing-padding.asc"}) {
+    auto import_noncritical = [](const char *file) {
         rnp_ffi_t   ffi = NULL;
         rnp_input_t input = NULL;
         size_t      keycount = 0;
@@ -3259,11 +3256,23 @@ TEST_F(rnp_tests, test_ffi_noncritical_packet_import)
         assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
         assert_int_equal(keycount, 2);
         rnp_ffi_destroy(ffi);
-    }
+    };
+
+    import_noncritical("key-v4-trailing-noncritical.asc");
+    import_noncritical("key-v4-leading-noncritical.asc");
+    import_noncritical("key-v4-mid-noncritical.asc");
+    import_noncritical("key-v4-trailing-padding.asc");
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* The keys from the issue itself are version 6, which requires the
+     * crypto-refresh build to be parsed. */
+    import_noncritical("key-v6-trailing-noncritical.asc");
+    import_noncritical("key-v6-leading-noncritical.asc");
+    import_noncritical("key-v6-mid-noncritical.asc");
+    import_noncritical("key-v6-trailing-padding.asc");
+#endif
 
     /* Unknown critical packets still invalidate the whole sequence */
-    for (auto file :
-         {"pubkey-with-critical-pkt.asc", "pubkey-with-leading-critical-pkt.asc"}) {
+    for (auto file : {"key-v4-critical.asc", "key-v4-leading-critical.asc"}) {
         rnp_ffi_t   ffi = NULL;
         rnp_input_t input = NULL;
         size_t      keycount = 255;
