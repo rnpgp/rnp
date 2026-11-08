@@ -2,6 +2,13 @@
 
 ### Unreleased
 
+#### Added
+
+* Include the Intended Recipient Fingerprint subpacket (RFC 9580, section 5.2.3.36) in signatures
+  created for signed-and-encrypted messages, one per recipient, as recommended by the RFC.
+  Subpackets are marked critical in version 6 signatures. Visible in packet dumps and via
+  `rnp_signature_subpacket_*()` FFI functions.
+
 #### General
 
 * Do not mark cryptographically valid v3/v4/v5 signatures as invalid only because of mismatching left 16 bits of the hash (v6 signatures are still rejected, as required by RFC 9580). Fixes import of some real-world keys (#2191).
