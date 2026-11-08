@@ -16,6 +16,9 @@
 
 #### Security
 
+* Ignore unknown non-critical packets (type IDs 40-63) and padding packets wherever they are
+  encountered in key sequences and messages, as required by RFC 9580 sections 4.3 and 5.14.
+  Unknown critical packets still invalidate the whole sequence. (#2561)
 * Omit the CRC24 footer where its generation is prohibited by RFC 9580 section 6.1:
   armored version 6 keys, version 6 signature sequences, and messages ending with
   a version 2 SEIPD packet no longer carry it.
