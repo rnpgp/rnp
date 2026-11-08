@@ -5753,6 +5753,7 @@ TEST_F(rnp_tests, test_ffi_literal_packet)
     rnp_ffi_destroy(ffi);
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
 TEST_F(rnp_tests, test_ffi_aead_gcm)
 {
     /* RFC 9580, A.11: the sample message, encrypted with AES-128 and GCM using
@@ -5840,6 +5841,7 @@ TEST_F(rnp_tests, test_ffi_aead_gcm)
 
     rnp_ffi_destroy(ffi);
 }
+#endif
 
 /* This test checks that any exceptions thrown by the internal library
  * will not propagate beyond the FFI boundary.
