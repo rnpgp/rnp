@@ -6,6 +6,14 @@
 
 * Do not mark cryptographically valid v3/v4/v5 signatures as invalid only because of mismatching left 16 bits of the hash (v6 signatures are still rejected, as required by RFC 9580). Fixes import of some real-world keys (#2191).
 
+#### Changed
+
+* The crypto-refresh (RFC 9580) support is now enabled by default, producing
+  version 6 keys and signatures, AEAD-protected version 2 SEIPD messages and
+  Argon2 key protection where the backend and the recipients allow it. Configure
+  with `-DENABLE_CRYPTO_REFRESH=OFF` for the legacy behavior; note that the
+  crypto-refresh requires Botan 3.6+ or OpenSSL 3.x.
+
 #### Security
 
 * Refuse to decrypt obsolete Symmetrically Encrypted Data packets (tag 9, no integrity protection) by default,

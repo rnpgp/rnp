@@ -121,7 +121,7 @@ tristate_feature_auto(ENABLE_RIPEMD160 "Enable RIPEMD-160 hash support.")
 # compression
 tristate_feature_auto(ENABLE_BZIP2 "Enable BZip2 compression support.")
 
-option(ENABLE_CRYPTO_REFRESH "Enable crypto-refresh support (v6)")
+option(ENABLE_CRYPTO_REFRESH "Enable crypto-refresh (RFC 9580) support (v6)." ON)
 option(ENABLE_PQC "Enable PQC support")
 
 # Note: The following flag is only temporary and will be removed once POC is in a stable state
