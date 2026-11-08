@@ -63,6 +63,246 @@ typedef struct pgp_source_armored_param_t {
     bool                        noheaders; /* only base64 data, no headers */
 } pgp_source_armored_param_t;
 
+/* Tracks packet boundaries and versions of the OpenPGP data flowing through
+ * the armored destination, so that the CRC24 footer can be omitted where its
+ * generation is prohibited by RFC 9580, 6.1: for the armored Transferable
+ * (Secret) Public Key sequences of version 6 keys, the sequences of version 6
+ * signatures, and the encrypted messages ending with a version 2 SEIPD packet.
+ * Any parsing trouble marks the stream as untracked, keeping the footer. */
+struct armor_crc_tracker_t {
+    enum class State {
+        Ptag, /* reading the packet tag octet */
+        Len,  /* reading the length octets */
+        Body  /* consuming the packet body */
+    };
+
+    State   st = State::Ptag;
+    bool    new_fmt = false;   /* new-format header is being read */
+    bool    chunk_len = false; /* reading a partial-length chunk length */
+    bool    saw_b1 = false;    /* new-format: the first length octet is read */
+    uint8_t b1 = 0;            /* the first length octet of a new-format header */
+    uint8_t len_oct[4] = {0};
+    size_t  len_have = 0;
+    size_t  len_need = 0;
+    int     pending_tag = -1; /* tag of the old-format header being completed */
+    size_t  body_left = 0;
+    bool    in_partial = false;
+    bool    ver_seen = false;
+    bool    tracked = true;
+    int     first_tag = -1;
+    int     last_tag = -1;
+    int     last_ver = -1; /* version octet of the last packet's body, if any */
+    bool    only_sigs = true;
+    bool    all_sigs_v6 = true;
+    bool    saw_key = false;
+    bool    all_keys_v6 = true;
+
+    static bool
+    is_key_tag(int tag)
+    {
+        return (tag == PGP_PKT_SECRET_KEY) || (tag == PGP_PKT_PUBLIC_KEY) ||
+               (tag == PGP_PKT_SECRET_SUBKEY) || (tag == PGP_PKT_PUBLIC_SUBKEY);
+    }
+
+    static bool
+    tracked_tag(int tag)
+    {
+        return is_key_tag(tag) || (tag == PGP_PKT_SIGNATURE) || (tag == PGP_PKT_SE_IP_DATA);
+    }
+
+    void
+    begin_body(int tag, size_t blen, bool partial)
+    {
+        if (first_tag < 0) {
+            first_tag = tag;
+        }
+        if (tag != PGP_PKT_SIGNATURE) {
+            only_sigs = false;
+        }
+        last_tag = tag;
+        last_ver = -1;
+        ver_seen = false;
+        body_left = blen;
+        in_partial = partial;
+        st = State::Body;
+    }
+
+    void
+    begin_header()
+    {
+        st = State::Ptag;
+        saw_b1 = false;
+        len_have = 0;
+    }
+
+    /* Complete a packet header (or a partial-length chunk length) and
+     * switch to the body phase. */
+    void
+    finish_header(size_t blen, bool partial)
+    {
+        if (chunk_len) {
+            /* no new packet: just more octets of the same body */
+            body_left = blen;
+            in_partial = partial;
+            st = State::Body;
+            return;
+        }
+        begin_body(pending_tag, blen, partial);
+    }
+
+    void
+    account_version(uint8_t ver)
+    {
+        last_ver = ver;
+        ver_seen = true;
+        if (is_key_tag(last_tag)) {
+            saw_key = true;
+            /* version 6; the PGP_V6 enumerator needs the crypto-refresh build */
+            all_keys_v6 = all_keys_v6 && (ver == 6);
+        }
+        if (last_tag == PGP_PKT_SIGNATURE) {
+            all_sigs_v6 = all_sigs_v6 && (ver == 6);
+        }
+    }
+
+    void
+    feed(const uint8_t *buf, size_t len)
+    {
+        if (!tracked) {
+            return;
+        }
+        while (len > 0) {
+            switch (st) {
+            case State::Ptag: {
+                uint8_t ptag = *buf++;
+                len--;
+                if (!(ptag & PGP_PTAG_ALWAYS_SET)) {
+                    tracked = false;
+                    return;
+                }
+                new_fmt = ptag & PGP_PTAG_NEW_FORMAT;
+                chunk_len = false;
+                saw_b1 = false;
+                len_have = 0;
+                if (new_fmt) {
+                    pending_tag = ptag & PGP_PTAG_NF_CONTENT_TAG_MASK;
+                    st = State::Len;
+                    len_need = 1;
+                } else {
+                    pending_tag = (ptag >> PGP_PTAG_OF_CONTENT_TAG_SHIFT) & 0x0f;
+                    switch (ptag & PGP_PTAG_OF_LENGTH_TYPE_MASK) {
+                    case PGP_PTAG_OLD_LEN_1:
+                        len_need = 1;
+                        st = State::Len;
+                        break;
+                    case PGP_PTAG_OLD_LEN_2:
+                        len_need = 2;
+                        st = State::Len;
+                        break;
+                    case PGP_PTAG_OLD_LEN_4:
+                        len_need = 4;
+                        st = State::Len;
+                        break;
+                    default:
+                        /* indeterminate length */
+                        tracked = false;
+                        return;
+                    }
+                }
+                break;
+            }
+            case State::Len: {
+                uint8_t oct = *buf++;
+                len--;
+                if (!saw_b1) {
+                    b1 = oct;
+                    saw_b1 = true;
+                    if (new_fmt) {
+                        if (b1 < 192) {
+                            finish_header(b1, false);
+                            break;
+                        }
+                        if (b1 < 224) {
+                            len_need = 1;
+                            len_have = 0;
+                            st = State::Len;
+                            break;
+                        }
+                        if (b1 == 255) {
+                            len_need = 4;
+                            len_have = 0;
+                            st = State::Len;
+                            break;
+                        }
+                        /* partial body length */
+                        finish_header((size_t) 1 << (b1 & 0x1f), true);
+                        break;
+                    }
+                }
+                len_oct[len_have++] = oct;
+                if (len_have < len_need) {
+                    break;
+                }
+                /* all length octets collected */
+                size_t blen;
+                if (new_fmt) {
+                    blen = ((size_t)(b1 - 192) << 8) + len_oct[0] + 192;
+                } else {
+                    blen = 0;
+                    for (size_t i = 0; i < len_need; i++) {
+                        blen = (blen << 8) | len_oct[i];
+                    }
+                }
+                finish_header(blen, false);
+                break;
+            }
+            case State::Body: {
+                if (!ver_seen && tracked_tag(last_tag) && (body_left > 0)) {
+                    account_version(*buf++);
+                    len--;
+                    body_left--;
+                    break;
+                }
+                size_t take = std::min(len, body_left);
+                buf += take;
+                len -= take;
+                body_left -= take;
+                if (body_left > 0) {
+                    return;
+                }
+                if (in_partial) {
+                    /* the next chunk length follows */
+                    new_fmt = true;
+                    chunk_len = true;
+                    saw_b1 = false;
+                    len_have = 0;
+                    len_need = 1;
+                    st = State::Len;
+                    break;
+                }
+                begin_header();
+                break;
+            }
+            }
+        }
+    }
+
+    bool
+    skip_crc() const
+    {
+        if (!tracked || (first_tag < 0)) {
+            return false;
+        }
+        if (is_key_tag(first_tag)) {
+            return saw_key && all_keys_v6;
+        }
+        if (only_sigs && (first_tag == PGP_PKT_SIGNATURE)) {
+            return all_sigs_v6;
+        }
+        return (last_tag == PGP_PKT_SE_IP_DATA) && (last_ver == PGP_SE_IP_DATA_V2);
+    }
+};
+
 typedef struct pgp_dest_armored_param_t {
     pgp_dest_t *      writedst;
     pgp_armored_msg_t type;    /* type of the message */
@@ -72,15 +312,9 @@ typedef struct pgp_dest_armored_param_t {
     uint8_t           tail[2]; /* bytes which didn't fit into 3-byte boundary */
     unsigned          tailc;   /* number of bytes in tail */
     std::unique_ptr<rnp::CRC24> crc_ctx; /* CTX used to calculate CRC */
+    armor_crc_tracker_t         tracker; /* packet/version tracking for the CRC decision */
 } pgp_dest_armored_param_t;
 
-/*
-   Table for base64 lookups:
-   0xff - wrong character,
-   0xfe - '='
-   0xfd - eol/whitespace,
-   0..0x3f - represented 6-bit number
-*/
 static const uint8_t B64DEC[256] = {
   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfd, 0xfd, 0xff, 0xff, 0xfd, 0xff,
   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -840,6 +1074,7 @@ armored_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     /* update crc */
     bool base64 = param->type == PGP_ARMORED_BASE64;
     if (!base64) {
+        param->tracker.feed((const uint8_t *) buf, len);
         try {
             param->crc_ctx->add(buf, len);
         } catch (const std::exception &e) {
@@ -953,6 +1188,12 @@ armored_dst_finish(pgp_dest_t *dst)
         armor_write_eol(param);
     }
 
+    /* RFC 9580, 6.1: the CRC24 footer must not be generated for the armored
+     * version 6 keys, version 6 signature sequences, and the messages ending
+     * with a version 2 SEIPD packet. */
+    if (param->tracker.skip_crc()) {
+        return param->writedst->werr;
+    }
     /* writing CRC and EOL */
     // At this point crc_ctx is initialized, so call can't fail
     buf[0] = CH_EQ;
