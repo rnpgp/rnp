@@ -723,7 +723,8 @@ encrypted_add_password_v5(pgp_dest_encrypted_param_t &     param,
     return RNP_ERROR_NOT_IMPLEMENTED;
 #else
     /* AEAD-encrypted v5 packet */
-    if ((param.ctx.aalg != PGP_AEAD_EAX) && (param.ctx.aalg != PGP_AEAD_OCB)) {
+    if ((param.ctx.aalg != PGP_AEAD_EAX) && (param.ctx.aalg != PGP_AEAD_OCB) &&
+        (param.ctx.aalg != PGP_AEAD_GCM)) {
         RNP_LOG("unsupported AEAD algorithm");
         return false;
     }
@@ -774,7 +775,8 @@ encrypted_add_password_v6(pgp_dest_encrypted_param_t &     param,
     RNP_LOG("AEAD support is not enabled.");
     return RNP_ERROR_NOT_IMPLEMENTED;
 #else
-    if ((param.ctx.aalg != PGP_AEAD_EAX) && (param.ctx.aalg != PGP_AEAD_OCB)) {
+    if ((param.ctx.aalg != PGP_AEAD_EAX) && (param.ctx.aalg != PGP_AEAD_OCB) &&
+        (param.ctx.aalg != PGP_AEAD_GCM)) {
         RNP_LOG("unsupported AEAD algorithm");
         return false;
     }
@@ -1087,7 +1089,8 @@ init_encrypted_dst(rnp_ctx_t &ctx, pgp_dest_t &dst, pgp_dest_t &writedst)
     }
 
     if (ctx.aalg != PGP_AEAD_NONE) {
-        if ((ctx.aalg != PGP_AEAD_EAX) && (ctx.aalg != PGP_AEAD_OCB)) {
+        if ((ctx.aalg != PGP_AEAD_EAX) && (ctx.aalg != PGP_AEAD_OCB) &&
+            (ctx.aalg != PGP_AEAD_GCM)) {
             /* LCOV_EXCL_START */
             RNP_LOG("unknown AEAD algorithm: %d", (int) ctx.aalg);
             return RNP_ERROR_BAD_PARAMETERS;
