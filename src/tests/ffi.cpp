@@ -5751,6 +5751,162 @@ TEST_F(rnp_tests, test_ffi_literal_packet)
     rnp_ffi_destroy(ffi);
 }
 
+static bool
+armor_has_crc24(const std::string &str)
+{
+    /* The CRC24 footer is the only line which starts with the '=' character. */
+    size_t pos = 0;
+    while (pos < str.size()) {
+        size_t eol = str.find('\n', pos);
+        size_t end = (eol == std::string::npos) ? str.size() : eol;
+        if ((end > pos) && (str[pos] == '=')) {
+            return true;
+        }
+        pos = (eol == std::string::npos) ? str.size() : eol + 1;
+    }
+    return false;
+}
+
+TEST_F(rnp_tests, test_ffi_armor_crc24_suppression)
+{
+    /* RFC 9580, 6.1: the armored Transferable Public Key sequence of a version 6
+     * key, the sequence of version 6 signatures, and the message ending with a
+     * version 2 SEIPD packet must not contain the CRC24 footer. It is kept for
+     * the version 4 data. */
+    rnp_ffi_t ffi = NULL;
+    test_ffi_init(&ffi);
+
+    rnp_key_handle_t generate_key = NULL;
+    auto             generate_key_fn = [&](const char *uid, bool v6) {
+        rnp_op_generate_t op = NULL;
+        assert_rnp_success(rnp_op_generate_create(&op, ffi, "EDDSA"));
+        if (v6) {
+#if defined(ENABLE_CRYPTO_REFRESH)
+            assert_rnp_success(rnp_op_generate_set_v6_key(op));
+#endif
+        }
+        assert_rnp_success(rnp_op_generate_set_userid(op, uid));
+        assert_rnp_success(rnp_op_generate_execute(op));
+        assert_rnp_success(rnp_op_generate_get_key(op, &generate_key));
+        rnp_op_generate_destroy(op);
+    };
+
+    std::string key_export;
+    auto        armored_key_export_fn = [&](rnp_key_handle_t key) {
+        rnp_output_t memout = NULL;
+        assert_rnp_success(rnp_output_to_memory(&memout, 0));
+        rnp_output_t armor = NULL;
+        assert_rnp_success(rnp_output_to_armor(memout, &armor, "public key"));
+        assert_rnp_success(rnp_key_export(key, armor, RNP_KEY_EXPORT_PUBLIC));
+        assert_rnp_success(rnp_output_finish(armor));
+        uint8_t *buf = NULL;
+        size_t   len = 0;
+        assert_rnp_success(rnp_output_memory_get_buf(memout, &buf, &len, false));
+        key_export.assign((char *) buf, len);
+        rnp_output_destroy(armor);
+        rnp_output_destroy(memout);
+    };
+
+    std::string sig_res;
+    auto make_sig_fn = [&](rnp_key_handle_t key, const std::string &data, bool armored) {
+        rnp_input_t in = NULL;
+        assert_rnp_success(
+          rnp_input_from_memory(&in, (const uint8_t *) data.data(), data.size(), false));
+        rnp_output_t memout = NULL;
+        assert_rnp_success(rnp_output_to_memory(&memout, 0));
+        rnp_op_sign_t op = NULL;
+        assert_rnp_success(rnp_op_sign_detached_create(&op, ffi, in, memout));
+        assert_rnp_success(rnp_op_sign_set_armor(op, armored));
+        assert_rnp_success(rnp_op_sign_add_signature(op, key, NULL));
+        assert_rnp_success(rnp_op_sign_execute(op));
+        rnp_op_sign_destroy(op);
+        rnp_input_destroy(in);
+        uint8_t *buf = NULL;
+        size_t   len = 0;
+        assert_rnp_success(rnp_output_memory_get_buf(memout, &buf, &len, false));
+        sig_res.assign((char *) buf, len);
+        rnp_output_destroy(memout);
+    };
+
+    std::string enc_res;
+    auto        sym_encrypt_fn = [&](const std::string &data, const char *aead) {
+        rnp_input_t in = NULL;
+        assert_rnp_success(
+          rnp_input_from_memory(&in, (const uint8_t *) data.data(), data.size(), false));
+        rnp_output_t memout = NULL;
+        assert_rnp_success(rnp_output_to_memory(&memout, 0));
+        rnp_op_encrypt_t op = NULL;
+        assert_rnp_success(rnp_op_encrypt_create(&op, ffi, in, memout));
+        assert_rnp_success(rnp_op_encrypt_set_armor(op, true));
+        assert_rnp_success(rnp_op_encrypt_set_cipher(op, "AES128"));
+        if (aead) {
+            assert_rnp_success(rnp_op_encrypt_set_aead(op, aead));
+#if defined(ENABLE_CRYPTO_REFRESH)
+            assert_rnp_success(rnp_op_encrypt_enable_skesk_v6(op));
+#endif
+        }
+        assert_rnp_success(rnp_op_encrypt_add_password(op, "password", NULL, 0, NULL));
+        assert_rnp_success(rnp_op_encrypt_execute(op));
+        rnp_op_encrypt_destroy(op);
+        rnp_input_destroy(in);
+        uint8_t *buf = NULL;
+        size_t   len = 0;
+        assert_rnp_success(rnp_output_memory_get_buf(memout, &buf, &len, false));
+        enc_res.assign((char *) buf, len);
+        rnp_output_destroy(memout);
+    };
+
+    /* version 4 key and detached signature: the footer is kept */
+    generate_key_fn("crc24v4", false);
+    rnp_key_handle_t v4key = generate_key;
+    armored_key_export_fn(v4key);
+    assert_true(armor_has_crc24(key_export));
+    make_sig_fn(v4key, "crc24 test data", true);
+    assert_true(armor_has_crc24(sig_res));
+
+    /* version 1 SEIPD: the footer is kept */
+    sym_encrypt_fn("crc24 test data", nullptr);
+    assert_true(armor_has_crc24(enc_res));
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* version 6 key, signature and version 2 SEIPD message: no footer */
+    generate_key_fn("crc24v6", true);
+    rnp_key_handle_t v6key = generate_key;
+    armored_key_export_fn(v6key);
+    assert_false(armor_has_crc24(key_export));
+    make_sig_fn(v6key, "crc24 test data", true);
+    assert_false(armor_has_crc24(sig_res));
+    sym_encrypt_fn("crc24 test data", "OCB");
+    assert_false(armor_has_crc24(enc_res));
+
+    /* mixed v4 and v6 signatures: the footer is kept */
+    make_sig_fn(v4key, "crc24 test data", false);
+    std::string v4raw = sig_res;
+    make_sig_fn(v6key, "crc24 test data", false);
+    std::string v6raw = sig_res;
+    {
+        std::string raw = v4raw + v6raw;
+        rnp_input_t in = NULL;
+        assert_rnp_success(
+          rnp_input_from_memory(&in, (const uint8_t *) raw.data(), raw.size(), false));
+        rnp_output_t memout = NULL;
+        assert_rnp_success(rnp_output_to_memory(&memout, 0));
+        assert_rnp_success(rnp_enarmor(in, memout, "signature"));
+        rnp_input_destroy(in);
+        uint8_t *buf = NULL;
+        size_t   len = 0;
+        assert_rnp_success(rnp_output_memory_get_buf(memout, &buf, &len, false));
+        std::string res((char *) buf, len);
+        rnp_output_destroy(memout);
+        assert_true(armor_has_crc24(res));
+    }
+    rnp_key_handle_destroy(v6key);
+#endif
+
+    rnp_key_handle_destroy(v4key);
+    rnp_ffi_destroy(ffi);
+}
+
 /* This test checks that any exceptions thrown by the internal library
  * will not propagate beyond the FFI boundary.
  * In this case we (ab)use a callback to mimic this scenario.
