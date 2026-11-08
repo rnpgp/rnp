@@ -200,8 +200,11 @@ static const id_str_pair symm_alg_map[] = {{PGP_SA_IDEA, RNP_ALGNAME_IDEA},
                                            {PGP_SA_SM4, RNP_ALGNAME_SM4},
                                            {0, NULL}};
 
-static const id_str_pair aead_alg_map[] = {
-  {PGP_AEAD_NONE, "None"}, {PGP_AEAD_EAX, "EAX"}, {PGP_AEAD_OCB, "OCB"}, {0, NULL}};
+static const id_str_pair aead_alg_map[] = {{PGP_AEAD_NONE, "None"},
+                                           {PGP_AEAD_EAX, "EAX"},
+                                           {PGP_AEAD_OCB, "OCB"},
+                                           {PGP_AEAD_GCM, "GCM"},
+                                           {0, NULL}};
 
 static const id_str_pair cipher_mode_map[] = {{PGP_CIPHER_MODE_CFB, "CFB"},
                                               {PGP_CIPHER_MODE_CBC, "CBC"},
@@ -321,6 +324,7 @@ aead_alg_supported(int alg)
     case PGP_AEAD_EAX:
 #endif
     case PGP_AEAD_OCB:
+    case PGP_AEAD_GCM:
 #endif
         return true;
     default:
@@ -3747,6 +3751,8 @@ get_protection_mode(rnp_op_verify_t op)
         return "aead-eax";
     case PGP_AEAD_OCB:
         return "aead-ocb";
+    case PGP_AEAD_GCM:
+        return "aead-gcm";
     default:
         return "aead-unknown";
     }

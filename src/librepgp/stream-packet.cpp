@@ -1068,7 +1068,7 @@ pgp_sk_sesskey_t::parse_v6(pgp_packet_body_t &pkt)
         return RNP_ERROR_BAD_FORMAT;
     }
     aalg = (pgp_aead_alg_t) bt;
-    if ((aalg != PGP_AEAD_EAX) && (aalg != PGP_AEAD_OCB)) {
+    if ((aalg != PGP_AEAD_EAX) && (aalg != PGP_AEAD_OCB) && (aalg != PGP_AEAD_GCM)) {
         RNP_LOG("unsupported AEAD algorithm : %d", (int) aalg);
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1152,7 +1152,7 @@ pgp_sk_sesskey_t::parse(pgp_source_t &src)
             return RNP_ERROR_BAD_FORMAT;
         }
         aalg = (pgp_aead_alg_t) bt;
-        if ((aalg != PGP_AEAD_EAX) && (aalg != PGP_AEAD_OCB)) {
+        if ((aalg != PGP_AEAD_EAX) && (aalg != PGP_AEAD_OCB) && (aalg != PGP_AEAD_GCM)) {
             RNP_LOG("unsupported AEAD algorithm : %d", (int) aalg);
             return RNP_ERROR_BAD_PARAMETERS;
         }

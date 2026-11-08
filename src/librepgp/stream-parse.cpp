@@ -2309,7 +2309,8 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
             RNP_LOG("unknown aead ver: %d", param->aead_hdr.version);
             return RNP_ERROR_BAD_FORMAT;
         }
-        if ((param->aead_hdr.aalg != PGP_AEAD_EAX) && (param->aead_hdr.aalg != PGP_AEAD_OCB)) {
+        if ((param->aead_hdr.aalg != PGP_AEAD_EAX) && (param->aead_hdr.aalg != PGP_AEAD_OCB) &&
+            (param->aead_hdr.aalg != PGP_AEAD_GCM)) {
             RNP_LOG("unknown aead alg: %d", (int) param->aead_hdr.aalg);
             return RNP_ERROR_BAD_FORMAT;
         }
@@ -2358,7 +2359,8 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
 
             /* check SEIPDv2 packet header */
             if ((param->seipdv2_hdr.aead_alg != PGP_AEAD_EAX) &&
-                (param->seipdv2_hdr.aead_alg != PGP_AEAD_OCB)) {
+                (param->seipdv2_hdr.aead_alg != PGP_AEAD_OCB) &&
+                (param->seipdv2_hdr.aead_alg != PGP_AEAD_GCM)) {
                 RNP_LOG("unknown AEAD alg: %d", (int) param->seipdv2_hdr.aead_alg);
                 return RNP_ERROR_BAD_FORMAT;
             }

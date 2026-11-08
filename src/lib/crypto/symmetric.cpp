@@ -123,6 +123,10 @@ pgp_aead_to_botan_string(pgp_symm_alg_t ealg, pgp_aead_alg_t aalg, char *buf, si
         memcpy(buf, ealg_name, ealg_len);
         strncpy(buf + ealg_len, "/OCB", len - ealg_len);
         break;
+    case PGP_AEAD_GCM:
+        memcpy(buf, ealg_name, ealg_len);
+        strncpy(buf + ealg_len, "/GCM", len - ealg_len);
+        break;
     default:
         RNP_LOG("unsupported AEAD alg %d", (int) aalg);
         return false;

@@ -249,7 +249,7 @@ if(CRYPTO_BACKEND_BOTAN)
   endforeach()
 
   resolve_feature_state(ENABLE_SM2 "SM2;SM3;SM4")
-  resolve_feature_state(ENABLE_AEAD "AEAD_EAX;AEAD_OCB")
+  resolve_feature_state(ENABLE_AEAD "AEAD_EAX;AEAD_OCB;AEAD_GCM")
   resolve_feature_state(ENABLE_TWOFISH "TWOFISH")
   resolve_feature_state(ENABLE_IDEA "IDEA")
   resolve_feature_state(ENABLE_CRYPTO_REFRESH "HKDF;ED448;X448;ARGON2")

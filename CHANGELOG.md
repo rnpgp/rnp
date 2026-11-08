@@ -6,6 +6,12 @@
 
 * Do not mark cryptographically valid v3/v4/v5 signatures as invalid only because of mismatching left 16 bits of the hash (v6 signatures are still rejected, as required by RFC 9580). Fixes import of some real-world keys (#2191).
 
+#### Added
+
+* GCM (AEAD algorithm ID 3, RFC 9580 section 9.6) for message encryption and
+  decryption on the Botan and OpenSSL backends, verified against the RFC 9580
+  appendix A.11 sample message. OCB remains the default AEAD algorithm.
+
 #### Security
 
 * Refuse to decrypt obsolete Symmetrically Encrypted Data packets (tag 9, no integrity protection) by default,

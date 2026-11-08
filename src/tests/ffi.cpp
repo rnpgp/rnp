@@ -3168,12 +3168,14 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     bool has_ocb = aead_ocb_enabled();
     assert_rnp_success(rnp_supported_features(RNP_FEATURE_AEAD_ALG, &features));
     assert_non_null(features);
-    assert_true(check_features(RNP_FEATURE_AEAD_ALG, features, 1 + has_eax + has_ocb));
+    assert_true(check_features(RNP_FEATURE_AEAD_ALG, features, 1 + has_eax + has_ocb + 1));
     rnp_buffer_destroy(features);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "eax", &supported));
     assert_true(supported == has_eax);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "ocb", &supported));
     assert_true(supported == has_ocb);
+    assert_rnp_success(rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "gcm", &supported));
+    assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "none", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "wrong", &supported));
@@ -5747,6 +5749,94 @@ TEST_F(rnp_tests, test_ffi_literal_packet)
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(input);
     rnp_output_destroy(output);
+
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_aead_gcm)
+{
+    /* RFC 9580, A.11: the sample message, encrypted with AES-128 and GCM using
+     * the passphrase "password". */
+    rnp_ffi_t ffi = NULL;
+    test_ffi_init(&ffi);
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
+
+    /* decrypt the RFC sample and check the reported protection info */
+    {
+        rnp_input_t input = NULL;
+        assert_rnp_success(
+          rnp_input_from_path(&input, "data/test_messages/message.aead-gcm.enc"));
+        rnp_output_t output = NULL;
+        assert_rnp_success(rnp_output_to_memory(&output, 0));
+        rnp_op_verify_t verify = NULL;
+        assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+        assert_rnp_success(rnp_op_verify_execute(verify));
+        char *mode = NULL;
+        char *cipher = NULL;
+        bool  valid = false;
+        assert_rnp_success(rnp_op_verify_get_protection_info(verify, &mode, &cipher, &valid));
+        assert_string_equal(mode, "aead-gcm");
+        assert_string_equal(cipher, "AES128");
+        assert_true(valid);
+        rnp_buffer_destroy(mode);
+        rnp_buffer_destroy(cipher);
+        uint8_t *buf = NULL;
+        size_t   len = 0;
+        assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+        std::string res((char *) buf, len);
+        assert_true(res == "Hello, world!");
+        rnp_op_verify_destroy(verify);
+        rnp_input_destroy(input);
+        rnp_output_destroy(output);
+    }
+
+    /* symmetric GCM roundtrip via the version 2 SEIPD */
+    {
+        const std::string data = "GCM roundtrip data";
+        rnp_input_t       input = NULL;
+        assert_rnp_success(
+          rnp_input_from_memory(&input, (const uint8_t *) data.data(), data.size(), false));
+        rnp_output_t memout = NULL;
+        assert_rnp_success(rnp_output_to_memory(&memout, 0));
+        rnp_op_encrypt_t op = NULL;
+        assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, memout));
+        assert_rnp_success(rnp_op_encrypt_set_cipher(op, "AES128"));
+        assert_rnp_success(rnp_op_encrypt_set_aead(op, "GCM"));
+        assert_rnp_success(rnp_op_encrypt_enable_skesk_v6(op));
+        assert_rnp_success(rnp_op_encrypt_add_password(op, "password", NULL, 0, NULL));
+        assert_rnp_success(rnp_op_encrypt_execute(op));
+        rnp_op_encrypt_destroy(op);
+        rnp_input_destroy(input);
+        uint8_t *enc = NULL;
+        size_t   enclen = 0;
+        assert_rnp_success(rnp_output_memory_get_buf(memout, &enc, &enclen, false));
+        std::vector<uint8_t> encvec(enc, enc + enclen);
+        rnp_output_destroy(memout);
+
+        /* decrypt it back */
+        rnp_input_t decin = NULL;
+        assert_rnp_success(rnp_input_from_memory(&decin, encvec.data(), encvec.size(), false));
+        rnp_output_t decout = NULL;
+        assert_rnp_success(rnp_output_to_memory(&decout, 0));
+        rnp_op_verify_t verify = NULL;
+        assert_rnp_success(rnp_op_verify_create(&verify, ffi, decin, decout));
+        assert_rnp_success(rnp_op_verify_execute(verify));
+        char *mode = NULL;
+        bool  valid = false;
+        assert_rnp_success(rnp_op_verify_get_protection_info(verify, &mode, NULL, &valid));
+        assert_string_equal(mode, "aead-gcm");
+        assert_true(valid);
+        rnp_buffer_destroy(mode);
+        uint8_t *buf = NULL;
+        size_t   len = 0;
+        assert_rnp_success(rnp_output_memory_get_buf(decout, &buf, &len, false));
+        std::string res((char *) buf, len);
+        assert_true(res == data);
+        rnp_op_verify_destroy(verify);
+        rnp_input_destroy(decin);
+        rnp_output_destroy(decout);
+    }
 
     rnp_ffi_destroy(ffi);
 }
