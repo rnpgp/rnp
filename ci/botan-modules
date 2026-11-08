@@ -30,6 +30,7 @@ idea
 kdf
 md5
 ocb
+gcm
 pgp_s2k
 rfc3394
 rmd160
