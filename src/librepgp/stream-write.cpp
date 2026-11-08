@@ -1357,6 +1357,16 @@ signed_fill_signature(pgp_dest_signed_param_t &param,
         sig.set_creation(signer.sigcreate);
     }
     sig.set_expiration(signer.sigexpire);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* RFC 9580, 5.2.3.36: include the intended recipients' fingerprints when
+     * creating a signature for a signed-and-encrypted message. Mark them as
+     * critical in version 6 signatures, as recommended by the RFC. */
+    for (const auto *recp : param.ctx->recipients) {
+        const pgp::Fingerprint &fp =
+          recp->is_subkey() && recp->has_primary_fp() ? recp->primary_fp() : recp->fp();
+        sig.set_intended_recipient_fp(fp, recp->version(), sig.version == PGP_V6);
+    }
+#endif
     sig.fill_hashed_data();
 
     const rnp::Hash *listh = NULL;

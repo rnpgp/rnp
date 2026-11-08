@@ -124,6 +124,9 @@ static const id_str_pair sig_subpkt_type_map[] = {
   {PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE, "embedded signature"},
   {PGP_SIG_SUBPKT_ISSUER_FPR, "issuer fingerprint"},
   {PGP_SIG_SUBPKT_PREFERRED_AEAD, "preferred AEAD algorithms"},
+#if defined(ENABLE_CRYPTO_REFRESH)
+  {PGP_SIG_SUBPKT_INTENDED_RECIPIENT_FP, "intended recipient fingerprint"},
+#endif
   {0x00, NULL},
 };
 
@@ -853,6 +856,13 @@ DumpContextDst::dump_signature_subpacket(const pkt::sigsub::Raw &subpkt)
         dst_print_fp(dst, sname, sub.fp());
         break;
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case pkt::sigsub::Type::IntendedRecipientFingerprint: {
+        auto &sub = dynamic_cast<const pkt::sigsub::IntendedRecipientFingerprint &>(subpkt);
+        dst_print_fp(dst, "intended recipient fingerprint", sub.fp());
+        break;
+    }
+#endif
     case pkt::sigsub::Type::PreferredAEAD: {
         auto &sub = dynamic_cast<const pkt::sigsub::PreferredAEAD &>(subpkt);
         dst_print_algs(dst, "preferred aead algorithms", sub.algs(), aead_alg_map);
@@ -1999,6 +2009,12 @@ DumpContextJson::dump_signature_subpacket(const pkt::sigsub::Raw &subpkt,
         auto &sub = dynamic_cast<const pkt::sigsub::IssuerFingerprint &>(subpkt);
         return rnp::json::add(obj, "fingerprint", sub.fp());
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case pkt::sigsub::Type::IntendedRecipientFingerprint: {
+        auto &sub = dynamic_cast<const pkt::sigsub::IntendedRecipientFingerprint &>(subpkt);
+        return rnp::json::add(obj, "fingerprint", sub.fp());
+    }
+#endif
     case pkt::sigsub::Type::NotationData: {
         auto &sub = dynamic_cast<const pkt::sigsub::NotationData &>(subpkt);
         if (!rnp::json::add(obj, "human", sub.human_readable()) ||

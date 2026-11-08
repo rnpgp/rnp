@@ -177,6 +177,8 @@ Raw::create(uint8_t type, bool hashed, bool critical)
     case (uint8_t) Type::PreferredAEAD:
         return RawPtr(new PreferredAEAD(hashed, critical));
 #if defined(ENABLE_CRYPTO_REFRESH)
+    case (uint8_t) Type::IntendedRecipientFingerprint:
+        return RawPtr(new IntendedRecipientFingerprint(hashed, critical));
     case (uint8_t) Type::PreferredAEADv6:
         return RawPtr(new PreferredAEADv6(hashed, critical));
 #endif
@@ -739,6 +741,37 @@ IssuerFingerprint::clone() const
 {
     return RawPtr(new IssuerFingerprint(*this));
 }
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+/* Intended recipient fingerprint signature subpacket */
+void
+IntendedRecipientFingerprint::write_data()
+{
+    data_.resize(fp_.size() + 1);
+    data_[0] = version_;
+    memcpy(data_.data() + 1, fp_.data(), fp_.size());
+}
+
+bool
+IntendedRecipientFingerprint::check_size(size_t size) const noexcept
+{
+    return (size >= 21) && (size <= PGP_MAX_FINGERPRINT_SIZE + 1);
+}
+
+bool
+IntendedRecipientFingerprint::parse_data(const uint8_t *data, size_t size)
+{
+    version_ = data[0];
+    fp_ = pgp::Fingerprint(data + 1, size - 1);
+    return true;
+}
+
+RawPtr
+IntendedRecipientFingerprint::clone() const
+{
+    return RawPtr(new IntendedRecipientFingerprint(*this));
+}
+#endif
 
 List::List(const List &src)
 {
