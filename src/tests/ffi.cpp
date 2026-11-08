@@ -5762,11 +5762,13 @@ TEST_F(rnp_tests, test_ffi_message_with_noncritical_packet)
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
 
-    /* unknown non-critical packet prepended to a literal-data message */
-    std::string literal = file_to_str("data/test_messages/message.txt.literal");
-    std::string msg = std::string("\xe8\x03\x01\x02\x03", 5) + literal;
-    assert_rnp_success(
-      rnp_input_from_memory(&input, (uint8_t *) msg.data(), msg.size(), false));
+    /* unknown non-critical packet prepended to a literal-data message.
+     * Binary data is read with file_to_vec, which opens the file in binary
+     * mode, unlike file_to_str. */
+    std::vector<uint8_t> literal = file_to_vec("data/test_messages/message.txt.literal");
+    std::vector<uint8_t> msg = {0xe8, 0x03, 0x01, 0x02, 0x03};
+    msg.insert(msg.end(), literal.begin(), literal.end());
+    assert_rnp_success(rnp_input_from_memory(&input, msg.data(), msg.size(), false));
     assert_rnp_success(rnp_output_to_memory(&output, 0));
     assert_rnp_success(rnp_decrypt(ffi, input, output));
     uint8_t *buf = NULL;
@@ -5783,26 +5785,25 @@ TEST_F(rnp_tests, test_ffi_message_with_noncritical_packet)
      * encrypted container */
     assert_rnp_success(
       rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
-    std::string encmsg = file_to_str("data/test_messages/message.enc-password-noncritical");
-    assert_rnp_success(
-      rnp_input_from_memory(&input, (uint8_t *) encmsg.data(), encmsg.size(), false));
+    std::vector<uint8_t> encmsg =
+      file_to_vec("data/test_messages/message.enc-password-noncritical");
+    assert_rnp_success(rnp_input_from_memory(&input, encmsg.data(), encmsg.size(), false));
     assert_rnp_success(rnp_output_to_memory(&output, 0));
     assert_rnp_success(rnp_decrypt(ffi, input, output));
     rnp_output_memory_get_buf(output, &buf, &len, false);
-    out.assign((char *) buf, len);
+    std::vector<uint8_t> decrypted(buf, buf + len);
     rnp_input_destroy(input);
     rnp_output_destroy(output);
     output = NULL;
     /* the result must match the decryption of the same message without the packet */
-    std::string origmsg = file_to_str("data/test_messages/message.enc-password");
-    assert_rnp_success(
-      rnp_input_from_memory(&input, (uint8_t *) origmsg.data(), origmsg.size(), false));
+    std::vector<uint8_t> origmsg = file_to_vec("data/test_messages/message.enc-password");
+    assert_rnp_success(rnp_input_from_memory(&input, origmsg.data(), origmsg.size(), false));
     assert_rnp_success(rnp_output_to_memory(&output, 0));
     assert_rnp_success(rnp_decrypt(ffi, input, output));
     rnp_output_memory_get_buf(output, &buf, &len, false);
-    std::string origout;
-    origout.assign((char *) buf, len);
-    assert_true(out == origout);
+    std::vector<uint8_t> origdec(buf, buf + len);
+    assert_int_equal(decrypted.size(), origdec.size());
+    assert_true(decrypted == origdec);
     rnp_input_destroy(input);
     rnp_output_destroy(output);
 
