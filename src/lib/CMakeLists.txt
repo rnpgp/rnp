@@ -185,6 +185,36 @@ function(resolve_feature_state RNP_FEATURE BACKEND_FEATURES)
   set(${RNP_FEATURE} On CACHE STRING "Autodetected" FORCE)
 endfunction()
 
+# Same as resolve_feature_state(), but never fails the configure: the feature
+# is turned off with a warning even when it was explicitly requested. Used for
+# the features that are enabled by default, which should stay best-effort.
+function(resolve_feature_state_soft RNP_FEATURE BACKEND_FEATURES)
+  if (NOT ${RNP_FEATURE}) # User has explicitly disabled this feature
+    return()
+  endif()
+
+  foreach(feature ${BACKEND_FEATURES})
+    backend_has_feature("${feature}" _has_${feature})
+    if (NOT _has_${feature})
+      set(${RNP_FEATURE} Off CACHE STRING "Autodetected" FORCE)
+      message(WARNING "${RNP_FEATURE} requires ${CRYPTO_BACKEND} feature which is missing: ${feature}. Turning it off.")
+      return()
+    endif()
+  endforeach()
+  set(${RNP_FEATURE} On CACHE STRING "Autodetected" FORCE)
+endfunction()
+
+# Same as openssl_nope(), but never fails the configure - see
+# resolve_feature_state_soft().
+function(openssl_nope_soft RNP_FEATURE REASON)
+  if (NOT ${RNP_FEATURE}) # User has explicitly disabled this feature
+    return()
+  endif()
+
+  set(${RNP_FEATURE} Off CACHE STRING "Auto -> Off as no support" FORCE)
+  message(WARNING "${RNP_FEATURE} doesn't work with OpenSSL backend (${REASON}). Turning it off.")
+endfunction()
+
 function(openssl_nope RNP_FEATURE REASON)
   if (NOT ${RNP_FEATURE}) # User has explicitly disabled this feature
     return()
@@ -252,7 +282,7 @@ if(CRYPTO_BACKEND_BOTAN)
   resolve_feature_state(ENABLE_AEAD "AEAD_EAX;AEAD_OCB")
   resolve_feature_state(ENABLE_TWOFISH "TWOFISH")
   resolve_feature_state(ENABLE_IDEA "IDEA")
-  resolve_feature_state(ENABLE_CRYPTO_REFRESH "HKDF;ED448;X448;ARGON2")
+  resolve_feature_state_soft(ENABLE_CRYPTO_REFRESH "HKDF;ED448;X448;ARGON2")
   # The PQC code paths use the FIPS 203/204/205 APIs (KyberMode::ML_KEM_*,
   # DilithiumMode::ML_DSA_*, SLH_DSA_*), which first exist in Botan 3.6.0.
   # The floor is 3.7.0, not 3.6.0:
@@ -349,9 +379,9 @@ if(CRYPTO_BACKEND_OPENSSL)
   openssl_nope(ENABLE_TWOFISH "Twofish isn't and won't be supported by OpenSSL, see https://github.com/openssl/openssl/issues/2046")
   if(CRYPTO_BACKEND_OPENSSL3)
     # Argon2 KDFs are available since OpenSSL 3.2
-    resolve_feature_state(ENABLE_CRYPTO_REFRESH "HKDF;ED448;X448;ARGON2ID")
+    resolve_feature_state_soft(ENABLE_CRYPTO_REFRESH "HKDF;ED448;X448;ARGON2ID")
   else()
-    openssl_nope(ENABLE_CRYPTO_REFRESH "requires OpenSSL 3.0+")
+    openssl_nope_soft(ENABLE_CRYPTO_REFRESH "requires OpenSSL 3.0+")
   endif()
   if(CRYPTO_BACKEND_OPENSSL3)
     resolve_feature_state(ENABLE_PQC "ML-KEM-768;ML-KEM-1024;ML-DSA-65;ML-DSA-87;SLH-DSA-SHAKE-128f;SLH-DSA-SHAKE-128s;SLH-DSA-SHAKE-256s")
