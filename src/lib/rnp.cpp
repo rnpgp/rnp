@@ -324,7 +324,9 @@ aead_alg_supported(int alg)
     case PGP_AEAD_EAX:
 #endif
     case PGP_AEAD_OCB:
+#if defined(ENABLE_AEAD_GCM)
     case PGP_AEAD_GCM:
+#endif
 #endif
         return true;
     default:

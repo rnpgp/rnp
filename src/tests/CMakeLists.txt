@@ -227,6 +227,7 @@ target_compile_definitions(rnp_tests
     # let the crypto-refresh/pqc-gated test files see the feature flags
     $<$<BOOL:${ENABLE_CRYPTO_REFRESH}>:ENABLE_CRYPTO_REFRESH>
     $<$<BOOL:${ENABLE_PQC}>:ENABLE_PQC>
+    $<$<BOOL:${ENABLE_AEAD_GCM}>:ENABLE_AEAD_GCM>
 )
 
 # Centos 7 with CLang 7.0.1 reports strange memory leak in GoogleTest, maybe there is a better solution
