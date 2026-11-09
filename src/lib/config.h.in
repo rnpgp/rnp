@@ -65,6 +65,9 @@
 #ifndef ENABLE_AEAD
 #cmakedefine ENABLE_AEAD
 #endif
+#ifndef ENABLE_AEAD_GCM
+#cmakedefine ENABLE_AEAD_GCM
+#endif
 #ifndef ENABLE_TWOFISH
 #cmakedefine ENABLE_TWOFISH
 #endif

@@ -1266,6 +1266,13 @@ aead_ocb_enabled()
 }
 
 bool
+aead_gcm_enabled()
+{
+    bool enabled = false;
+    return !rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "GCM", &enabled) && enabled;
+}
+
+bool
 aead_ocb_aes_only()
 {
     return aead_ocb_enabled() && !strcmp(rnp_backend_string(), "OpenSSL");
