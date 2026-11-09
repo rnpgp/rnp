@@ -89,7 +89,10 @@ jobs:
       - name: Install host build deps
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install cmake ninja-build python3 qemu-user-static
+          sudo apt-get -y install cmake ninja-build python3
+          # qemu-user-static is a real package up to Ubuntu 24.04; newer
+          # runner images provide the same emulator through qemu-user-binfmt.
+          sudo apt-get -y install qemu-user-static || sudo apt-get -y install qemu-user-binfmt
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
@@ -161,6 +164,7 @@ jobs:
       - name: Configure librnp for aarch64-linux-android
         run: |
           DEP_PREFIX="$HOME/android-deps/${{ matrix.backend }}"
+          QEMU_AARCH64="$(command -v qemu-aarch64-static || command -v qemu-aarch64)"
           EXTRA_FLAGS=""
           if [ "${{ matrix.backend }}" = "openssl" ]; then
             EXTRA_FLAGS="-DOPENSSL_ROOT_DIR=$DEP_PREFIX"
@@ -173,7 +177,7 @@ jobs:
             -DANDROID_ABI="${ANDROID_ABI}" \
             -DANDROID_PLATFORM="${ANDROID_PLATFORM}" \
             -DCMAKE_FIND_ROOT_PATH="${DEP_PREFIX}" \
-            -DCMAKE_CROSSCOMPILING_EMULATOR="/usr/bin/qemu-aarch64-static" \
+            -DCMAKE_CROSSCOMPILING_EMULATOR="${QEMU_AARCH64}" \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_SHARED_LIBS=OFF \
             -DBUILD_TESTING=OFF \
