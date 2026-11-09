@@ -547,6 +547,11 @@ pgp_packet_body_t::get(uint32_t &val) noexcept
 bool
 pgp_packet_body_t::get(uint8_t *val, size_t len) noexcept
 {
+    if (!len) {
+        /* Do not memcpy with a null destination and zero length, which is
+         * undefined behavior - callers may pass data() of an empty vector. */
+        return true;
+    }
     if (pos_ + len > data_.size()) {
         return false;
     }
