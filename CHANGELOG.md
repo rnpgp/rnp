@@ -10,7 +10,10 @@
 
 * GCM (AEAD algorithm ID 3, RFC 9580 section 9.6) for message encryption and
   decryption on the Botan and OpenSSL backends, verified against the RFC 9580
-  appendix A.11 sample message. OCB remains the default AEAD algorithm.
+  appendix A.11 sample message. OCB remains the default AEAD algorithm. GCM
+  support is detected in the crypto backend at configure time and turned off
+  automatically when it is not available; it can also be controlled explicitly
+  with the `ENABLE_AEAD_GCM` CMake option.
 
 #### Security
 

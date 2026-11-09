@@ -3166,16 +3166,18 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     /* aead algorithms */
     bool has_eax = aead_eax_enabled();
     bool has_ocb = aead_ocb_enabled();
+    bool has_gcm = aead_gcm_enabled();
     assert_rnp_success(rnp_supported_features(RNP_FEATURE_AEAD_ALG, &features));
     assert_non_null(features);
-    assert_true(check_features(RNP_FEATURE_AEAD_ALG, features, 1 + has_eax + has_ocb + 1));
+    assert_true(
+      check_features(RNP_FEATURE_AEAD_ALG, features, 1 + has_eax + has_ocb + has_gcm));
     rnp_buffer_destroy(features);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "eax", &supported));
     assert_true(supported == has_eax);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "ocb", &supported));
     assert_true(supported == has_ocb);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "gcm", &supported));
-    assert_true(supported);
+    assert_true(supported == has_gcm);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "none", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "wrong", &supported));
@@ -5753,7 +5755,7 @@ TEST_F(rnp_tests, test_ffi_literal_packet)
     rnp_ffi_destroy(ffi);
 }
 
-#if defined(ENABLE_CRYPTO_REFRESH)
+#if defined(ENABLE_CRYPTO_REFRESH) && defined(ENABLE_AEAD_GCM)
 TEST_F(rnp_tests, test_ffi_aead_gcm)
 {
     /* RFC 9580, A.11: the sample message, encrypted with AES-128 and GCM using

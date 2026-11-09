@@ -295,6 +295,7 @@ rnp_key_handle_t bogus_key_handle(rnp_ffi_t ffi);
 bool sm2_enabled();
 bool aead_eax_enabled();
 bool aead_ocb_enabled();
+bool aead_gcm_enabled();
 bool aead_ocb_aes_only();
 bool twofish_enabled();
 bool idea_enabled();
