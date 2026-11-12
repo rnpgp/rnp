@@ -4127,6 +4127,9 @@ RNP_API rnp_result_t rnp_get_secret_key_data(rnp_key_handle_t handle,
  *               "secret key" members may vary and depends on the key algorithm.
  *               But generally they contain hexadecimal strings representing
  *               MPI-s (multi-precision integers) of the key or signature.\n
+ *               Algorithms which do not use MPI-s (Ed25519, X25519, Ed448, X448 and the
+ *               post-quantum algorithms) provide hexadecimal strings "pub" (public key),
+ *               "priv" (secret key) and "sig" (signature) instead.\n
  *               "mpis" objects are present if the flags argument contains
  *               RNP_JSON_SIGNATURE_MPIS,RNP_JSON_PUBLIC_MPIS and RNP_JSON_SECRET_MPIS
  *               flag respectively.\n
