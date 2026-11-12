@@ -2996,6 +2996,36 @@ TEST_F(rnp_tests, test_ffi_v4_sig_wrong_lbits)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_sig_id_v4_input)
+{
+    /* The signature id of a pre-v6 signature is SHA-1(hashed data || signature material) */
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "alice-pub.asc"));
+    rnp_key_handle_t alice = get_key_by_uid(ffi, "Alice <alice@rnp>");
+    assert_non_null(alice);
+    rnp::Key *key = alice->pub;
+    assert_true(key->sig_count() > 0);
+    for (size_t i = 0; i < key->sig_count(); i++) {
+        const pgp::pkt::Signature &sig = key->get_sig(i).sig;
+        assert_int_equal(sig.version, PGP_V4);
+        auto hash = rnp::Hash::create(PGP_HASH_SHA1);
+        hash->add(sig.hashed_data);
+        hash->add(sig.material_buf);
+        pgp::SigID expected = {};
+        hash->finish(expected.data());
+        assert_true(sig.get_id() == expected);
+        assert_true(key->get_sig(i).sigid == expected);
+        /* a copy is equal to the original and has the same id */
+        pgp::pkt::Signature copy = sig;
+        assert_true(copy == sig);
+        assert_false(copy != sig);
+        assert_true(copy.get_id() == sig.get_id());
+    }
+    assert_rnp_success(rnp_key_handle_destroy(alice));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
+
 #if defined(ENABLE_CRYPTO_REFRESH)
 TEST_F(rnp_tests, test_ffi_v6_sig_wrong_lbits)
 {
@@ -3027,5 +3057,64 @@ TEST_F(rnp_tests, test_ffi_v6_sig_wrong_lbits)
     rnp_input_destroy(input);
     rnp_output_destroy(output);
     rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_v6_sig_salt)
+{
+    /* RFC 9580, A.3: v6 key with a direct-key signature and a subkey binding signature */
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_pub_keys(ffi, "data/RFC9580/A.3.transferable-pubkey-v6.asc"));
+    rnp_key_handle_t handle = NULL;
+    assert_rnp_success(rnp_locate_key(ffi,
+                                      "fingerprint",
+                                      "CB186C4F0609A697E4D52DFA6C722B0C1F1E27C18A56708F6525EC"
+                                      "27BAD9ACC9",
+                                      &handle));
+    assert_non_null(handle);
+    rnp::Key *key = handle->pub;
+    size_t    sigcount = key->sig_count();
+    assert_true(sigcount > 0);
+
+    const rnp::Signature &orig = key->get_sig(0);
+    pgp::pkt::Signature   sig = orig.sig;
+    assert_int_equal(sig.version, PGP_V6);
+    assert_false(sig.salt.empty());
+    const size_t     uid = orig.uid;
+    const pgp::SigID id = sig.get_id();
+    assert_true(id == orig.sigid);
+
+    /* the id covers hashed data, salt and signature material */
+    auto hash = rnp::Hash::create(PGP_HASH_SHA1);
+    hash->add(sig.hashed_data);
+    hash->add(sig.salt);
+    hash->add(sig.material_buf);
+    pgp::SigID expected = {};
+    hash->finish(expected.data());
+    assert_true(id == expected);
+
+    /* the same signature, but with a different salt */
+    pgp::pkt::Signature salted = sig;
+    assert_true(salted == sig);
+    salted.salt[0] ^= 0xff;
+    assert_true(salted.lbits == sig.lbits);
+    assert_true(salted.hashed_data == sig.hashed_data);
+    assert_true(salted.material_buf == sig.material_buf);
+    assert_false(salted == sig);
+    assert_true(salted != sig);
+    assert_false(salted.get_id() == id);
+
+    /* both signatures are kept in the key */
+    key->add_sig(salted, uid);
+    assert_int_equal(key->sig_count(), sigcount + 1);
+    assert_true(key->has_sig(id));
+    assert_true(key->has_sig(salted.get_id()));
+    /* adding any of them again does not create duplicates */
+    key->add_sig(salted, uid);
+    key->add_sig(sig, uid);
+    assert_int_equal(key->sig_count(), sigcount + 1);
+
+    assert_rnp_success(rnp_key_handle_destroy(handle));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 #endif
