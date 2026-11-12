@@ -8,6 +8,10 @@
 
 #### Security
 
+* Ignore unknown non-critical packets (type IDs 40-63) and padding packets wherever they are
+  encountered in key sequences and messages, as required by RFC 9580 sections 4.3 and 5.14.
+  Unknown critical packets still invalidate the whole sequence. (#2561)
+
 * Refuse to decrypt obsolete Symmetrically Encrypted Data packets (tag 9, no integrity protection) by default,
   as recommended by RFC 9580 section 5.7. Use `RNP_VERIFY_ALLOW_UNPROTECTED` flag for `rnp_op_verify_set_flags()`
   or `--allow-unprotected` CLI option to override. (#2136)
