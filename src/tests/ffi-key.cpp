@@ -5329,3 +5329,327 @@ TEST_F(rnp_tests, test_ffi_import_public_primary_secret_subkey)
     rnp_key_handle_destroy(sub);
     rnp_ffi_destroy(ffi);
 }
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+static void
+dump_packets_text(const char *path, uint32_t flags, std::string &res)
+{
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_input_from_path(&input, path));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_dump_packets_to_output(input, output, flags));
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    res.assign(buf, buf + len);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+}
+
+static void
+dump_packets_json(const char *path, uint32_t flags, nlohmann::ordered_json &res)
+{
+    rnp_input_t input = NULL;
+    char *      json = NULL;
+    assert_rnp_success(rnp_input_from_path(&input, path));
+    assert_rnp_success(rnp_dump_packets_to_json(input, flags, &json));
+    res = nlohmann::ordered_json::parse(json);
+    rnp_buffer_destroy(json);
+    rnp_input_destroy(input);
+    assert_true(res.is_array());
+}
+
+static void
+key_to_json_obj(rnp_key_handle_t key, uint32_t flags, nlohmann::ordered_json &res)
+{
+    char *json = NULL;
+    assert_rnp_success(rnp_key_to_json(key, flags, &json));
+    assert_non_null(json);
+    res = nlohmann::ordered_json::parse(json);
+    rnp_buffer_destroy(json);
+    assert_true(res.is_object());
+}
+
+TEST_F(rnp_tests, test_ffi_key_to_json_v6_native_curve)
+{
+    /* RFC 9580, A.3 and A.4: v6 Ed25519 primary key, X25519 subkey */
+    const std::string pub_hex =
+      "f94da7bb48d60a61e567706a6587d0331999bb9d891a08242ead84543df895a3";
+    const std::string sec_hex =
+      "1972817b12be707e8d5f586ce61361201d344eb266a2c82fde6835762b65b0b7";
+    const char *   fp = "CB186C4F0609A697E4D52DFA6C722B0C1F1E27C18A56708F6525EC27BAD9ACC9";
+    const uint32_t flags = RNP_JSON_PUBLIC_MPIS | RNP_JSON_SECRET_MPIS | RNP_JSON_SIGNATURES |
+                           RNP_JSON_SIGNATURE_MPIS;
+
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_pub_keys(ffi, "data/RFC9580/A.3.transferable-pubkey-v6.asc"));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "fingerprint", fp, &key));
+    assert_non_null(key);
+
+    /* public key: keyid and the other common fields must be there, together with the key */
+    nlohmann::ordered_json jso;
+    key_to_json_obj(key, flags, jso);
+    assert_true(check_json_field_str(jso, "type", "ED25519"));
+    assert_true(rnp::str_case_eq(
+      get_json_obj(jso, "keyid").get_ref<const std::string &>().c_str(), "CB186C4F0609A697"));
+    assert_true(rnp::str_case_eq(
+      get_json_obj(jso, "fingerprint").get_ref<const std::string &>().c_str(), fp));
+    assert_int_equal(get_json_obj(jso, "grip").get_ref<const std::string &>().size(), 40);
+    assert_int_equal(get_json_obj(jso, "creation time").get<int64_t>(), 1669824483);
+    assert_int_equal(get_json_obj(jso, "subkey grips").size(), 1);
+    assert_true(get_json_obj(jso, "public key").at("present").get<bool>());
+    auto pubmpis = get_json_obj(jso, "public key").at("mpis");
+    assert_true(check_json_field_str(pubmpis, "pub", pub_hex.c_str()));
+    assert_false(pubmpis.contains("priv"));
+    /* no secret key yet */
+    assert_false(get_json_obj(jso, "secret key").at("present").get<bool>());
+    /* signatures with their material */
+    auto sigs = get_json_obj(jso, "signatures");
+    assert_true(sigs.is_array());
+    assert_true(sigs.size() > 0);
+    for (auto &sig : sigs) {
+        auto &mpis = sig.at("mpis");
+        assert_true(mpis.is_object());
+        /* Ed25519 signature is 64 bytes */
+        assert_int_equal(mpis.at("sig").get_ref<const std::string &>().size(), 128);
+    }
+    /* subkey */
+    rnp_key_handle_t sub = NULL;
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &sub));
+    nlohmann::ordered_json subjso;
+    key_to_json_obj(sub, flags, subjso);
+    assert_true(check_json_field_str(subjso, "type", "X25519"));
+    assert_int_equal(get_json_obj(subjso, "keyid").get_ref<const std::string &>().size(), 16);
+    assert_int_equal(get_json_obj(subjso, "public key")
+                       .at("mpis")
+                       .at("pub")
+                       .get_ref<const std::string &>()
+                       .size(),
+                     64);
+    rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(ffi);
+
+    /* secret key */
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_all_keys(ffi, "data/RFC9580/A.4.transferable-seckey-v6.asc"));
+    assert_rnp_success(rnp_locate_key(ffi, "fingerprint", fp, &key));
+    assert_non_null(key);
+    key_to_json_obj(key, flags, jso);
+    assert_true(get_json_obj(jso, "secret key").at("present").get<bool>());
+    assert_false(get_json_obj(jso, "secret key").at("locked").get<bool>());
+    assert_true(check_json_field_str(
+      get_json_obj(jso, "public key").at("mpis"), "pub", pub_hex.c_str()));
+    assert_true(check_json_field_str(
+      get_json_obj(jso, "secret key").at("mpis"), "priv", sec_hex.c_str()));
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_dump_packets_json_v6_native_curve)
+{
+    const char *      path = "data/RFC9580/A.3.transferable-pubkey-v6.asc";
+    const std::string pub_hex =
+      "f94da7bb48d60a61e567706a6587d0331999bb9d891a08242ead84543df895a3";
+
+    /* without RNP_JSON_DUMP_MPI only the size of the material is dumped */
+    nlohmann::ordered_json pkts;
+    dump_packets_json(path, 0, pkts);
+    bool found_key = false;
+    bool found_sig = false;
+    for (auto &pkt : pkts) {
+        if (check_json_pkt_type(pkt, PGP_PKT_PUBLIC_KEY)) {
+            auto &material = pkt.at("material");
+            assert_int_equal(material.at("pub.bytes").get<int>(), 32);
+            assert_false(material.contains("pub.raw"));
+            found_key = true;
+        } else if (check_json_pkt_type(pkt, PGP_PKT_SIGNATURE)) {
+            auto &material = pkt.at("material");
+            assert_int_equal(material.at("sig.bytes").get<int>(), 64);
+            assert_false(material.contains("sig.raw"));
+            found_sig = true;
+        }
+    }
+    assert_true(found_key);
+    assert_true(found_sig);
+
+    /* with RNP_JSON_DUMP_MPI the contents are the same as in the text dump */
+    std::string text;
+    dump_packets_text(path, RNP_DUMP_MPI, text);
+    std::string sig_hex;
+    found_key = false;
+    found_sig = false;
+    dump_packets_json(path, RNP_JSON_DUMP_MPI, pkts);
+    for (auto &pkt : pkts) {
+        if (check_json_pkt_type(pkt, PGP_PKT_PUBLIC_KEY)) {
+            auto &material = pkt.at("material");
+            assert_true(check_json_field_str(material, "pub.raw", pub_hex.c_str()));
+            assert_true(text.find("ed25519, " + pub_hex + "\n") != std::string::npos);
+            found_key = true;
+        } else if (check_json_pkt_type(pkt, PGP_PKT_SIGNATURE) && !found_sig) {
+            auto &material = pkt.at("material");
+            sig_hex = material.at("sig.raw").get<std::string>();
+            assert_int_equal(sig_hex.size(), 128);
+            assert_true(text.find("ed25519 sig, " + sig_hex + "\n") != std::string::npos);
+            found_sig = true;
+        }
+    }
+    assert_true(found_key);
+    assert_true(found_sig);
+}
+#endif
+
+#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
+TEST_F(rnp_tests, test_ffi_key_to_json_pqc)
+{
+    struct TestCase {
+        const char *path;
+        size_t      pub_bytes;
+    };
+    /* sizes: composite = ML-DSA/ML-KEM key + Ed25519/X25519 key, SLH-DSA is the plain key */
+    std::vector<TestCase> cases = {
+      {"data/draft-ietf-openpgp-pqc/v6-mldsa-65-sample-pk.asc", 1984},
+      {"data/draft-ietf-openpgp-pqc/v6-mldsa-87-sample-pk.asc", 2649},
+      {"data/draft-ietf-openpgp-pqc/v6-slhdsa-128s-sample-pk.asc", 32},
+      {"data/draft-ietf-openpgp-pqc/v6-slhdsa-256s-sample-pk.asc", 64}};
+    for (auto &tc : cases) {
+        rnp_ffi_t ffi = NULL;
+        assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+        assert_true(import_pub_keys(ffi, tc.path));
+        size_t keycount = 0;
+        assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+        assert_true(keycount > 0);
+        rnp_identifier_iterator_t it = NULL;
+        assert_rnp_success(rnp_identifier_iterator_create(ffi, &it, "fingerprint"));
+        const char *fp = NULL;
+        bool        primary_seen = false;
+        while (!rnp_identifier_iterator_next(it, &fp) && fp) {
+            rnp_key_handle_t key = NULL;
+            assert_rnp_success(rnp_locate_key(ffi, "fingerprint", fp, &key));
+            nlohmann::ordered_json jso;
+            key_to_json_obj(
+              key, RNP_JSON_PUBLIC_MPIS | RNP_JSON_SIGNATURES | RNP_JSON_SIGNATURE_MPIS, jso);
+            /* keyid, fingerprint and grip are written for these keys as well */
+            assert_int_equal(get_json_obj(jso, "keyid").get_ref<const std::string &>().size(),
+                             16);
+            assert_true(rnp::str_case_eq(
+              get_json_obj(jso, "fingerprint").get_ref<const std::string &>().c_str(), fp));
+            assert_int_equal(get_json_obj(jso, "grip").get_ref<const std::string &>().size(),
+                             40);
+            assert_true(get_json_obj(jso, "public key").at("present").get<bool>());
+            auto pub = get_json_obj(jso, "public key").at("mpis").at("pub");
+            assert_true(pub.is_string());
+            assert_true(pub.get_ref<const std::string &>().size() > 0);
+            bool primary = false;
+            assert_rnp_success(rnp_key_is_primary(key, &primary));
+            if (primary) {
+                primary_seen = true;
+                char *alg = NULL;
+                assert_rnp_success(rnp_key_get_alg(key, &alg));
+                assert_true(check_json_field_str(jso, "type", alg));
+                rnp_buffer_destroy(alg);
+                assert_int_equal(pub.get_ref<const std::string &>().size(), tc.pub_bytes * 2);
+                for (auto &sig : get_json_obj(jso, "signatures")) {
+                    assert_true(sig.at("mpis").at("sig").is_string());
+                    assert_true(
+                      sig.at("mpis").at("sig").get_ref<const std::string &>().size() > 0);
+                }
+            }
+            rnp_key_handle_destroy(key);
+        }
+        assert_true(primary_seen);
+        rnp_identifier_iterator_destroy(it);
+        rnp_ffi_destroy(ffi);
+    }
+}
+
+TEST_F(rnp_tests, test_ffi_key_to_json_pqc_secret)
+{
+    std::vector<std::pair<std::string, std::string>> pub_sec_keys = {
+      {"data/draft-ietf-openpgp-pqc/v6-mldsa-65-sample-pk.asc",
+       "data/draft-ietf-openpgp-pqc/v6-mldsa-65-sample-sk.asc"},
+      {"data/draft-ietf-openpgp-pqc/v6-slhdsa-128s-sample-pk.asc",
+       "data/draft-ietf-openpgp-pqc/v6-slhdsa-128s-sample-sk.asc"}};
+    const uint32_t flags = RNP_JSON_PUBLIC_MPIS | RNP_JSON_SECRET_MPIS;
+    for (auto &keys : pub_sec_keys) {
+        rnp_ffi_t ffi = NULL;
+        assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+        assert_true(import_all_keys(ffi, keys.second));
+        rnp_identifier_iterator_t it = NULL;
+        assert_rnp_success(rnp_identifier_iterator_create(ffi, &it, "fingerprint"));
+        const char *fp = NULL;
+        size_t      checked = 0;
+        while (!rnp_identifier_iterator_next(it, &fp) && fp) {
+            rnp_key_handle_t key = NULL;
+            assert_rnp_success(rnp_locate_key(ffi, "fingerprint", fp, &key));
+            nlohmann::ordered_json jso;
+            key_to_json_obj(key, flags, jso);
+            auto sec = get_json_obj(jso, "secret key");
+            assert_true(sec.at("present").get<bool>());
+            assert_false(sec.at("locked").get<bool>());
+            auto priv = sec.at("mpis").at("priv").get<std::string>();
+            auto pub = get_json_obj(jso, "public key").at("mpis").at("pub").get<std::string>();
+            assert_false(priv.empty());
+            assert_false(pub.empty());
+            assert_true(priv != pub);
+            checked++;
+            rnp_key_handle_destroy(key);
+        }
+        rnp_identifier_iterator_destroy(it);
+        assert_true(checked > 0);
+        rnp_ffi_destroy(ffi);
+    }
+}
+
+TEST_F(rnp_tests, test_ffi_dump_packets_json_pqc)
+{
+    std::vector<std::string> cases = {
+      "data/draft-ietf-openpgp-pqc/v6-mldsa-65-sample-pk.asc",
+      "data/draft-ietf-openpgp-pqc/v6-slhdsa-128s-sample-pk.asc"};
+    for (auto &path : cases) {
+        std::string text;
+        dump_packets_text(path.c_str(), RNP_DUMP_MPI, text);
+        nlohmann::ordered_json pkts;
+        dump_packets_json(path.c_str(), RNP_JSON_DUMP_MPI, pkts);
+        bool found = false;
+        for (auto &pkt : pkts) {
+            if (!check_json_pkt_type(pkt, PGP_PKT_PUBLIC_KEY)) {
+                continue;
+            }
+            auto &material = pkt.at("material");
+            auto  hex = material.at("pub.raw").get<std::string>();
+            assert_int_equal(material.at("pub.bytes").get<int>() * 2, hex.size());
+            /* text dumper output is cut at 2048 bytes per line, so compare the beginning only
+             */
+            assert_true(text.find(", " + hex.substr(0, 512)) != std::string::npos);
+            found = true;
+            break;
+        }
+        assert_true(found);
+    }
+
+    /* signature */
+    const char *sigpath = "data/draft-ietf-openpgp-pqc/v6-mldsa-65-sample-signature.asc";
+    std::string text;
+    dump_packets_text(sigpath, RNP_DUMP_MPI, text);
+    nlohmann::ordered_json pkts;
+    dump_packets_json(sigpath, RNP_JSON_DUMP_MPI, pkts);
+    bool found = false;
+    for (auto &pkt : pkts) {
+        if (!check_json_pkt_type(pkt, PGP_PKT_SIGNATURE)) {
+            continue;
+        }
+        auto &material = pkt.at("material");
+        auto  hex = material.at("sig.raw").get<std::string>();
+        /* ML-DSA-65 signature (3309 bytes) + Ed25519 signature (64 bytes) */
+        assert_int_equal(material.at("sig.bytes").get<int>(), 3309 + 64);
+        assert_int_equal(hex.size(), (3309 + 64) * 2);
+        assert_true(text.find(", " + hex.substr(0, 512)) != std::string::npos);
+        found = true;
+    }
+    assert_true(found);
+}
+#endif
