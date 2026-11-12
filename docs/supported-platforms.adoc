@@ -181,8 +181,8 @@ downstream packagers.
 | `Botan`
 
 | `ENABLE_CRYPTO_REFRESH` (RFC 9580)
-| `On` \| `Off` \| `Auto`
-| `Auto` (requires Botan 3+ or OpenSSL 3.x)
+| `On` \| `Off`
+| `On` (requires Botan 3.6+ or OpenSSL 3.x; set to `Off` for the older Botan)
 
 | `ENABLE_PQC`
 | `On` \| `Off` \| `Auto`

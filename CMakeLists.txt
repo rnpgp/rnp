@@ -121,7 +121,7 @@ tristate_feature_auto(ENABLE_RIPEMD160 "Enable RIPEMD-160 hash support.")
 # compression
 tristate_feature_auto(ENABLE_BZIP2 "Enable BZip2 compression support.")
 
-option(ENABLE_CRYPTO_REFRESH "Enable crypto-refresh support (v6)")
+option(ENABLE_CRYPTO_REFRESH "Enable crypto-refresh (RFC 9580) support (v6)." ON)
 option(ENABLE_PQC "Enable PQC support")
 
 # Note: The following flag is only temporary and will be removed once POC is in a stable state
@@ -196,6 +196,20 @@ if(ENABLE_FIPS_MODE AND NOT CRYPTO_BACKEND_OPENSSL)
     "but CRYPTO_BACKEND='${CRYPTO_BACKEND}' was selected. "
     "FIPS mode relies on the OpenSSL 3.x FIPS provider; rerun CMake with "
     "-DCRYPTO_BACKEND=openssl -DENABLE_FIPS_MODE=On.")
+endif()
+
+# The crypto-refresh (RFC 9580) support is enabled by default, but it is not
+# available with Botan 2.x, so gracefully turn it off rather than fail the
+# configure. Done in the top-level scope, before subdirectories consume the
+# option.
+if(ENABLE_CRYPTO_REFRESH AND CRYPTO_BACKEND_BOTAN)
+  find_package(Botan 3.6.0 QUIET)
+  if(NOT Botan_FOUND)
+    set(ENABLE_CRYPTO_REFRESH OFF)
+    message(WARNING
+      "The crypto-refresh (RFC 9580) support requires Botan 3.6.0 or newer. "
+      "Building against the older Botan, so it is turned off.")
+  endif()
 endif()
 
 if(MSVC)

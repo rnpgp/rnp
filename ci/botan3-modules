@@ -50,3 +50,7 @@ sm3
 sm4
 sp800_56a
 twofish
+argon2
+ed448
+hkdf
+x448
