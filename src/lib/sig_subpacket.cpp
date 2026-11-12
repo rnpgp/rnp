@@ -508,10 +508,10 @@ NotationData::parse_data(const uint8_t *data, size_t size)
 void
 NotationData::set_human_readable(bool value) noexcept
 {
+    /* RFC 9580: only bit 7 of the first flags octet is defined, the rest must be zero */
+    flags_ = {};
     if (value) {
-        flags_[0] |= 0x80;
-    } else {
-        flags_[0] &= ~0x80;
+        flags_[0] = 0x80;
     }
 }
 

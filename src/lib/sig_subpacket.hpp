@@ -557,9 +557,10 @@ class IssuerKeyID : public Raw {
 /* Notation data signature subpacket */
 class NotationData : public Raw {
   private:
-    std::array<uint8_t, 4> flags_;
-    std::string            name_;
-    std::vector<uint8_t>   value_;
+    std::array<uint8_t, 4> flags_{}; /* zero-initialized: only the human-readable bit
+                                        of the first octet is ever set explicitly */
+    std::string          name_;
+    std::vector<uint8_t> value_;
 
   protected:
     void write_data() override;
