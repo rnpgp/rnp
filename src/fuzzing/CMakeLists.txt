@@ -158,6 +158,19 @@ target_link_libraries(fuzz_keyring_g10
     librnp-static
 )
 
+add_executable(fuzz_encrypt_roundtrip encrypt_roundtrip.c)
+
+target_include_directories(fuzz_encrypt_roundtrip
+  PRIVATE
+    "${PROJECT_SOURCE_DIR}/src"
+    "${PROJECT_SOURCE_DIR}/src/lib"
+)
+
+target_link_libraries(fuzz_encrypt_roundtrip
+  PRIVATE
+    librnp
+)
+
 # keyring_g10.cpp includes internal headers that pull in backend-specific
 # cryptography headers; librnp-static links the backend privately, so its
 # include directories do not propagate to this target. The Botan target is
@@ -169,7 +182,7 @@ if (CRYPTO_BACKEND STREQUAL "botan")
 endif ()
 
 if (ENABLE_SANITIZERS)
-  foreach(tgt fuzz_dump fuzz_keyring fuzz_keyimport fuzz_sigimport fuzz_verify fuzz_verify_detached fuzz_ffi_ops fuzz_keyring_kbx fuzz_keyring_g10)
+  foreach(tgt fuzz_dump fuzz_keyring fuzz_keyimport fuzz_sigimport fuzz_verify fuzz_verify_detached fuzz_ffi_ops fuzz_keyring_kbx fuzz_keyring_g10 fuzz_encrypt_roundtrip)
     set_target_properties(${tgt} PROPERTIES LINKER_LANGUAGE CXX)
   endforeach()
 endif()
