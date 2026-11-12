@@ -149,6 +149,13 @@ class Signature {
      *         so version should be set prior to fingerprint. */
     void set_keyfp(const Fingerprint &fp);
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /** @brief Add the intended recipient fingerprint subpacket (RFC 9580, 5.2.3.36).
+     *         Several subpackets may be added. Works for signatures with version 4 and up,
+     *         so version should be set prior to it. */
+    void set_intended_recipient_fp(const Fingerprint &fp, uint8_t key_version, bool critical);
+#endif
+
     /**
      * @brief Get signature's creation time
      * @return time in seconds since the Jan 1, 1970 UTC. 0 is the default value and returned

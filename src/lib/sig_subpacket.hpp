@@ -81,7 +81,7 @@ enum class Type : uint8_t {
     IssuerFingerprint = 33,  /* issuer fingerprint */
     PreferredAEAD = 34,      /* preferred AEAD algorithms */
 #if defined(ENABLE_CRYPTO_REFRESH)
-    /* IntendedRecipient = 35, */
+    IntendedRecipientFingerprint = 35, /* intended recipient fingerprint */
     PreferredAEADv6 = 39,
 #endif
     Private_100 = 100, /* private/experimental subpackets */
@@ -905,6 +905,54 @@ class IssuerFingerprint : public Raw {
 
     RawPtr clone() const override;
 };
+
+/* Intended recipient fingerprint signature subpacket */
+#if defined(ENABLE_CRYPTO_REFRESH)
+class IntendedRecipientFingerprint : public Raw {
+  private:
+    uint8_t     version_;
+    Fingerprint fp_;
+
+  protected:
+    void write_data() override;
+    bool check_size(size_t size) const noexcept override;
+    bool parse_data(const uint8_t *data, size_t size) override;
+
+  public:
+    IntendedRecipientFingerprint(bool hashed = true, bool critical = false)
+        : Raw(Type::IntendedRecipientFingerprint, hashed, critical), version_(0), fp_{}
+    {
+    }
+
+    uint8_t
+    version() const noexcept
+    {
+        return version_;
+    }
+
+    void
+    set_version(uint8_t version) noexcept
+    {
+        version_ = version;
+        data_.clear();
+    }
+
+    const Fingerprint &
+    fp() const noexcept
+    {
+        return fp_;
+    }
+
+    void
+    set_fp(const Fingerprint &fp) noexcept
+    {
+        fp_ = fp;
+        data_.clear();
+    }
+
+    RawPtr clone() const override;
+};
+#endif
 
 class List {
   public:
