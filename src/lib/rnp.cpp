@@ -8524,6 +8524,39 @@ add_json_mpis(nlohmann::ordered_json *                                         j
     return RNP_SUCCESS;
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+static rnp_result_t
+add_json_bytes(nlohmann::ordered_json &jso, const char *name, const std::vector<uint8_t> &data)
+{
+    if (!rnp::json::add_hex(jso, name, data)) {
+        return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+    }
+    return RNP_SUCCESS;
+}
+#endif
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+/* Key material which stores the key as a plain byte string: X25519, Ed25519, X448, Ed448 */
+template <typename Material>
+static rnp_result_t
+add_json_native_key(nlohmann::ordered_json &jso, const Material &km, bool secret)
+{
+    return secret ? add_json_bytes(jso, "priv", km.priv()) :
+                    add_json_bytes(jso, "pub", km.pub());
+}
+#endif
+
+#if defined(ENABLE_PQC)
+/* Key material with the encoded public/private key: ML-KEM, ML-DSA, SLH-DSA */
+template <typename Material>
+static rnp_result_t
+add_json_encoded_key(nlohmann::ordered_json &jso, const Material &km, bool secret)
+{
+    return secret ? add_json_bytes(jso, "priv", km.priv().get_encoded()) :
+                    add_json_bytes(jso, "pub", km.pub().get_encoded());
+}
+#endif
+
 static rnp_result_t
 add_json_mpis(nlohmann::ordered_json &jso, rnp::Key *key, bool secret = false)
 {
@@ -8570,10 +8603,13 @@ add_json_mpis(nlohmann::ordered_json &jso, rnp::Key *key, bool secret = false)
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
+        return add_json_native_key(jso, dynamic_cast<pgp::Ed25519KeyMaterial &>(km), secret);
     case PGP_PKA_X25519:
+        return add_json_native_key(jso, dynamic_cast<pgp::X25519KeyMaterial &>(km), secret);
     case PGP_PKA_ED448:
+        return add_json_native_key(jso, dynamic_cast<pgp::Ed448KeyMaterial &>(km), secret);
     case PGP_PKA_X448:
-        return RNP_SUCCESS; /* TODO */
+        return add_json_native_key(jso, dynamic_cast<pgp::X448KeyMaterial &>(km), secret);
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
@@ -8589,7 +8625,8 @@ add_json_mpis(nlohmann::ordered_json &jso, rnp::Key *key, bool secret = false)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP512:
 #endif
-        return RNP_SUCCESS; /* TODO */
+        return add_json_encoded_key(
+          jso, dynamic_cast<pgp::MlkemEcdhKeyMaterial &>(km), secret);
 #endif
 #if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_DILITHIUM3_ED25519:
@@ -8603,13 +8640,14 @@ add_json_mpis(nlohmann::ordered_json &jso, rnp::Key *key, bool secret = false)
     case PGP_PKA_DILITHIUM3_BP384:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP512:
-        FALLTHROUGH_STATEMENT;
+        return add_json_encoded_key(
+          jso, dynamic_cast<pgp::DilithiumEccKeyMaterial &>(km), secret);
     case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
-        return RNP_SUCCESS; /* TODO */
+        return add_json_encoded_key(jso, dynamic_cast<pgp::SlhdsaKeyMaterial &>(km), secret);
 #endif
     default:
         return RNP_ERROR_NOT_SUPPORTED;
@@ -8647,11 +8685,14 @@ add_json_sig_mpis(nlohmann::ordered_json &jso, const pgp::pkt::Signature *sig)
         return add_json_mpis(&jso, {{"r", &ec.sig.r}, {"s", &ec.sig.s}});
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_ED25519:
-    case PGP_PKA_X25519:
-    case PGP_PKA_ED448:
-    case PGP_PKA_X448:
-        return RNP_SUCCESS; /* TODO */
+    case PGP_PKA_ED25519: {
+        auto &ed = dynamic_cast<const pgp::Ed25519SigMaterial &>(*material);
+        return add_json_bytes(jso, "sig", ed.sig.sig);
+    }
+    case PGP_PKA_ED448: {
+        auto &ed = dynamic_cast<const pgp::Ed448SigMaterial &>(*material);
+        return add_json_bytes(jso, "sig", ed.sig.sig);
+    }
 #endif
 #if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_DILITHIUM3_ED25519:
@@ -8664,14 +8705,18 @@ add_json_sig_mpis(nlohmann::ordered_json &jso, const pgp::pkt::Signature *sig)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_BP384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP512:
-        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_BP512: {
+        auto &dilithium = dynamic_cast<const pgp::DilithiumSigMaterial &>(*material);
+        return add_json_bytes(jso, "sig", dilithium.sig.sig);
+    }
     case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
-        return RNP_SUCCESS; /* TODO */
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s: {
+        auto &slhdsa = dynamic_cast<const pgp::SlhdsaSigMaterial &>(*material);
+        return add_json_bytes(jso, "sig", slhdsa.sig.sig);
+    }
 #endif
     default:
         // TODO: we could use info->unknown and add a hex string of raw data here
@@ -8869,50 +8914,8 @@ key_to_json(nlohmann::ordered_json &jso, rnp_key_handle_t handle, uint32_t flags
             return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
         }
     } break;
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_ED25519:
-    case PGP_PKA_X25519:
-    case PGP_PKA_ED448:
-    case PGP_PKA_X448:
-        return RNP_SUCCESS; /* TODO */
-#endif
-#if defined(ENABLE_PQC)
-    case PGP_PKA_KYBER768_X25519:
-#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_X448:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_P521:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER768_BP384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_KYBER1024_BP512:
-#endif
-        return RNP_SUCCESS; /* TODO */
-#endif
-#if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_DILITHIUM3_ED25519:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_ED448:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_P384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_P521:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM3_BP384:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP512:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
-        FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
-        return RNP_SUCCESS; /* TODO */
-#endif
     default:
+        /* no curve or other algorithm-specific items to add */
         break;
     }
 
