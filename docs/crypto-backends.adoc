@@ -16,11 +16,11 @@ platforms ship each by default, and which OpenPGP features each lacks.
 
 [cols="1,2,2,2,2", options="header"]
 |===
-| Backend | Project | Default on | Provider system | PQC (post-quantum)
-| `openssl` (OpenSSL 3.x) | OpenSSL Project | most Linux distros, Homebrew | yes (default + legacy + fips) | only via the third-party `oqs-provider` (not wired into rnp)
-| `openssl` (OpenSSL 1.1.x) | OpenSSL Project | older LTS distros (EOL 2023-09) | n/a | not available
-| `openssl` (LibreSSL) | OpenBSD project | OpenBSD (system), Chimera; macOS `/usr/lib` (no headers); optional on Alpine, Void, Gentoo, FreeBSD | n/a | ML-KEM (LibreSSL 4.x)
-| `botan` (2.x or 3.x) | Botan project | rnp default | n/a | Botan 3.x with PQ module
+| Backend | Project | Default on | Provider system | PQC (`ENABLE_PQC`)
+| `openssl` (OpenSSL 3.x) | OpenSSL Project | most Linux distros, Homebrew | yes (default + legacy + fips) | possible when requested; configure probes the ML-KEM, ML-DSA and SLH-DSA algorithm names (see <<optional-features>>)
+| `openssl` (OpenSSL 1.1.x) | OpenSSL Project | older LTS distros (EOL 2023-09) | n/a | not available (`requires OpenSSL 3.0+`)
+| `openssl` (LibreSSL) | OpenBSD project | OpenBSD (system), Chimera; macOS `/usr/lib` (no headers); optional on Alpine, Void, Gentoo, FreeBSD | n/a | not available (`requires OpenSSL 3.0+`)
+| `botan` (2.x or 3.x) | Botan project | rnp default | n/a | possible with Botan 3.7.0 or newer (see <<optional-features>>)
 |===
 
 == Platforms
@@ -80,12 +80,18 @@ support.
 
 == [[features]] Feature comparison
 
+The cells describe what rnp enables when built with the given backend, not
+everything the underlying library offers. Several features are controlled by
+rnp's own CMake switches and the backend only decides whether the switch can
+be turned on. See <<optional-features>> for the switches that are off by
+default.
+
 [cols="2,1,1,1,1", options="header"]
 |===
 | Feature | OpenSSL 1.1 | OpenSSL 3.x | LibreSSL | Botan 3
 | RSA, DSA, DH, ECDSA, ECDH | yes | yes | yes | yes
-| X25519, Ed25519 | yes | yes | yes | yes
-| X448, Ed448 | yes | yes | yes | yes
+| X25519, Ed25519 (the native algorithm IDs need `ENABLE_CRYPTO_REFRESH`) | yes | yes | yes | yes
+| X448, Ed448 (needs `ENABLE_CRYPTO_REFRESH`) | no | yes | no | yes
 | Brainpool curves | yes | yes | yes | yes
 | secp256k1 | yes | yes | yes | yes
 | AES-128/192/256 (ECB, CBC, CTR) | yes | yes | yes | yes
@@ -94,15 +100,37 @@ support.
 | Blowfish, CAST5, IDEA | yes (legacy) | yes (legacy provider) | yes | yes
 | Twofish | no | no | no | yes
 | RIPEMD-160 | yes | yes (3.0.7+ in default) | yes | yes
-| SM2, SM3, SM4 | yes | yes | yes | yes
+| SM2, SM3, SM4 (`ENABLE_SM2`) | no | no | no | yes
 | AES-OCB (AEAD-OCB) | yes | yes | no | yes
 | AEAD-EAX | no | no | no | yes
 | HKDF | yes | yes | yes | yes
 | SHA-3 | yes | yes | yes | yes
-| ML-KEM (post-quantum KEM) | via provider (3.x) | via provider | yes (4.x) | yes
-| ML-DSA (post-quantum signature) | via provider (3.x) | via provider | no | yes
-| SLH-DSA (SPHINCS+) | via provider (3.x) | via provider | no | yes
+| Argon2 S2K (needs `ENABLE_CRYPTO_REFRESH`) | no | if the library has `ARGON2ID` | no | if the library has `ARGON2`
+| ML-KEM (needs `ENABLE_PQC`) | no | if the library has it | no | yes (3.7.0+)
+| ML-DSA (needs `ENABLE_PQC` and `ENABLE_CRYPTO_REFRESH`) | no | if the library has it | no | yes (3.7.0+)
+| SLH-DSA (needs `ENABLE_PQC` and `ENABLE_CRYPTO_REFRESH`) | no | if the library has it | no | yes (3.7.0+)
 |===
+
+[[optional-features]]
+=== Optional features that are off by default
+
+`ENABLE_CRYPTO_REFRESH` and `ENABLE_PQC` are plain CMake options that default
+to off. A build does not pick them up just because the backend library
+provides the algorithms. When one of them is requested, `src/lib/CMakeLists.txt`
+checks the backend and aborts configuration with an error if a check fails:
+
+* **OpenSSL 3.x** — each algorithm is detected by name. `ENABLE_CRYPTO_REFRESH`
+  needs `HKDF`, `ED448`, `X448` and `ARGON2ID` (Argon2 KDFs exist since
+  OpenSSL 3.2). `ENABLE_PQC` needs `ML-KEM-768`, `ML-KEM-1024`, `ML-DSA-65`,
+  `ML-DSA-87` and the `SLH-DSA-SHAKE-128f`, `SLH-DSA-SHAKE-128s` and
+  `SLH-DSA-SHAKE-256s` names. If one of them is missing, configuration stops
+  with an error.
+* **OpenSSL 1.1.x and LibreSSL** — both are refused with
+  `requires OpenSSL 3.0+`. LibreSSL is treated like OpenSSL 1.1.x here, so
+  whether a given LibreSSL release ships ML-KEM does not matter to rnp.
+* **Botan** — `ENABLE_CRYPTO_REFRESH` needs the `HKDF`, `ED448`, `X448` and
+  `ARGON2` modules. `ENABLE_PQC` needs Botan 3.7.0 or newer with the `HKDF`,
+  `ML_KEM`, `ML_DSA`, `SLH_DSA_WITH_SHA2` and `SLH_DSA_WITH_SHAKE` modules.
 
 == What you lose when not using Botan
 
@@ -110,11 +138,14 @@ Botan is the only backend that exposes the full set of algorithms rnp
 supports. Switching to an OpenSSL-family backend loses the following
 functionality, in addition to the per-backend cells above:
 
-* **PQC key exchange and signatures** — `ENABLE_PQC` is gated off for the
-  OpenSSL backend (see `src/lib/CMakeLists.txt`:
-  `openssl_nope(ENABLE_PQC, "not yet implemented")`). Use `botan` with the
-  Botan 3 PQ module to enable rnp's PQC key types.
-* **SM2** — gated off for OpenSSL, on the roadmap
+* **PQC key exchange and signatures** — only available with OpenSSL 3.x
+  when `ENABLE_PQC` is turned on and the installed OpenSSL provides the
+  algorithm names listed in <<optional-features>>. OpenSSL 1.1.x and
+  LibreSSL do not get PQC at all. Botan 3.7.0 or newer with the required
+  modules is the reliable way to get rnp's PQC key types.
+* **SM2** — always disabled by rnp for the OpenSSL backend, whatever the
+  installed library offers; an explicit `-DENABLE_SM2=On` aborts
+  configuration. It is on the roadmap
   (https://github.com/rnpgp/rnp/issues/1877[#1877]).
 * **Twofish** — not supported by any OpenSSL fork
   (https://github.com/openssl/openssl/issues/2046[upstream won't add it]).
