@@ -27,11 +27,13 @@
 
 #include "exdsa_ecdhkem.h"
 #include <botan/ffi.h>
+#include <botan/version.h>
 #include "botan_utils.hpp"
 #include "ed25519_ed448.h"
 #include "ecdsa.h"
 #include "ec.h"
 #include "types.h"
+#include "x25519_x448.h"
 #include "logging.h"
 #include "string.h"
 #include "utils.h"
@@ -63,7 +65,8 @@ load_ec_privkey(rnp::botan::Privkey &out,
 
 bool
 load_ec_pubkey(rnp::botan::Pubkey &out,
-               int (*loader)(botan_pubkey_t *, const uint8_t *, size_t, const char *),
+               int (*sec1_loader)(botan_pubkey_t *, const uint8_t *, size_t, const char *),
+               int (*xy_loader)(botan_pubkey_t *, botan_mp_t, botan_mp_t, const char *),
                const uint8_t *sec1,
                size_t         sec1_len,
                pgp_curve_t    curve)
@@ -72,7 +75,22 @@ load_ec_pubkey(rnp::botan::Pubkey &out,
     if (!name) {
         return false;
     }
-    return !loader(&out.get(), sec1, sec1_len, name);
+#if BOTAN_VERSION_CODE >= BOTAN_VERSION_CODE_FOR(4, 0, 0)
+    /* Botan 4.x dropped the *_sec1 loaders, so split the uncompressed SEC1
+     * point into the X and Y coordinates and load them directly. */
+    (void) sec1_loader;
+    auto ec_desc = pgp::ec::Curve::get(curve);
+    if (!ec_desc || (sec1_len != 2 * ((ec_desc->bitlen + 7) / 8) + 1) || (sec1[0] != 0x04)) {
+        return false;
+    }
+    size_t  coordlen = (ec_desc->bitlen + 7) / 8;
+    rnp::bn x(sec1 + 1, coordlen);
+    rnp::bn y(sec1 + 1 + coordlen, coordlen);
+    return x && y && !xy_loader(&out.get(), x.get(), y.get(), name);
+#else
+    (void) xy_loader;
+    return !sec1_loader(&out.get(), sec1, sec1_len, name);
+#endif
 }
 
 bool
@@ -136,10 +154,12 @@ ecdh_kem_private_key_t::get_pubkey_encoded(rnp::RNG *rng) const
         ok = (key_.size() == X25519_KEY_LEN) &&
              !botan_privkey_load_x25519(&priv.get(), key_.data());
         break;
+#if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_CURVE_448:
         ok =
           (key_.size() == X448_KEY_LEN) && !botan_privkey_load_x448(&priv.get(), key_.data());
         break;
+#endif
     default:
         ok = load_ec_privkey(priv, botan_privkey_load_ecdh, key_.data(), key_.size(), curve_);
         break;
@@ -162,15 +182,21 @@ ecdh_kem_public_key_t::encapsulate(rnp::RNG *            rng,
     case PGP_CURVE_25519:
         alg = "X25519";
         break;
+#if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_CURVE_448:
         alg = "X448";
         break;
+#endif
     default:
         alg = "ECDH";
         params = curve_botan_name(curve_);
         break;
     }
-    if (!params && curve_ != PGP_CURVE_25519 && curve_ != PGP_CURVE_448) {
+    if (!params && curve_ != PGP_CURVE_25519
+#if defined(ENABLE_CRYPTO_REFRESH)
+        && curve_ != PGP_CURVE_448
+#endif
+    ) {
         return RNP_ERROR_NOT_SUPPORTED;
     }
 
@@ -212,10 +238,12 @@ ecdh_kem_private_key_t::decapsulate(rnp::RNG *                  rng,
         ok = (key_.size() == X25519_KEY_LEN) &&
              !botan_privkey_load_x25519(&priv.get(), key_.data());
         break;
+#if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_CURVE_448:
         ok =
           (key_.size() == X448_KEY_LEN) && !botan_privkey_load_x448(&priv.get(), key_.data());
         break;
+#endif
     default:
         ok = load_ec_privkey(priv, botan_privkey_load_ecdh, key_.data(), key_.size(), curve_);
         break;
@@ -257,6 +285,7 @@ ec_key_t::generate_ecdh_kem_key_pair(rnp::RNG *rng, ecdh_kem_key_t *out, pgp_cur
     return RNP_SUCCESS;
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
 exdsa_public_key_t::exdsa_public_key_t(uint8_t *key_buf, size_t key_buf_len, pgp_curve_t curve)
     : ec_key_t(curve), key_(key_buf, key_buf + key_buf_len)
 {
@@ -305,9 +334,11 @@ exdsa_private_key_t::sign(rnp::RNG *            rng,
     case PGP_CURVE_ED25519: {
         return ed25519_sign_native(rng, sig_out, key_.unlock(), hash, hash_len);
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_CURVE_ED448: {
         return ed448_sign_native(rng, sig_out, key_.unlock(), hash, hash_len);
     }
+#endif
     default: {
         rnp::botan::Privkey priv_key;
         if (!load_ec_privkey(
@@ -344,13 +375,19 @@ exdsa_public_key_t::verify(const std::vector<uint8_t> &sig,
     case PGP_CURVE_ED25519: {
         return ed25519_verify_native(sig, key_, hash, hash_len);
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_CURVE_ED448: {
         return ed448_verify_native(sig, key_, hash, hash_len);
     }
+#endif
     default: {
         rnp::botan::Pubkey pub_key;
-        if (!load_ec_pubkey(
-              pub_key, botan_pubkey_load_ecdsa_sec1, key_.data(), key_.size(), curve_)) {
+        if (!load_ec_pubkey(pub_key,
+                            botan_pubkey_load_ecdsa_sec1,
+                            botan_pubkey_load_ecdsa,
+                            key_.data(),
+                            key_.size(),
+                            curve_)) {
             return RNP_ERROR_SIGNATURE_INVALID;
         }
         rnp::botan::op::Verify verifier;
@@ -377,13 +414,19 @@ exdsa_public_key_t::is_valid(rnp::RNG *rng) const
         ok = (key_.size() == ED25519_KEY_LEN) &&
              !botan_pubkey_load_ed25519(&pub_key.get(), key_.data());
         break;
+#if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_CURVE_ED448:
         ok = (key_.size() == ED448_KEY_LEN) &&
              !botan_pubkey_load_ed448(&pub_key.get(), key_.data());
         break;
+#endif
     default:
-        ok = load_ec_pubkey(
-          pub_key, botan_pubkey_load_ecdsa_sec1, key_.data(), key_.size(), curve_);
+        ok = load_ec_pubkey(pub_key,
+                            botan_pubkey_load_ecdsa_sec1,
+                            botan_pubkey_load_ecdsa,
+                            key_.data(),
+                            key_.size(),
+                            curve_);
         break;
     }
     return ok && !botan_pubkey_check_key(pub_key.get(), rng->handle(), 0);
@@ -399,10 +442,12 @@ exdsa_private_key_t::is_valid(rnp::RNG *rng) const
         ok = (key_.size() == ED25519_KEY_LEN) &&
              !botan_privkey_load_ed25519(&priv_key.get(), key_.data());
         break;
+#if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_CURVE_ED448:
         ok = (key_.size() == ED448_KEY_LEN) &&
              !botan_privkey_load_ed448(&priv_key.get(), key_.data());
         break;
+#endif
     default:
         ok = load_ec_privkey(
           priv_key, botan_privkey_load_ecdsa, key_.data(), key_.size(), curve_);
@@ -410,6 +455,7 @@ exdsa_private_key_t::is_valid(rnp::RNG *rng) const
     }
     return ok && !botan_privkey_check_key(priv_key.get(), rng->handle(), 0);
 }
+#endif
 
 bool
 ecdh_kem_public_key_t::is_valid(rnp::RNG *rng) const
@@ -421,13 +467,19 @@ ecdh_kem_public_key_t::is_valid(rnp::RNG *rng) const
         ok = (key_.size() == X25519_KEY_LEN) &&
              !botan_pubkey_load_x25519(&pub_key.get(), key_.data());
         break;
+#if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_CURVE_448:
         ok = (key_.size() == X448_KEY_LEN) &&
              !botan_pubkey_load_x448(&pub_key.get(), key_.data());
         break;
+#endif
     default:
-        ok = load_ec_pubkey(
-          pub_key, botan_pubkey_load_ecdh_sec1, key_.data(), key_.size(), curve_);
+        ok = load_ec_pubkey(pub_key,
+                            botan_pubkey_load_ecdh_sec1,
+                            botan_pubkey_load_ecdh,
+                            key_.data(),
+                            key_.size(),
+                            curve_);
         break;
     }
     return ok && !botan_pubkey_check_key(pub_key.get(), rng->handle(), 0);
@@ -443,10 +495,12 @@ ecdh_kem_private_key_t::is_valid(rnp::RNG *rng) const
         ok = (key_.size() == X25519_KEY_LEN) &&
              !botan_privkey_load_x25519(&priv_key.get(), key_.data());
         break;
+#if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_CURVE_448:
         ok = (key_.size() == X448_KEY_LEN) &&
              !botan_privkey_load_x448(&priv_key.get(), key_.data());
         break;
+#endif
     default:
         ok =
           load_ec_privkey(priv_key, botan_privkey_load_ecdh, key_.data(), key_.size(), curve_);
