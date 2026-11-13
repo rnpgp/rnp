@@ -340,15 +340,35 @@ Signature::keyfp() const noexcept
     return sub ? sub->fp() : Fingerprint{};
 }
 
+bool
+Signature::issuer_fp_version_matches() const noexcept
+{
+    auto sub = dynamic_cast<const sigsub::IssuerFingerprint *>(
+      get_subpkt(sigsub::Type::IssuerFingerprint));
+    if (!sub) {
+        return false;
+    }
+    /* Same hashed subpacket as has_keyfp()/keyfp(). v5 is intentionally not enforced:
+     * LibrePGP describes the version octet but does not require receivers to reject a
+     * mismatch, and this library used to emit 4 for v5 signatures. */
+    if (version == PGP_V4) {
+        return sub->version() == static_cast<uint8_t>(PGP_V4);
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (version == PGP_V6) {
+        return sub->version() == static_cast<uint8_t>(PGP_V6);
+    }
+#endif
+    return true;
+}
+
 void
 Signature::set_keyfp(const Fingerprint &fp)
 {
     auto sub = std::unique_ptr<sigsub::IssuerFingerprint>(new sigsub::IssuerFingerprint());
-#if defined(ENABLE_CRYPTO_REFRESH)
-    sub->set_version(version);
-#else
-    sub->set_version(4);
-#endif
+    /* Signature version is set first. v5 exists with crypto-refresh off, so the octet
+     * follows the signature instead of a hardcoded 4. */
+    sub->set_version(static_cast<uint8_t>(version));
     sub->set_fp(fp);
     add_subpkt(std::move(sub));
 }
