@@ -1799,6 +1799,26 @@ obj_add_mpi_json(nlohmann::ordered_json &obj, const char *name, const mpi &mpi, 
     return rnp::json::add_hex(obj, strname, mpi.data(), mpi.size());
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH) || defined(ENABLE_PQC)
+static bool
+obj_add_vec_json(nlohmann::ordered_json &    obj,
+                 const char *                name,
+                 const std::vector<uint8_t> &vec,
+                 bool                        contents)
+{
+    char strname[64] = {0};
+    snprintf(strname, sizeof(strname), "%s.bytes", name);
+    if (!rnp::json::add(obj, strname, (int) vec.size())) {
+        return false; // LCOV_EXCL_LINE
+    }
+    if (!contents) {
+        return true;
+    }
+    snprintf(strname, sizeof(strname), "%s.raw", name);
+    return rnp::json::add_hex(obj, strname, vec);
+}
+#endif
+
 static bool
 subpacket_obj_add_algs(nlohmann::ordered_json &    obj,
                        const char *                name,
@@ -2136,10 +2156,20 @@ DumpContextJson::dump_signature_pkt(const pkt::Signature &sig, nlohmann::ordered
     }
     /* LCOV_EXCL_END */
 #if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_ED25519:
-    case PGP_PKA_ED448:
-        /* TODO */
+    case PGP_PKA_ED25519: {
+        auto &ed = dynamic_cast<const Ed25519SigMaterial &>(*sigmaterial);
+        if (!obj_add_vec_json(material, "sig", ed.sig.sig, dump_mpi)) {
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+        }
         break;
+    }
+    case PGP_PKA_ED448: {
+        auto &ed = dynamic_cast<const Ed448SigMaterial &>(*sigmaterial);
+        if (!obj_add_vec_json(material, "sig", ed.sig.sig, dump_mpi)) {
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+        }
+        break;
+    }
 #endif
 #if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_DILITHIUM3_ED25519:
@@ -2152,16 +2182,24 @@ DumpContextJson::dump_signature_pkt(const pkt::Signature &sig, nlohmann::ordered
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_BP384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP512:
-        /* TODO */
+    case PGP_PKA_DILITHIUM5_BP512: {
+        auto &dilithium = dynamic_cast<const DilithiumSigMaterial &>(*sigmaterial);
+        if (!obj_add_vec_json(material, "sig", dilithium.sig.sig, dump_mpi)) {
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+        }
         break;
+    }
     case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
-        /* TODO */
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s: {
+        auto &slhdsa = dynamic_cast<const SlhdsaSigMaterial &>(*sigmaterial);
+        if (!obj_add_vec_json(material, "sig", slhdsa.sig.sig, dump_mpi)) {
+            return RNP_ERROR_OUT_OF_MEMORY; // LCOV_EXCL_LINE
+        }
         break;
+    }
 #endif
     default:
         break;
@@ -2245,12 +2283,22 @@ DumpContextJson::dump_key_material(const KeyMaterial *material, nlohmann::ordere
         return true;
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_ED25519:
-    case PGP_PKA_X25519:
-    case PGP_PKA_ED448:
-    case PGP_PKA_X448:
-        /* TODO */
-        return true;
+    case PGP_PKA_ED25519: {
+        auto &ed25519 = dynamic_cast<const Ed25519KeyMaterial &>(*material);
+        return obj_add_vec_json(jso, "pub", ed25519.pub(), dump_mpi);
+    }
+    case PGP_PKA_X25519: {
+        auto &x25519 = dynamic_cast<const X25519KeyMaterial &>(*material);
+        return obj_add_vec_json(jso, "pub", x25519.pub(), dump_mpi);
+    }
+    case PGP_PKA_ED448: {
+        auto &ed448 = dynamic_cast<const pgp::Ed448KeyMaterial &>(*material);
+        return obj_add_vec_json(jso, "pub", ed448.pub(), dump_mpi);
+    }
+    case PGP_PKA_X448: {
+        auto &x448 = dynamic_cast<const pgp::X448KeyMaterial &>(*material);
+        return obj_add_vec_json(jso, "pub", x448.pub(), dump_mpi);
+    }
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
@@ -2265,9 +2313,11 @@ DumpContextJson::dump_key_material(const KeyMaterial *material, nlohmann::ordere
     case PGP_PKA_KYBER768_BP384:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP512:
-        // TODO
 #endif
-        return true;
+    {
+        auto &kyber = dynamic_cast<const MlkemEcdhKeyMaterial &>(*material);
+        return obj_add_vec_json(jso, "pub", kyber.pub().get_encoded(), dump_mpi);
+    }
 #endif
 #if defined(ENABLE_PQC) && defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_DILITHIUM3_ED25519:
@@ -2280,16 +2330,18 @@ DumpContextJson::dump_key_material(const KeyMaterial *material, nlohmann::ordere
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_BP384:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_DILITHIUM5_BP512:
-        /* TODO */
-        return true;
+    case PGP_PKA_DILITHIUM5_BP512: {
+        auto &dilithium = dynamic_cast<const DilithiumEccKeyMaterial &>(*material);
+        return obj_add_vec_json(jso, "pub", dilithium.pub().get_encoded(), dump_mpi);
+    }
     case PGP_PKA_SPHINCSPLUS_SHAKE_128f:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE_128s:
         FALLTHROUGH_STATEMENT;
-    case PGP_PKA_SPHINCSPLUS_SHAKE_256s:
-        /* TODO */
-        return true;
+    case PGP_PKA_SPHINCSPLUS_SHAKE_256s: {
+        auto &sphincs = dynamic_cast<const SlhdsaKeyMaterial &>(*material);
+        return obj_add_vec_json(jso, "pub", sphincs.pub().get_encoded(), dump_mpi);
+    }
 #endif
     default:
         return false;
