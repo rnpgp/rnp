@@ -260,22 +260,22 @@ RNP_API RNP_DEPRECATED rnp_result_t rnp_disable_debug();
 /*
  * Opaque structures
  */
-typedef struct rnp_ffi_st *                rnp_ffi_t;
-typedef struct rnp_key_handle_st *         rnp_key_handle_t;
-typedef struct rnp_input_st *              rnp_input_t;
-typedef struct rnp_output_st *             rnp_output_t;
-typedef struct rnp_op_generate_st *        rnp_op_generate_t;
-typedef struct rnp_op_sign_st *            rnp_op_sign_t;
-typedef struct rnp_op_sign_signature_st *  rnp_op_sign_signature_t;
-typedef struct rnp_op_verify_st *          rnp_op_verify_t;
+typedef struct rnp_ffi_st                 *rnp_ffi_t;
+typedef struct rnp_key_handle_st          *rnp_key_handle_t;
+typedef struct rnp_input_st               *rnp_input_t;
+typedef struct rnp_output_st              *rnp_output_t;
+typedef struct rnp_op_generate_st         *rnp_op_generate_t;
+typedef struct rnp_op_sign_st             *rnp_op_sign_t;
+typedef struct rnp_op_sign_signature_st   *rnp_op_sign_signature_t;
+typedef struct rnp_op_verify_st           *rnp_op_verify_t;
 typedef struct rnp_op_verify_signature_st *rnp_op_verify_signature_t;
-typedef struct rnp_op_encrypt_st *         rnp_op_encrypt_t;
+typedef struct rnp_op_encrypt_st          *rnp_op_encrypt_t;
 typedef struct rnp_identifier_iterator_st *rnp_identifier_iterator_t;
-typedef struct rnp_uid_handle_st *         rnp_uid_handle_t;
-typedef struct rnp_signature_handle_st *   rnp_signature_handle_t;
-typedef struct rnp_sig_subpacket_st *      rnp_sig_subpacket_t;
-typedef struct rnp_recipient_handle_st *   rnp_recipient_handle_t;
-typedef struct rnp_symenc_handle_st *      rnp_symenc_handle_t;
+typedef struct rnp_uid_handle_st          *rnp_uid_handle_t;
+typedef struct rnp_signature_handle_st    *rnp_signature_handle_t;
+typedef struct rnp_sig_subpacket_st       *rnp_sig_subpacket_t;
+typedef struct rnp_recipient_handle_st    *rnp_recipient_handle_t;
+typedef struct rnp_symenc_handle_st       *rnp_symenc_handle_t;
 
 /* Callbacks */
 /**
@@ -342,9 +342,9 @@ typedef void rnp_output_closer_t(void *app_ctx, bool discard);
  * @return true if a password was provided, false otherwise
  */
 typedef bool (*rnp_password_cb)(rnp_ffi_t        ffi,
-                                void *           app_ctx,
+                                void            *app_ctx,
                                 rnp_key_handle_t key,
-                                const char *     pgp_context,
+                                const char      *pgp_context,
                                 char             buf[],
                                 size_t           buf_len);
 
@@ -374,7 +374,7 @@ typedef bool (*rnp_password_cb)(rnp_ffi_t        ffi,
  *  @param secret true if a secret key is being requested
  */
 typedef void (*rnp_get_key_cb)(rnp_ffi_t   ffi,
-                               void *      app_ctx,
+                               void       *app_ctx,
                                const char *identifier_type,
                                const char *identifier,
                                bool        secret);
@@ -393,9 +393,9 @@ typedef void (*rnp_get_key_cb)(rnp_ffi_t   ffi,
  *
  */
 typedef void (*rnp_key_signatures_cb)(rnp_ffi_t              ffi,
-                                      void *                 app_ctx,
+                                      void                  *app_ctx,
                                       rnp_signature_handle_t sig,
-                                      uint32_t *             action);
+                                      uint32_t              *action);
 
 /** create the top-level object used for interacting with the library
  *
@@ -406,7 +406,7 @@ typedef void (*rnp_key_signatures_cb)(rnp_ffi_t              ffi,
  *         RNP_KEYSTORE_* constant
  *  @return RNP_SUCCESS on success, or any other value on error
  */
-RNP_API rnp_result_t rnp_ffi_create(rnp_ffi_t * ffi,
+RNP_API rnp_result_t rnp_ffi_create(rnp_ffi_t  *ffi,
                                     const char *pub_format,
                                     const char *sec_format);
 
@@ -434,10 +434,10 @@ RNP_API rnp_result_t rnp_ffi_set_log_fd(rnp_ffi_t ffi, int fd);
  */
 RNP_API rnp_result_t rnp_ffi_set_key_provider(rnp_ffi_t      ffi,
                                               rnp_get_key_cb getkeycb,
-                                              void *         getkeycb_ctx);
+                                              void          *getkeycb_ctx);
 RNP_API rnp_result_t rnp_ffi_set_pass_provider(rnp_ffi_t       ffi,
                                                rnp_password_cb getpasscb,
-                                               void *          getpasscb_ctx);
+                                               void           *getpasscb_ctx);
 
 /* Operations on key rings */
 
@@ -488,7 +488,7 @@ RNP_API rnp_result_t rnp_detect_key_format(const uint8_t buf[], size_t buf_len, 
  */
 RNP_API rnp_result_t rnp_calculate_iterations(const char *hash,
                                               size_t      msec,
-                                              size_t *    iterations);
+                                              size_t     *iterations);
 
 /** Check whether rnp supports specific feature (algorithm, elliptic curve, whatever else).
  *
@@ -597,9 +597,9 @@ RNP_API rnp_result_t rnp_get_security_rule(rnp_ffi_t   ffi,
                                            const char *type,
                                            const char *name,
                                            uint64_t    time,
-                                           uint32_t *  flags,
-                                           uint64_t *  from,
-                                           uint32_t *  level);
+                                           uint32_t   *flags,
+                                           uint64_t   *from,
+                                           uint32_t   *level);
 
 /**
  * @brief Remove security rule(s), matching the parameters.
@@ -628,7 +628,7 @@ RNP_API rnp_result_t rnp_remove_security_rule(rnp_ffi_t   ffi,
                                               uint32_t    level,
                                               uint32_t    flags,
                                               uint64_t    from,
-                                              size_t *    removed);
+                                              size_t     *removed);
 
 /**
  * @brief Get the number of security rules in the profile. Includes both
@@ -658,8 +658,8 @@ RNP_API rnp_result_t rnp_get_security_rule_count(rnp_ffi_t ffi, size_t *count);
  */
 RNP_API rnp_result_t rnp_get_security_rule_at(rnp_ffi_t ffi,
                                               size_t    idx,
-                                              char **   type,
-                                              char **   name,
+                                              char    **type,
+                                              char    **name,
                                               uint32_t *level,
                                               uint64_t *from,
                                               uint32_t *flags);
@@ -699,8 +699,8 @@ RNP_API rnp_result_t rnp_is_fips_mode_enabled(rnp_ffi_t ffi, size_t *enabled);
  */
 RNP_API rnp_result_t rnp_request_password(rnp_ffi_t        ffi,
                                           rnp_key_handle_t key,
-                                          const char *     context,
-                                          char **          password);
+                                          const char      *context,
+                                          char           **password);
 
 /**
  * @brief Set timestamp, used in all operations instead of system's time. These operations
@@ -784,7 +784,7 @@ RNP_API rnp_result_t rnp_unload_keys(rnp_ffi_t ffi, uint32_t flags);
 RNP_API rnp_result_t rnp_import_keys(rnp_ffi_t   ffi,
                                      rnp_input_t input,
                                      uint32_t    flags,
-                                     char **     results);
+                                     char      **results);
 
 /** import standalone signatures to the keyring and receive JSON list of the updated
  * signatures.
@@ -828,7 +828,7 @@ RNP_API rnp_result_t rnp_import_keys(rnp_ffi_t   ffi,
 RNP_API rnp_result_t rnp_import_signatures(rnp_ffi_t   ffi,
                                            rnp_input_t input,
                                            uint32_t    flags,
-                                           char **     results);
+                                           char      **results);
 
 /** save keys
  *
@@ -841,7 +841,7 @@ RNP_API rnp_result_t rnp_import_signatures(rnp_ffi_t   ffi,
  * @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_save_keys(rnp_ffi_t    ffi,
-                                   const char * format,
+                                   const char  *format,
                                    rnp_output_t output,
                                    uint32_t     flags);
 
@@ -861,8 +861,8 @@ RNP_API rnp_result_t rnp_get_secret_key_count(rnp_ffi_t ffi, size_t *count);
  * on error
  */
 RNP_API rnp_result_t rnp_locate_key(rnp_ffi_t         ffi,
-                                    const char *      identifier_type,
-                                    const char *      identifier,
+                                    const char       *identifier_type,
+                                    const char       *identifier,
                                     rnp_key_handle_t *key);
 
 RNP_API rnp_result_t rnp_key_handle_destroy(rnp_key_handle_t key);
@@ -968,8 +968,8 @@ RNP_API rnp_result_t rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char
 RNP_API rnp_result_t rnp_generate_key_rsa(rnp_ffi_t         ffi,
                                           uint32_t          bits,
                                           uint32_t          subbits,
-                                          const char *      userid,
-                                          const char *      password,
+                                          const char       *userid,
+                                          const char       *password,
                                           rnp_key_handle_t *key);
 
 /** Shortcut function for DSA/ElGamal key-subkey pair generation. See rnp_generate_key_ex() for
@@ -978,33 +978,33 @@ RNP_API rnp_result_t rnp_generate_key_rsa(rnp_ffi_t         ffi,
 RNP_API rnp_result_t rnp_generate_key_dsa_eg(rnp_ffi_t         ffi,
                                              uint32_t          bits,
                                              uint32_t          subbits,
-                                             const char *      userid,
-                                             const char *      password,
+                                             const char       *userid,
+                                             const char       *password,
                                              rnp_key_handle_t *key);
 
 /** Shortcut function for ECDSA/ECDH key-subkey pair generation. See rnp_generate_key_ex() for
  *  the detailed parameters description.
  */
 RNP_API rnp_result_t rnp_generate_key_ec(rnp_ffi_t         ffi,
-                                         const char *      curve,
-                                         const char *      userid,
-                                         const char *      password,
+                                         const char       *curve,
+                                         const char       *userid,
+                                         const char       *password,
                                          rnp_key_handle_t *key);
 
 /** Shortcut function for EdDSA/x25519 key-subkey pair generation. See rnp_generate_key_ex()
  *  for the detailed parameters description.
  */
 RNP_API rnp_result_t rnp_generate_key_25519(rnp_ffi_t         ffi,
-                                            const char *      userid,
-                                            const char *      password,
+                                            const char       *userid,
+                                            const char       *password,
                                             rnp_key_handle_t *key);
 
 /** Shortcut function for SM2/SM2 key-subkey pair generation. See rnp_generate_key_ex() for
  *  for the detailed parameters description.
  */
 RNP_API rnp_result_t rnp_generate_key_sm2(rnp_ffi_t         ffi,
-                                          const char *      userid,
-                                          const char *      password,
+                                          const char       *userid,
+                                          const char       *password,
                                           rnp_key_handle_t *key);
 
 /**
@@ -1030,14 +1030,14 @@ RNP_API rnp_result_t rnp_generate_key_sm2(rnp_ffi_t         ffi,
  * @return RNP_SUCCESS or error code instead.
  */
 RNP_API rnp_result_t rnp_generate_key_ex(rnp_ffi_t         ffi,
-                                         const char *      key_alg,
-                                         const char *      sub_alg,
+                                         const char       *key_alg,
+                                         const char       *sub_alg,
                                          uint32_t          key_bits,
                                          uint32_t          sub_bits,
-                                         const char *      key_curve,
-                                         const char *      sub_curve,
-                                         const char *      userid,
-                                         const char *      password,
+                                         const char       *key_curve,
+                                         const char       *sub_curve,
+                                         const char       *userid,
+                                         const char       *password,
                                          rnp_key_handle_t *key);
 
 /** Create key generation context for the primary key.
@@ -1052,7 +1052,7 @@ RNP_API rnp_result_t rnp_generate_key_ex(rnp_ffi_t         ffi,
  */
 RNP_API rnp_result_t rnp_op_generate_create(rnp_op_generate_t *op,
                                             rnp_ffi_t          ffi,
-                                            const char *       alg);
+                                            const char        *alg);
 
 /** Create key generation context for the subkey.
  *  Note: you need to have primary key before calling this function. It can be loaded from
@@ -1069,7 +1069,7 @@ RNP_API rnp_result_t rnp_op_generate_create(rnp_op_generate_t *op,
 RNP_API rnp_result_t rnp_op_generate_subkey_create(rnp_op_generate_t *op,
                                                    rnp_ffi_t          ffi,
                                                    rnp_key_handle_t   primary,
-                                                   const char *       alg);
+                                                   const char        *alg);
 
 /** Set bits of the generated key or subkey.
  *  Note: this is applicable only to rsa, dsa and el-gamal keys.
@@ -1118,7 +1118,7 @@ RNP_API rnp_result_t rnp_op_generate_set_curve(rnp_op_generate_t op, const char 
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_op_generate_set_protection_password(rnp_op_generate_t op,
-                                                             const char *      password);
+                                                             const char       *password);
 
 /**
  * @brief Enable or disable password requesting via ffi's password provider. This password
@@ -1142,7 +1142,7 @@ RNP_API rnp_result_t rnp_op_generate_set_request_password(rnp_op_generate_t op, 
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_op_generate_set_protection_cipher(rnp_op_generate_t op,
-                                                           const char *      cipher);
+                                                           const char       *cipher);
 
 /** Set hash algorithm, used to derive key from password for secret key data encryption.
  *  If not called then default one will be used.
@@ -1152,7 +1152,7 @@ RNP_API rnp_result_t rnp_op_generate_set_protection_cipher(rnp_op_generate_t op,
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_op_generate_set_protection_hash(rnp_op_generate_t op,
-                                                         const char *      hash);
+                                                         const char       *hash);
 
 /** Set encryption mode, used for secret key data encryption.
  *  Note: currently this makes sense only for G10 key format
@@ -1162,7 +1162,7 @@ RNP_API rnp_result_t rnp_op_generate_set_protection_hash(rnp_op_generate_t op,
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_op_generate_set_protection_mode(rnp_op_generate_t op,
-                                                         const char *      mode);
+                                                         const char       *mode);
 
 /** Set number of iterations used to derive key from password for secret key encryption.
  *  If not called then default one will be used.
@@ -1237,7 +1237,7 @@ RNP_API rnp_result_t rnp_op_generate_clear_pref_hashes(rnp_op_generate_t op);
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_op_generate_add_pref_compression(rnp_op_generate_t op,
-                                                          const char *      compression);
+                                                          const char       *compression);
 
 /** Clear the preferred compression algorithms list, so default ones will be used.
  *
@@ -1273,7 +1273,7 @@ RNP_API rnp_result_t rnp_op_generate_clear_pref_ciphers(rnp_op_generate_t op);
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op,
-                                                        const char *      keyserver);
+                                                        const char       *keyserver);
 
 #if defined(RNP_EXPERIMENTAL_CRYPTO_REFRESH)
 /** Set the generated key version to v6.
@@ -1336,7 +1336,7 @@ RNP_API rnp_result_t rnp_key_export(rnp_key_handle_t key, rnp_output_t output, u
  */
 RNP_API rnp_result_t rnp_key_export_autocrypt(rnp_key_handle_t key,
                                               rnp_key_handle_t subkey,
-                                              const char *     uid,
+                                              const char      *uid,
                                               rnp_output_t     output,
                                               uint32_t         flags);
 
@@ -1360,9 +1360,9 @@ RNP_API rnp_result_t rnp_key_export_autocrypt(rnp_key_handle_t key,
 RNP_API rnp_result_t rnp_key_export_revocation(rnp_key_handle_t key,
                                                rnp_output_t     output,
                                                uint32_t         flags,
-                                               const char *     hash,
-                                               const char *     code,
-                                               const char *     reason);
+                                               const char      *hash,
+                                               const char      *code,
+                                               const char      *reason);
 
 /**
  * @brief revoke a key or subkey by generating and adding revocation signature.
@@ -1381,9 +1381,9 @@ RNP_API rnp_result_t rnp_key_export_revocation(rnp_key_handle_t key,
  */
 RNP_API rnp_result_t rnp_key_revoke(rnp_key_handle_t key,
                                     uint32_t         flags,
-                                    const char *     hash,
-                                    const char *     code,
-                                    const char *     reason);
+                                    const char      *hash,
+                                    const char      *code,
+                                    const char      *reason);
 
 /**
  * @brief Check whether Curve25519 secret key's bits are correctly set, i.e. 3 least
@@ -1458,7 +1458,7 @@ RNP_API rnp_result_t rnp_key_remove(rnp_key_handle_t key, uint32_t flags);
 RNP_API rnp_result_t rnp_key_remove_signatures(rnp_key_handle_t      key,
                                                uint32_t              flags,
                                                rnp_key_signatures_cb sigcb,
-                                               void *                app_ctx);
+                                               void                 *app_ctx);
 
 /**
  * @brief Guess contents of the OpenPGP data stream.
@@ -1578,9 +1578,9 @@ RNP_API rnp_result_t rnp_uid_get_data(rnp_uid_handle_t uid, void **data, size_t 
  *         body is malformed or contains no image subpacket.
  */
 RNP_API rnp_result_t rnp_uid_get_photo(rnp_uid_handle_t uid,
-                                       uint32_t *       format,
-                                       void **          data,
-                                       size_t *         size);
+                                       uint32_t        *format,
+                                       void           **data,
+                                       size_t          *size);
 
 /** Check whether uid is marked as primary.
  *
@@ -1667,7 +1667,7 @@ RNP_API rnp_result_t rnp_key_direct_signature_create(rnp_key_handle_t        sig
  */
 RNP_API rnp_result_t rnp_key_certification_create(rnp_key_handle_t        signer,
                                                   rnp_uid_handle_t        uid,
-                                                  const char *            type,
+                                                  const char             *type,
                                                   rnp_signature_handle_t *sig);
 
 /**
@@ -1758,7 +1758,7 @@ RNP_API rnp_result_t rnp_key_signature_set_features(rnp_signature_handle_t sig,
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_key_signature_add_preferred_alg(rnp_signature_handle_t sig,
-                                                         const char *           alg);
+                                                         const char            *alg);
 
 /**
  * @brief Add preferred hash algorithm to the signature. Should be subsequently called for each
@@ -1770,7 +1770,7 @@ RNP_API rnp_result_t rnp_key_signature_add_preferred_alg(rnp_signature_handle_t 
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_key_signature_add_preferred_hash(rnp_signature_handle_t sig,
-                                                          const char *           hash);
+                                                          const char            *hash);
 
 /**
  * @brief Add preferred compression algorithm to the signature. Should be subsequently called
@@ -1782,7 +1782,7 @@ RNP_API rnp_result_t rnp_key_signature_add_preferred_hash(rnp_signature_handle_t
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_key_signature_add_preferred_zalg(rnp_signature_handle_t sig,
-                                                          const char *           zalg);
+                                                          const char            *zalg);
 
 /**
  * @brief Set whether corresponding user id should be considered as primary. Makes sense only
@@ -1804,7 +1804,7 @@ RNP_API rnp_result_t rnp_key_signature_set_primary_uid(rnp_signature_handle_t si
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_key_signature_set_key_server(rnp_signature_handle_t sig,
-                                                      const char *           keyserver);
+                                                      const char            *keyserver);
 
 /**
  * @brief Set the key server preferences flags.
@@ -1826,8 +1826,8 @@ RNP_API rnp_result_t rnp_key_signature_set_key_server_prefs(rnp_signature_handle
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_key_signature_set_revocation_reason(rnp_signature_handle_t sig,
-                                                             const char *           code,
-                                                             const char *           reason);
+                                                             const char            *code,
+                                                             const char            *reason);
 
 /**
  * @brief Add designated revoker subpacket to the signature. See RFC 4880, section 5.2.3.15.
@@ -1995,7 +1995,7 @@ RNP_API rnp_result_t rnp_signature_subpacket_count(rnp_signature_handle_t sig, s
  */
 RNP_API rnp_result_t rnp_signature_subpacket_at(rnp_signature_handle_t sig,
                                                 size_t                 idx,
-                                                rnp_sig_subpacket_t *  subpkt);
+                                                rnp_sig_subpacket_t   *subpkt);
 
 /**
  * @brief Find the signature subpacket matching criteria.
@@ -2015,7 +2015,7 @@ RNP_API rnp_result_t rnp_signature_subpacket_find(rnp_signature_handle_t sig,
                                                   uint8_t                type,
                                                   bool                   hashed,
                                                   size_t                 skip,
-                                                  rnp_sig_subpacket_t *  subpkt);
+                                                  rnp_sig_subpacket_t   *subpkt);
 
 /**
  * @brief Get the subpacket info.
@@ -2027,9 +2027,9 @@ RNP_API rnp_result_t rnp_signature_subpacket_find(rnp_signature_handle_t sig,
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_signature_subpacket_info(rnp_sig_subpacket_t subpkt,
-                                                  uint8_t *           type,
-                                                  bool *              hashed,
-                                                  bool *              critical);
+                                                  uint8_t            *type,
+                                                  bool               *hashed,
+                                                  bool               *critical);
 
 /**
  * @brief Get signature subpacket raw data.
@@ -2041,8 +2041,8 @@ RNP_API rnp_result_t rnp_signature_subpacket_info(rnp_sig_subpacket_t subpkt,
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_signature_subpacket_data(rnp_sig_subpacket_t subpkt,
-                                                  uint8_t **          data,
-                                                  size_t *            size);
+                                                  uint8_t           **data,
+                                                  size_t             *size);
 
 /**
  * @brief Destroy the subpacket object.
@@ -2059,7 +2059,7 @@ RNP_API rnp_result_t rnp_signature_subpacket_destroy(rnp_sig_subpacket_t subpkt)
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_signature_get_expiration(rnp_signature_handle_t sig,
-                                                  uint32_t *             expires);
+                                                  uint32_t              *expires);
 
 /**
  * @brief Get the key features if any as per RFC 4880 and later. Do not confuse with key flags.
@@ -2076,7 +2076,7 @@ RNP_API rnp_result_t rnp_signature_get_expiration(rnp_signature_handle_t sig,
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_signature_get_features(rnp_signature_handle_t sig,
-                                                uint32_t *             features);
+                                                uint32_t              *features);
 
 /**
  * @brief Get number of the preferred symmetric algorithms, listed in the signature. Applies to
@@ -2088,7 +2088,7 @@ RNP_API rnp_result_t rnp_signature_get_features(rnp_signature_handle_t sig,
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_signature_get_preferred_alg_count(rnp_signature_handle_t sig,
-                                                           size_t *               count);
+                                                           size_t                *count);
 
 /**
  * @brief Get preferred symmetric algorithm from the preferences, specified in the signature.
@@ -2102,7 +2102,7 @@ RNP_API rnp_result_t rnp_signature_get_preferred_alg_count(rnp_signature_handle_
  */
 RNP_API rnp_result_t rnp_signature_get_preferred_alg(rnp_signature_handle_t sig,
                                                      size_t                 idx,
-                                                     char **                alg);
+                                                     char                 **alg);
 
 /**
  * @brief Get number of the preferred hash algorithms, listed in the signature. Applies to the
@@ -2114,7 +2114,7 @@ RNP_API rnp_result_t rnp_signature_get_preferred_alg(rnp_signature_handle_t sig,
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_signature_get_preferred_hash_count(rnp_signature_handle_t sig,
-                                                            size_t *               count);
+                                                            size_t                *count);
 
 /**
  * @brief Get preferred hash algorithm from the preferences, specified in the signature.
@@ -2128,7 +2128,7 @@ RNP_API rnp_result_t rnp_signature_get_preferred_hash_count(rnp_signature_handle
  */
 RNP_API rnp_result_t rnp_signature_get_preferred_hash(rnp_signature_handle_t sig,
                                                       size_t                 idx,
-                                                      char **                alg);
+                                                      char                 **alg);
 
 /**
  * @brief Get number of the preferred compression algorithms, listed in the signature. Applies
@@ -2140,7 +2140,7 @@ RNP_API rnp_result_t rnp_signature_get_preferred_hash(rnp_signature_handle_t sig
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_signature_get_preferred_zalg_count(rnp_signature_handle_t sig,
-                                                            size_t *               count);
+                                                            size_t                *count);
 
 /**
  * @brief Get preferred compression algorithm from the preferences, specified in the signature.
@@ -2154,7 +2154,7 @@ RNP_API rnp_result_t rnp_signature_get_preferred_zalg_count(rnp_signature_handle
  */
 RNP_API rnp_result_t rnp_signature_get_preferred_zalg(rnp_signature_handle_t sig,
                                                       size_t                 idx,
-                                                      char **                alg);
+                                                      char                 **alg);
 
 /**
  * @brief Get key usage flags from the signature, if any. Those are mapped directly to the
@@ -2181,7 +2181,7 @@ RNP_API rnp_result_t rnp_signature_get_key_flags(rnp_signature_handle_t sig, uin
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_signature_get_key_expiration(rnp_signature_handle_t sig,
-                                                      uint32_t *             expiry);
+                                                      uint32_t              *expiry);
 
 /**
  * @brief Check whether signature indicates that corresponding user id should be considered as
@@ -2204,7 +2204,7 @@ RNP_API rnp_result_t rnp_signature_get_primary_uid(rnp_signature_handle_t sig, b
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_signature_get_key_server(rnp_signature_handle_t sig,
-                                                  char **                keyserver);
+                                                  char                 **keyserver);
 
 /**
  * @brief Get the key server preferences flags, if any.
@@ -2215,7 +2215,7 @@ RNP_API rnp_result_t rnp_signature_get_key_server(rnp_signature_handle_t sig,
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_signature_get_key_server_prefs(rnp_signature_handle_t sig,
-                                                        uint32_t *             flags);
+                                                        uint32_t              *flags);
 
 /** Get signer's key id from the signature.
  *  Note: if key id is not available from the signature then NULL value will
@@ -2245,7 +2245,7 @@ RNP_API rnp_result_t rnp_signature_get_key_fprint(rnp_signature_handle_t sig, ch
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_signature_get_signer(rnp_signature_handle_t sig,
-                                              rnp_key_handle_t *     key);
+                                              rnp_key_handle_t      *key);
 
 /**
  * @brief Get fingerprint of the designated revocation key, if it is available. See
@@ -2271,8 +2271,8 @@ RNP_API rnp_result_t rnp_signature_get_revoker(rnp_signature_handle_t sig, char 
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_signature_get_revocation_reason(rnp_signature_handle_t sig,
-                                                         char **                code,
-                                                         char **                reason);
+                                                         char                 **code,
+                                                         char                 **reason);
 
 /**
  * @brief Get the signature trust level and amount. See OpenPGP specification for the details
@@ -2286,8 +2286,8 @@ RNP_API rnp_result_t rnp_signature_get_revocation_reason(rnp_signature_handle_t 
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_signature_get_trust_level(rnp_signature_handle_t sig,
-                                                   uint8_t *              level,
-                                                   uint8_t *              amount);
+                                                   uint8_t               *level,
+                                                   uint8_t               *amount);
 
 /**
  * @brief Get signature validity, revalidating it if didn't before.
@@ -2373,7 +2373,7 @@ RNP_API rnp_result_t rnp_signature_error_count(rnp_signature_handle_t sig, size_
  */
 RNP_API rnp_result_t rnp_signature_error_at(rnp_signature_handle_t sig,
                                             size_t                 idx,
-                                            rnp_result_t *         error);
+                                            rnp_result_t          *error);
 
 /** Dump signature packet to JSON, obtaining the whole information about it.
  *
@@ -2387,7 +2387,7 @@ RNP_API rnp_result_t rnp_signature_error_at(rnp_signature_handle_t sig,
  */
 RNP_API rnp_result_t rnp_signature_packet_to_json(rnp_signature_handle_t sig,
                                                   uint32_t               flags,
-                                                  char **                json);
+                                                  char                 **json);
 
 /**
  * @brief Remove a signature.
@@ -2505,7 +2505,7 @@ RNP_API rnp_result_t rnp_key_get_subkey_at(rnp_key_handle_t  key,
  *          was found or any other error code.
  */
 RNP_API rnp_result_t rnp_key_get_default_key(rnp_key_handle_t  primary_key,
-                                             const char *      usage,
+                                             const char       *usage,
                                              uint32_t          flags,
                                              rnp_key_handle_t *default_key);
 
@@ -2558,8 +2558,8 @@ RNP_API rnp_result_t rnp_key_get_curve(rnp_key_handle_t key, char **curve);
  *  @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_key_add_uid(rnp_key_handle_t key,
-                                     const char *     uid,
-                                     const char *     hash,
+                                     const char      *uid,
+                                     const char      *hash,
                                      uint32_t         expiration,
                                      uint8_t          key_flags,
                                      bool             primary);
@@ -2629,8 +2629,8 @@ RNP_API rnp_result_t rnp_key_get_primary_fprint(rnp_key_handle_t key, char **fpr
  * @return RNP_SUCCESS or error code on failure.
  */
 RNP_API rnp_result_t rnp_key_allows_usage(rnp_key_handle_t key,
-                                          const char *     usage,
-                                          bool *           result);
+                                          const char      *usage,
+                                          bool            *result);
 
 /**
  * @brief Get the key's creation time.
@@ -2840,7 +2840,7 @@ RNP_API rnp_result_t rnp_key_get_protection_hash(rnp_key_handle_t key, char **ha
  * @return RNP_SUCCESS on success, or any other value on error.
  */
 RNP_API rnp_result_t rnp_key_get_protection_iterations(rnp_key_handle_t key,
-                                                       size_t *         iterations);
+                                                       size_t          *iterations);
 
 /** lock the key
  *
@@ -2904,10 +2904,10 @@ RNP_API rnp_result_t rnp_key_is_protected(rnp_key_handle_t key, bool *result);
  *  @return RNP_SUCCESS on success, or any other value on error
  **/
 RNP_API rnp_result_t rnp_key_protect(rnp_key_handle_t handle,
-                                     const char *     password,
-                                     const char *     cipher,
-                                     const char *     cipher_mode,
-                                     const char *     hash,
+                                     const char      *password,
+                                     const char      *cipher,
+                                     const char      *cipher_mode,
+                                     const char      *hash,
                                      size_t           iterations);
 
 /**
@@ -2965,7 +2965,7 @@ typedef struct rnp_protection_params_t {
  *          inconsistent parameter combinations.
  */
 RNP_API rnp_result_t rnp_key_protect_ex(rnp_key_handle_t               handle,
-                                        const char *                   password,
+                                        const char                    *password,
                                         const rnp_protection_params_t *params);
 
 /** unprotect the key
@@ -3030,7 +3030,7 @@ RNP_API rnp_result_t rnp_key_have_public(rnp_key_handle_t key, bool *result);
 RNP_API rnp_result_t rnp_key_packets_to_json(rnp_key_handle_t key,
                                              bool             secret,
                                              uint32_t         flags,
-                                             char **          result);
+                                             char           **result);
 
 /** Dump OpenPGP packets stream information to the JSON string.
  * @param input source with OpenPGP data
@@ -3070,7 +3070,7 @@ RNP_API rnp_result_t rnp_key_packets_to_json(rnp_key_handle_t key,
  */
 RNP_API rnp_result_t rnp_dump_packets_to_json(rnp_input_t input,
                                               uint32_t    flags,
-                                              char **     result);
+                                              char      **result);
 
 /** Dump OpenPGP packets stream information to output in humand-readable format.
  * @param input source with OpenPGP data
@@ -3144,7 +3144,7 @@ RNP_API rnp_result_t rnp_op_sign_add_signature(rnp_op_sign_t            op,
  *  @return RNP_SUCCESS or error code if failed
  */
 RNP_API rnp_result_t rnp_op_sign_signature_set_hash(rnp_op_sign_signature_t sig,
-                                                    const char *            hash);
+                                                    const char             *hash);
 
 /** @brief Set signature creation time. By default current time is used or value set by
  *         rnp_op_encrypt_set_creation_time/rnp_op_sign_set_creation_time
@@ -3172,7 +3172,7 @@ RNP_API rnp_result_t rnp_op_sign_signature_set_expiration_time(rnp_op_sign_signa
  *  @return RNP_SUCCESS or error code if failed
  */
 RNP_API rnp_result_t rnp_op_sign_set_compression(rnp_op_sign_t op,
-                                                 const char *  compression,
+                                                 const char   *compression,
                                                  int           level);
 
 /** @brief Enabled or disable armored (textual) output. Doesn't make sense for cleartext sign.
@@ -3365,8 +3365,8 @@ RNP_API rnp_result_t rnp_op_verify_get_signature_at(rnp_op_verify_t            o
  *  @return RNP_SUCCESS if call succeeded.
  */
 RNP_API rnp_result_t rnp_op_verify_get_file_info(rnp_op_verify_t op,
-                                                 char **         filename,
-                                                 uint32_t *      mtime);
+                                                 char          **filename,
+                                                 uint32_t       *mtime);
 
 /**
  * @brief Get format of the data stored in the message, if available.
@@ -3399,9 +3399,9 @@ RNP_API rnp_result_t rnp_op_verify_get_format(rnp_op_verify_t op, char *format);
  * @return RNP_SUCCESS if call succeeded, or error code otherwise.
  */
 RNP_API rnp_result_t rnp_op_verify_get_protection_info(rnp_op_verify_t op,
-                                                       char **         mode,
-                                                       char **         cipher,
-                                                       bool *          valid);
+                                                       char          **mode,
+                                                       char          **cipher,
+                                                       bool           *valid);
 
 /**
  * @brief Get number of public keys (recipients) to whom message was encrypted to.
@@ -3546,7 +3546,7 @@ RNP_API rnp_result_t rnp_symenc_get_s2k_type(rnp_symenc_handle_t symenc, char **
  * @return RNP_SUCCESS if call succeeded, or error code otherwise.
  */
 RNP_API rnp_result_t rnp_symenc_get_s2k_iterations(rnp_symenc_handle_t symenc,
-                                                   uint32_t *          iterations);
+                                                   uint32_t           *iterations);
 
 /** @brief Free resources allocated in verification context.
  *  @param op opaque verification context. Must be initialized.
@@ -3575,7 +3575,7 @@ RNP_API rnp_result_t rnp_op_verify_signature_get_status(rnp_op_verify_signature_
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_op_verify_signature_get_handle(rnp_op_verify_signature_t sig,
-                                                        rnp_signature_handle_t *  handle);
+                                                        rnp_signature_handle_t   *handle);
 
 /** @brief Get hash function used to calculate signature
  *  @param sig opaque signature context obtained via rnp_op_verify_get_signature_at call.
@@ -3584,7 +3584,7 @@ RNP_API rnp_result_t rnp_op_verify_signature_get_handle(rnp_op_verify_signature_
  *  @return RNP_SUCCESS or error code otherwise
  */
 RNP_API rnp_result_t rnp_op_verify_signature_get_hash(rnp_op_verify_signature_t sig,
-                                                      char **                   hash);
+                                                      char                    **hash);
 
 /** @brief Get key used for signing
  *  @param sig opaque signature context obtained via rnp_op_verify_get_signature_at call.
@@ -3592,7 +3592,7 @@ RNP_API rnp_result_t rnp_op_verify_signature_get_hash(rnp_op_verify_signature_t 
  *  @return RNP_SUCCESS or error code otherwise
  */
 RNP_API rnp_result_t rnp_op_verify_signature_get_key(rnp_op_verify_signature_t sig,
-                                                     rnp_key_handle_t *        key);
+                                                     rnp_key_handle_t         *key);
 
 /** @brief Get signature creation and expiration times
  *  @param sig opaque signature context obtained via rnp_op_verify_get_signature_at call.
@@ -3603,8 +3603,8 @@ RNP_API rnp_result_t rnp_op_verify_signature_get_key(rnp_op_verify_signature_t s
  *  @return RNP_SUCCESS or error code otherwise
  */
 RNP_API rnp_result_t rnp_op_verify_signature_get_times(rnp_op_verify_signature_t sig,
-                                                       uint32_t *                create,
-                                                       uint32_t *                expires);
+                                                       uint32_t                 *create,
+                                                       uint32_t                 *expires);
 
 /**
  * @brief Free buffer allocated by a function in this header.
@@ -3651,7 +3651,7 @@ RNP_API rnp_result_t rnp_input_from_stdin(rnp_input_t *input);
  *        is valid and not modified during the lifetime of this object.
  * @return RNP_SUCCESS if operation succeeded or error code otherwise
  */
-RNP_API rnp_result_t rnp_input_from_memory(rnp_input_t * input,
+RNP_API rnp_result_t rnp_input_from_memory(rnp_input_t  *input,
                                            const uint8_t buf[],
                                            size_t        buf_len,
                                            bool          do_copy);
@@ -3665,10 +3665,10 @@ RNP_API rnp_result_t rnp_input_from_memory(rnp_input_t * input,
  * @param app_ctx context to pass as parameter to reader and closer
  * @return RNP_SUCCESS if operation succeeded or error code otherwise
  */
-RNP_API rnp_result_t rnp_input_from_callback(rnp_input_t *       input,
+RNP_API rnp_result_t rnp_input_from_callback(rnp_input_t        *input,
                                              rnp_input_reader_t *reader,
                                              rnp_input_closer_t *closer,
-                                             void *              app_ctx);
+                                             void               *app_ctx);
 
 /**
  * @brief Close previously opened input and free all corresponding resources
@@ -3703,7 +3703,7 @@ RNP_API rnp_result_t rnp_output_to_path(rnp_output_t *output, const char *path);
  *         otherwise.
  */
 RNP_API rnp_result_t rnp_output_to_file(rnp_output_t *output,
-                                        const char *  path,
+                                        const char   *path,
                                         uint32_t      flags);
 
 /**
@@ -3736,7 +3736,7 @@ RNP_API rnp_result_t rnp_output_to_memory(rnp_output_t *output, size_t max_alloc
  */
 RNP_API rnp_result_t rnp_output_to_armor(rnp_output_t  base,
                                          rnp_output_t *output,
-                                         const char *  type);
+                                         const char   *type);
 
 /**
  * @brief Get the pointer to the buffer of output, initialized by rnp_output_to_memory
@@ -3751,8 +3751,8 @@ RNP_API rnp_result_t rnp_output_to_armor(rnp_output_t  base,
  * @return RNP_SUCCESS if operation succeeded or error code otherwise.
  */
 RNP_API rnp_result_t rnp_output_memory_get_buf(rnp_output_t output,
-                                               uint8_t **   buf,
-                                               size_t *     len,
+                                               uint8_t    **buf,
+                                               size_t      *len,
                                                bool         do_copy);
 
 /**
@@ -3764,10 +3764,10 @@ RNP_API rnp_result_t rnp_output_memory_get_buf(rnp_output_t output,
  * @param app_ctx context parameter which will be passed to writer and closer.
  * @return RNP_SUCCESS if operation succeeded or error code otherwise.
  */
-RNP_API rnp_result_t rnp_output_to_callback(rnp_output_t *       output,
+RNP_API rnp_result_t rnp_output_to_callback(rnp_output_t        *output,
                                             rnp_output_writer_t *writer,
                                             rnp_output_closer_t *closer,
-                                            void *               app_ctx);
+                                            void                *app_ctx);
 
 /**
  * @brief Initialize output structure which will discard all data
@@ -3787,9 +3787,9 @@ RNP_API rnp_result_t rnp_output_to_null(rnp_output_t *output);
  * @return rnp_result_t RNP_SUCCESS if operation succeeded or error code otherwise.
  */
 RNP_API rnp_result_t rnp_output_write(rnp_output_t output,
-                                      const void * data,
+                                      const void  *data,
                                       size_t       size,
-                                      size_t *     written);
+                                      size_t      *written);
 
 /**
  * @brief Finish writing to the output.
@@ -3927,10 +3927,10 @@ RNP_API rnp_result_t rnp_op_encrypt_set_expiration_time(rnp_op_encrypt_t op, uin
  * @return RNP_SUCCESS or error code if failed
  */
 RNP_API rnp_result_t rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
-                                                 const char *     password,
-                                                 const char *     s2k_hash,
+                                                 const char      *password,
+                                                 const char      *s2k_hash,
                                                  size_t           iterations,
-                                                 const char *     s2k_cipher);
+                                                 const char      *s2k_cipher);
 
 /**
  * @brief Set whether output should be ASCII-armored, or binary.
@@ -3984,7 +3984,7 @@ RNP_API rnp_result_t rnp_op_encrypt_set_aead_bits(rnp_op_encrypt_t op, int bits)
  * @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_op_encrypt_set_compression(rnp_op_encrypt_t op,
-                                                    const char *     compression,
+                                                    const char      *compression,
                                                     int              level);
 
 /**
@@ -4059,8 +4059,8 @@ RNP_API rnp_result_t rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t 
  *  @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_get_public_key_data(rnp_key_handle_t handle,
-                                             uint8_t **       buf,
-                                             size_t *         buf_len);
+                                             uint8_t        **buf,
+                                             size_t          *buf_len);
 
 /**
  *  @brief retrieve the raw data for a secret key
@@ -4076,8 +4076,8 @@ RNP_API rnp_result_t rnp_get_public_key_data(rnp_key_handle_t handle,
  *  @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_get_secret_key_data(rnp_key_handle_t handle,
-                                             uint8_t **       buf,
-                                             size_t *         buf_len);
+                                             uint8_t        **buf,
+                                             size_t          *buf_len);
 
 /** output key information to JSON structure and serialize it to the string
  *
@@ -4200,7 +4200,7 @@ RNP_API rnp_result_t rnp_identifier_iterator_create(rnp_ffi_t                  f
  *  @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_identifier_iterator_next(rnp_identifier_iterator_t it,
-                                                  const char **             identifier);
+                                                  const char              **identifier);
 
 /** destroy an identifier iterator
  *
@@ -4416,8 +4416,8 @@ typedef struct rnp_entropy_encoding_params_t {
 RNP_API rnp_result_t
 rnp_entropy_encode_human_readable(rnp_ffi_t                            ffi,
                                   const rnp_entropy_encoding_params_t *params,
-                                  char **                              structured_form,
-                                  char **                              flat_form);
+                                  char                               **structured_form,
+                                  char                               **flat_form);
 
 /**
  * @brief Parse a structured human-readable entropy encoding and return
