@@ -58,23 +58,32 @@
 #define MAX_PASSWORD_LEN 32
 #define ROUNDTRIP_MAX_ALLOC (16 * 1024 * 1024)
 
-static const char *ciphers[] = {"IDEA",        "TRIPLEDES", "CAST5",      "BLOWFISH",
-                                "AES128",      "AES192",    "AES256",     "TWOFISH",
-                                "CAMELLIA128", "CAMELLIA192", "CAMELLIA256", "SM4"};
+static const char *ciphers[] = {"IDEA",
+                                "TRIPLEDES",
+                                "CAST5",
+                                "BLOWFISH",
+                                "AES128",
+                                "AES192",
+                                "AES256",
+                                "TWOFISH",
+                                "CAMELLIA128",
+                                "CAMELLIA192",
+                                "CAMELLIA256",
+                                "SM4"};
 static const char *aeads[] = {"None", "OCB", "EAX", "GCM"};
 static const char *comps[] = {"Uncompressed", "ZIP", "ZLIB", "BZip2"};
-static const char *hashes[] = {"MD5",     "SHA-1",    "SHA256",   "SHA384",
-                               "SHA512",  "SHA3-256", "SHA3-512", "RIPEMD160"};
+static const char *hashes[] = {
+  "MD5", "SHA-1", "SHA256", "SHA384", "SHA512", "SHA3-256", "SHA3-512", "RIPEMD160"};
 
 static char   encrt_password[MAX_PASSWORD_LEN + 1];
 static size_t encrt_password_len = 0;
 
 static bool
 encrt_password_provider(rnp_ffi_t        ffi,
-                        void *           app_ctx,
+                        void            *app_ctx,
                         rnp_key_handle_t key,
-                        const char *     key_info,
-                        char *           buf,
+                        const char      *key_info,
+                        char            *buf,
                         size_t           buf_len)
 {
     (void) ffi;
@@ -100,7 +109,7 @@ encrt_pick_key(rnp_ffi_t ffi, uint8_t selector, bool secret)
 {
     rnp_identifier_iterator_t it = NULL;
     rnp_key_handle_t          found = NULL;
-    const char *              id = NULL;
+    const char               *id = NULL;
     size_t                    count = 0;
     size_t                    skip = 0;
     size_t                    idx = 0;
@@ -194,7 +203,7 @@ LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 
     /* import keyring material, permissively */
     rnp_input_t in = NULL;
-    char *      results = NULL;
+    char       *results = NULL;
     if (!rnp_input_from_memory(&in, msg, msglen, false)) {
         (void) rnp_import_keys(ffi,
                                in,
@@ -261,7 +270,7 @@ LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
                 (void) rnp_op_encrypt_add_password(op,
                                                    encrt_password,
                                                    hashes[data[8] % 8],
-                                                   (size_t)(data[9] % 4 + 1) * 1024,
+                                                   (size_t) (data[9] % 4 + 1) * 1024,
                                                    ciphers[data[10] % 12]);
             }
             if ((mode == 1) || (mode == 2) || (data[6] & 32)) {
@@ -294,7 +303,3 @@ LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     rnp_ffi_destroy(ffi);
     return 0;
 }
-
-
-
-

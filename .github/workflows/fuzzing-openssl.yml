@@ -71,7 +71,7 @@ jobs:
                 -DCMAKE_BUILD_TYPE=Release .
 
       - name: Build fuzzers
-        run: cmake --build build --parallel ${{ env.CORES }} --target fuzz_dump fuzz_keyring fuzz_keyimport fuzz_sigimport fuzz_verify fuzz_verify_detached fuzz_keyring_kbx fuzz_keyring_g10
+        run: cmake --build build --parallel ${{ env.CORES }} --target fuzz_dump fuzz_keyring fuzz_keyimport fuzz_sigimport fuzz_verify fuzz_verify_detached fuzz_keyring_kbx fuzz_keyring_g10 fuzz_encrypt_roundtrip
 
       - name: Prepare corpus
         run: |
@@ -85,7 +85,7 @@ jobs:
         run: |
           set -e
           export LD_LIBRARY_PATH="$PWD/build/src/lib:$LD_LIBRARY_PATH"
-          for fuzzer in fuzz_dump fuzz_keyring fuzz_keyimport fuzz_sigimport fuzz_verify fuzz_verify_detached fuzz_keyring_kbx fuzz_keyring_g10; do
+          for fuzzer in fuzz_dump fuzz_keyring fuzz_keyimport fuzz_sigimport fuzz_verify fuzz_verify_detached fuzz_keyring_kbx fuzz_keyring_g10 fuzz_encrypt_roundtrip; do
             bin="build/src/fuzzing/$fuzzer"
             echo "== $fuzzer =="
             # Run each fuzzer for a short window against the shared corpus.
