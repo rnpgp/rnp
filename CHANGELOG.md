@@ -8,6 +8,9 @@
   created for signed-and-encrypted messages, one per recipient, as recommended by the RFC.
   Subpackets are marked critical in version 6 signatures. Visible in packet dumps and via
   `rnp_signature_subpacket_*()` FFI functions.
+* Pad version 2 SEIPD messages with a random-length Padding packet, as recommended by
+  RFC 9580 sections 5.14 and 10.3.1. The plaintext is padded to the next length bucket
+  (512 bytes and up) to obscure its exact size, defending against traffic analysis.
 
 #### General
 
