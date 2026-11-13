@@ -4502,9 +4502,71 @@ TEST_F(rnp_tests, test_ffi_op_verify_get_protection_info)
     size_t rcount = 0;
     assert_rnp_success(rnp_op_verify_get_recipient_count(verify, &rcount));
     assert_int_equal(rcount, 1);
+    /* Refusal is visible as an unprotected container. The cipher is unknown
+     * because the session key is not decrypted. valid stays false. */
+    mode = NULL;
+    cipher = NULL;
+    valid = true;
+    assert_rnp_success(rnp_op_verify_get_protection_info(verify, &mode, &cipher, &valid));
+    assert_string_equal(mode, "cfb");
+    assert_string_equal(cipher, "unknown");
+    assert_false(valid);
+    rnp_buffer_destroy(mode);
+    rnp_buffer_destroy(cipher);
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(input);
     rnp_output_destroy(output);
+    /* rnp_decrypt() refuses as well, and does not write a payload. The ffi
+     * already has the password and secret key that would decrypt this message
+     * if the refusal were skipped. */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-no-mdc"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_int_equal(rnp_decrypt(ffi, input, output), RNP_ERROR_DECRYPT_FAILED);
+    outbuf = NULL;
+    outlen = 1;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &outbuf, &outlen, false));
+    assert_int_equal(outlen, 0);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    /* No key or password callback: refusal is before session-key decryption. */
+    {
+        rnp_ffi_t bare = NULL;
+        int       probes = 0;
+        auto      count_key = [](rnp_ffi_t, void *ctx, const char *, const char *, bool) {
+            *static_cast<int *>(ctx) += 1;
+        };
+        auto count_pass =
+          [](rnp_ffi_t, void *ctx, rnp_key_handle_t, const char *, char *, size_t) {
+              *static_cast<int *>(ctx) += 1;
+              return false;
+          };
+        assert_rnp_success(rnp_ffi_create(&bare, "GPG", "GPG"));
+        assert_rnp_success(rnp_ffi_set_key_provider(bare, count_key, &probes));
+        assert_rnp_success(rnp_ffi_set_pass_provider(bare, count_pass, &probes));
+        assert_rnp_success(
+          rnp_input_from_path(&input, "data/test_messages/message.txt.enc-no-mdc"));
+        assert_rnp_success(rnp_output_to_memory(&output, 0));
+        assert_rnp_success(rnp_op_verify_create(&verify, bare, input, output));
+        assert_int_equal(rnp_op_verify_execute(verify), RNP_ERROR_DECRYPT_FAILED);
+        outlen = 1;
+        assert_rnp_success(rnp_output_memory_get_buf(output, &outbuf, &outlen, false));
+        assert_int_equal(outlen, 0);
+        assert_int_equal(probes, 0);
+        mode = NULL;
+        cipher = NULL;
+        valid = true;
+        assert_rnp_success(rnp_op_verify_get_protection_info(verify, &mode, &cipher, &valid));
+        assert_string_equal(mode, "cfb");
+        assert_string_equal(cipher, "unknown");
+        assert_false(valid);
+        rnp_buffer_destroy(mode);
+        rnp_buffer_destroy(cipher);
+        rnp_op_verify_destroy(verify);
+        rnp_input_destroy(input);
+        rnp_output_destroy(output);
+        rnp_ffi_destroy(bare);
+    }
     /* flags are reset by the subsequent call */
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.enc-no-mdc"));
@@ -4513,6 +4575,15 @@ TEST_F(rnp_tests, test_ffi_op_verify_get_protection_info)
     assert_rnp_success(rnp_op_verify_set_flags(verify, RNP_VERIFY_ALLOW_UNPROTECTED));
     assert_rnp_success(rnp_op_verify_set_flags(verify, 0));
     assert_int_equal(rnp_op_verify_execute(verify), RNP_ERROR_DECRYPT_FAILED);
+    mode = NULL;
+    cipher = NULL;
+    valid = true;
+    assert_rnp_success(rnp_op_verify_get_protection_info(verify, &mode, &cipher, &valid));
+    assert_string_equal(mode, "cfb");
+    assert_string_equal(cipher, "unknown");
+    assert_false(valid);
+    rnp_buffer_destroy(mode);
+    rnp_buffer_destroy(cipher);
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(input);
     rnp_output_destroy(output);
@@ -5743,6 +5814,40 @@ TEST_F(rnp_tests, test_ffi_literal_packet)
     assert_int_equal(count, 0);
     count = 255;
     assert_rnp_success(rnp_op_verify_get_symenc_count(verify, &count));
+    assert_int_equal(count, 0);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* ZIP compressed data around one literal packet (dearmored issue sample). */
+    static const uint8_t compressed_literal[] = {0xa3, 0x01, 0x3b, 0x2d, 0x90, 0xc4, 0x90,
+                                                 0x54, 0x92, 0xfe, 0xa9, 0x24, 0xb5, 0xb8,
+                                                 0x44, 0x01, 0x44, 0x70, 0x01, 0x00};
+    assert_rnp_success(
+      rnp_input_from_memory(&input, compressed_literal, sizeof(compressed_literal), false));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_decrypt(ffi, input, output));
+    rnp_output_memory_get_buf(output, &buf, &len, false);
+    out.assign((char *) buf, len);
+    assert_true(out == "test test\n");
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    assert_rnp_success(
+      rnp_input_from_memory(&input, compressed_literal, sizeof(compressed_literal), false));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    mode = NULL;
+    cipher = NULL;
+    valid = true;
+    assert_rnp_success(rnp_op_verify_get_protection_info(verify, &mode, &cipher, &valid));
+    assert_string_equal(mode, "none");
+    assert_string_equal(cipher, "none");
+    assert_false(valid);
+    rnp_buffer_destroy(mode);
+    rnp_buffer_destroy(cipher);
+    count = 255;
+    assert_rnp_success(rnp_op_verify_get_recipient_count(verify, &count));
     assert_int_equal(count, 0);
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(input);
