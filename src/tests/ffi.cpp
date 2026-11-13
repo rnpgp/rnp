@@ -4533,7 +4533,7 @@ TEST_F(rnp_tests, test_ffi_op_verify_get_protection_info)
     {
         rnp_ffi_t bare = NULL;
         int       probes = 0;
-        auto count_key = [](rnp_ffi_t, void *ctx, const char *, const char *, bool) {
+        auto      count_key = [](rnp_ffi_t, void *ctx, const char *, const char *, bool) {
             *static_cast<int *>(ctx) += 1;
         };
         auto count_pass =
@@ -5820,11 +5820,11 @@ TEST_F(rnp_tests, test_ffi_literal_packet)
     rnp_output_destroy(output);
 
     /* ZIP compressed data around one literal packet (dearmored issue sample). */
-    static const uint8_t compressed_literal[] = {
-      0xa3, 0x01, 0x3b, 0x2d, 0x90, 0xc4, 0x90, 0x54, 0x92, 0xfe,
-      0xa9, 0x24, 0xb5, 0xb8, 0x44, 0x01, 0x44, 0x70, 0x01, 0x00};
-    assert_rnp_success(rnp_input_from_memory(
-      &input, compressed_literal, sizeof(compressed_literal), false));
+    static const uint8_t compressed_literal[] = {0xa3, 0x01, 0x3b, 0x2d, 0x90, 0xc4, 0x90,
+                                                 0x54, 0x92, 0xfe, 0xa9, 0x24, 0xb5, 0xb8,
+                                                 0x44, 0x01, 0x44, 0x70, 0x01, 0x00};
+    assert_rnp_success(
+      rnp_input_from_memory(&input, compressed_literal, sizeof(compressed_literal), false));
     assert_rnp_success(rnp_output_to_memory(&output, 0));
     assert_rnp_success(rnp_decrypt(ffi, input, output));
     rnp_output_memory_get_buf(output, &buf, &len, false);
@@ -5832,8 +5832,8 @@ TEST_F(rnp_tests, test_ffi_literal_packet)
     assert_true(out == "test test\n");
     rnp_input_destroy(input);
     rnp_output_destroy(output);
-    assert_rnp_success(rnp_input_from_memory(
-      &input, compressed_literal, sizeof(compressed_literal), false));
+    assert_rnp_success(
+      rnp_input_from_memory(&input, compressed_literal, sizeof(compressed_literal), false));
     assert_rnp_success(rnp_output_to_memory(&output, 0));
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
     assert_rnp_success(rnp_op_verify_execute(verify));
