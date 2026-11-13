@@ -204,9 +204,17 @@ namespace pkt {
 bool
 Signature::operator==(const Signature &src) const
 {
-    // TODO-V6: could also compare salt
-    return (lbits == src.lbits) && (hashed_data == src.hashed_data) &&
-           (material_buf == src.material_buf);
+    if ((lbits != src.lbits) || (hashed_data != src.hashed_data) ||
+        (material_buf != src.material_buf)) {
+        return false;
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* v6 salt is stored outside of the hashed area, so compare it explicitly */
+    if ((version == PGP_V6) && (salt != src.salt)) {
+        return false;
+    }
+#endif
+    return true;
 }
 
 bool
@@ -220,6 +228,12 @@ Signature::get_id() const
 {
     auto hash = rnp::Hash::create(PGP_HASH_SHA1);
     hash->add(hashed_data);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* v6 salt is not a part of the hashed data - cover it, but keep v4 id input unchanged */
+    if (version == PGP_V6) {
+        hash->add(salt);
+    }
+#endif
     hash->add(material_buf);
     SigID res = {0};
     static_assert(std::tuple_size<decltype(res)>::value == PGP_SHA1_HASH_SIZE,
