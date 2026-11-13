@@ -2,6 +2,12 @@
 
 ### Unreleased
 
+#### Added
+
+* Pad version 2 SEIPD messages with a random-length Padding packet, as recommended by
+  RFC 9580 sections 5.14 and 10.3.1. The plaintext is padded to the next length bucket
+  (512 bytes and up) to obscure its exact size, defending against traffic analysis.
+
 #### General
 
 * Do not mark cryptographically valid v3/v4/v5 signatures as invalid only because of mismatching left 16 bits of the hash (v6 signatures are still rejected, as required by RFC 9580). Fixes import of some real-world keys (#2191).
