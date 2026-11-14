@@ -121,7 +121,12 @@ jobs:
           cd bzip2-1.0.8
           make -j"$(nproc)" CC=${TRIPLET}-gcc AR=${TRIPLET}-ar \
             RANLIB=${TRIPLET}-ranlib libbz2.a
-          make install PREFIX="$DEP_PREFIX/${{ matrix.arch }}"
+          # install the library and header only: the bzip2 binary target
+          # links with -lbz2 and fails on a cross toolchain without -L.
+          install -d "$DEP_PREFIX/${{ matrix.arch }}/lib" \
+            "$DEP_PREFIX/${{ matrix.arch }}/include"
+          install -m 644 bzlib.h "$DEP_PREFIX/${{ matrix.arch }}/include/"
+          install -m 644 libbz2.a "$DEP_PREFIX/${{ matrix.arch }}/lib/"
 
       - name: Cross-build Botan
         if: steps.cache-deps.outputs.cache-hit != 'true'
