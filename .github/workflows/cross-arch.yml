@@ -50,22 +50,27 @@ jobs:
         include:
           - arch: riscv64
             triplet: riscv64-linux-gnu
+            dpkg_arch: riscv64
             botan_cpu: riscv64
             qemu: qemu-riscv64-static
           - arch: ppc64le
             triplet: powerpc64le-linux-gnu
+            dpkg_arch: ppc64el
             botan_cpu: ppc64le
             qemu: qemu-ppc64le-static
           - arch: s390x
             triplet: s390x-linux-gnu
+            dpkg_arch: s390x
             botan_cpu: s390x
             qemu: qemu-s390x-static
           - arch: armv7
             triplet: arm-linux-gnueabihf
+            dpkg_arch: armhf
             botan_cpu: armv7
             qemu: qemu-arm-static
           - arch: i686
             triplet: i686-linux-gnu
+            dpkg_arch: i386
             botan_cpu: x86_32
             qemu: qemu-i386-static
 
@@ -83,8 +88,17 @@ jobs:
 
       - name: Install cross toolchain and QEMU
         run: |
+          # the target-architecture development libraries live in the Ubuntu
+          # ports archive for everything except amd64 and i386
+          if [ "${{ matrix.dpkg_arch }}" != "i386" ]; then
+            echo "deb [arch=${{ matrix.dpkg_arch }}] http://ports.ubuntu.com/ $(. /etc/os-release && echo $VERSION_CODENAME) main universe" \
+              | sudo tee /etc/apt/sources.list.d/ports.list
+            sudo dpkg --add-architecture ${{ matrix.dpkg_arch }}
+          fi
           sudo apt-get -y update
-          sudo apt-get -y install cmake ninja-build python3 g++-${{ matrix.triplet }} pkg-config
+          sudo apt-get -y install cmake ninja-build python3 pkg-config \
+            g++-${{ matrix.triplet }} \
+            zlib1g-dev:${{ matrix.dpkg_arch }} libbz2-dev:${{ matrix.dpkg_arch }}
           # qemu-user-static is a real package up to Ubuntu 24.04; newer
           # runner images provide the same emulator through qemu-user-binfmt.
           sudo apt-get -y install qemu-user-static || sudo apt-get -y install qemu-user-binfmt
@@ -130,7 +144,7 @@ jobs:
           set(CMAKE_SYSTEM_PROCESSOR ${{ matrix.arch }})
           set(CMAKE_C_COMPILER ${TRIPLET}-gcc)
           set(CMAKE_CXX_COMPILER ${TRIPLET}-g++)
-          set(CMAKE_FIND_ROOT_PATH /usr/${TRIPLET} ${DEP_PREFIX})
+          set(CMAKE_FIND_ROOT_PATH / /usr/${TRIPLET} ${DEP_PREFIX})
           set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
           set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
           set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
