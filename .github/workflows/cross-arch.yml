@@ -52,18 +52,22 @@ jobs:
             triplet: riscv64-linux-gnu
             botan_cpu: riscv64
             qemu: qemu-riscv64-static
+            binfmt_name: riscv64
           - arch: ppc64le
             triplet: powerpc64le-linux-gnu
             botan_cpu: ppc64le
             qemu: qemu-ppc64le-static
+            binfmt_name: ppc64le
           - arch: s390x
             triplet: s390x-linux-gnu
             botan_cpu: s390x
             qemu: qemu-s390x-static
+            binfmt_name: s390x
           - arch: armv7
             triplet: arm-linux-gnueabihf
             botan_cpu: armv7
             qemu: qemu-arm-static
+            binfmt_name: arm
 
     env:
       TRIPLET: ${{ matrix.triplet }}
@@ -97,7 +101,8 @@ jobs:
           # cross-compiled rnp tools with system(), which bypasses the CMake
           # cross-compiling emulator
           sudo systemctl restart systemd-binfmt.service || true
-          ls /proc/sys/fs/binfmt_misc | grep -q qemu-${{ matrix.dpkg_arch || matrix.arch }}
+          sleep 2
+          ls /proc/sys/fs/binfmt_misc | grep -q ${{ matrix.binfmt_name }}
 
       - name: Locate QEMU emulator
         run: |
