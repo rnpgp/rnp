@@ -3256,6 +3256,9 @@ pad_roundtrip(size_t datalen)
     assert_rnp_success(rnp_op_encrypt_set_cipher(op, "AES128"));
     assert_rnp_success(rnp_op_encrypt_set_aead(op, "OCB"));
     assert_rnp_success(rnp_op_encrypt_enable_skesk_v6(op));
+    /* keep the plaintext size deterministic so the bucket, and therefore the
+     * chunk boundary case below, is reproducible */
+    assert_rnp_success(rnp_op_encrypt_set_compression(op, "Uncompressed", 0));
     assert_rnp_success(rnp_op_encrypt_execute(op));
     rnp_op_encrypt_destroy(op);
     rnp_input_destroy(input);
@@ -3305,5 +3308,9 @@ TEST_F(rnp_tests, test_ffi_v2_seipd_padding)
     pad_roundtrip(30);
     pad_roundtrip(150);
     pad_roundtrip(600);
+    /* a message padded into the largest-default bucket lands exactly on the
+     * AEAD chunk boundary: the plaintext ends with the Padding packet right
+     * at the end of the final chunk, which the reader must still validate */
+    pad_roundtrip(261000);
 }
 #endif
