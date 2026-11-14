@@ -959,7 +959,7 @@ clear_key_sigs(rnp::Key &key)
 static bool
 generate_rsa(rnp::KeygenParams &keygen, rnp::Key &sec, rnp::Key &pub, const char *uid)
 {
-    auto &          rsa = dynamic_cast<pgp::RSAKeyParams &>(keygen.key_params());
+    auto &rsa = dynamic_cast<pgp::RSAKeyParams &>(keygen.key_params());
     rsa.set_bits(1024);
     rnp::CertParams cert;
     cert.userid = uid;
@@ -1052,10 +1052,10 @@ TEST_F(rnp_tests, test_issuer_fp_version_subkey_no_keyid_fallback)
     rnp::Key          sec;
     rnp::Key          pub;
     assert_true(generate_rsa(keygen, sec, pub, "primary"));
-    rnp::Key                    subsec;
-    rnp::Key                    subpub;
-    rnp::BindingParams          binding;
-    pgp_password_provider_t     prov = {};
+    rnp::Key                subsec;
+    rnp::Key                subpub;
+    rnp::BindingParams      binding;
+    pgp_password_provider_t prov = {};
     assert_true(keygen.generate(binding, sec, pub, subsec, subpub, prov));
 
     rnp::Key badsub = subpub;
