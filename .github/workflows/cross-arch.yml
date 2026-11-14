@@ -90,6 +90,15 @@ jobs:
           # runner images provide the same emulator through qemu-user-binfmt.
           sudo apt-get -y install qemu-user-static || sudo apt-get -y install qemu-user-binfmt
 
+      - name: Register binfmt for target binaries
+        run: |
+          # registering the architecture with binfmt_misc lets the host shell
+          # execute target binaries transparently: the test suite spawns the
+          # cross-compiled rnp tools with system(), which bypasses the CMake
+          # cross-compiling emulator
+          sudo systemctl restart systemd-binfmt.service || true
+          ls /proc/sys/fs/binfmt_misc | grep -q qemu-${{ matrix.dpkg_arch || matrix.arch }}
+
       - name: Locate QEMU emulator
         run: |
           QEMU_BIN="$(command -v ${{ matrix.qemu }} || command -v ${{ matrix.qemu }}-unescaped 2>/dev/null || command -v $(echo ${{ matrix.qemu }} | sed 's/-static$//'))"
@@ -188,5 +197,4 @@ jobs:
       - name: Run the full test suite under QEMU
         run: |
           cd build
-          RNP_TEST_DATA="$GITHUB_WORKSPACE/src/tests/data" \
-            "${QEMU_BIN}" -L "/usr/${TRIPLET}" ./src/tests/rnp_tests
+          ctest --output-on-failure
