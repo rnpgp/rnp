@@ -166,7 +166,7 @@ support. CI currently exercises:
   ARM (preview), and macOS Apple Silicon.
 * **PowerPC** (Big Sur / Monterey) — community-supported; see
   `@barracuda156` in `MAINTAINERS.md`.
-* **riscv64, ppc64le, s390x, armv7, i686 (Linux)** — cross-compiled and
+* **riscv64, ppc64le, s390x, armv7 (Linux)** — cross-compiled and
   exercised with the full test suite under QEMU user-mode emulation in
   the cross-arch workflow.
 
