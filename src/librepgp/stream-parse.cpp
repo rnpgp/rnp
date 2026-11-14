@@ -221,7 +221,8 @@ is_pgp_source(pgp_source_t &src)
         return false;
     }
 
-    switch (get_packet_type(buf)) {
+    int ptype = get_packet_type(buf);
+    switch (ptype) {
     case PGP_PKT_PK_SESSION_KEY:
     case PGP_PKT_SK_SESSION_KEY:
     case PGP_PKT_ONE_PASS_SIG:
@@ -233,7 +234,10 @@ is_pgp_source(pgp_source_t &src)
     case PGP_PKT_MARKER:
         return true;
     default:
-        return false;
+        /* RFC 9580, 4.3 and 5.14: a message may begin with an unknown
+         * non-critical packet (type IDs 40-63) or a padding packet, which
+         * are then skipped */
+        return ((ptype >= 40) && (ptype <= 63)) || (ptype == PGP_PKT_PADDING);
     }
 }
 
@@ -672,6 +676,22 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
                 RNP_LOG("unexpected end of data");
                 return false;
             }
+        } else if (chunkend && (tagread == taglen * 2)) {
+            /* A chunk boundary with exactly two tags ahead is ambiguous: it
+             * may be the end of the stream - the plaintext can end exactly at
+             * the chunk boundary, e.g. when a Padding packet fills the length
+             * bucket - or a following chunk with exactly taglen bytes of data
+             * peeked. Probe one byte beyond the tags: the stream end has
+             * nothing there, a following chunk always has data. Without this
+             * the final chunk would be treated as non-final and the summary
+             * tag validation left to a reader which stops at the Padding
+             * packet. */
+            uint8_t probeb = 0;
+            size_t  more = 0;
+            if (!param->pkt.readsrc->peek(&probeb, 1, &more)) {
+                return false;
+            }
+            lastchunk = (more == 0);
         }
 
         if (!chunkend && !lastchunk) {
@@ -906,6 +926,23 @@ encrypted_src_finish(pgp_source_t *src)
         param->handler->on_decryption_done(validated, param->handler->param);
     }
 
+#if defined(ENABLE_AEAD)
+    if (!param->auth_validated && (param->auth_type == rnp::AuthType::AEADv1
+#if defined(ENABLE_CRYPTO_REFRESH)
+                                   || param->auth_type == rnp::AuthType::AEADv2
+#endif
+                                   )) {
+        /* The message may end with a Padding packet, which ends the
+         * Optionally Padded Message: no reader then pulls the final AEAD
+         * chunk and its summary tag, leaving the auth unvalidated even for
+         * an intact message. Drain the remaining framing here. */
+        while (!param->auth_validated) {
+            if (!encrypted_src_read_aead_part(param)) {
+                break;
+            }
+        }
+    }
+#endif
     if ((param->auth_type == rnp::AuthType::None) || param->auth_validated) {
         return RNP_SUCCESS;
     }
@@ -2269,6 +2306,16 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
                 stop = true;
                 break;
             default:
+                /* RFC 9580, 4.3: unknown non-critical packets (type IDs 40-63) and
+                 * padding packets (5.14) are ignored */
+                if (((ptype >= 40) && (ptype <= 63)) || (ptype == PGP_PKT_PADDING)) {
+                    RNP_LOG("Skipping non-critical packet %d", ptype);
+                    if (stream_skip_packet(param->pkt.readsrc)) {
+                        RNP_LOG("failed to skip packet");
+                        return RNP_ERROR_READ;
+                    }
+                    continue;
+                }
                 RNP_LOG("unknown packet type: %d", ptype);
                 return RNP_ERROR_BAD_FORMAT;
             }
@@ -2875,6 +2922,25 @@ init_packet_sequence(pgp_processing_ctx_t &ctx, pgp_source_t &src)
             }
             continue;
         default:
+            /* RFC 9580, 4.3: packets with type IDs 40-63 are non-critical and unknown
+             * ones must be ignored. This also covers padding packets (5.14). */
+            if (((type >= 40) && (type <= 63)) || (type == PGP_PKT_PADDING)) {
+                if (stream_skip_packet(lsrc)) {
+                    RNP_LOG("failed to skip packet");
+                    ret = RNP_ERROR_READ;
+                } else {
+                    if (type == PGP_PKT_PADDING) {
+                        /* RFC 9580, 5.14: the padding packet is the last
+                         * packet of an Optionally Padded Message, so the
+                         * packet sequence ends here */
+                        if (!ctx.sources.empty()) {
+                            return RNP_SUCCESS;
+                        }
+                    }
+                    continue;
+                }
+                break;
+            }
             RNP_LOG("unexpected pkt %d", type);
             ret = RNP_ERROR_BAD_FORMAT;
         }

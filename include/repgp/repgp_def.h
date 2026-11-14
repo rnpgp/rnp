@@ -160,27 +160,28 @@ typedef enum : uint8_t {
  *
  */
 typedef enum : uint8_t {
-    PGP_PKT_RESERVED = 0,       /* Reserved - a packet tag must not have this value */
-    PGP_PKT_PK_SESSION_KEY = 1, /* Public-Key Encrypted Session Key Packet */
-    PGP_PKT_SIGNATURE = 2,      /* Signature Packet */
-    PGP_PKT_SK_SESSION_KEY = 3, /* Symmetric-Key Encrypted Session Key Packet */
-    PGP_PKT_ONE_PASS_SIG = 4,   /* One-Pass Signature Packet */
-    PGP_PKT_SECRET_KEY = 5,     /* Secret Key Packet */
-    PGP_PKT_PUBLIC_KEY = 6,     /* Public Key Packet */
-    PGP_PKT_SECRET_SUBKEY = 7,  /* Secret Subkey Packet */
-    PGP_PKT_COMPRESSED = 8,     /* Compressed Data Packet */
-    PGP_PKT_SE_DATA = 9,        /* Symmetrically Encrypted Data Packet */
-    PGP_PKT_MARKER = 10,        /* Marker Packet */
-    PGP_PKT_LITDATA = 11,       /* Literal Data Packet */
-    PGP_PKT_TRUST = 12,         /* Trust Packet */
-    PGP_PKT_USER_ID = 13,       /* User ID Packet */
-    PGP_PKT_PUBLIC_SUBKEY = 14, /* Public Subkey Packet */
-    PGP_PKT_RESERVED2 = 15,     /* Reserved */
-    PGP_PKT_RESERVED3 = 16,     /* Reserved */
-    PGP_PKT_USER_ATTR = 17,     /* User Attribute Packet */
-    PGP_PKT_SE_IP_DATA = 18,    /* Sym. Encrypted and Integrity Protected Data Packet */
-    PGP_PKT_MDC = 19,           /* Modification Detection Code Packet */
-    PGP_PKT_AEAD_ENCRYPTED = 20 /* AEAD Encrypted Data Packet, RFC 4880bis */
+    PGP_PKT_RESERVED = 0,        /* Reserved - a packet tag must not have this value */
+    PGP_PKT_PK_SESSION_KEY = 1,  /* Public-Key Encrypted Session Key Packet */
+    PGP_PKT_SIGNATURE = 2,       /* Signature Packet */
+    PGP_PKT_SK_SESSION_KEY = 3,  /* Symmetric-Key Encrypted Session Key Packet */
+    PGP_PKT_ONE_PASS_SIG = 4,    /* One-Pass Signature Packet */
+    PGP_PKT_SECRET_KEY = 5,      /* Secret Key Packet */
+    PGP_PKT_PUBLIC_KEY = 6,      /* Public Key Packet */
+    PGP_PKT_SECRET_SUBKEY = 7,   /* Secret Subkey Packet */
+    PGP_PKT_COMPRESSED = 8,      /* Compressed Data Packet */
+    PGP_PKT_SE_DATA = 9,         /* Symmetrically Encrypted Data Packet */
+    PGP_PKT_MARKER = 10,         /* Marker Packet */
+    PGP_PKT_LITDATA = 11,        /* Literal Data Packet */
+    PGP_PKT_TRUST = 12,          /* Trust Packet */
+    PGP_PKT_USER_ID = 13,        /* User ID Packet */
+    PGP_PKT_PUBLIC_SUBKEY = 14,  /* Public Subkey Packet */
+    PGP_PKT_RESERVED2 = 15,      /* Reserved */
+    PGP_PKT_RESERVED3 = 16,      /* Reserved */
+    PGP_PKT_USER_ATTR = 17,      /* User Attribute Packet */
+    PGP_PKT_SE_IP_DATA = 18,     /* Sym. Encrypted and Integrity Protected Data Packet */
+    PGP_PKT_MDC = 19,            /* Modification Detection Code Packet */
+    PGP_PKT_AEAD_ENCRYPTED = 20, /* AEAD Encrypted Data Packet, RFC 4880bis */
+    PGP_PKT_PADDING = 21         /* Padding Packet, RFC 9580 */
 } pgp_pkt_type_t;
 
 /** Public Key Algorithm Numbers.

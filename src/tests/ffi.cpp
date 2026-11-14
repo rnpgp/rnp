@@ -5751,6 +5751,65 @@ TEST_F(rnp_tests, test_ffi_literal_packet)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_message_with_noncritical_packet)
+{
+    /* Regression test for https://github.com/rnpgp/rnp/issues/2561:
+     * RFC 9580, 4.3: unknown non-critical packets (type IDs 40-63) must be
+     * ignored wherever they are encountered in a packet sequence. */
+    rnp_ffi_t    ffi = NULL;
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* unknown non-critical packet prepended to a literal-data message.
+     * Binary data is read with file_to_vec, which opens the file in binary
+     * mode, unlike file_to_str. */
+    std::vector<uint8_t> literal = file_to_vec("data/test_messages/message.txt.literal");
+    std::vector<uint8_t> msg = {0xe8, 0x03, 0x01, 0x02, 0x03};
+    msg.insert(msg.end(), literal.begin(), literal.end());
+    assert_rnp_success(rnp_input_from_memory(&input, msg.data(), msg.size(), false));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_decrypt(ffi, input, output));
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    rnp_output_memory_get_buf(output, &buf, &len, false);
+    std::string out;
+    out.assign((char *) buf, len);
+    assert_true(out == file_to_str("data/test_messages/message.txt"));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    output = NULL;
+
+    /* unknown non-critical packet between the session key packet and the
+     * encrypted container */
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
+    std::vector<uint8_t> encmsg =
+      file_to_vec("data/test_messages/message.enc-password-noncritical");
+    assert_rnp_success(rnp_input_from_memory(&input, encmsg.data(), encmsg.size(), false));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_decrypt(ffi, input, output));
+    rnp_output_memory_get_buf(output, &buf, &len, false);
+    std::vector<uint8_t> decrypted(buf, buf + len);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    output = NULL;
+    /* the result must match the decryption of the same message without the packet */
+    std::vector<uint8_t> origmsg = file_to_vec("data/test_messages/message.enc-password");
+    assert_rnp_success(rnp_input_from_memory(&input, origmsg.data(), origmsg.size(), false));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_decrypt(ffi, input, output));
+    rnp_output_memory_get_buf(output, &buf, &len, false);
+    std::vector<uint8_t> origdec(buf, buf + len);
+    assert_int_equal(decrypted.size(), origdec.size());
+    assert_true(decrypted == origdec);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    rnp_ffi_destroy(ffi);
+}
+
 /* This test checks that any exceptions thrown by the internal library
  * will not propagate beyond the FFI boundary.
  * In this case we (ab)use a callback to mimic this scenario.
