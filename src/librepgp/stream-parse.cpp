@@ -927,8 +927,11 @@ encrypted_src_finish(pgp_source_t *src)
     }
 
 #if defined(ENABLE_AEAD)
-    if (!param->auth_validated && ((param->auth_type == rnp::AuthType::AEADv1) ||
-                                   (param->auth_type == rnp::AuthType::AEADv2))) {
+    if (!param->auth_validated && (param->auth_type == rnp::AuthType::AEADv1
+#if defined(ENABLE_CRYPTO_REFRESH)
+                                   || param->auth_type == rnp::AuthType::AEADv2
+#endif
+                                   )) {
         /* The message may end with a Padding packet, which ends the
          * Optionally Padded Message: no reader then pulls the final AEAD
          * chunk and its summary tag, leaving the auth unvalidated even for
