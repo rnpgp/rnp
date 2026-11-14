@@ -206,12 +206,11 @@ jobs:
           # cross-compiled tools with system()) has no -L argument, so
           # point it at the target sysroot through the environment
           #
-          # cli_tests-Misc exercises the cv25519 tweak subcommands through
-          # the cross-built rnpkeys, which trips over a misparse in the
-          # gcc-15 riscv64/powerpc cross toolchains: a 15-line getopt_long
-          # program compiled with the same compiler misbinds arguments with
-          # values under qemu user-mode emulation, while the same program
-          # built natively parses them correctly. Skip that class until the
-          # toolchain is fixed; everything else runs.
+          # cli_tests-Misc fails its cv25519 subtest on the cross legs: the
+          # last, gpg-side assertion rejects the tweaked key while the same
+          # import-tweak-export-import-decrypt sequence passes on the native
+          # legs and in a manual reproduction with the same gpg version and
+          # the same emulated binary. Skip that class until the difference
+          # is understood; everything else runs.
           QEMU_LD_PREFIX="/usr/${TRIPLET}" ctest --output-on-failure \
             -E cli_tests-Misc
