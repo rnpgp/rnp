@@ -50,28 +50,24 @@ jobs:
         include:
           - arch: riscv64
             triplet: riscv64-linux-gnu
-            dpkg_arch: riscv64
             botan_cpu: riscv64
             qemu: qemu-riscv64-static
           - arch: ppc64le
             triplet: powerpc64le-linux-gnu
-            dpkg_arch: ppc64el
             botan_cpu: ppc64le
             qemu: qemu-ppc64le-static
           - arch: s390x
             triplet: s390x-linux-gnu
-            dpkg_arch: s390x
             botan_cpu: s390x
             qemu: qemu-s390x-static
           - arch: armv7
             triplet: arm-linux-gnueabihf
-            dpkg_arch: armhf
             botan_cpu: armv7
             qemu: qemu-arm-static
 
     env:
       TRIPLET: ${{ matrix.triplet }}
-      DEP_PREFIX: ${{ github.workspace }}/cross-deps
+      DEP_PREFIX: /home/runner/cross-deps
       BOTAN_VERSION: "3.13.0"
 
     steps:
@@ -83,17 +79,13 @@ jobs:
 
       - name: Install cross toolchain and QEMU
         run: |
-          # the foreign-architecture development libraries live exclusively in
-          # the Ubuntu ports archive; the default archive and security sources
-          # must be restricted to amd64 or apt-get update 404s on them fatally
-          sudo sed -i '/^Types: deb/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
-          echo "deb [arch=${{ matrix.dpkg_arch }}] http://ports.ubuntu.com/ $(. /etc/os-release && echo $VERSION_CODENAME) main universe" \
-            | sudo tee /etc/apt/sources.list.d/ports.list
-          sudo dpkg --add-architecture ${{ matrix.dpkg_arch }}
+          # only amd64-host packages come from apt: the cross toolchain packages
+          # carry the target sysroot, and the target-architecture libraries
+          # (Botan, zlib, bzip2) are built from source below - foreign-architecture
+          # apt packages would fight the host package set
           sudo apt-get -y update
           sudo apt-get -y install cmake ninja-build python3 pkg-config \
-            g++-${{ matrix.triplet }} \
-            zlib1g-dev:${{ matrix.dpkg_arch }} libbz2-dev:${{ matrix.dpkg_arch }}
+            g++-${{ matrix.triplet }}
           # qemu-user-static is a real package up to Ubuntu 24.04; newer
           # runner images provide the same emulator through qemu-user-binfmt.
           sudo apt-get -y install qemu-user-static || sudo apt-get -y install qemu-user-binfmt
@@ -104,17 +96,37 @@ jobs:
           test -n "$QEMU_BIN"
           echo "QEMU_BIN=$QEMU_BIN" >> $GITHUB_ENV
 
-      - name: Cache cross-built Botan
+      - name: Cache cross-built dependencies
         id: cache-deps
         uses: actions/cache@v4
         with:
-          path: ~/cross-deps/${{ matrix.arch }}
-          key: crossarch-botan-${{ matrix.arch }}-${{ env.BOTAN_VERSION }}
+          path: ${{ env.DEP_PREFIX }}/${{ matrix.arch }}
+          key: crossarch-deps-${{ matrix.arch }}-${{ env.BOTAN_VERSION }}-zlib131-bz108
+
+      - name: Cross-build zlib and bzip2
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$DEP_PREFIX" && cd "$DEP_PREFIX"
+          curl -fSL --retry 3 -o zlib.tar.gz \
+            "https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz"
+          tar xzf zlib.tar.gz
+          cd zlib-1.3.1
+          CC=${TRIPLET}-gcc AR=${TRIPLET}-ar ./configure --static \
+            --prefix="$DEP_PREFIX/${{ matrix.arch }}"
+          make -j"$(nproc)" && make install
+          cd "$DEP_PREFIX"
+          curl -fSL --retry 3 -o bzip2.tar.gz \
+            "https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz"
+          tar xzf bzip2.tar.gz
+          cd bzip2-1.0.8
+          make -j"$(nproc)" CC=${TRIPLET}-gcc AR=${TRIPLET}-ar \
+            RANLIB=${TRIPLET}-ranlib libbz2.a
+          make install PREFIX="$DEP_PREFIX/${{ matrix.arch }}"
 
       - name: Cross-build Botan
         if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
-          mkdir -p "$HOME/cross-deps" && cd "$HOME/cross-deps"
+          mkdir -p "$DEP_PREFIX" && cd "$DEP_PREFIX"
           curl -fSL --retry 3 -o botan.tar.xz \
             "https://botan.randombit.net/releases/Botan-${BOTAN_VERSION}.tar.xz"
           tar xJf botan.tar.xz
@@ -128,7 +140,7 @@ jobs:
             --enable-modules="$(tr '\n' ',' < "$GITHUB_WORKSPACE/ci/botan3-modules" | sed 's/,$//')" \
             --build-targets=static \
             --without-documentation \
-            --prefix="$HOME/cross-deps/${{ matrix.arch }}"
+            --prefix="$DEP_PREFIX/${{ matrix.arch }}"
           make -j"$(nproc)"
           make install
 
@@ -156,7 +168,7 @@ jobs:
             -DDOWNLOAD_GTEST=ON \
             -DENABLE_DOC=OFF \
             -DCRYPTO_BACKEND=botan \
-            -DBOTAN_ROOT_DIR="$HOME/cross-deps/${{ matrix.arch }}" \
+            -DBOTAN_ROOT_DIR="$DEP_PREFIX/${{ matrix.arch }}" \
             -DCMAKE_CROSSCOMPILING_EMULATOR="${QEMU_BIN};-L;/usr/${TRIPLET}" \
             .
 
