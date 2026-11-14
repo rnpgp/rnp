@@ -202,4 +202,7 @@ jobs:
       - name: Run the full test suite under QEMU
         run: |
           cd build
-          ctest --output-on-failure
+          # binfmt-spawned qemu (used when the tests execute the
+          # cross-compiled tools with system()) has no -L argument, so
+          # point it at the target sysroot through the environment
+          QEMU_LD_PREFIX="/usr/${TRIPLET}" ctest --output-on-failure
