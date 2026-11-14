@@ -68,11 +68,6 @@ jobs:
             dpkg_arch: armhf
             botan_cpu: armv7
             qemu: qemu-arm-static
-          - arch: i686
-            triplet: i686-linux-gnu
-            dpkg_arch: i386
-            botan_cpu: x86_32
-            qemu: qemu-i386-static
 
     env:
       TRIPLET: ${{ matrix.triplet }}
@@ -88,13 +83,13 @@ jobs:
 
       - name: Install cross toolchain and QEMU
         run: |
-          # the target-architecture development libraries live in the Ubuntu
-          # ports archive for everything except amd64 and i386
-          if [ "${{ matrix.dpkg_arch }}" != "i386" ]; then
-            echo "deb [arch=${{ matrix.dpkg_arch }}] http://ports.ubuntu.com/ $(. /etc/os-release && echo $VERSION_CODENAME) main universe" \
-              | sudo tee /etc/apt/sources.list.d/ports.list
-            sudo dpkg --add-architecture ${{ matrix.dpkg_arch }}
-          fi
+          # the foreign-architecture development libraries live exclusively in
+          # the Ubuntu ports archive; the default archive and security sources
+          # must be restricted to amd64 or apt-get update 404s on them fatally
+          sudo sed -i '/^Types: deb/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
+          echo "deb [arch=${{ matrix.dpkg_arch }}] http://ports.ubuntu.com/ $(. /etc/os-release && echo $VERSION_CODENAME) main universe" \
+            | sudo tee /etc/apt/sources.list.d/ports.list
+          sudo dpkg --add-architecture ${{ matrix.dpkg_arch }}
           sudo apt-get -y update
           sudo apt-get -y install cmake ninja-build python3 pkg-config \
             g++-${{ matrix.triplet }} \
