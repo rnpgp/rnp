@@ -965,8 +965,9 @@ Signature::parse_v4up(pgp_packet_body_t &pkt, size_t depth)
         return RNP_ERROR_BAD_FORMAT;
     }
     size_t splen_size = pkt.cur() - hash_begin;
-    /* hashed subpackets length + splen_size bytes of length of unhashed subpackets */
-    if (pkt.left() < splen + splen_size) {
+    /* hashed subpackets length + splen_size bytes of length of unhashed subpackets. v6 splen
+     * is 32-bit, so do not add it to anything: the sum may wrap with a 32-bit size_t. */
+    if ((splen > pkt.left()) || (pkt.left() - splen < splen_size)) {
         RNP_LOG("wrong packet or hashed subpackets length");
         return RNP_ERROR_BAD_FORMAT;
     }
