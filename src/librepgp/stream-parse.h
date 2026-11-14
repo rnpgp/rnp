@@ -89,7 +89,18 @@ rnp_result_t process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
  * @param readsrc source to read compressed data from
  * @return RNP_SUCCESS on success or error code otherwise
  */
-rnp_result_t init_compressed_src(pgp_source_t *src, pgp_source_t *readsrc);
+/**
+ * @brief Initialize source for reading the compressed packet.
+ * @param src compressed source, initialized with init_compressed_src
+ * @param readsrc underlying source with the compressed packet
+ * @param decomp_left pointer to the message-wide budget of decompressed bytes, shared
+ *        across all compression layers; nullptr disables the budget (the caller must
+ *        bound the data itself, e.g. with the dump layer's limiting source).
+ * @return RNP_SUCCESS or error code if operation failed
+ */
+rnp_result_t init_compressed_src(pgp_source_t *src,
+                                 pgp_source_t *readsrc,
+                                 uint64_t *    decomp_left);
 
 /* @brief Get compression algorithm used in compressed source
  * @param src compressed source, initialized with init_compressed_src
