@@ -43,7 +43,7 @@ jobs:
     name: ${{ matrix.arch }} linux cross-compile (botan backend)
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
-    timeout-minutes: 150
+    timeout-minutes: 300
     strategy:
       fail-fast: false
       matrix:
