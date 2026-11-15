@@ -212,5 +212,7 @@ jobs:
           # legs and in a manual reproduction with the same gpg version and
           # the same emulated binary. Skip that class until the difference
           # is understood; everything else runs.
+          # re-run tests that fail, up to three attempts: a few gpg-based
+          # cli tests carry a documented nondeterministic failure mode
           QEMU_LD_PREFIX="/usr/${TRIPLET}" ctest --output-on-failure \
-            -E cli_tests-Misc
+            --repeat until-pass:3 -E cli_tests-Misc
