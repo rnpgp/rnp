@@ -375,7 +375,7 @@ base64_read_padding(pgp_source_t &src, size_t *read)
         return false;
     }
     /* strip trailing whitespaces */
-    while (padlen && (B64DEC[(int) pad[padlen - 1]] == 0xfd)) {
+    while (padlen && (B64DEC[(uint8_t) pad[padlen - 1]] == 0xfd)) {
         padlen--;
     }
     /* check for '=' */
