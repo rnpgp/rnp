@@ -1623,7 +1623,7 @@ DumpContextDst::dump_raw_packets()
             size_t rlen = hdr.pkt_len + hdr.hdr_len;
             bool   part = false;
 
-            if (!hdr.pkt_len || (rlen > 1024 + hdr.hdr_len)) {
+            if (!hdr.pkt_len || (hdr.pkt_len > 1024)) {
                 rlen = 1024 + hdr.hdr_len;
                 part = true;
             }

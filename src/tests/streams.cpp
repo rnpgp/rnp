@@ -1526,6 +1526,25 @@ TEST_F(rnp_tests, test_stream_dumper_vec)
 }
 #endif
 
+TEST_F(rnp_tests, test_stream_dumper_raw_len)
+{
+    /* packet length close to 2^32 must not wrap the raw dump length on 32-bit builds */
+    const uint8_t pkt[] = {0xC2, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x02, 0x03, 0x04};
+
+    rnp::Source src;
+    rnp::Dest   dst;
+    assert_rnp_success(init_mem_src(&src.src(), pkt, sizeof(pkt), false));
+    assert_rnp_success(init_mem_dest(&dst.dst(), NULL, 0));
+    rnp::DumpContextDst ctx(src.src(), dst.dst());
+    ctx.set_dump_packets(true);
+    /* packet body is truncated, so the signature itself fails to parse */
+    assert_rnp_failure(ctx.dump());
+    auto        written = (const char *) mem_dest_get_memory(&dst.dst());
+    std::string dump(written, written + dst.writeb());
+    assert_true(dump.find("packet contents (first 4 bytes)") != std::string::npos);
+    assert_true(dump.find("00000 | 01 02 03 04 ") != std::string::npos);
+}
+
 TEST_F(rnp_tests, test_stream_dumper)
 {
     assert_true(check_dump_file("data/keyrings/1/pubring.gpg", false, false));
