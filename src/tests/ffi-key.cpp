@@ -456,6 +456,62 @@ TEST_F(rnp_tests, test_ffi_keygen_json_edge_cases)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_keygen_json_expiration)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* Primary key and subkey expiration must be taken from the JSON */
+    char *results = NULL;
+    assert_rnp_success(
+      rnp_generate_key_json(ffi,
+                            "{ \"primary\": { \"type\": \"EDDSA\", \"userid\": \"exp\", "
+                            "\"expiration\": 3600 }, \"sub\": { \"type\": \"ECDH\", "
+                            "\"curve\": \"Curve25519\", \"expiration\": 7200 } }",
+                            &results));
+    rnp_buffer_destroy(results);
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "exp", &key));
+    assert_non_null(key);
+    uint32_t expiry = 0;
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, 3600);
+    rnp_key_handle_t sub = NULL;
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &sub));
+    assert_non_null(sub);
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, 7200);
+    rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(key);
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+
+    /* Zero expiration means that key never expires */
+    results = NULL;
+    assert_rnp_success(rnp_generate_key_json(
+      ffi,
+      "{ \"primary\": { \"type\": \"EDDSA\", \"userid\": \"noexp\", \"expiration\": 0 } }",
+      &results));
+    rnp_buffer_destroy(results);
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "noexp", &key));
+    assert_non_null(key);
+    expiry = 1;
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, 0);
+    rnp_key_handle_destroy(key);
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+
+    /* Expiration which doesn't fit 32 bits must be rejected */
+    results = NULL;
+    assert_rnp_failure(rnp_generate_key_json(
+      ffi, "{ \"primary\": { \"type\": \"EDDSA\", \"expiration\": 4294967296 } }", &results));
+    assert_null(results);
+    size_t count = 0;
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &count));
+    assert_int_equal(count, 0);
+
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_key_generate_misc)
 {
     rnp_ffi_t ffi = NULL;
