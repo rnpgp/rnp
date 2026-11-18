@@ -440,7 +440,7 @@ typedef enum : uint8_t {
     PGP_SIG_SUBPKT_ISSUER_FPR = 33,         /* issuer fingerprint */
     PGP_SIG_SUBPKT_PREFERRED_AEAD = 34,     /* preferred AEAD algorithms */
 #if defined(ENABLE_CRYPTO_REFRESH)
-    /* PGP_SIG_SUBPKT_INTENDED_RECIPIENT_FINGERPRINT = 35, */
+    PGP_SIG_SUBPKT_INTENDED_RECIPIENT_FP = 35, /* intended recipient fingerprint */
     PGP_SIG_SUBPKT_PREFERRED_AEAD_CIPHERSUITES = 39,
 #endif
     PGP_SIG_SUBPKT_PRIVATE_100 = 100, /* private/experimental subpackets */

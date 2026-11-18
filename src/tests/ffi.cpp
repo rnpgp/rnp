@@ -29,6 +29,8 @@
 #include <string>
 #include <set>
 #include <utility>
+#include <algorithm>
+#include <cctype>
 #include <cstdint>
 
 #include <rnp/rnp.h>
@@ -5750,6 +5752,185 @@ TEST_F(rnp_tests, test_ffi_literal_packet)
 
     rnp_ffi_destroy(ffi);
 }
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+static void
+irf_generate_key(rnp_ffi_t ffi, const char *uid, bool v6, rnp_key_handle_t *key)
+{
+    rnp_op_generate_t op = NULL;
+    assert_rnp_success(rnp_op_generate_create(&op, ffi, "EDDSA"));
+    if (v6) {
+        assert_rnp_success(rnp_op_generate_set_v6_key(op));
+    }
+    assert_rnp_success(rnp_op_generate_set_userid(op, uid));
+    assert_rnp_success(rnp_op_generate_execute(op));
+    assert_rnp_success(rnp_op_generate_get_key(op, key));
+    rnp_op_generate_destroy(op);
+}
+
+static void
+irf_generate_encryption_subkey(rnp_ffi_t ffi, rnp_key_handle_t primary)
+{
+    rnp_op_generate_t op = NULL;
+    assert_rnp_success(rnp_op_generate_subkey_create(&op, ffi, primary, "ECDH"));
+    assert_rnp_success(rnp_op_generate_set_curve(op, "NIST P-256"));
+    assert_rnp_success(rnp_op_generate_execute(op));
+    rnp_op_generate_destroy(op);
+}
+
+static void
+irf_key_fprint(rnp_key_handle_t key, std::string &res)
+{
+    char *fp = NULL;
+    assert_rnp_success(rnp_key_get_fprint(key, &fp));
+    res = fp;
+    rnp_buffer_destroy(fp);
+    std::transform(res.begin(), res.end(), res.begin(), ::tolower);
+}
+
+static void
+irf_signcrypt(rnp_ffi_t        ffi,
+              rnp_key_handle_t recp1,
+              rnp_key_handle_t recp2,
+              rnp_key_handle_t signkey,
+              rnp_op_verify_t *verify)
+{
+    const std::string data = "intended recipient test data";
+    rnp_input_t       input = NULL;
+    assert_rnp_success(
+      rnp_input_from_memory(&input, (const uint8_t *) data.data(), data.size(), false));
+    rnp_output_t memout = NULL;
+    assert_rnp_success(rnp_output_to_memory(&memout, 0));
+    rnp_op_encrypt_t op = NULL;
+    assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, memout));
+    assert_rnp_success(rnp_op_encrypt_add_recipient(op, recp1));
+    assert_rnp_success(rnp_op_encrypt_add_recipient(op, recp2));
+    assert_rnp_success(rnp_op_encrypt_add_signature(op, signkey, NULL));
+    assert_rnp_success(rnp_op_encrypt_execute(op));
+    rnp_op_encrypt_destroy(op);
+    rnp_input_destroy(input);
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(memout, &buf, &len, false));
+    std::string enc((const char *) buf, len);
+    rnp_output_destroy(memout);
+
+    /* decrypt and verify */
+    rnp_input_t decin = NULL;
+    assert_rnp_success(
+      rnp_input_from_memory(&decin, (const uint8_t *) enc.data(), enc.size(), false));
+    rnp_output_t decout = NULL;
+    assert_rnp_success(rnp_output_to_memory(&decout, 0));
+    assert_rnp_success(rnp_op_verify_create(verify, ffi, decin, decout));
+    assert_rnp_success(rnp_op_verify_execute(*verify));
+    rnp_input_destroy(decin);
+    rnp_output_destroy(decout);
+}
+
+static void
+irf_find_irf(
+  rnp_op_verify_t op, size_t skip, bool &found, bool &critical, std::string &datahex)
+{
+    found = false;
+    critical = false;
+    datahex.clear();
+    static const char hexchars[] = "0123456789abcdef";
+
+    rnp_signature_handle_t    sig = NULL;
+    size_t                    count = 0;
+    rnp_op_verify_signature_t vsig = NULL;
+    assert_rnp_success(rnp_op_verify_get_signature_count(op, &count));
+    assert_int_equal(count, 1);
+    assert_rnp_success(rnp_op_verify_get_signature_at(op, 0, &vsig));
+    assert_rnp_success(rnp_op_verify_signature_get_handle(vsig, &sig));
+
+    rnp_sig_subpacket_t subpkt = NULL;
+    rnp_result_t        ret = rnp_signature_subpacket_find(
+      sig, PGP_SIG_SUBPKT_INTENDED_RECIPIENT_FP, true, skip, &subpkt);
+    if (ret == RNP_SUCCESS) {
+        found = true;
+        uint8_t type = 0;
+        bool    hashed = false;
+        assert_rnp_success(rnp_signature_subpacket_info(subpkt, &type, &hashed, &critical));
+        assert_int_equal(type, PGP_SIG_SUBPKT_INTENDED_RECIPIENT_FP);
+        assert_true(hashed);
+        uint8_t *data = NULL;
+        size_t   dlen = 0;
+        assert_rnp_success(rnp_signature_subpacket_data(subpkt, &data, &dlen));
+        for (size_t i = 0; i < dlen; i++) {
+            datahex.push_back(hexchars[data[i] >> 4]);
+            datahex.push_back(hexchars[data[i] & 0x0f]);
+        }
+        rnp_buffer_destroy(data);
+        assert_rnp_success(rnp_signature_subpacket_destroy(subpkt));
+    } else {
+        assert_int_equal(ret, RNP_ERROR_NOT_FOUND);
+    }
+    rnp_signature_handle_destroy(sig);
+}
+
+TEST_F(rnp_tests, test_ffi_intended_recipient_fingerprint)
+{
+    /* RFC 9580, 5.2.3.36: signatures of a signed-and-encrypted message carry
+     * the intended recipients' primary key fingerprints. */
+    rnp_ffi_t ffi = NULL;
+    test_ffi_init(&ffi);
+
+    rnp_key_handle_t recp1 = NULL;
+    rnp_key_handle_t recp2 = NULL;
+    rnp_key_handle_t signer = NULL;
+    rnp_key_handle_t v6signer = NULL;
+    irf_generate_key(ffi, "irf-recipient1", false, &recp1);
+    irf_generate_encryption_subkey(ffi, recp1);
+    irf_generate_key(ffi, "irf-recipient2", false, &recp2);
+    irf_generate_encryption_subkey(ffi, recp2);
+    irf_generate_key(ffi, "irf-signer", false, &signer);
+    std::string fp1;
+    std::string fp2;
+    irf_key_fprint(recp1, fp1);
+    irf_key_fprint(recp2, fp2);
+
+    /* v4 signer: both IRF subpackets are present, non-critical */
+    rnp_op_verify_t verify = NULL;
+    irf_signcrypt(ffi, recp1, recp2, signer, &verify);
+    bool        found = false;
+    bool        critical = false;
+    std::string datahex;
+    irf_find_irf(verify, 0, found, critical, datahex);
+    assert_true(found);
+    assert_false(critical);
+    /* data is the recipient key version octet followed by the primary fingerprint */
+    assert_int_equal(datahex.size(), 42);
+    assert_true(datahex == "04" + fp1);
+    irf_find_irf(verify, 1, found, critical, datahex);
+    assert_true(found);
+    assert_false(critical);
+    assert_true(datahex == "04" + fp2);
+    /* no third IRF subpacket */
+    irf_find_irf(verify, 2, found, critical, datahex);
+    assert_false(found);
+    rnp_op_verify_destroy(verify);
+
+    /* v6 signer: signature is v6, IRF subpackets are critical */
+    irf_generate_key(ffi, "irf-v6-signer", true, &v6signer);
+    irf_signcrypt(ffi, recp1, recp2, v6signer, &verify);
+    irf_find_irf(verify, 0, found, critical, datahex);
+    assert_true(found);
+    assert_true(critical);
+    assert_true(datahex == "04" + fp1);
+    irf_find_irf(verify, 1, found, critical, datahex);
+    assert_true(found);
+    assert_true(critical);
+    assert_true(datahex == "04" + fp2);
+    rnp_op_verify_destroy(verify);
+
+    rnp_key_handle_destroy(recp1);
+    rnp_key_handle_destroy(recp2);
+    rnp_key_handle_destroy(signer);
+    rnp_key_handle_destroy(v6signer);
+    rnp_ffi_destroy(ffi);
+}
+#endif
 
 /* This test checks that any exceptions thrown by the internal library
  * will not propagate beyond the FFI boundary.

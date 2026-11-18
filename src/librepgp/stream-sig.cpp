@@ -340,6 +340,19 @@ Signature::keyfp() const noexcept
     return sub ? sub->fp() : Fingerprint{};
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+void
+Signature::set_intended_recipient_fp(const Fingerprint &fp, uint8_t key_version, bool critical)
+{
+    auto sub = std::unique_ptr<sigsub::IntendedRecipientFingerprint>(
+      new sigsub::IntendedRecipientFingerprint(true, critical));
+    sub->set_version(key_version);
+    sub->set_fp(fp);
+    /* multiple IRF subpackets are allowed - one per recipient (RFC 9580, 5.2.3.36) */
+    add_subpkt(std::move(sub), false);
+}
+#endif
+
 void
 Signature::set_keyfp(const Fingerprint &fp)
 {
