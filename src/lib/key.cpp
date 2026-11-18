@@ -1841,9 +1841,10 @@ Key::validate_sig(SignatureInfo &          sinfo,
         }
     }
 
-    /* Check for unknown critical notations */
+    /* Check for unknown critical notations, unhashed ones may be added by anyone */
     for (auto &subpkt : sinfo.sig->subpkts) {
-        if (!subpkt->critical() || (subpkt->type() != pgp::pkt::sigsub::Type::NotationData)) {
+        if (!subpkt->hashed() || !subpkt->critical() ||
+            (subpkt->type() != pgp::pkt::sigsub::Type::NotationData)) {
             continue;
         }
         auto &notation = dynamic_cast<pgp::pkt::sigsub::NotationData &>(*subpkt);
