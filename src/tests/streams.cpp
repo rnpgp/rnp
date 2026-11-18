@@ -332,6 +332,76 @@ TEST_F(rnp_tests, test_stream_file)
     assert_int_equal(rnp_unlink(dirname), 0);
 }
 
+/* Frame a literal data packet with the given payload, wrapped into an uncompressed
+ * compressed packet, so a large message can be built without a compression library. */
+static std::vector<uint8_t>
+compressed_literal_packet(const std::vector<uint8_t> &payload)
+{
+    pgp_packet_body_t lit(PGP_PKT_LITDATA);
+    lit.add_byte('b');
+    lit.add_byte(0);
+    lit.add_uint32(0);
+    lit.add(payload.data(), payload.size());
+    rnp::MemoryDest litdst;
+    lit.write(litdst.dst());
+    auto litpkt = litdst.to_vector();
+
+    pgp_packet_body_t comp(PGP_PKT_COMPRESSED);
+    comp.add_byte(PGP_C_NONE);
+    comp.add(litpkt.data(), litpkt.size());
+
+    rnp::MemoryDest dst;
+    comp.write(dst.dst());
+    return dst.to_vector();
+}
+
+TEST_F(rnp_tests, test_stream_decompression_limit)
+{
+    /* message decompressing to well over the default literal size */
+    std::vector<uint8_t> payload(2 * 1024 * 1024, 'x');
+    auto                 msg = compressed_literal_packet(payload);
+
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, unused_getpasscb, NULL));
+
+    rnp_input_t     input = NULL;
+    rnp_output_t    output = NULL;
+    rnp_op_verify_t op = NULL;
+
+    /* limit below the message size: processing must fail */
+    assert_rnp_success(rnp_input_from_memory(&input, msg.data(), msg.size(), false));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&op, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_set_output_limit(op, 1024 * 1024));
+    assert_rnp_failure(rnp_op_verify_execute(op));
+    rnp_op_verify_destroy(op);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* unlimited: processing succeeds */
+    assert_rnp_success(rnp_input_from_memory(&input, msg.data(), msg.size(), false));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&op, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_set_output_limit(op, 0));
+    assert_rnp_success(rnp_op_verify_execute(op));
+    rnp_op_verify_destroy(op);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* default limit does not affect normal-sized messages */
+    assert_rnp_success(rnp_input_from_memory(&input, msg.data(), msg.size(), false));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&op, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(op));
+    rnp_op_verify_destroy(op);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_stream_signatures)
 {
     pgp::pkt::Signature sig;

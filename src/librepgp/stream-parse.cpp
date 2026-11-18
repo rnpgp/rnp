@@ -73,6 +73,7 @@ typedef struct pgp_processing_ctx_t {
     pgp_source_t *          literal_src;
     pgp_message_t           msg_type;
     pgp_dest_t              output;
+    uint64_t                decomp_left{}; /* remaining decompressed bytes over all layers */
     std::list<pgp_source_t> sources;
 
     ~pgp_processing_ctx_t();
@@ -171,6 +172,7 @@ typedef struct pgp_source_signed_param_t {
 typedef struct pgp_source_compressed_param_t {
     pgp_source_packet_param_t pkt; /* underlying packet-related params */
     pgp_compression_type_t    alg;
+    uint64_t *                decomp_left; /* shared decompressed-data budget of the message */
     union {
         z_stream z;
 #ifdef HAVE_BZLIB_H
@@ -359,6 +361,21 @@ literal_src_close(pgp_source_t *src)
 }
 
 static bool
+compressed_budget_consume(pgp_source_compressed_param_t *param, size_t produced)
+{
+    if (!param->decomp_left) {
+        /* no budget set: the caller bounds the data itself (dump layer) */
+        return true;
+    }
+    if (produced > *param->decomp_left) {
+        RNP_LOG("decompressed data exceeds the allowed limit");
+        return false;
+    }
+    *param->decomp_left -= produced;
+    return true;
+}
+
+static bool
 compressed_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 {
     pgp_source_compressed_param_t *param = (pgp_source_compressed_param_t *) src->param;
@@ -376,7 +393,7 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
             RNP_LOG("failed to read uncompressed data");
             return false;
         }
-        return true;
+        return compressed_budget_consume(param, *readres);
     }
     if ((param->alg == PGP_C_ZIP) || (param->alg == PGP_C_ZLIB)) {
         param->z.next_out = (Bytef *) buf;
@@ -415,7 +432,7 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
         }
         param->inpos = param->z.next_in - param->in;
         *readres = len - param->z.avail_out;
-        return true;
+        return compressed_budget_consume(param, *readres);
     }
 #ifdef HAVE_BZLIB_H
     if (param->alg == PGP_C_BZIP2) {
@@ -456,7 +473,7 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 
         param->inpos = (uint8_t *) param->bz.next_in - param->in;
         *readres = len - param->bz.avail_out;
-        return true;
+        return compressed_budget_consume(param, *readres);
     }
 #endif
     return false;
@@ -2067,7 +2084,7 @@ get_literal_src_hdr(pgp_source_t &src)
 }
 
 rnp_result_t
-init_compressed_src(pgp_source_t *src, pgp_source_t *readsrc)
+init_compressed_src(pgp_source_t *src, pgp_source_t *readsrc, uint64_t *decomp_left)
 {
     rnp_result_t                   errcode = RNP_ERROR_GENERIC;
     pgp_source_compressed_param_t *param;
@@ -2080,6 +2097,7 @@ init_compressed_src(pgp_source_t *src, pgp_source_t *readsrc)
 
     param = (pgp_source_compressed_param_t *) src->param;
     param->pkt.readsrc = readsrc;
+    param->decomp_left = decomp_left;
     src->raw_read = compressed_src_read;
     src->raw_close = compressed_src_close;
     src->type = PGP_STREAM_COMPRESSED;
@@ -2853,7 +2871,7 @@ init_packet_sequence(pgp_processing_ctx_t &ctx, pgp_source_t &src)
             ret = init_signed_src(&ctx.handler, &psrc, lsrc);
             break;
         case PGP_PKT_COMPRESSED:
-            ret = init_compressed_src(&psrc, lsrc);
+            ret = init_compressed_src(&psrc, lsrc, &ctx.decomp_left);
             break;
         case PGP_PKT_LITDATA:
             if ((lsrc != &src) && (lsrc->type != PGP_STREAM_ENCRYPTED) &&
@@ -2966,6 +2984,10 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
     uint8_t *            readbuf = NULL;
 
     ctx.handler = *handler;
+    /* Shared decompressed-data budget across all compression layers of the message */
+    ctx.decomp_left = (handler->ctx && handler->ctx->max_decompressed) ?
+                        handler->ctx->max_decompressed :
+                        UINT64_MAX;
     /* Building readers sequence. Checking whether it is binary data */
     if (is_pgp_source(src)) {
         res = init_packet_sequence(ctx, src);
