@@ -366,8 +366,8 @@ TEST_F(rnp_tests, test_stream_decompression_limit)
     assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
     assert_rnp_success(rnp_ffi_set_pass_provider(ffi, unused_getpasscb, NULL));
 
-    rnp_input_t input = NULL;
-    rnp_output_t output = NULL;
+    rnp_input_t     input = NULL;
+    rnp_output_t    output = NULL;
     rnp_op_verify_t op = NULL;
 
     /* limit below the message size: processing must fail */
