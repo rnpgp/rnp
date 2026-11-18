@@ -62,7 +62,7 @@ class Fingerprint {
     std::vector<uint8_t> fp_;
     /* always initialized: the v2/v3 constructor fills only min(modulus size, 8) bytes,
      * so malformed short keys would otherwise leave the rest of the key id unset */
-    KeyID                keyid_{};
+    KeyID keyid_{};
 
   public:
     Fingerprint();
