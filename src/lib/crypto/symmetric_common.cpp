@@ -305,6 +305,16 @@ pgp_cipher_aead_nonce(pgp_aead_alg_t aalg, const uint8_t *iv, uint8_t *nonce, si
             index = index >> 8;
         }
         return PGP_AEAD_OCB_NONCE_LEN;
+    case PGP_AEAD_GCM:
+        /* RFC 9580, 5.13.2: the leftmost N - 64 bits are the IV and the
+         * rightmost 64 bits are the chunk index, big-endian. */
+        memcpy(nonce, iv, PGP_AEAD_GCM_NONCE_LEN);
+        for (int i = PGP_AEAD_GCM_NONCE_LEN - 1; (i >= PGP_AEAD_GCM_NONCE_LEN - 8) && index;
+             i--) {
+            nonce[i] ^= index & 0xff;
+            index = index >> 8;
+        }
+        return PGP_AEAD_GCM_NONCE_LEN;
     default:
         return 0;
     }
@@ -320,6 +330,8 @@ pgp_cipher_aead_nonce_len(pgp_aead_alg_t aalg)
         return PGP_AEAD_EAX_NONCE_LEN;
     case PGP_AEAD_OCB:
         return PGP_AEAD_OCB_NONCE_LEN;
+    case PGP_AEAD_GCM:
+        return PGP_AEAD_GCM_NONCE_LEN;
     default:
         return 0;
     }
@@ -331,6 +343,7 @@ pgp_cipher_aead_tag_len(pgp_aead_alg_t aalg)
     switch (aalg) {
     case PGP_AEAD_EAX:
     case PGP_AEAD_OCB:
+    case PGP_AEAD_GCM:
         return PGP_AEAD_EAX_OCB_TAG_LEN;
     default:
         return 0;

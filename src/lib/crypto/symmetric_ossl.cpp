@@ -162,20 +162,22 @@ openssl_aead_name(pgp_symm_alg_t ealg, pgp_aead_alg_t aalg)
 {
     switch (aalg) {
     case PGP_AEAD_OCB:
+    case PGP_AEAD_GCM:
         break;
     default:
-        RNP_LOG("Only OCB mode is supported by the OpenSSL backend.");
+        RNP_LOG("Only OCB and GCM modes are supported by the OpenSSL backend.");
         return NULL;
     }
+    const char *mode = (aalg == PGP_AEAD_GCM) ? "GCM" : "OCB";
     switch (ealg) {
     case PGP_SA_AES_128:
-        return "AES-128-OCB";
+        return (mode[0] == 'G') ? "AES-128-GCM" : "AES-128-OCB";
     case PGP_SA_AES_192:
-        return "AES-192-OCB";
+        return (mode[0] == 'G') ? "AES-192-GCM" : "AES-192-OCB";
     case PGP_SA_AES_256:
-        return "AES-256-OCB";
+        return (mode[0] == 'G') ? "AES-256-GCM" : "AES-256-OCB";
     default:
-        RNP_LOG("Only AES-OCB is supported by the OpenSSL backend.");
+        RNP_LOG("Only AES with the OCB or GCM mode is supported by the OpenSSL backend.");
         return NULL;
     }
 }

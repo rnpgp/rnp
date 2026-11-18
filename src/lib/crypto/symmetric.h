@@ -65,6 +65,7 @@
 
 /* Nonce len for AEAD/OCB */
 #define PGP_AEAD_OCB_NONCE_LEN 15
+#define PGP_AEAD_GCM_NONCE_LEN 12
 
 /* Maximum AEAD nonce length */
 #define PGP_AEAD_MAX_NONCE_LEN 16

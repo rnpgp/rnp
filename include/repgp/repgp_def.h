@@ -325,6 +325,7 @@ typedef enum {
     PGP_AEAD_NONE = 0,
     PGP_AEAD_EAX = 1,
     PGP_AEAD_OCB = 2,
+    PGP_AEAD_GCM = 3,
     PGP_AEAD_UNKNOWN = 255
 } pgp_aead_alg_t;
 
