@@ -4270,6 +4270,21 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     rnp_input_destroy(input);
     rnp_output_destroy(output);
 
+    /* ECDSA signature forged for an all-zero digest over the collision-suspicious data */
+    import_pub_keys(ffi, "data/test_stream_key_load/ecc-p256-pub.asc");
+    sigcount = 255;
+    assert_rnp_success(rnp_input_from_path(&source, "data/test_messages/shattered-forged.pdf"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/shattered-forged.pdf.sig"));
+    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, source, input));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 1);
+    assert_true(check_signature(verify, 0, RNP_ERROR_SIGNATURE_INVALID));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(source);
+    rnp_input_destroy(input);
+
     /* remove sha1 rule */
     assert_true(global_ctx.profile.del_rule(allow_sha1));
 
