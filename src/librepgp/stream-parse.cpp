@@ -33,6 +33,7 @@
 #include <vector>
 #include <time.h>
 #include <cinttypes>
+#include <iterator>
 #include <cassert>
 #include <rnp/rnp_def.h>
 #include "stream-ctx.h"
