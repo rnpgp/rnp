@@ -4831,7 +4831,10 @@ parse_keygen_common_fields(nlohmann::ordered_json &     jso,
     /* Key/subkey expiration */
     uint64_t keyexp = 0;
     if (rnp::json::get_uint64(jso, "expiration", keyexp)) {
-        keyexp = expiry;
+        if (keyexp > UINT32_MAX) {
+            return false;
+        }
+        expiry = keyexp;
     }
     /* Protection */
     auto *obj = rnp::json::get_obj(jso, "protection");
