@@ -109,6 +109,15 @@ typedef struct pgp_key_sequence_t {
     std::vector<pgp_transferable_key_t> keys;
 } pgp_key_sequence_t;
 
+/**
+ * @brief Whether a key-loading error may be skipped instead of failing the load.
+ *
+ * Unsupported-algorithm entries (RNP_ERROR_NOT_SUPPORTED) are always skippable,
+ * regardless of the lenient mode. Malformed entries (RNP_ERROR_BAD_FORMAT) are
+ * skippable only in the lenient (skiperrors) mode. Any other error is fatal.
+ */
+bool error_skippable(rnp_result_t ret, bool skiperrors) noexcept;
+
 /* Process single primary key or subkey, skipping all key-related packets on error.
    If key.key.tag is zero, then (on success) result is subkey and it is stored in
    key.subkeys[0].
