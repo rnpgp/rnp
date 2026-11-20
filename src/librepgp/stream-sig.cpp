@@ -264,7 +264,9 @@ bool
 Signature::has_unknown_critical() const
 {
     for (const auto &sub : subpkts.items) {
-        if ((sub->type() == sigsub::Type::Unknown) && sub->critical()) {
+        /* unhashed area is not covered by the signature, so anyone may add a subpacket
+         * there: do not let it change the signature's validity */
+        if (sub->hashed() && (sub->type() == sigsub::Type::Unknown) && sub->critical()) {
             return true;
         }
     }

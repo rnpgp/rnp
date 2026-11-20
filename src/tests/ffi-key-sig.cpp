@@ -3029,3 +3029,73 @@ TEST_F(rnp_tests, test_ffi_v6_sig_wrong_lbits)
     rnp_ffi_destroy(ffi);
 }
 #endif
+
+/* Add a subpacket to the unhashed area of the dearmored old-format v4 signature packet */
+static void
+add_unhashed_subpkt(const std::vector<uint8_t> &pkt,
+                    const std::vector<uint8_t> &sub,
+                    std::vector<uint8_t> &      res)
+{
+    res = pkt;
+    assert_true(res.size() > 8);
+    assert_int_equal(res[0], 0x88);
+    assert_int_equal(res[1] + 2, res.size());
+    assert_int_equal(res[2], 4);
+    size_t upos = 2 + 6 + ((res[6] << 8) | res[7]);
+    size_t ulen = (res[upos] << 8) | res[upos + 1];
+    res.insert(res.begin() + upos + 2 + ulen, sub.begin(), sub.end());
+    ulen += sub.size();
+    res[upos] = ulen >> 8;
+    res[upos + 1] = ulen & 0xff;
+    res[1] += sub.size();
+}
+
+static void
+import_rev_sig(rnp_ffi_t ffi, const std::vector<uint8_t> &sig)
+{
+    rnp_input_t input = NULL;
+    assert_rnp_success(rnp_input_from_memory(&input, sig.data(), sig.size(), false));
+    assert_rnp_success(rnp_import_signatures(ffi, input, 0, NULL));
+    rnp_input_destroy(input);
+}
+
+TEST_F(rnp_tests, test_ffi_key_revocation_unhashed_critical)
+{
+    /* dearmor Alice's key revocation signature */
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "alice-rev.pgp"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_dearmor(input, output));
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    std::vector<uint8_t> rev(buf, buf + len);
+    rnp_output_destroy(output);
+    rnp_input_destroy(input);
+
+    /* the unhashed area isn't signed, so anyone may add an unknown critical subpacket or
+     * a critical notation there without touching the signature id */
+    /* unknown subpacket 50 and human-readable notation a@rnp = x, both critical */
+    std::vector<uint8_t> unknown = {0x02, 0xb2, 0x00};
+    std::vector<uint8_t> notation = {0x0f, 0x94, 0x80, 0x00, 0x00, 0x00, 0x00, 0x05};
+    notation.insert(notation.end(), {0x00, 0x01, 'a', '@', 'r', 'n', 'p', 'x'});
+    for (auto &sub : {unknown, notation}) {
+        std::vector<uint8_t> tampered;
+        add_unhashed_subpkt(rev, sub, tampered);
+        rnp_ffi_t ffi = NULL;
+        assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+        assert_true(import_pub_keys(ffi, KEYSIG_PATH "alice-pub.asc"));
+        /* tampered copy still revokes the key */
+        import_rev_sig(ffi, tampered);
+        rnp_key_handle_t key = get_key_by_uid(ffi, "Alice <alice@rnp>");
+        assert_true(check_key_revoked(key, true));
+        rnp_key_handle_destroy(key);
+        /* and the genuine copy, which has the same signature id, still revokes it */
+        import_rev_sig(ffi, rev);
+        key = get_key_by_uid(ffi, "Alice <alice@rnp>");
+        assert_true(check_key_revoked(key, true));
+        rnp_key_handle_destroy(key);
+        rnp_ffi_destroy(ffi);
+    }
+}
