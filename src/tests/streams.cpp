@@ -464,6 +464,21 @@ TEST_F(rnp_tests, test_stream_signature_embedded_depth)
     assert_rnp_failure(parsed.parse(pkt));
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+TEST_F(rnp_tests, test_stream_signature_v6_subpkt_len_wrap)
+{
+    /* v6 signature with a 4-octet hashed subpackets length close to 2^32. With a 32-bit
+     * size_t the length check used to wrap and pass, and the subpackets were read past the
+     * end of the hashed data buffer. */
+    for (uint8_t low : {0xFC, 0xFD, 0xFE, 0xFF}) {
+        std::vector<uint8_t> body = {0x06, 0x00, 0x1B, 0x08, 0xFF, 0xFF, 0xFF, low, 0, 0, 0};
+        pgp_packet_body_t    pkt(body.data(), body.size());
+        pgp::pkt::Signature  sig;
+        assert_rnp_failure(sig.parse(pkt));
+    }
+}
+#endif
+
 TEST_F(rnp_tests, test_stream_signatures_revoked_key)
 {
     pgp::pkt::Signature sig = {};
