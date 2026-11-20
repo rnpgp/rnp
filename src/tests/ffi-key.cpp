@@ -3217,29 +3217,80 @@ TEST_F(rnp_tests, test_ffi_malformed_keys_import)
 TEST_F(rnp_tests, test_ffi_experimental_packet_import)
 {
     /* Regression test for https://github.com/rnpgp/rnp/issues/2379:
-     * A key with a trailing experimental packet (tag 60-63, RFC 4880 §4.3) must be
-     * importable when RNP_LOAD_SAVE_PERMISSIVE is set, and fail without it. */
+     * A key with a trailing experimental packet (tag 60-63) must be importable.
+     * Since RFC 9580, section 4.3, these are non-critical, so an unknown packet
+     * of those types is ignored in default mode as well, see issue #2561. */
     rnp_ffi_t   ffi = NULL;
     rnp_input_t input = NULL;
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    /* without permissive flag the import must fail */
     assert_rnp_success(rnp_input_from_path(
       &input, "data/test_stream_key_load/pubkey-with-experimental-pkt.asc"));
-    assert_rnp_failure(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
     rnp_input_destroy(input);
     size_t keycount = 255;
     assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
-    assert_int_equal(keycount, 0);
-    /* with permissive flag the experimental packet is skipped and key is imported */
-    assert_rnp_success(rnp_input_from_path(
-      &input, "data/test_stream_key_load/pubkey-with-experimental-pkt.asc"));
-    assert_rnp_success(
-      rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_PERMISSIVE, NULL));
-    rnp_input_destroy(input);
-    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
     assert_int_equal(keycount, 2);
     rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_noncritical_packet_import)
+{
+    /* Regression test for https://github.com/rnpgp/rnp/issues/2561:
+     * RFC 9580, 4.3: packets with type IDs 40-63 are non-critical, so an unknown
+     * packet of those types must be ignored wherever it is encountered. Padding
+     * packets (section 5.14) must be ignored as well. */
+    auto import_noncritical = [](const char *file) {
+        rnp_ffi_t   ffi = NULL;
+        rnp_input_t input = NULL;
+        size_t      keycount = 0;
+
+        assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+        std::string path = std::string("data/test_stream_key_load/") + file;
+        assert_rnp_success(rnp_input_from_path(&input, path.c_str()));
+        assert_rnp_success(rnp_import_keys(
+          ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+        rnp_input_destroy(input);
+        assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+        assert_int_equal(keycount, 2);
+        assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
+        assert_int_equal(keycount, 2);
+        rnp_ffi_destroy(ffi);
+    };
+
+    import_noncritical("key-v4-trailing-noncritical.asc");
+    import_noncritical("key-v4-leading-noncritical.asc");
+    import_noncritical("key-v4-mid-noncritical.asc");
+    import_noncritical("key-v4-trailing-padding.asc");
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* The keys from the issue itself are version 6, which requires the
+     * crypto-refresh build to be parsed. */
+    import_noncritical("key-v6-trailing-noncritical.asc");
+    import_noncritical("key-v6-leading-noncritical.asc");
+    import_noncritical("key-v6-mid-noncritical.asc");
+    import_noncritical("key-v6-trailing-padding.asc");
+#endif
+
+    /* Unknown critical packets still invalidate the whole sequence */
+    for (auto file : {"key-v4-critical.asc", "key-v4-leading-critical.asc"}) {
+        rnp_ffi_t   ffi = NULL;
+        rnp_input_t input = NULL;
+        size_t      keycount = 255;
+
+        assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+        std::string path = std::string("data/test_stream_key_load/") + file;
+        assert_rnp_success(rnp_input_from_path(&input, path.c_str()));
+        assert_rnp_failure(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+        rnp_input_destroy(input);
+        /* permissive mode must not rescue an unknown critical packet either */
+        assert_rnp_success(rnp_input_from_path(&input, path.c_str()));
+        assert_rnp_failure(rnp_import_keys(
+          ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_PERMISSIVE, NULL));
+        rnp_input_destroy(input);
+        assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+        assert_int_equal(keycount, 0);
+        rnp_ffi_destroy(ffi);
+    }
 }
 
 #if defined(ENABLE_CRYPTO_REFRESH)

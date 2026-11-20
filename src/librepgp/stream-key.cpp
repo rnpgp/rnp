@@ -80,11 +80,43 @@ skip_pgp_packets(pgp_source_t &src, const std::set<pgp_pkt_type_t> &pkts)
     return true;
 }
 
+/* RFC 9580, 4.3: packets with type IDs 40-63 are non-critical, so packets of
+ * these types unknown to us MUST be ignored when encountered in a packet
+ * sequence. This also covers padding packets (5.14), which must be ignored
+ * wherever they appear. */
+static bool
+pkt_is_ignorable(int ptag)
+{
+    return ((ptag >= 40) && (ptag <= 63)) || (ptag == PGP_PKT_PADDING);
+}
+
+bool
+skip_ignorable_packets(pgp_source_t &src)
+{
+    int pkt = stream_pkt_type(src);
+    while (pkt_is_ignorable(pkt)) {
+        uint64_t ppos = src.readb;
+        RNP_LOG("skipping non-critical packet %d at %" PRIu64, pkt, ppos);
+        if (stream_skip_packet(&src)) {
+            RNP_LOG("failed to skip packet at %" PRIu64, ppos);
+            return false;
+        }
+        pkt = stream_pkt_type(src);
+    }
+    return pkt >= 0;
+}
+
 static rnp_result_t
 process_pgp_key_signatures(pgp_source_t &src, pgp::pkt::Signatures &sigs, bool skiperrors)
 {
     int ptag;
-    while ((ptag = stream_pkt_type(src)) == PGP_PKT_SIGNATURE) {
+    while (true) {
+        if (!skip_ignorable_packets(src) && src.error()) {
+            return RNP_ERROR_READ;
+        }
+        if ((ptag = stream_pkt_type(src)) != PGP_PKT_SIGNATURE) {
+            break;
+        }
         uint64_t sigpos = src.readb;
         try {
             pgp::pkt::Signature sig;
@@ -134,6 +166,9 @@ process_pgp_subkey(pgp_source_t &src, pgp_transferable_subkey_t &subkey, bool sk
     int ptag;
     subkey = pgp_transferable_subkey_t();
     uint64_t keypos = src.readb;
+    if (!skip_ignorable_packets(src) && src.error()) {
+        return RNP_ERROR_READ;
+    }
     if (!is_subkey_pkt(ptag = stream_pkt_type(src))) {
         RNP_LOG("wrong subkey ptag: %d at %" PRIu64, ptag, keypos);
         return RNP_ERROR_BAD_FORMAT;
@@ -167,7 +202,15 @@ process_pgp_key_auto(pgp_source_t &          src,
 {
     key = {};
     uint64_t srcpos = src.readb;
-    int      ptag = stream_pkt_type(src);
+    if (!skip_ignorable_packets(src) && src.error()) {
+        return RNP_ERROR_READ;
+    }
+    int ptag = stream_pkt_type(src);
+    if (ptag <= 0) {
+        /* eof or invalid header: only ignorable packets were skipped, if any */
+        RNP_LOG("wrong key tag: %d at pos %" PRIu64, ptag, src.readb);
+        return (ptag == 0) ? RNP_ERROR_BAD_STATE : RNP_ERROR_BAD_FORMAT;
+    }
     if (is_subkey_pkt(ptag) && allowsub) {
         pgp_transferable_subkey_t subkey;
         rnp_result_t              ret = process_pgp_subkey(src, subkey, skiperrors);
@@ -184,16 +227,6 @@ process_pgp_key_auto(pgp_source_t &          src,
             ret = RNP_ERROR_BAD_STATE;
         }
         return ret;
-    }
-
-    /* In permissive mode, skip private/experimental packets (tags 60-63, RFC 4880 §4.3)
-     * instead of aborting the import. */
-    if (skiperrors && (ptag >= 60) && (ptag <= 63)) {
-        RNP_LOG("skipping experimental packet tag %d at pos %" PRIu64, ptag, src.readb);
-        if (stream_skip_packet(&src)) {
-            return RNP_ERROR_READ;
-        }
-        return RNP_ERROR_BAD_FORMAT;
     }
 
     rnp_result_t ret = RNP_ERROR_BAD_FORMAT;
@@ -243,6 +276,15 @@ process_pgp_keys(pgp_source_t &src, pgp_key_sequence_t &keys, bool skiperrors)
         /* Allow multiple armored messages in a single stream */
         if (armor.eof() && armor.multiple()) {
             armor.restart();
+        }
+        if (armor.eof()) {
+            break;
+        }
+        /* RFC 9580, 4.3: ignore unknown non-critical and padding packets anywhere
+         * in the sequence */
+        if (!skip_ignorable_packets(armor.src()) && armor.error()) {
+            keys.keys.clear();
+            return RNP_ERROR_READ;
         }
         if (armor.eof()) {
             break;
@@ -331,7 +373,13 @@ process_pgp_key(pgp_source_t &src, pgp_transferable_key_t &key, bool skiperrors)
     }
 
     /* user ids/attrs with signatures */
-    while ((ptag = stream_pkt_type(armor.src())) > 0) {
+    while (true) {
+        if (!skip_ignorable_packets(armor.src()) && armor.src().error()) {
+            return RNP_ERROR_READ;
+        }
+        if ((ptag = stream_pkt_type(armor.src())) <= 0) {
+            break;
+        }
         if ((ptag != PGP_PKT_USER_ID) && (ptag != PGP_PKT_USER_ATTR)) {
             break;
         }
@@ -350,8 +398,11 @@ process_pgp_key(pgp_source_t &src, pgp_transferable_key_t &key, bool skiperrors)
     }
 
     /* subkeys with signatures */
-    while ((ptag = stream_pkt_type(armor.src())) > 0) {
-        if (!is_subkey_pkt(ptag)) {
+    while (ptag > 0) {
+        if (!skip_ignorable_packets(armor.src()) && armor.src().error()) {
+            return RNP_ERROR_READ;
+        }
+        if (!is_subkey_pkt(ptag = stream_pkt_type(armor.src()))) {
             break;
         }
 
