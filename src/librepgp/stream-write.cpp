@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <cassert>
+#include <vector>
 #ifdef HAVE_UNISTD_H
 #include <sys/param.h>
 #include <unistd.h>
@@ -515,10 +516,97 @@ encrypted_dst_write_aead(pgp_dest_t *dst, const void *buf, size_t len)
 #endif
 }
 
+/* RFC 9580, 5.14: the Optionally Padded Message ends with a Padding packet.
+ * The plaintext is padded to the next length bucket to obscure its exact
+ * size (section 13.11). Messages which already exceed the largest bucket
+ * are not padded. */
+static const size_t padding_buckets[] = {512, 1024, 4096, 16384, 65536, 262144, 1048576};
+
+static size_t
+padding_length_octets(size_t len)
+{
+    if (len < 192) {
+        return 1;
+    }
+    if (len <= 8383) {
+        return 2;
+    }
+    return 5;
+}
+
+static void
+padding_write_length(uint8_t *buf, size_t len)
+{
+    if (len < 192) {
+        buf[0] = (uint8_t) len;
+        return;
+    }
+    if (len <= 8383) {
+        buf[0] = (uint8_t)(((len - 192) >> 8) + 192);
+        buf[1] = (uint8_t)((len - 192) & 0xff);
+        return;
+    }
+    buf[0] = 255;
+    buf[1] = (uint8_t)(len >> 24);
+    buf[2] = (uint8_t)(len >> 16);
+    buf[3] = (uint8_t)(len >> 8);
+    buf[4] = (uint8_t) len;
+}
+
+/* Append the Padding packet to the v2 SEIPD plaintext. Must be called
+ * before the final AEAD chunk is finished, so the packet is covered by
+ * the authentication. */
+static void
+encrypted_add_padding(pgp_dest_t *dst)
+{
+    auto   param = static_cast<pgp_dest_encrypted_param_t *>(dst->param);
+    size_t total = param->chunkidx * param->chunklen + param->chunkout + param->cachelen;
+    /* header: one packet tag octet plus the encoded length */
+    size_t overhead = 1 + 5;
+
+    size_t bucket = 0;
+    for (size_t cand : padding_buckets) {
+        if (cand >= total + overhead + 128) {
+            bucket = cand;
+            break;
+        }
+    }
+    if (!bucket) {
+        /* Message is already above the largest bucket, so padding would
+         * not hide its size anyway. */
+        return;
+    }
+
+    /* fit the padding exactly into the bucket */
+    size_t padlen = bucket - total - overhead;
+    size_t lenoct = padding_length_octets(padlen);
+    padlen = bucket - total - 1 - lenoct;
+    if (!padlen) {
+        return;
+    }
+
+    std::vector<uint8_t> pad(1 + lenoct + padlen);
+    pad[0] = (uint8_t)(0xc0 | PGP_PKT_PADDING);
+    padding_write_length(pad.data() + 1, padlen);
+    param->ctx.sec_ctx.rng.get(pad.data() + 1 + lenoct, padlen);
+    /* write via the AEAD writer directly: the destination cache may hold
+     * the earlier content, and the padding must be encrypted immediately,
+     * before the final chunk is finished. */
+    encrypted_dst_write_aead(dst, pad.data(), pad.size());
+}
+
 static rnp_result_t
 encrypted_dst_finish(pgp_dest_t *dst)
 {
     auto param = static_cast<pgp_dest_encrypted_param_t *>(dst->param);
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (param->is_v2_seipd()) {
+        /* RFC 9580, 10.3.1: the Padding packet is the last packet of an
+         * Optionally Padded Message. */
+        encrypted_add_padding(dst);
+    }
+#endif
 
     if (param->is_aead_auth()) {
 #if !defined(ENABLE_AEAD)

@@ -3208,3 +3208,109 @@ TEST_F(rnp_tests, test_ffi_backup_archive_roundtrip)
     unlink("enc_sec.asc");
     unlink("sign_pub.asc");
 }
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+static void
+pad_encrypted_len(size_t datalen, size_t *outlen)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    std::vector<uint8_t> data(datalen, 'A');
+    rnp_input_t          input = NULL;
+    rnp_output_t         output = NULL;
+    rnp_op_encrypt_t     op = NULL;
+    assert_rnp_success(rnp_input_from_memory(&input, data.data(), data.size(), false));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
+    assert_rnp_success(rnp_op_encrypt_add_password(op, "password", NULL, 0, "AES256"));
+    assert_rnp_success(rnp_op_encrypt_set_cipher(op, "AES128"));
+    assert_rnp_success(rnp_op_encrypt_set_aead(op, "OCB"));
+    assert_rnp_success(rnp_op_encrypt_enable_skesk_v6(op));
+    assert_rnp_success(rnp_op_encrypt_execute(op));
+    uint8_t *buf = NULL;
+    size_t   buflen = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &buflen, false));
+    *outlen = buflen;
+    rnp_op_encrypt_destroy(op);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    rnp_ffi_destroy(ffi);
+}
+
+static void
+pad_roundtrip(size_t datalen)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    std::vector<uint8_t> data(datalen);
+    for (size_t i = 0; i < datalen; i++) {
+        data[i] = (uint8_t)(i & 0xff);
+    }
+    rnp_input_t      input = NULL;
+    rnp_output_t     output = NULL;
+    rnp_op_encrypt_t op = NULL;
+    assert_rnp_success(rnp_input_from_memory(&input, data.data(), data.size(), false));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
+    assert_rnp_success(rnp_op_encrypt_add_password(op, "password", NULL, 0, "AES256"));
+    assert_rnp_success(rnp_op_encrypt_set_cipher(op, "AES128"));
+    assert_rnp_success(rnp_op_encrypt_set_aead(op, "OCB"));
+    assert_rnp_success(rnp_op_encrypt_enable_skesk_v6(op));
+    /* keep the plaintext size deterministic so the bucket, and therefore the
+     * chunk boundary case below, is reproducible */
+    assert_rnp_success(rnp_op_encrypt_set_compression(op, "Uncompressed", 0));
+    assert_rnp_success(rnp_op_encrypt_execute(op));
+    rnp_op_encrypt_destroy(op);
+    rnp_input_destroy(input);
+    uint8_t *encbuf = NULL;
+    size_t   enclen = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &encbuf, &enclen, false));
+    std::vector<uint8_t> enc(encbuf, encbuf + enclen);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
+    assert_rnp_success(rnp_input_from_memory(&input, enc.data(), enc.size(), false));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    rnp_op_verify_t verify = NULL;
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    rnp_op_verify_destroy(verify);
+    uint8_t *decbuf = NULL;
+    size_t   declen = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &decbuf, &declen, false));
+    assert_int_equal(declen, datalen);
+    assert_true(std::vector<uint8_t>(decbuf, decbuf + declen) == data);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_v2_seipd_padding)
+{
+    /* RFC 9580, 10.3.1 and 5.14: the decrypted v2 SEIPD content is an
+     * Optionally Padded Message, padded to length buckets to obscure the
+     * exact plaintext size. */
+    size_t len30 = 0;
+    size_t len30b = 0;
+    size_t len150 = 0;
+    size_t len600 = 0;
+    pad_encrypted_len(30, &len30);
+    pad_encrypted_len(30, &len30b);
+    pad_encrypted_len(150, &len150);
+    pad_encrypted_len(600, &len600);
+    /* the small inputs pad into the same length bucket */
+    assert_int_equal(len30, len30b);
+    assert_int_equal(len30, len150);
+    /* the larger input pads into the next bucket */
+    assert_true(len600 > len150);
+    /* and all messages still decrypt correctly */
+    pad_roundtrip(30);
+    pad_roundtrip(150);
+    pad_roundtrip(600);
+    /* a message padded into the largest-default bucket lands exactly on the
+     * AEAD chunk boundary: the plaintext ends with the Padding packet right
+     * at the end of the final chunk, which the reader must still validate */
+    pad_roundtrip(261000);
+}
+#endif
