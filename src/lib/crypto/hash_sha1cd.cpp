@@ -82,9 +82,7 @@ Hash_SHA1CD::finish(uint8_t *digest)
         /* Show warning only if digest is non-null */
         RNP_LOG("Warning! SHA1 collision detected and mitigated.");
     }
-    if (res) {
-        return;
-    }
+    /* On collision fixed_digest holds the safe (mitigated) hash, never leave digest unset */
     if (digest) {
         memcpy(digest, fixed_digest, 20);
     }
