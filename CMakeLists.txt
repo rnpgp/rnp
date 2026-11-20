@@ -137,7 +137,7 @@ set(ENABLE_DOC Auto CACHE STRING "Enable building documentation.")
 set_property(CACHE ENABLE_DOC PROPERTY STRINGS ${TRISTATE_VALUES})
 
 # so we can use our bundled finders
-set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules")
+list(PREPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules")
 
 # crop the source path prefix in logged file names. GCC and Clang do this at
 # preprocessing time via -fmacro-prefix-map, which stays correct even when the
