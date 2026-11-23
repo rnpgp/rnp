@@ -46,6 +46,7 @@ on:
       - 'ci/botan3-modules'
       - 'ci/botan3-pqc-modules'
       - 'ci/prebuilt-versions.env'
+      - 'ci/write_sbom_manifests.sh'
       - 'ci/backends/*.env'
       - 'ci/targets/*.env'
       - '.github/workflows/prebuilt.yml'

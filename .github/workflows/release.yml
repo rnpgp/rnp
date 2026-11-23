@@ -10,9 +10,16 @@ on:
         description: 'Tag to release (e.g. v0.18.1)'
         required: true
         type: string
+      support_until:
+        description: 'Declared support end date in YYYY-MM-DD format (defaults to 2 years from release date)'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 env:
   RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.tag }}
@@ -24,7 +31,7 @@ jobs:
     container: ghcr.io/rnpgp/ci-rnp-fedora-40-amd64
     steps:
       - name: Checkout release scripts
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Build source tarball
         run: |
@@ -40,7 +47,7 @@ jobs:
           ls -la "${GITHUB_WORKSPACE}/artifacts/"
 
       - name: Upload tarball artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: release-tarball
           path: artifacts/
@@ -52,10 +59,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download tarball artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: release-tarball
           path: artifacts/
@@ -97,3 +104,71 @@ jobs:
     secrets: inherit
     permissions:
       contents: write
+
+  # Collect both the source tarball (from release) and all prebuilt
+  # static-library tarballs (from prebuilt) into a single workflow
+  # artifact so the reusable provenance workflow scans, validates,
+  # and attests every published release tarball together.
+  stage-provenance-artifacts:
+    name: Stage release artifacts for provenance
+    needs: [release, prebuilt]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      support_until: ${{ steps.meta.outputs.support_until }}
+    steps:
+      - name: Download release tarballs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-artifacts
+          gh release download "${RELEASE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern 'rnp-*.tar.gz' \
+            --dir release-artifacts \
+            --clobber
+          shopt -s nullglob
+          tarballs=(release-artifacts/rnp-*.tar.gz)
+          if (( ${#tarballs[@]} == 0 )); then
+            echo "ERROR: no rnp-*.tar.gz assets found on release ${RELEASE_TAG}" >&2
+            exit 1
+          fi
+          ls -la release-artifacts/
+
+      - name: Resolve support-until date
+        id: meta
+        env:
+          INPUT_SUPPORT_UNTIL: ${{ inputs.support_until }}
+        run: |
+          set -euo pipefail
+          SUPPORT_UNTIL="${INPUT_SUPPORT_UNTIL:-$(date -u -d '+2 years' +%Y-%m-%d)}"
+          echo "support_until=${SUPPORT_UNTIL}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload staged release tarballs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: release-provenance-artifacts
+          path: release-artifacts/
+          if-no-files-found: error
+          retention-days: 1
+
+  provenance:
+    name: Generate and attest release provenance
+    needs: [release, prebuilt, stage-provenance-artifacts]
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    uses: riboseinc/provenance-release/.github/workflows/release.yml@ee9153324c45246fa4319cdbebc3ceb9865aa527
+    with:
+      artifacts: release-artifacts
+      artifact-name: release-provenance-artifacts
+      release-tag: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag }}
+      support-until: ${{ needs.stage-provenance-artifacts.outputs.support_until }}
+      author: "Ribose Inc."
+      supplier: "Ribose Inc."
+      attest: true
+      upload-release: true

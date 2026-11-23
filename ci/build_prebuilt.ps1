@@ -160,6 +160,61 @@ if (Test-Path (Join-Path $LibSrc 'pkgconfig')) {
     Copy-Item -Recurse -Force (Join-Path $LibSrc 'pkgconfig') (Join-Path $Staging 'lib\')
 }
 
+# Emit per-component vcpkg.json manifests under share\rnp\components\<name>\
+# so syft's default vcpkg-manifest-cataloger captures component identities,
+# versions, and SPDX licenses in both SPDX 3.0 and CycloneDX 1.7 SBOMs.
+function Write-SbomManifest {
+    param(
+        [string]$Name,
+        [string]$ComponentVersion,
+        [string]$License,
+        [string]$Homepage
+    )
+    $dir = Join-Path $Staging "share\rnp\components\$Name"
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    $json = @"
+{
+  "name": "$Name",
+  "version-string": "$ComponentVersion",
+  "license": "$License",
+  "homepage": "$Homepage"
+}
+"@
+    Set-Content -Path (Join-Path $dir 'vcpkg.json') -Value $json -Encoding utf8
+}
+
+$vcpkgVersions = @{}
+& "$VcpkgDir\vcpkg.exe" list --triplet $Triplet | ForEach-Object {
+    if ($_ -match '^([a-zA-Z0-9_-]+):[^\s]+\s+([^\s#]+)') {
+        $vcpkgVersions[$Matches[1]] = $Matches[2]
+    }
+}
+
+$rnpVer = $Version -replace '^v', ''
+$sexppVer = '0.9.0'
+$sexppVerFile = Join-Path $RnpSrc 'src\libsexpp\version.txt'
+if (Test-Path $sexppVerFile) {
+    $sexppVer = (Get-Content -Raw $sexppVerFile).Trim()
+}
+$nlohmannVer = '3.11.3'
+$nlohmannHeader = Join-Path $RnpSrc 'src\lib\nlohmann\nlohmann\json.hpp'
+if (Test-Path $nlohmannHeader) {
+    $verLine = Select-String -Path $nlohmannHeader -Pattern 'version (\d+\.\d+\.\d+)' | Select-Object -First 1
+    if ($verLine) { $nlohmannVer = $verLine.Matches[0].Groups[1].Value }
+}
+
+Write-SbomManifest -Name 'rnp' -ComponentVersion $rnpVer -License 'BSD-2-Clause AND Apache-2.0 AND BSD-3-Clause AND MIT' -Homepage 'https://github.com/rnpgp/rnp'
+Write-SbomManifest -Name 'sexpp' -ComponentVersion $sexppVer -License 'MIT' -Homepage 'https://github.com/rnpgp/sexpp'
+Write-SbomManifest -Name 'nlohmann-json' -ComponentVersion $nlohmannVer -License 'MIT' -Homepage 'https://github.com/nlohmann/json'
+Write-SbomManifest -Name 'sha1collisiondetection' -ComponentVersion '1.0.3' -License 'MIT' -Homepage 'https://github.com/cr-marcstevens/sha1collisiondetection'
+Write-SbomManifest -Name 'zlib' -ComponentVersion ($vcpkgVersions['zlib'] ?? '1.3.1') -License 'Zlib' -Homepage 'https://zlib.net'
+Write-SbomManifest -Name 'bzip2' -ComponentVersion ($vcpkgVersions['bzip2'] ?? '1.0.8') -License 'bzip2-1.0.6' -Homepage 'https://sourceware.org/bzip2/'
+if ($Backend -eq 'botan') {
+    Write-SbomManifest -Name 'botan' -ComponentVersion ($vcpkgVersions['botan'] ?? '3.12.0') -License 'BSD-2-Clause' -Homepage 'https://botan.randombit.net'
+} else {
+    Write-SbomManifest -Name 'openssl' -ComponentVersion ($vcpkgVersions['openssl'] ?? '3.6.0') -License 'Apache-2.0' -Homepage 'https://www.openssl.org'
+}
+
 # MANIFEST.txt — same shape as the Linux/macOS one.
 $linkLibs = if ($Backend -eq 'botan') {
     'rnp.lib sexpp.lib botan-3.lib zlib.lib libbz2.lib'
