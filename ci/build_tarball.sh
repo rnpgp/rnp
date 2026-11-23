@@ -52,6 +52,9 @@ RNP_PATH="/opt/rnp-${RNP_REF}"
 echo "Cloning ref ${RNP_REF} to ${RNP_PATH}..."
 git clone --branch "${RNP_REF}" --depth 1 --single-branch --recurse-submodules "${RNP_URL}" "${RNP_PATH}"
 
+# Emit component manifests for SBOM generation before removing ci/
+bash "${RNP_PATH}/ci/write_sbom_manifests.sh" source "${RNP_PATH}" "${RNP_REF}" "${RNP_PATH}"
+
 # Cleanup files which are not needed in the tarball
 for path in "${CLEAN_PATHS[@]}"; do
     echo "Removing ${RNP_PATH}/${path}..."

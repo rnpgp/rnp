@@ -395,6 +395,10 @@ package() {
         done
     fi
 
+    # Emit component manifests so syft captures bundled static libraries
+    # and their SPDX license expressions in both SPDX 3.0 and CycloneDX 1.7.
+    bash "${SCRIPT_DIR}/write_sbom_manifests.sh" prebuilt "$staging" "$VERSION" "$BACKEND" "$RNP_SRC"
+
     # MANIFEST.txt: human-readable summary of what's in the tarball and
     # how to link against it. All backend-specific and target-specific
     # text comes from the config files; this template has zero
