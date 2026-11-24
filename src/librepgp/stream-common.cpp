@@ -719,7 +719,11 @@ dst_finish(pgp_dest_t *dst)
     if (!dst->finished) {
         /* flush write cache in the dst */
         dst_flush(dst);
-        if (dst->finish) {
+        res = dst->werr;
+        /* do not run the finish callback (e.g. renaming of the temporary
+         * output file over the target one) if the data was not written
+         * in full, otherwise a truncated output would replace it */
+        if (dst->finish && !res) {
             res = dst->finish(dst);
         }
         dst->finished = true;
@@ -757,16 +761,30 @@ file_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    /* we assyme that blocking I/O is used so everything is written or error received */
-    ssize_t ret = write(param->fd, buf, len);
-    if (ret < 0) {
-        param->errcode = errno;
-        RNP_LOG("write failed, error %d", param->errcode);
-        return RNP_ERROR_WRITE;
-    } else {
-        param->errcode = 0;
-        return RNP_SUCCESS;
+    /* write() may return a short count, e.g. on a full filesystem or when a
+     * file size limit is hit; write the remainder instead of silently
+     * dropping it, otherwise the output would be truncated. */
+    const uint8_t *ptr = (const uint8_t *) buf;
+    while (len) {
+        ssize_t ret = write(param->fd, ptr, len);
+        if (ret < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            param->errcode = errno;
+            RNP_LOG("write failed, error %d", param->errcode);
+            return RNP_ERROR_WRITE;
+        }
+        if (ret == 0) {
+            param->errcode = EIO;
+            RNP_LOG("write returned 0");
+            return RNP_ERROR_WRITE;
+        }
+        ptr += ret;
+        len -= ret;
     }
+    param->errcode = 0;
+    return RNP_SUCCESS;
 }
 
 static void

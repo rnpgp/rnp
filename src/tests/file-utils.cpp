@@ -27,6 +27,11 @@
 #include "rnp_tests.h"
 #include "file-utils.h"
 
+#ifndef _WIN32
+#include <signal.h>
+#include <sys/resource.h>
+#endif
+
 TEST_F(rnp_tests, test_rnp_mkstemp)
 {
 #ifdef _WIN32
@@ -71,3 +76,53 @@ TEST_F(rnp_tests, test_rnp_access)
     assert_int_equal(0, rnp_access("/tmp", R_OK | W_OK));
 #endif
 }
+
+#ifndef _WIN32
+TEST_F(rnp_tests, test_output_short_write)
+{
+    /* A short write, e.g. on a full filesystem or when a file size limit is
+     * hit, must be reported as an error instead of silently dropping the
+     * remaining data and reporting success while the output is truncated
+     * (#2590). Writes are buffered in the output cache, so the failure
+     * surfaces when the cache is flushed on rnp_output_finish(). */
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_path(&output, "shortwrite-test"));
+
+    std::vector<uint8_t> data(2048, 'A');
+    size_t               written = 0;
+
+    /* Limit the file size to 512 bytes: the flush of the 2048 buffered
+     * bytes must fail. Lower only the soft limit - the hard limit cannot
+     * be raised back by a non-root process. */
+    struct rlimit    oldlim = {};
+    struct sigaction sa = {}, oldsa = {};
+    assert_int_equal(0, getrlimit(RLIMIT_FSIZE, &oldlim));
+    struct rlimit lim = {512, oldlim.rlim_max};
+    sa.sa_handler = SIG_IGN;
+    assert_int_equal(0, sigaction(SIGXFSZ, &sa, &oldsa));
+    assert_int_equal(0, setrlimit(RLIMIT_FSIZE, &lim));
+
+    assert_rnp_success(rnp_output_write(output, data.data(), data.size(), NULL));
+    assert_rnp_failure(rnp_output_finish(output));
+
+    struct stat st = {};
+    assert_int_equal(0, stat("shortwrite-test", &st));
+    assert_true(st.st_size < (off_t) data.size());
+
+    assert_int_equal(0, setrlimit(RLIMIT_FSIZE, &oldlim));
+    sigaction(SIGXFSZ, &oldsa, NULL);
+
+    rnp_output_destroy(output);
+    unlink("shortwrite-test");
+
+    /* Without the limit the same write fully succeeds */
+    assert_rnp_success(rnp_output_to_path(&output, "shortwrite-test"));
+    assert_rnp_success(rnp_output_write(output, data.data(), data.size(), &written));
+    assert_int_equal(written, data.size());
+    assert_rnp_success(rnp_output_finish(output));
+    rnp_output_destroy(output);
+    assert_int_equal(0, stat("shortwrite-test", &st));
+    assert_int_equal(st.st_size, (off_t) data.size());
+    unlink("shortwrite-test");
+}
+#endif
