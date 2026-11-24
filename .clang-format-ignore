@@ -1,0 +1,3 @@
+# Vendored third-party sources are not formatted with this project style.
+./src/lib/nlohmann/*
+./src/libsexpp/*
