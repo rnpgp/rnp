@@ -21,6 +21,10 @@
 
 #### General
 
+* Report an error when a write to the output file cannot be completed in full
+  (for example on a full filesystem or when a file size limit is hit), instead
+  of silently dropping the remaining data and reporting success while the
+  output is truncated. (#2590)
 * Do not mark cryptographically valid v3/v4/v5 signatures as invalid only because of mismatching left 16 bits of the hash (v6 signatures are still rejected, as required by RFC 9580). Fixes import of some real-world keys (#2191).
 
 #### Changed
