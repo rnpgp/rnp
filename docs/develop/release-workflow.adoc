@@ -81,6 +81,24 @@ The release should contain:
 * `rnp-v1.0.0.tar.gz`
 * `rnp-v1.0.0.sha256`
 * Release notes extracted from `CHANGELOG.md`
+* Prebuilt static-library tarballs (`rnp-v1.0.0-<target>-<backend>.tar.gz`)
+* Dual-format SBOMs (`*.spdx.json` in SPDX 3.0 and `*.cdx.json` in CycloneDX 1.7), `NOTICE`, and `lifecycle.json`
+* Support-period and attestation footer in the release notes
+
+== Release provenance and SLSA Build Level 3
+
+Release artifacts published by link:.github/workflows/release.yml[`release.yml`] carry keyless SLSA Build Level 3 provenance attestations generated via Sigstore. The level rests on the following isolation and hermeticity controls:
+
+* **Ephemeral, isolated builders**: Source tarballs and prebuilt static-library tarballs are built exclusively on GitHub-hosted ephemeral runners (`ubuntu-latest`, `ubuntu-24.04-arm`, `macos-15`, `windows-latest`), never on developer workstations or persistent self-hosted runners.
+* **SHA-pinned reusable workflow and OIDC signing**: `release.yml` delegates SBOM generation, CISA 2026 Minimum Elements validation, and attestation to `riboseinc/provenance-release/.github/workflows/release.yml` pinned by full 40-character commit SHA. That workflow invokes `actions/attest-build-provenance` (also pinned by commit SHA) using short-lived GitHub Actions OIDC tokens (`id-token: write`, `attestations: write`) so the provenance predicate is bound to the exact workflow ref, commit SHA, and runner environment and cannot be forged by repository contents or workflow inputs.
+* **Pinned build inputs**: All third-party dependency versions built into prebuilt tarballs are declared in link:ci/prebuilt-versions.env[`ci/prebuilt-versions.env`], and component manifests are emitted deterministically during packaging via link:ci/write_sbom_manifests.sh[`ci/write_sbom_manifests.sh`].
+
+Consumers can verify any published tarball against its Sigstore bundle and GitHub attestation record with:
+
+[source,console]
+----
+gh attestation verify rnp-v1.0.0.tar.gz -R rnpgp/rnp
+----
 
 == Creating a new release
 

@@ -202,11 +202,17 @@ if (Test-Path $nlohmannHeader) {
     $verLine = Select-String -Path $nlohmannHeader -Pattern 'version (\d+\.\d+\.\d+)' | Select-Object -First 1
     if ($verLine) { $nlohmannVer = $verLine.Matches[0].Groups[1].Value }
 }
+$prebuiltVersionsFile = Join-Path $ScriptDir 'prebuilt-versions.env'
+$sha1cdMatch = Select-String -Path $prebuiltVersionsFile -Pattern '^SHA1CD_VERSION=(.+)$' | Select-Object -First 1
+if (-not $sha1cdMatch) {
+    throw "SHA1CD_VERSION missing in $prebuiltVersionsFile"
+}
+$sha1cdVer = $sha1cdMatch.Matches[0].Groups[1].Value.Trim()
 
 Write-SbomManifest -Name 'rnp' -ComponentVersion $rnpVer -License 'BSD-2-Clause AND Apache-2.0 AND BSD-3-Clause AND MIT' -Homepage 'https://github.com/rnpgp/rnp'
 Write-SbomManifest -Name 'sexpp' -ComponentVersion $sexppVer -License 'MIT' -Homepage 'https://github.com/rnpgp/sexpp'
 Write-SbomManifest -Name 'nlohmann-json' -ComponentVersion $nlohmannVer -License 'MIT' -Homepage 'https://github.com/nlohmann/json'
-Write-SbomManifest -Name 'sha1collisiondetection' -ComponentVersion '1.0.3' -License 'MIT' -Homepage 'https://github.com/cr-marcstevens/sha1collisiondetection'
+Write-SbomManifest -Name 'sha1collisiondetection' -ComponentVersion $sha1cdVer -License 'MIT' -Homepage 'https://github.com/cr-marcstevens/sha1collisiondetection'
 Write-SbomManifest -Name 'zlib' -ComponentVersion ($vcpkgVersions['zlib'] ?? '1.3.1') -License 'Zlib' -Homepage 'https://zlib.net'
 Write-SbomManifest -Name 'bzip2' -ComponentVersion ($vcpkgVersions['bzip2'] ?? '1.0.8') -License 'bzip2-1.0.6' -Homepage 'https://sourceware.org/bzip2/'
 if ($Backend -eq 'botan') {

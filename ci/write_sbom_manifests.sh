@@ -52,6 +52,11 @@ if [[ -f "${RNP_SRC}/src/lib/nlohmann/nlohmann/json.hpp" ]]; then
     fi
 fi
 
+# Source pinned component versions (single source of truth).
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/prebuilt-versions.env"
+: "${SHA1CD_VERSION:?missing in prebuilt-versions.env}"
+
 MANIFEST_ROOT="${DEST_DIR}/share/rnp/components"
 
 write_manifest() {
@@ -75,12 +80,10 @@ EOF
 write_manifest "rnp" "${RNP_VERSION}" "BSD-2-Clause AND Apache-2.0 AND BSD-3-Clause AND MIT" "https://github.com/rnpgp/rnp"
 write_manifest "sexpp" "${SEXPP_VERSION}" "MIT" "https://github.com/rnpgp/sexpp"
 write_manifest "nlohmann-json" "${NLOHMANN_JSON_VERSION}" "MIT" "https://github.com/nlohmann/json"
-write_manifest "sha1collisiondetection" "1.0.3" "MIT" "https://github.com/cr-marcstevens/sha1collisiondetection"
+write_manifest "sha1collisiondetection" "${SHA1CD_VERSION}" "MIT" "https://github.com/cr-marcstevens/sha1collisiondetection"
 
 # Prebuilt tarballs additionally bundle static archives for zlib, bzip2, and the crypto backend.
 if [[ "$MODE" == "prebuilt" ]]; then
-    # shellcheck disable=SC1091
-    source "${SCRIPT_DIR}/prebuilt-versions.env"
     : "${ZLIB_VERSION:?missing in prebuilt-versions.env}"
     : "${BZIP2_VERSION:?missing in prebuilt-versions.env}"
     : "${BOTAN_VERSION:?missing in prebuilt-versions.env}"
