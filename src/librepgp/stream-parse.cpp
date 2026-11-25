@@ -31,6 +31,7 @@
 #include <string.h>
 #include <string>
 #include <vector>
+#include <iterator>
 #include <time.h>
 #include <cinttypes>
 #include <cassert>

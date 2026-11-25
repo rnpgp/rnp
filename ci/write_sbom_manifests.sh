@@ -46,7 +46,7 @@ fi
 # Resolve vendored nlohmann-json version from header comment.
 NLOHMANN_JSON_VERSION="3.11.3"
 if [[ -f "${RNP_SRC}/src/lib/nlohmann/nlohmann/json.hpp" ]]; then
-    parsed_json_ver="$(sed -n 's/.*version \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' "${RNP_SRC}/src/lib/nlohmann/nlohmann/json.hpp" | head -n 1)"
+    parsed_json_ver="$(awk '/version [0-9]+\.[0-9]+\.[0-9]+/ { if (match($0, /[0-9]+\.[0-9]+\.[0-9]+/)) { print substr($0, RSTART, RLENGTH); exit } }' "${RNP_SRC}/src/lib/nlohmann/nlohmann/json.hpp")"
     if [[ -n "$parsed_json_ver" ]]; then
         NLOHMANN_JSON_VERSION="$parsed_json_ver"
     fi
