@@ -508,7 +508,9 @@ jobs:
           echo "::notice title=Prebuilt artifact not uploaded::actions/upload-artifact is a JS action and refuses to run inside alpine+ARM64 containers. The tarball was built successfully (see the build step's output); the matrix status above is the validation signal. To download, run ci/build_prebuilt.sh locally on aarch64 Linux."
 
       - name: Upload artifacts to release (production)
-        if: github.event_name != 'pull_request'
+        if: >-
+          github.event_name != 'pull_request' &&
+          !(matrix.target.container != '' && matrix.target.triple == 'aarch64-unknown-linux-musl')
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.RELEASE_TAG }}
@@ -519,6 +521,28 @@ jobs:
           fail_on_unmatched-files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # alpine+ARM64 refuses JS actions (including softprops/action-gh-release);
+      # upload via gh CLI installed from Alpine packages instead.
+      - name: Upload artifacts to release (production, aarch64-musl)
+        if: >-
+          github.event_name != 'pull_request' &&
+          matrix.target.container != '' &&
+          matrix.target.triple == 'aarch64-unknown-linux-musl'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          apk add --no-cache github-cli
+          shopt -s nullglob
+          files=(
+            "$RNP_ARTIFACT_DIR"/rnp-*.tar.gz
+            "$RNP_ARTIFACT_DIR"/rnp-*.sha256
+            "$RNP_ARTIFACT_DIR"/rnp-*.asc
+          )
+          gh release upload "${RELEASE_TAG}" "${files[@]}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber
 
   # Informational job: builds the same (target, backend) twice on the
   # same runner and reports whether the tarballs are byte-identical.
