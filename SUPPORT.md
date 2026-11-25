@@ -26,8 +26,10 @@ Ribose operates as a CVE Numbering Authority (CNA) and publishes security adviso
 
 - The OSV feed for `rnpgp/rnp` is published at <https://cve.ribose.com/feeds/osv/rnp.json>.
 - The GHSA feed for `rnpgp/rnp` is published at <https://cve.ribose.com/feeds/ghsa/rnp.json>.
+- The CSAF 2.0 feed for `rnpgp/rnp` is published at <https://cve.ribose.com/feeds/csaf/rnp.json>.
+- The OpenVEX feed for `rnpgp/rnp` is published at <https://cve.ribose.com/feeds/vex/rnp.json>.
 
-Machine-readable CSAF and VEX feeds for `rnpgp/rnp` are planned at <https://cve.ribose.com> as part of the release provenance program. For FIPS-mode certification boundaries and algorithm security profiles, refer to [`docs/security.adoc`](docs/security.adoc).
+For FIPS-mode certification boundaries and algorithm security profiles, refer to [`docs/security.adoc`](docs/security.adoc).
 
 ## End-of-life and backport policy
 

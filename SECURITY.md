@@ -17,8 +17,8 @@ Ribose operates as a CVE Numbering Authority (CNA) and publishes security adviso
 
 - The OSV feed is published at <https://cve.ribose.com/feeds/osv/rnp.json>.
 - The GHSA feed is published at <https://cve.ribose.com/feeds/ghsa/rnp.json>.
-
-Common Security Advisory Framework (CSAF) and Vulnerability Exploitability eXchange (VEX) documents for `rnpgp/rnp` releases are planned as part of the release provenance program and will be published under the same feed structure once available.
+- The CSAF 2.0 feed is published at <https://cve.ribose.com/feeds/csaf/rnp.json>.
+- The OpenVEX feed is published at <https://cve.ribose.com/feeds/vex/rnp.json>.
 
 ## Supported versions and end of life
 
