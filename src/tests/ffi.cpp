@@ -4279,7 +4279,8 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     /* ECDSA signature forged for an all-zero digest over the collision-suspicious data */
     import_pub_keys(ffi, "data/test_stream_key_load/ecc-p256-pub.asc");
     sigcount = 255;
-    assert_rnp_success(rnp_input_from_path(&source, "data/test_messages/shattered-forged.pdf"));
+    assert_rnp_success(
+      rnp_input_from_path(&source, "data/test_messages/shattered-forged.pdf"));
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/shattered-forged.pdf.sig"));
     assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, source, input));
