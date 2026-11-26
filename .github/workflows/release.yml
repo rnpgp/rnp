@@ -162,7 +162,7 @@ jobs:
       contents: write
       id-token: write
       attestations: write
-    uses: riboseinc/provenance-release/.github/workflows/release.yml@ee9153324c45246fa4319cdbebc3ceb9865aa527
+    uses: riboseinc/provenance-release/.github/workflows/release.yml@f51a7eaf5fde52950d64ddbd531612e3f980ae20
     with:
       artifacts: release-artifacts
       artifact-name: release-provenance-artifacts
