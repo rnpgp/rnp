@@ -529,16 +529,18 @@ jobs:
           github.event_name != 'pull_request' &&
           matrix.target.container != '' &&
           matrix.target.triple == 'aarch64-unknown-linux-musl'
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           apk add --no-cache github-cli
           shopt -s nullglob
+          artifact_dir="$GITHUB_WORKSPACE/work/artifacts"
           files=(
-            "$RNP_ARTIFACT_DIR"/rnp-*.tar.gz
-            "$RNP_ARTIFACT_DIR"/rnp-*.sha256
-            "$RNP_ARTIFACT_DIR"/rnp-*.asc
+            "$artifact_dir"/rnp-*.tar.gz
+            "$artifact_dir"/rnp-*.sha256
+            "$artifact_dir"/rnp-*.asc
           )
           gh release upload "${RELEASE_TAG}" "${files[@]}" \
             --repo "${GITHUB_REPOSITORY}" \
