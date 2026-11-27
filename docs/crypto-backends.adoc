@@ -20,7 +20,7 @@ platforms ship each by default, and which OpenPGP features each lacks.
 | `openssl` (OpenSSL 3.x) | OpenSSL Project | most Linux distros, Homebrew | yes (default + legacy + fips) | possible when requested; configure probes the ML-KEM, ML-DSA and SLH-DSA algorithm names (see <<optional-features>>)
 | `openssl` (OpenSSL 1.1.x) | OpenSSL Project | older LTS distros (EOL 2023-09) | n/a | not available (`requires OpenSSL 3.0+`)
 | `openssl` (LibreSSL) | OpenBSD project | OpenBSD (system), Chimera; macOS `/usr/lib` (no headers); optional on Alpine, Void, Gentoo, FreeBSD | n/a | not available (`requires OpenSSL 3.0+`)
-| `botan` (2.x or 3.x) | Botan project | rnp default | n/a | possible with Botan 3.7.0 or newer (see <<optional-features>>)
+| `botan` (2.x or 3.x) | Botan project | rnp default | n/a | possible with Botan 3.10.0 or newer (see <<optional-features>>)
 |===
 
 == Platforms
@@ -131,6 +131,9 @@ checks the backend and aborts configuration with an error if a check fails:
 * **Botan** — `ENABLE_CRYPTO_REFRESH` needs the `HKDF`, `ED448`, `X448` and
   `ARGON2` modules. `ENABLE_PQC` needs Botan 3.7.0 or newer with the `HKDF`,
   `ML_KEM`, `ML_DSA`, `SLH_DSA_WITH_SHA2` and `SLH_DSA_WITH_SHAKE` modules.
+  Both additionally need the `botan_pubkey_load_ec*_sec1()` FFI loaders,
+  which first exist in Botan 3.10.0; configure turns the features off when
+  the installed Botan lacks them.
 
 == What you lose when not using Botan
 
@@ -141,7 +144,7 @@ functionality, in addition to the per-backend cells above:
 * **PQC key exchange and signatures** — only available with OpenSSL 3.x
   when `ENABLE_PQC` is turned on and the installed OpenSSL provides the
   algorithm names listed in <<optional-features>>. OpenSSL 1.1.x and
-  LibreSSL do not get PQC at all. Botan 3.7.0 or newer with the required
+  LibreSSL do not get PQC at all. Botan 3.10.0 or newer with the required
   modules is the reliable way to get rnp's PQC key types.
 * **SM2** — always disabled by rnp for the OpenSSL backend, whatever the
   installed library offers; an explicit `-DENABLE_SM2=On` aborts

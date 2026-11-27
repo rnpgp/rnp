@@ -324,6 +324,27 @@ if(CRYPTO_BACKEND_BOTAN)
       "(SIGBUS in BigInt::is_equal) that breaks ordinary ECDSA/ECDH. "
       "Use Botan >= 3.7.0 on arm64 if possible.")
   endif()
+  # exdsa_ecdhkem.cpp loads the raw SEC1 point encodings through the
+  # botan_pubkey_load_ec*_sec1() FFI functions, which first exist in
+  # Botan 3.10.0. The module checks above pass on the older releases
+  # (3.7-3.9 ship HKDF/ED448/X448/ARGON2 and the FIPS 203/204/205
+  # APIs), so probe the FFI symbol directly and turn the features off
+  # instead of failing the compile. Both flags go off together: the
+  # source list compiles exdsa_ecdhkem.cpp when either one is enabled.
+  # The FFI loader probe links the library, unlike the module macro checks.
+  set(CMAKE_REQUIRED_LIBRARIES ${BOTAN_LIBRARIES})
+  check_cxx_symbol_exists("botan_pubkey_load_ecdsa_sec1" "botan/ffi.h" _botan_has_sec1_loaders)
+  set(CMAKE_REQUIRED_LIBRARIES)
+  if(NOT _botan_has_sec1_loaders)
+    foreach(_sec1_gated_feature ENABLE_CRYPTO_REFRESH ENABLE_PQC)
+      if(${_sec1_gated_feature})
+        set(${_sec1_gated_feature} Off CACHE STRING "Auto -> Off as no support" FORCE)
+        message(WARNING
+          "${_sec1_gated_feature} requires the Botan FFI SEC1 loaders "
+          "(botan_pubkey_load_ec*_sec1, Botan 3.10.0+). Turning it off.")
+      endif()
+    endforeach()
+  endif()
   resolve_feature_state(ENABLE_BLOWFISH "BLOWFISH")
   resolve_feature_state(ENABLE_CAST5 "CAST_128")
   resolve_feature_state(ENABLE_RIPEMD160 "RIPEMD_160")
