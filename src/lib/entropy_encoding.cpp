@@ -369,11 +369,12 @@ decode_structured(const std::string &          structured,
         if (!compute_checksum(entropy, cfg, expected)) {
             return false;
         }
-        /* Compare up to checksum_chars() length (padding may extend). */
-        if (expected.size() > checksum_chars.size()) {
-            expected = expected.substr(0, checksum_chars.size());
+        /* The encoder pads the checksum group to group_size, so trailing padding is
+         * ignored, but every checksum character must be present and must match. */
+        if (checksum_chars.size() < expected.size()) {
+            return false;
         }
-        checksum_ok = (expected == checksum_chars.substr(0, expected.size()));
+        checksum_ok = !checksum_chars.compare(0, expected.size(), expected);
     }
     return true;
 }

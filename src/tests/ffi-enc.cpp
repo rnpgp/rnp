@@ -2983,6 +2983,27 @@ TEST_F(rnp_tests, test_ffi_entropy_encoding_roundtrip)
       rnp_entropy_decode_human_readable(tampered.c_str(), NULL, &decoded_flat));
     assert_rnp_failure(rnp_entropy_encoding_validate(tampered.c_str(), NULL));
 
+    /* Cutting the checksum group short must not let a tampered form validate. */
+    std::string orig(structured);
+    size_t      sp = orig.find(' ');
+    assert_true(sp != std::string::npos);
+    std::string cksum = orig.substr(0, sp);
+    std::string data = orig.substr(sp);
+    /* data is " <id><payload>...": flip a payload character, not the group id. */
+    data[3] = (data[3] == 'A') ? 'B' : 'A';
+    /* With the whole checksum present this is caught. */
+    assert_rnp_failure(rnp_entropy_encoding_validate((cksum + data).c_str(), NULL));
+    /* And it stays caught with the checksum cut down to any shorter length,
+     * including the identifier alone. */
+    for (size_t keep = 1; keep < cksum.size(); keep++) {
+        std::string cut = cksum.substr(0, keep) + data;
+        assert_rnp_failure(rnp_entropy_encoding_validate(cut.c_str(), NULL));
+        assert_rnp_failure(
+          rnp_entropy_decode_human_readable(cut.c_str(), NULL, &decoded_flat));
+    }
+    /* The pristine form still validates. */
+    assert_rnp_success(rnp_entropy_encoding_validate(structured, NULL));
+
     rnp_buffer_destroy(structured);
     rnp_buffer_destroy(flat);
 
