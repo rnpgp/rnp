@@ -1,5 +1,6 @@
 # Contributing to RNP
 
+
 Thanks for your interest in contributing to RNP! This document covers the
 practical bits you'll need to send a pull request that lands smoothly.
 
